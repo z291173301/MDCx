@@ -1,5 +1,9 @@
 name: Build and Release with Python3.13
 
+# 强制启用 Node.js 24，彻底消除弃用警告
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   release:
     types: [published]
@@ -9,133 +13,105 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag"
+        description: "Release Tag (e.g. 220.0.1)"
         required: true
       prerelease:
-        description: "是否作为预发布（pre-release）"
+        description: "Pre-release?"
         required: false
         default: "false"
 
 jobs:
-  init-matrix:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      # https://github.com/actions/runner/issues/1985#issuecomment-1573518052
-      - name: Set matrix
-        id: set-matrix
-        run: |
-          items=()
-
-          # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners
-
-          items+=('{"build": "macos", "os": "macos-latest", "arch": "aarch64"}')
-          items+=('{"build": "windows", "os": "windows-latest", "arch": "x86_64"}')
-
-          # 合并items到json数组
-          matrix="matrix=["
-          for ((i=0; i<${#items[@]}; i++)); do
-            matrix+=" ${items[i]}"
-            if ((i != ${#items[@]}-1)); then
-              matrix+=","
-            fi
-          done
-          matrix+="]"
-
-          # 输出matrix到GITHUB_OUTPUT
-          echo $matrix >> $GITHUB_OUTPUT
-
   build-app:
-    needs: init-matrix
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # 直接定义矩阵，简化逻辑
       matrix:
-        include: ${{fromJson(needs.init-matrix.outputs.matrix)}}
+        include:
+          - build: macos
+            os: macos-latest
+            arch: aarch64
+            ext: dmg
+          - build: windows
+            os: windows-latest
+            arch: x86_64
+            ext: exe
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
+        uses: actions/checkout@v4  # 最新版，兼容 Node24
 
-      - name: "Set up Python"
-        uses: actions/setup-python@v5
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5  # 最新版，兼容 Node24
         with:
           python-version: "3.13"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7  # 升级到 v7，兼容 Node24
         with:
           activate-environment: true
 
-      - name: Set up python env
+      - name: Install dependencies
         run: uv sync --locked --all-extras --dev
 
-      - name: Build macOS app - macOS
-        if: ${{ matrix.build == 'macos' }}
+      # 统一获取版本号（兼容所有触发方式）
+      - name: Resolve version tag
+        id: version
+        shell: bash
         run: |
-          version="${{ github.ref_name }}"
-          # 如果是手动触发，则使用输入的tag
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            version="${{ github.event.inputs.tag }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION=${{ github.event.inputs.tag }}
+          else
+            VERSION=${{ github.ref_name }}
           fi
-          uv run scripts/build.py --create-dmg --version "$version" --debug
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Build Windows app - Windows
-        if: ${{ matrix.build == 'windows' }}
-        env:
-          PYTHONIOENCODING: utf-8
-        run: uv run scripts/build.py --debug
+      # 统一获取发布类型（预发布/正式版）
+      - name: Resolve release type
+        id: release
+        shell: bash
+        run: |
+          PRERELEASE=false
+          if [ "${{ github.event_name }}" = "release" ]; then
+            PRERELEASE=${{ github.event.release.prerelease }}
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PRERELEASE=${{ github.event.inputs.prerelease }}
+          fi
+          echo "prerelease=$PRERELEASE" >> $GITHUB_OUTPUT
 
+      # 读取更新日志
       - name: Get changelog
-        id: get-changelog
+        id: changelog
         shell: bash
         run: |
           if [ ! -s changelog.md ]; then
-            echo "changelog.md 不存在或为空，无法生成 Release 说明。"
-            exit 1
+            echo "changelog.md is empty or missing" && exit 1
           fi
+          EOF="__CHANGELOG_EOF__"
+          echo "content<<$EOF" >> $GITHUB_OUTPUT
+          cat changelog.md >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
 
-          delimiter="__MDCX_CHANGELOG_EOF__"
-          {
-            echo "CHANGELOG<<$delimiter"
-            cat changelog.md
-            echo
-            echo "$delimiter"
-          } >> "$GITHUB_OUTPUT"
+      # 构建 macOS 应用
+      - name: Build macOS app
+        if: matrix.build == 'macos'
+        run: uv run scripts/build.py --create-dmg --version ${{ steps.version.outputs.tag }} --debug
 
-      - name: Resolve release type
-        id: release-type
-        shell: bash
-        run: |
-          prerelease=false
-          if [ "${{ github.event_name }}" = "release" ]; then
-            prerelease="${{ github.event.release.prerelease }}"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.prerelease }}" = "true" ]; then
-            prerelease=true
-          fi
-          echo "prerelease=$prerelease" >> $GITHUB_OUTPUT
+      # 构建 Windows 应用
+      - name: Build Windows app
+        if: matrix.build == 'windows'
+        run: uv run scripts/build.py --debug
+        env:
+          PYTHONIOENCODING: utf-8
 
-      - name: Create Release - macOS
+      # 上传构建产物到 Release（统一逻辑，自动适配系统）
+      - name: Upload release asset
         uses: svenstaro/upload-release-action@v2
-        if: ${{ matrix.build == 'macos' }}
         with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.version.outputs.tag }}
+          file: dist/MDCx.${{ matrix.ext }}
+          asset_name: MDCx-${{ steps.version.outputs.tag }}-${{ matrix.build }}-${{ matrix.arch }}.${{ matrix.ext }}
           overwrite: true
-          asset_name: MDCx-$tag-${{ matrix.build }}-${{ matrix.arch }}${{ matrix.tail }}-${{ github.sha }}.dmg
-          file: dist/MDCx.dmg
-          prerelease: ${{ steps.release-type.outputs.prerelease }}
-          body: ${{ steps.get-changelog.outputs.CHANGELOG }}
-          tag: ${{ github.event.inputs.tag || github.ref }}
-
-      - name: Create Release - Windows
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ matrix.build == 'windows' }}
-        with:
-          overwrite: true
-          asset_name: MDCx-$tag-${{ matrix.build }}-${{ matrix.arch }}${{ matrix.tail }}-${{ github.sha }}.exe
-          file: dist/MDCx.exe
-          prerelease: ${{ steps.release-type.outputs.prerelease }}
-          body: ${{ steps.get-changelog.outputs.CHANGELOG }}
-          tag: ${{ github.event.inputs.tag || github.ref }}
+          prerelease: ${{ steps.release.outputs.prerelease }}
+          body: ${{ steps.changelog.outputs.content }}
