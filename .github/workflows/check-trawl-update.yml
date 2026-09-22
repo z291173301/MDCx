@@ -1,0 +1,113 @@
+name: Check TRAWL Updates
+
+on:
+  schedule:
+    # 每周一 9:00 (UTC+8) 检查一次
+    - cron: '0 1 * * 1'
+  workflow_dispatch:
+    inputs:
+      check_all:
+        description: '检查所有依赖版本'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-update:
+    name: Check TRAWL Latest Version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Get Latest TRAWL Version
+        id: check
+        run: |
+          LATEST=$(curl -sL https://api.github.com/repos/germondai/trawl/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
+          # 本仓库最新已发布的 trawl 便携版版本。
+          # 注意：不能用 releases API 前 N 页反查 trawl tag——主产品数字 tag 发布频繁，
+          # 前 5 条很快全是 MDCx release，会导致 CURRENT 恒 unknown、更新检测永久停摆。
+          # 改用 git tag 全量过滤 trawl-*，取版本序最大者。
+          CURRENT=$(git ls-remote --tags "https://github.com/${{ github.repository }}" 'trawl-*' \
+            | awk -F/ '{print $NF}' | grep -E '^trawl-v?[0-9.]+$' | sort -V | tail -1 \
+            | sed -E 's/^trawl-v?//')
+          CURRENT=${CURRENT:-"unknown"}
+          
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Latest: $LATEST"
+          echo "Current: $CURRENT"
+
+      - name: Check if Update Available
+        id: version
+        run: |
+          LATEST=${{ steps.check.outputs.latest }}
+          CURRENT=${{ steps.check.outputs.current }}
+          
+          # 提取版本号 (去掉 v 前缀)
+          LATEST_NUM=${LATEST#v}
+          CURRENT_NUM=${CURRENT#v}
+          
+          if [ "$LATEST_NUM" != "$CURRENT_NUM" ] && [ "$LATEST_NUM" != "unknown" ] && [ "$CURRENT_NUM" != "unknown" ]; then
+            echo "update_available=true" >> $GITHUB_OUTPUT
+            echo "new_version=$LATEST_NUM" >> $GITHUB_OUTPUT
+            echo "新版本的 $LATEST_NUM 可用！"
+          else
+            echo "update_available=false" >> $GITHUB_OUTPUT
+            echo "已是最新版本"
+          fi
+
+      - name: Create Issue if Update Available
+        if: steps.version.outputs.update_available == 'true'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const newVersion = '${{ steps.version.outputs.new_version }}';
+            const issueTitle = `TRAWL ${newVersion} 可用，建议重新打包`;
+            const issueBody = `
+              ## 上游更新通知
+            
+              TRAWL 已发布新版本 **${newVersion}**
+            
+              ### 建议操作
+              1. 查看 [发布说明](https://github.com/germondai/trawl/releases/tag/v${newVersion})
+              2. 确认无破坏性变更
+              3. 运行 [Package TRAWL Portable](../../actions/workflows/package-trawl.yml) workflow
+              4. 版本号留空（自动打包最新版）
+            
+              ### 当前版本
+              - 已发布便携版版本: ${{ steps.check.outputs.current }}
+              - 最新可用版本: ${newVersion}
+            
+              ---
+              此 issue 由自动检测工作流创建。
+            `;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['automation', 'trawl']
+            });
+            
+            console.log(`Created issue: ${issueTitle}`);
+
+      - name: Comment on Run (if dispatched)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "## TRAWL 版本检查" >> $GITHUB_STEP_SUMMARY
+          echo "- 最新版本: ${{ steps.check.outputs.latest }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 已发布便携版: ${{ steps.check.outputs.current }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.version.outputs.update_available }}" = "true" ]; then
+            echo "- 状态: 🟢 **有新版本可用**" >> $GITHUB_STEP_SUMMARY
+            echo "- 建议: 运行 Package TRAWL Portable workflow（版本留空自动打包最新）" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- 状态: ✅ 已是最新版本" >> $GITHUB_STEP_SUMMARY
+          fi

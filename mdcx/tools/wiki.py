@@ -1,0 +1,681 @@
+# mypy: ignore-errors
+import contextlib
+import random
+import re
+import urllib.parse
+from typing import Any
+
+import bs4
+import zhconv
+
+from ..base.translate import (
+    get_translator_skip_reason,
+    translate_with_engine,
+)
+from ..config.enums import EmbyAction, Language
+from ..config.manager import manager
+from ..config.models import Translator
+from ..config.resources import resources
+from ..manual import ManualConfig
+from ..models.emby import EMbyActressInfo
+from ..signals import signal
+from ..utils.language import is_english
+
+# 维基媒体要求请求方提供可识别的 User-Agent：缺失或纯浏览器 UA 会被划入
+# 「未识别」档（10 req/min），带项目地址的 UA 归入「仅 User-Agent」档
+# （200 req/min）。配合 web_async 中 wikidata/wikipedia 域名的独立限速，
+# 避免批量补全演员信息时触发 429（议题 #125）。
+_WIKI_USER_AGENT = "MDCx/2.1 (https://github.com/cdlongbow/mdcx-diy) mediawiki-client"
+
+
+def _wiki_headers() -> dict[str, str]:
+    """维基百科/维基数据请求头：固定可识别 UA，覆盖随机浏览器指纹。"""
+    return {
+        "User-Agent": _WIKI_USER_AGENT,
+        "Accept": "application/json,text/html;q=0.9,*/*;q=0.8",
+    }
+
+
+async def search_wiki(actor_info: EMbyActressInfo) -> tuple[str | None, str]:
+    """
+    搜索维基百科演员信息
+
+    Args:
+        actor_info: 演员信息, 将填充 wiki 解析结果
+
+    Returns:
+        tuple: wiki 详情页 URL, 日志
+    """
+    try:
+        actor_name = actor_info.name
+        # 优先用日文去查找，其次繁体。wiki的搜索很烂，因为跨语言的原因，经常找不到演员
+        actor_data = resources.get_actor_data(actor_name)
+        actor_name_tw = ""
+        if actor_data["has_name"]:
+            actor_name = actor_data["jp"]
+            actor_name_tw = actor_data["zh_tw"]
+            if actor_name_tw == actor_name:
+                actor_name_tw = ""
+        else:
+            actor_name = zhconv.convert(actor_name, "zh-hant")
+
+        # 请求维基百科搜索页接口
+        url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&search={urllib.parse.quote(actor_name)}&language=zh&format=json"
+        async with manager.acquire_computed() as computed:
+            res, error = await computed.async_client.get_json(url, headers=_wiki_headers())
+        if res is None:
+            return None, f"维基百科搜索结果请求失败: {error}"
+
+        search_results = res.get("search")
+
+        # 搜索无结果
+        if not search_results:
+            if not actor_name_tw:
+                return None, "维基百科暂未收录"
+            url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&search={urllib.parse.quote(actor_name_tw)}&language=zh&format=json"
+            async with manager.acquire_computed() as computed:
+                res, error = await computed.async_client.get_json(url, headers=_wiki_headers())
+            if res is None:
+                return None, f"维基百科搜索结果请求失败: {error}"
+            search_results = res.get("search")
+            # 搜索无结果
+            if not search_results:
+                return None, "维基百科暂未收录"
+
+        for each_result in search_results:
+            description = each_result.get("description")
+
+            # 根据描述信息判断是否为女优
+            if description:
+                description_en = description
+                description_t = description.lower()
+                for each_des in ManualConfig.ACTRESS_WIKI_KEYWORDS:
+                    if each_des.lower() in description_t:
+                        break
+                else:
+                    continue
+                actor_info.taglines = [f"{description}"]
+            else:
+                description_en = ""
+
+            # 通过id请求数据，获取 wiki url
+            wiki_id = each_result.get("id")
+            url = f"https://m.wikidata.org/wiki/Special:EntityData/{wiki_id}.json"
+            async with manager.acquire_computed() as computed:
+                res, error = await computed.async_client.get_json(url, headers=_wiki_headers())
+            if res is None:
+                continue
+            # 获取详细信息并返回URL
+            url, msg = handle_search_res(res, wiki_id, actor_info, description_en)
+            if url is None:
+                # todo log
+                continue
+            return url, msg
+        return None, "未找到匹配的演员信息"
+    except Exception as e:
+        return None, f"搜索过程发生异常: {e!s}"
+
+
+async def get_detail(url: str, url_log: str, actor_info: EMbyActressInfo) -> tuple[bool, str]:
+    """异步版本的_get_wiki_detail函数"""
+    try:
+        ja = "ja." in url
+        emby_on = manager.config.emby_on
+        async with manager.acquire_computed() as computed:
+            res, error = await computed.async_client.get_text(url, headers=_wiki_headers())
+        if res is None:
+            return False, f"维基百科演员页请求失败: {error}"
+        if "noarticletext mw-content-ltr" in res:
+            return False, "维基百科演员页没有该词条"
+
+        av_key = [
+            "女优",
+            "女優",
+            "男优",
+            "男優",
+            "（AV）导演",
+            "AV导演",
+            "AV監督",
+            "成人电影",
+            "成人影片",
+            "映画監督",
+            "アダルトビデオ監督",
+            "电影导演",
+            "配音員",
+            "配音员",
+            "声優",
+            "声优",
+            "グラビアアイドル",
+            "モデル",
+        ]
+        for key in av_key:
+            if key in res:
+                break
+        else:
+            return False, "页面内容未命中关键词，识别为非女优或导演"
+
+        # 处理维基百科内容
+        result, error = await parse_detail(res, url, url_log, actor_info, ja, emby_on)
+        return result, error
+    except Exception as e:
+        return False, f"获取维基百科详情时发生异常: {e!s}"
+
+
+def handle_search_res(
+    res: dict, wiki_id: str, actor_info: EMbyActressInfo, description_en: str
+) -> tuple[str | None, str]:
+    # 更新 descriptions
+    description_zh = ""
+    description_ja = ""
+    try:
+        descriptions = res["entities"][wiki_id]["descriptions"]
+        if descriptions:
+            try:
+                description_zh = descriptions["zh"]["value"]
+                description_ja = descriptions["ja"]["value"]
+            except Exception:
+                pass
+            if description_en:
+                if not description_zh:
+                    en_zh = {
+                        "Japanese AV idol": "日本AV女优",
+                        "Japanese pornographic actress": "日本AV女优",
+                        "Japanese idol": "日本偶像",
+                        "Japanese pornographic film director": "日本AV影片导演",
+                        "Japanese film director": "日本电影导演",
+                        "pornographic actress": "日本AV女优",
+                        "Japanese actress": "日本AV女优",
+                        "gravure idol": "日本写真偶像",
+                    }
+                    temp_zh = en_zh.get(description_en)
+                    if temp_zh:
+                        description_zh = temp_zh
+                if not description_ja:
+                    en_ja: dict[str, str] = {
+                        "Japanese AV idol": "日本のAVアイドル",
+                        "Japanese pornographic actress": "日本のポルノ女優",
+                        "Japanese idol": "日本のアイドル",
+                        "Japanese pornographic film director": "日本のポルノ映画監督",
+                        "Japanese film director": "日本の映画監督",
+                        "pornographic actress": "日本のAVアイドル",
+                        "Japanese actress": "日本のAVアイドル",
+                        "gravure idol": "日本のグラビアアイドル",
+                    }
+                    temp_ja = en_ja.get(description_en)
+                    if temp_ja:
+                        description_ja = temp_ja
+    except Exception:
+        pass
+
+    # 获取 Tmdb，Imdb，Twitter，Instagram等id
+    url_log = ""
+    try:
+        claims = res["entities"][wiki_id]["claims"]
+    except Exception:
+        claims = None
+    if claims:
+
+        def _extract(pid: str) -> str | None:
+            # 单个 ID 独立提取：缺失/异常不影响其它 ID（原实现放同一 try，单点缺失全部丢失）
+            try:
+                v = claims[pid][0]["mainsnak"]["datavalue"]["value"]
+                return str(v) if v else None
+            except Exception:
+                return None
+
+        if v := _extract("P4985"):
+            actor_info.provider_ids["Tmdb"] = v
+            url_log += f"TheMovieDb: https://www.themoviedb.org/person/{v} \n"
+        if v := _extract("P345"):
+            actor_info.provider_ids["Imdb"] = v
+            url_log += f"IMDb: https://www.imdb.com/name/{v} \n"
+        if v := _extract("P2002"):
+            actor_info.provider_ids["Twitter"] = v
+            url_log += f"Twitter: https://twitter.com/{v} \n"
+        if v := _extract("P2003"):
+            actor_info.provider_ids["Instagram"] = v
+            url_log += f"Instagram: https://www.instagram.com/{v} \n"
+        if v := _extract("P9781"):
+            actor_info.provider_ids["Fanza"] = v
+            url_log += f"Fanza: https://actress.dmm.co.jp/-/detail/=/actress_id={v} \n"
+        if v := _extract("P8720"):
+            actor_info.provider_ids["xHamster"] = f"https://xhamster.com/pornstars/{v}"
+            url_log += f"xHamster: https://xhamster.com/pornstars/{v} \n"
+
+    # 获取 wiki url 和 description
+    try:
+        sitelinks = res["entities"][wiki_id]["sitelinks"]
+        if sitelinks:
+            jawiki = sitelinks.get("jawiki")
+            zhwiki = sitelinks.get("zhwiki")
+            ja_url: str = jawiki.get("url") if jawiki else ""
+            zh_url: str = zhwiki.get("url") if zhwiki else ""
+            url_final = ""
+            emby_on = manager.config.emby_on
+            if EmbyAction.ACTOR_INFO_ZH_CN in emby_on:
+                if zh_url:
+                    url_final = zh_url.replace("zh.wikipedia.org/wiki/", "zh.m.wikipedia.org/zh-cn/")
+                elif ja_url:
+                    url_final = ja_url.replace("ja.", "ja.m.")
+
+                if description_zh:
+                    description_zh = zhconv.convert(description_zh, "zh-cn")
+                    actor_info.taglines = [f"{description_zh}"]
+                else:
+                    if description_ja:
+                        actor_info.taglines = [f"{description_ja}"]
+                    elif description_en:
+                        actor_info.taglines = [f"{description_en}"]
+                    if EmbyAction.ACTOR_INFO_TRANSLATE in emby_on and (description_ja or description_en):
+                        actor_info.taglines_translate = True
+
+            elif EmbyAction.ACTOR_INFO_ZH_TW in emby_on:
+                if zh_url:
+                    url_final = zh_url.replace("zh.wikipedia.org/wiki/", "zh.m.wikipedia.org/zh-tw/")
+                elif ja_url:
+                    url_final = ja_url.replace("ja.", "ja.m.")
+
+                if description_zh:
+                    description_zh = zhconv.convert(description_zh, "zh-hant")
+                    actor_info.taglines = [f"{description_zh}"]
+                else:
+                    if description_ja:
+                        actor_info.taglines = [f"{description_ja}"]
+                    elif description_en:
+                        actor_info.taglines = [f"{description_en}"]
+
+                    if EmbyAction.ACTOR_INFO_TRANSLATE in emby_on and (description_ja or description_en):
+                        actor_info.taglines_translate = True
+
+            elif ja_url:
+                url_final = ja_url.replace("ja.", "ja.m.")
+                if description_ja:
+                    actor_info.taglines = [f"{description_ja}"]
+                elif description_zh:
+                    actor_info.taglines = [f"{description_zh}"]
+                elif description_en:
+                    actor_info.taglines = [f"{description_en}"]
+
+            if url_final:
+                url_unquote = urllib.parse.unquote(url_final)
+                url_log += f"Wikipedia: {url_unquote}"
+                return url_final, url_log
+            return None, "维基百科未获取到演员页 url"
+        return None, "维基百科处理失败"
+    except Exception:
+        return None, "维基百科数据处理异常"
+
+
+async def parse_detail(
+    res: str, url: str, url_log: str, actor_info: EMbyActressInfo, ja: bool, emby_on: list[EmbyAction]
+) -> tuple[bool, str]:
+    """处理维基百科页面内容的辅助函数"""
+    try:
+        res = re.sub(r"<a href=\"#cite_note.*?</a>", "", res)  # 替换[1],[2]等注释
+        soup = bs4.BeautifulSoup(res, "lxml")
+        actor_output = soup.find(class_="mw-parser-output")
+
+        if not actor_output or not isinstance(actor_output, bs4.Tag):
+            return False, "无法解析维基百科页面内容"
+
+        # 开头简介
+        overview = _extract_introduction(actor_output)
+
+        # 个人资料
+        actor_info.locations = ["日本"]
+        try:
+            overview = _process_personal_profile(actor_output, actor_info, overview, url, ja, emby_on)
+        except ValueError as e:
+            return False, str(e)
+
+        # 提取人物介绍和个人经历
+        actor_introduce_0 = actor_output.find(id="mf-section-0")
+
+        # 人物
+        with contextlib.suppress(Exception):
+            overview += _extract_section_content(actor_output, actor_introduce_0, "人物", "人物介绍")
+
+        # 简历
+        try:
+            keywords = [
+                "简历",
+                "簡歷",
+                "个人简历",
+                "個人簡歷",
+                "略歴",
+                "経歴",
+                "来歴",
+                "生平",
+                "生平与职业生涯",
+                "略歴・人物",
+            ]
+            for keyword in keywords:
+                content = _extract_section_content(actor_output, actor_introduce_0, keyword, "个人经历")
+                if content:
+                    overview += content
+                    break
+        except Exception:
+            pass
+
+        # 翻译
+        try:
+            overview = await _process_translation(actor_info, overview, ja, emby_on)
+        except Exception as e:
+            return False, f"翻译处理过程中发生异常: {e!s}"
+
+        # 外部链接和最终处理
+        overview = _finalize_overview(overview, url_log, res, actor_info, emby_on)
+        actor_info.overview = overview
+
+        return True, ""
+
+    except Exception as e:
+        return False, f"处理维基百科页面内容时发生异常: {e!s}"
+
+
+def _extract_introduction(actor_output: bs4.Tag) -> str:
+    """提取开头简介"""
+    actor_introduce_0 = actor_output.find(id="mf-section-0")
+    overview = ""
+    if not actor_introduce_0 or not isinstance(actor_introduce_0, bs4.Tag):
+        return overview
+
+    begin_intro = actor_introduce_0.find_all("p")
+    for each in begin_intro:
+        if isinstance(each, bs4.Tag):
+            info = each.get_text("", strip=True)
+            overview += info + "\n"
+    return overview
+
+
+def _iter_infobox_pairs(actor_profile: bs4.Tag):
+    """按行配对 infobox 的键值单元格（议题 #176）。
+
+    旧实现全局收集 `th[scope=row]` 与 `td[style=""][colspan 缺省]` 两个列表再比长度：
+    日文 ActorActress 模板的 td 一律带 `style="text-align:left;"`，一个都收集不到；
+    表头（仅 th colspan=2）与页脚（仅 td colspan=2）又会让两个列表长度错位——
+    于是正常页面也报「列数不匹配」并整表跳过，生日/出生地全部丢失。
+    改为逐 tr 配对：行内 `th[scope=row]` 配该行第一个非 colspan 的 td，
+    标题行/分区行/页脚行天然不成对、直接跳过，互不干扰。
+    """
+    for tr in actor_profile.find_all("tr"):
+        if not isinstance(tr, bs4.Tag) or tr.find_parent("table") is not actor_profile:
+            continue
+        key_cell = tr.find("th", attrs={"scope": "row"})
+        if not isinstance(key_cell, bs4.Tag):
+            continue
+        value_cell: bs4.Tag | None = None
+        for td in tr.find_all("td", recursive=False):
+            if not isinstance(td, bs4.Tag) or td.get("colspan"):
+                continue
+            value_cell = td
+            break
+        if value_cell is None:
+            continue
+        yield key_cell, value_cell
+
+
+def _process_personal_profile(
+    actor_output: bs4.Tag, actor_info: EMbyActressInfo, overview: str, url: str, ja: bool, emby_on: list[EmbyAction]
+) -> str:
+    """处理个人资料表格"""
+    actor_profile = actor_output.find("table", class_=["infobox", "infobox vcard plainlist"])
+    if not actor_profile or not isinstance(actor_profile, bs4.Tag):
+        return overview
+
+    pairs = list(_iter_infobox_pairs(actor_profile))
+    if not pairs:
+        # 页面格式变化时降级：保留已提取内容，跳过表格解析（原 raise 导致整页失败、已提取内容也丢弃）
+        signal.show_log_text(f"⚠️ wiki 个人资料表格未解析到键值行，跳过表格解析: {url}")
+        return overview
+
+    bday_element = actor_output.find(class_="bday")
+    bday = f"({bday_element.get_text('', strip=True)})" if bday_element and isinstance(bday_element, bs4.Tag) else ""
+
+    overview += "\n===== 个人资料 =====\n"
+    for key_cell, value_cell in pairs:
+        info_left = key_cell.get_text().strip()
+        info_right = value_cell.get_text("", strip=True).replace(bday, "")
+        info = info_left + ": " + info_right
+        overview += info + "\n"
+
+        _process_birth_info(info_left, info_right, actor_info)
+        _process_location_info(info_left, info_right, actor_info, ja, emby_on)
+
+    return overview
+
+
+def _process_birth_info(info_left: str, info_right: str, actor_info: EMbyActressInfo) -> None:
+    """处理出生信息"""
+    if "出生" not in info_left and "生年" not in info_left:
+        return
+
+    result = re.findall(r"(\d+)年(\d+)月(\d+)日", info_right)
+    if not result:
+        return
+
+    result = result[0]
+    year = str(result[0]) if len(result[0]) == 4 else "19" + str(result[0]) if len(result[0]) == 2 else "1970"
+    month = str(result[1]) if len(result[1]) == 2 else "0" + str(result[1])
+    day = str(result[2]) if len(result[2]) == 2 else "0" + str(result[2])
+    birthday = f"{year}-{month}-{day}"
+    actor_info.birthday = birthday
+    actor_info.year = year
+
+
+def _process_location_info(
+    info_left: str, info_right: str, actor_info: EMbyActressInfo, ja: bool, emby_on: list[EmbyAction]
+) -> None:
+    """处理出身地信息"""
+    if "出身地" not in info_left and "出生地" not in info_left and "出道地点" not in info_left:
+        return
+
+    # 议题 #176: 旧实现 re.findall(r"[^ →]+") 按空格切第一段，「日本 埼玉县」只取到
+    # 「日本」被当纯国名丢弃（丢 prefecture），「日本, 福島県」取到「日本,」带脏标点。
+    # 改为：箭头格式取起点，再剥离前导国名与紧随的分隔符，剩余整体作为地名。
+    location = info_right.split("→")[0].strip()
+    location = re.sub(r"^日本[\s・·,，、]*", "", location)
+    location = location.replace("日本・", "").replace("日本·", "").strip()
+    if not location:
+        return
+
+    if ja and EmbyAction.ACTOR_INFO_TRANSLATE in emby_on and EmbyAction.ACTOR_INFO_JA not in emby_on:
+        location = location.replace("県", "县")
+        if EmbyAction.ACTOR_INFO_ZH_CN in emby_on:
+            location = zhconv.convert(location, "zh-cn")
+        elif EmbyAction.ACTOR_INFO_ZH_TW in emby_on:
+            location = zhconv.convert(location, "zh-hant")
+
+    actor_info.locations = [f"日本·{location}"]
+
+
+def _extract_section_content(
+    actor_output: bs4.Tag, actor_introduce_0: Any, section_name: str, section_title: str
+) -> str:
+    """提取指定章节内容的通用函数"""
+    if not actor_introduce_0 or not isinstance(actor_introduce_0, bs4.Tag):
+        return ""
+
+    toctext_element = actor_introduce_0.find(class_="toctext", string=section_name)
+    if not toctext_element or not isinstance(toctext_element, bs4.Tag):
+        return ""
+
+    sibling = toctext_element.find_previous_sibling()
+    if not sibling or not isinstance(sibling, bs4.Tag) or not hasattr(sibling, "string") or not sibling.string:
+        return ""
+
+    s = sibling.string
+    if not s:
+        return ""
+
+    ff = actor_output.find(id=f"mf-section-{s}")
+    if not ff or not isinstance(ff, bs4.Tag):
+        return ""
+
+    content = f"\n===== {section_title} =====\n"
+    actor_1 = ff.find_all(["p", "li"])
+    for each in actor_1:
+        if isinstance(each, bs4.Tag):
+            info = each.get_text("", strip=True)
+            content += info + "\n"
+
+    return content
+
+
+async def _process_translation(actor_info: EMbyActressInfo, overview: str, ja: bool, emby_on: list[EmbyAction]) -> str:
+    """处理翻译逻辑"""
+    tag_trans = actor_info.taglines_translate
+    if not (ja or tag_trans) or EmbyAction.ACTOR_INFO_TRANSLATE not in emby_on or EmbyAction.ACTOR_INFO_JA in emby_on:
+        return overview
+
+    translate_by_list = manager.config.translate_config.translate_by.copy()
+    random.shuffle(translate_by_list)
+
+    if not translate_by_list:
+        return overview
+
+    overview_req = overview if ja and overview else ""
+    tag_req = actor_info.taglines[0] if tag_trans else ""
+
+    # 英文标签单独翻译
+    if tag_req and is_english(tag_req):
+        tag_req = await _translate_english_tag(tag_req, translate_by_list, actor_info)
+
+    # 翻译内容
+    if overview_req or tag_req:
+        overview = await _translate_content(tag_req, overview_req, translate_by_list, actor_info, overview)
+
+    return overview
+
+
+def _get_actor_info_translate_language(emby_on: list[EmbyAction]) -> Language:
+    if EmbyAction.ACTOR_INFO_ZH_TW in emby_on:
+        return Language.ZH_TW
+    return Language.ZH_CN
+
+
+async def _translate_english_tag(tag_req: str, translate_by_list: list[Translator], actor_info: EMbyActressInfo) -> str:
+    """翻译英文标签"""
+    target_language = _get_actor_info_translate_language(manager.config.emby_on)
+    for each in translate_by_list:
+        if skip_reason := get_translator_skip_reason(each):
+            signal.add_log(f"🟡 Translation skipped!({each.capitalize()}) {skip_reason}")
+            continue
+
+        result = await translate_with_engine(
+            each,
+            tag_req,
+            "",
+            title_language=target_language,
+            outline_language=target_language,
+        )
+        if result.error:
+            signal.add_log(f"🔴 Translation failed!({each.capitalize()}) Error: {result.error}")
+            continue
+        actor_info.taglines = [result.title]
+        return ""  # 清空tag_req表示已翻译
+    return tag_req
+
+
+async def _translate_content(
+    tag: str, overview_req: str, translators: list[Translator], info: EMbyActressInfo, overview: str
+) -> str:
+    """翻译主要内容"""
+    target_language = _get_actor_info_translate_language(manager.config.emby_on)
+    for each in translators:
+        if skip_reason := get_translator_skip_reason(each):
+            signal.add_log(f"🟡 Translation skipped!({each.capitalize()}) {skip_reason}")
+            continue
+
+        result = await translate_with_engine(
+            each,
+            tag,
+            overview_req,
+            title_language=target_language,
+            outline_language=target_language,
+        )
+        if result.error:
+            signal.add_log(f"🔴 Translation failed!({each.capitalize()}) Error: {result.error}")
+            continue
+        translated = False
+        if tag and result.translated_title:
+            info.taglines = [result.title]
+            translated = True
+        if overview_req and result.translated_outline:
+            overview = _clean_translated_overview(result.outline)
+            translated = True
+        if translated:
+            break
+    return overview
+
+
+def _clean_translated_overview(overview: str) -> str:
+    """清理翻译后的概述文本"""
+    replacements = [
+        ("\n= = = = = = = = = =个人资料\n", "\n===== 个人资料 =====\n"),
+        ("\n=====人物介绍\n", "\n===== 人物介绍 =====\n"),
+        ("\n= = = = =个人鉴定= = = = =\n", "\n===== 个人经历 =====\n"),
+        ("\n=====个人日历=====\n", "\n===== 个人经历 =====\n"),
+        ("\n=====个人费用=====\n", "\n===== 个人资料 =====\n"),
+        ("\n===== 个人协助 =====\n", "\n===== 人物介绍 =====\n"),
+        ("\n===== 个人经济学 =====\n", "\n===== 个人经历 =====\n"),
+        ("\n===== 个人信息 =====\n", "\n===== 个人资料 =====\n"),
+        ("\n===== 简介 =====\n", "\n===== 人物介绍 =====\n"),
+        (":", ": "),
+    ]
+
+    for old, new in replacements:
+        overview = overview.replace(old, new)
+
+    overview += "\n"
+
+    if "=====\n" not in overview:
+        overview = overview.replace(" ===== 个人资料 ===== ", "\n===== 个人资料 =====\n")
+        overview = overview.replace(" ===== 人物介绍 ===== ", "\n===== 人物介绍 =====\n")
+        overview = overview.replace(" ===== 个人经历 ===== ", "\n===== 个人经历 =====\n")
+
+    return overview
+
+
+def _finalize_overview(
+    overview: str, url_log: str, res: str, actor_info: EMbyActressInfo, emby_on: list[EmbyAction]
+) -> str:
+    """最终处理概述信息"""
+    # 外部链接
+    overview += f"\n===== 外部链接 =====\n{url_log}"
+    overview = overview.replace("\n", "<br>").replace("这篇报道有多个问题。请协助改善和在笔记页上的讨论。", "").strip()
+
+    # 设置默认标签
+    if not actor_info.taglines:
+        if "AV監督" in res:
+            if EmbyAction.ACTOR_INFO_ZH_CN in emby_on:
+                actor_info.taglines = ["日本成人影片导演"]
+            elif EmbyAction.ACTOR_INFO_ZH_TW in emby_on:
+                actor_info.taglines = ["日本成人影片導演"]
+            elif EmbyAction.ACTOR_INFO_JA in emby_on:
+                actor_info.taglines = ["日本のAV監督"]
+        elif "女優" in res or "女优" in res:
+            if EmbyAction.ACTOR_INFO_ZH_CN in emby_on:
+                actor_info.taglines = ["日本AV女优"]
+            elif EmbyAction.ACTOR_INFO_ZH_TW in emby_on:
+                actor_info.taglines = ["日本AV女優"]
+            elif EmbyAction.ACTOR_INFO_JA in emby_on:
+                actor_info.taglines = ["日本のAV女優"]
+
+    # 语言特定处理
+    if EmbyAction.ACTOR_INFO_ZH_TW in emby_on and overview:
+        overview = zhconv.convert(overview, "zh-hant")
+    elif EmbyAction.ACTOR_INFO_ZH_CN in emby_on and overview:
+        overview = zhconv.convert(overview, "zh-cn")
+
+    if EmbyAction.ACTOR_INFO_ZH_TW in emby_on and actor_info.taglines:
+        actor_info.taglines = [zhconv.convert(each, "zh-hant") for each in actor_info.taglines]
+    elif EmbyAction.ACTOR_INFO_ZH_CN in emby_on and actor_info.taglines:
+        actor_info.taglines = [zhconv.convert(each, "zh-cn") for each in actor_info.taglines]
+    elif EmbyAction.ACTOR_INFO_JA in emby_on:
+        overview = overview.replace("== 个人资料 ==", "== 個人情報 ==")
+        overview = overview.replace("== 人物介绍 ==", "== 人物紹介 ==")
+        overview = overview.replace("== 个人经历 ==", "== 個人略歴 ==")
+        overview = overview.replace("== 外部链接 ==", "== 外部リンク ==")
+
+    return overview

@@ -1,0 +1,59 @@
+name: Build Linux Executable
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install system dependencies
+        run: >
+          sudo apt-get update -y && sudo apt-get install -y
+          libglib2.0-0 libegl1 libgl1 libfontconfig1
+          libqt6core6 libqt6gui6 libqt6widgets6 libqt6network6 libqt6xml6
+          libdbus-1-3 libxkbcommon0 libopengl0
+          libxcb-cursor0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0
+          libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          activate-environment: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Restore SR tools cache
+        uses: actions/cache@v4
+        with:
+          path: build/sr_tools
+          key: sr-tools-linux
+
+      - name: Fetch SR tools
+        env:
+          PYTHONIOENCODING: utf-8
+        run: uv run python -m scripts.fetch_sr_tools --platform linux
+
+      - name: Build Linux executable
+        env:
+          PYTHONIOENCODING: utf-8
+        shell: bash
+        run: |
+          version=$(uv run python -c "from mdcx.consts import LOCAL_VERSION; print(LOCAL_VERSION)")
+          uv run scripts/build.py --version "${version//[[:space:]]/}" --debug
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: mdcx-linux-x86_64
+          path: dist/MDCx

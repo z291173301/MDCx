@@ -1,0 +1,26 @@
+diff --git a/packages/tiers/src/tiers/3.ts b/packages/tiers/src/tiers/3.ts
+index a8d9779..397cba7 100644
+--- a/packages/tiers/src/tiers/3.ts
++++ b/packages/tiers/src/tiers/3.ts
+@@ -73,7 +73,7 @@ export async function runTier3(
+     const gotoErr = await page
+       .goto(url, {
+         waitUntil: "domcontentloaded",
+-        timeout: Math.min(maxTimeout, 30_000),
++        timeout: Math.min(maxTimeout, 90_000),
+       })
+       .catch((e: Error) => e)
+ 
+diff --git a/packages/tiers/src/tiers/4.ts b/packages/tiers/src/tiers/4.ts
+index cfb74dd..093cfa0 100644
+--- a/packages/tiers/src/tiers/4.ts
++++ b/packages/tiers/src/tiers/4.ts
+@@ -72,7 +72,7 @@ export async function runTier4(
+     const gotoErr = await page
+       .goto(url, {
+         waitUntil: "domcontentloaded",
+-        timeout: Math.min(maxTimeout, 30_000),
++        timeout: Math.min(maxTimeout, 90_000),
+       })
+       .catch((e: Error) => e)
+ 

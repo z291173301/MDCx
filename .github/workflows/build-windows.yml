@@ -1,0 +1,51 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-2025
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          activate-environment: true
+
+      - name: Install locked dependencies
+        shell: bash
+        run: uv sync --locked --all-extras --dev
+
+      - name: Restore SR tools cache
+        uses: actions/cache@v4
+        with:
+          path: build/sr_tools
+          key: sr-tools-windows
+
+      - name: Fetch SR tools
+        shell: bash
+        env:
+          PYTHONIOENCODING: utf-8
+        run: uv run python -m scripts.fetch_sr_tools --platform windows
+
+      - name: Build Windows EXE
+        env:
+          PYTHONIOENCODING: utf-8
+        shell: pwsh
+        run: |
+          $version = uv run python -c "from mdcx.consts import LOCAL_VERSION; print(LOCAL_VERSION)"
+          uv run scripts/build.py --version $version.Trim() --debug
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: MDCx-Windows-EXE
+          path: dist/MDCx.exe

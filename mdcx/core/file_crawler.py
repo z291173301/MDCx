@@ -1,0 +1,873 @@
+import asyncio
+import re
+import time
+from contextlib import suppress
+from copy import deepcopy
+from dataclasses import dataclass
+from dataclasses import replace as _dc_replace
+from datetime import date
+from itertools import chain
+from typing import TYPE_CHECKING
+
+from ..config.enums import FixedScrapingType
+from ..config.models import FieldConfig, FieldPriorityConfig, Language, Website
+from ..gen.field_enums import CrawlerResultFields
+from ..manual import ManualConfig
+from ..models.enums import FileMode
+from ..models.flags import Flags
+from ..models.log_buffer import LogBuffer
+from ..models.model_types import CrawlerInput, CrawlerResponse, CrawlerResult, CrawlersResult, CrawlTask, FailureReason
+from ..number import is_uncensored
+from ..utils.dataclass import update
+from ..utils.xml import XML_TEXT_FIELDS, normalize_xml_text
+from .mosaic import is_guochan_mosaic, is_plain_uncensored_mosaic, normalize_mosaic
+
+if TYPE_CHECKING:
+    from ..config.models import Config
+    from ..crawler import CrawlerProviderProtocol
+
+
+MULTI_LANGUAGE_WEBSITES = [  # 支持多语言, language 参数有意义
+    Website.AIRAV_CC,
+    Website.IQQTV,
+    Website.JAVLIBRARY,
+]
+
+# 整批站点请求的总超时（秒）：防止单个慢站点拖垮整批抓取
+# 借鉴 jav-pack-api 的 AbortSignal.timeout——主流程等待以总超时为界，超时未返回的站点降级为失败
+_CRAWLER_BATCH_TIMEOUT = 60.0
+
+# 同番号刮削结果的 TTL 缓存（秒）：同批次中相同番号的文件（如多 CD、重复文件）直接复用结果，
+# 避免对同一番号重复请求所有站点。缓存键包含文件路径，避免不同来源的同番号文件互相污染。
+# 借鉴 jav-pack-api aggregator 的按番号缓存设计。
+_CRAWL_CACHE_TTL = 90.0
+_CRAWL_CACHE_MAX_ENTRIES = 512
+_crawl_cache: dict[tuple[str, str], tuple[float, CrawlersResult]] = {}
+_crawl_cache_lock: asyncio.Lock = asyncio.Lock()
+SPECIFIC_CRAWLER_TITLE_LANGUAGE_SITES = {
+    Website.AIRAV_CC,
+    Website.IQQTV,
+    Website.AVSEX,
+    Website.JAVLIBRARY,
+    Website.MADOUQU,
+    Website.MADOUCLUB,
+    Website.LULUBAR,
+}
+
+
+def sprint_source(website: Website, language: Language) -> str:
+    if language == Language.UNDEFINED:
+        return f"{website.value}"
+    return f"{website.value} ({language.value})"
+
+
+def _normalize_release_value(value: object) -> str:
+    release = str(value).strip()
+    if not release:
+        return ""
+    release = release.replace("/", "-").replace(".", "-")
+    match = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", release)
+    if not match:
+        match = re.search(r"(\d{4})(\d{2})(\d{2})", release)
+    if not match:
+        return ""
+    year, month, day = (int(part) for part in match.groups())
+    try:
+        return date(year, month, day).strftime("%Y-%m-%d")
+    except ValueError:
+        return ""
+
+
+def _is_suren_number(file_number: str, short_number: str) -> bool:
+    return bool(short_number) or "SIRO" in file_number.upper()
+
+
+def _crawl_cache_key(task_input: CrawlerInput) -> tuple[str, str] | None:
+    """生成同番号刮削缓存键, 无文件路径或番号时返回 None（不缓存）."""
+    number = task_input.number or ""
+    file_path = task_input.file_path
+    if not number or not file_path:
+        return None
+    return str(file_path), number
+
+
+async def _crawl_cache_get(key: tuple[str, str]) -> CrawlersResult | None:
+    """读取缓存, 命中且未过期时返回深拷贝, 否则返回 None."""
+    async with _crawl_cache_lock:
+        entry = _crawl_cache.get(key)
+        if not entry:
+            return None
+        cached_at, result = entry
+        if time.monotonic() - cached_at > _CRAWL_CACHE_TTL:
+            _crawl_cache.pop(key, None)
+            return None
+        return deepcopy(result)
+
+
+async def _crawl_cache_put(key: tuple[str, str], result: CrawlersResult) -> None:
+    """写入缓存（深拷贝存储, 避免外部修改污染缓存；锁保护防止淘汰逻辑迭代时 dict 变化）."""
+    async with _crawl_cache_lock:
+        _crawl_cache[key] = (time.monotonic(), deepcopy(result))
+        if len(_crawl_cache) > _CRAWL_CACHE_MAX_ENTRIES:
+            now = time.monotonic()
+            expired = [k for k, (cached_at, _) in _crawl_cache.items() if now - cached_at > _CRAWL_CACHE_TTL]
+            for k in expired:
+                _crawl_cache.pop(k, None)
+            if len(_crawl_cache) > _CRAWL_CACHE_MAX_ENTRIES:
+                newest = sorted(_crawl_cache.items(), key=lambda item: item[1][0], reverse=True)[
+                    :_CRAWL_CACHE_MAX_ENTRIES
+                ]
+                _crawl_cache.clear()
+                _crawl_cache.update(newest)
+
+
+@dataclass(frozen=True)
+class ScrapeClassification:
+    scraping_type: FixedScrapingType
+    scraping_type_source: str
+    sites: list[Website] | set[Website] | None = None
+    website: Website | None = None
+    mosaic: str = ""
+
+
+def classify_scrape_task(task_input: CrawlTask, config: "Config", use_fixed_type: bool = True) -> ScrapeClassification:
+    file_number = task_input.number or ""
+    file_path = task_input.file_path
+    file_path_str = str(file_path).lower() if file_path else ""
+    mosaic = task_input.mosaic
+
+    fixed_type = config.fixed_scraping_type
+    fixed_sites = {
+        FixedScrapingType.YOUMA: config.website_youma,
+        FixedScrapingType.WUMA: config.website_wuma,
+        FixedScrapingType.SUREN: config.website_suren,
+        FixedScrapingType.FC2: config.website_fc2,
+        FixedScrapingType.OUMEI: config.website_oumei,
+        FixedScrapingType.GUOCHAN: config.website_guochan,
+    }
+    if use_fixed_type and fixed_type != FixedScrapingType.AUTO:
+        return ScrapeClassification(fixed_type, "fixed", sites=fixed_sites[fixed_type])
+
+    if (
+        is_guochan_mosaic(mosaic)
+        or (re.search(r"([^A-Z]|^)MD[A-Z-]*\d{4,}", file_number) and "MDVR" not in file_number)
+        or re.search(r"MKY-[A-Z]+-\d{3,}", file_number)
+    ):
+        return ScrapeClassification(FixedScrapingType.GUOCHAN, "auto", sites=config.website_guochan, mosaic="国产")
+
+    if file_number.startswith("DLID"):
+        return ScrapeClassification(FixedScrapingType.AUTO, "auto", website=Website.GETCHU)
+
+    if "getchu" in file_path_str or "里番" in file_path_str or "裏番" in file_path_str:
+        return ScrapeClassification(FixedScrapingType.AUTO, "auto", website=Website.GETCHU)
+
+    if "mywife" in file_path_str:
+        return ScrapeClassification(FixedScrapingType.YOUMA, "auto", website=Website.MYWIFE)
+
+    if "FC2" in file_number.upper():
+        file_number_1 = re.search(r"\d{5,}", file_number)
+        if file_number_1:
+            return ScrapeClassification(FixedScrapingType.FC2, "auto", sites=config.website_fc2)
+        if not use_fixed_type:
+            return ScrapeClassification(FixedScrapingType.AUTO, "auto")
+        # 固定 FC2 模式但番号格式不识别时，返回空站点列表而非抛异常，让上层正常处理"无结果"
+        return ScrapeClassification(FixedScrapingType.FC2, "fixed", sites=[])
+
+    if re.search(r"[^.]+\.\d{2}\.\d{2}\.\d{2}", file_number) or (
+        "欧美" in file_path_str and "东欧美" not in file_path_str
+    ):
+        return ScrapeClassification(FixedScrapingType.OUMEI, "auto", sites=config.website_oumei)
+
+    if is_plain_uncensored_mosaic(mosaic):
+        return ScrapeClassification(FixedScrapingType.WUMA, "auto", sites=config.website_wuma)
+
+    if _is_suren_number(file_number, task_input.short_number):
+        return ScrapeClassification(FixedScrapingType.SUREN, "auto", sites=config.website_suren)
+
+    if is_uncensored(file_number):
+        return ScrapeClassification(FixedScrapingType.WUMA, "auto", sites=config.website_wuma)
+
+    if re.match(r"\D{2,}00\d{3,}", file_number) and "-" not in file_number and "_" not in file_number:
+        return ScrapeClassification(FixedScrapingType.YOUMA, "auto", sites={Website.DMM})
+
+    return ScrapeClassification(FixedScrapingType.YOUMA, "auto", sites=config.website_youma)
+
+
+def apply_scrape_classification(result: CrawlersResult, classification: ScrapeClassification) -> None:
+    result.scraping_type = classification.scraping_type
+    result.scraping_type_source = classification.scraping_type_source
+
+
+def classify_existing_scrape_result(
+    task_input: CrawlTask, result: CrawlersResult, config: "Config", use_fixed_type: bool = True
+) -> ScrapeClassification:
+    # 读取已有 NFO 时保留文件上下文，只用 NFO 中更可信的番号和马赛克覆盖分类输入。
+    classification_input = update(
+        task_input,
+        {
+            "number": result.number or task_input.number,
+            "mosaic": result.mosaic or task_input.mosaic,
+        },
+    )
+    classification = classify_scrape_task(classification_input, config, use_fixed_type=use_fixed_type)
+    apply_scrape_classification(result, classification)
+    return classification
+
+
+def _deal_res(res: CrawlersResult) -> CrawlersResult:
+    res.mosaic = normalize_mosaic(res.mosaic)
+
+    # 标签
+    tag = re.sub(r",\d+[kKpP],", ",", res.tag)
+    tag_rep_word = [",HD高画质", ",HD高畫質", ",高画质", ",高畫質"]
+    for each in tag_rep_word:
+        if tag.endswith(each):
+            tag = tag.replace(each, "")
+        tag = tag.replace(each + ",", ",")
+    res.tag = tag
+
+    # 发行日期
+    res.release = _normalize_release_value(res.release)
+
+    # 评分
+    if res.score:
+        try:
+            res.score = f"{float(res.score):.1f}"
+        except ValueError:
+            res.score = ""
+
+    # publisher
+    if not res.publisher:
+        res.publisher = res.studio
+
+    # 字符转义，避免显示问题
+    for each in XML_TEXT_FIELDS:
+        setattr(res, each, normalize_xml_text(getattr(res, each)))
+
+    return res
+
+
+class FileScraper:
+    def __init__(self, config: "Config", crawler_provider: "CrawlerProviderProtocol"):
+        self.config = config
+        self.crawler_provider = crawler_provider
+
+    @staticmethod
+    def _is_invalid_runtime(value: object) -> bool:
+        runtime = str(value).strip()
+        if not runtime:
+            return False
+        if re.fullmatch(r"0+(?:\.0+)?", runtime):
+            return True
+        return False
+
+    @staticmethod
+    def _normalize_release(value: object) -> str:
+        return _normalize_release_value(value)
+
+    @staticmethod
+    def _normalize_year(value: object) -> str:
+        year = str(value).strip()
+        if not year:
+            return ""
+        if not (match := re.search(r"\d{4}", year)):
+            return ""
+        year = match.group()
+        return "" if year == "0000" else year
+
+    @staticmethod
+    def _get_cached_site_result(
+        all_res: dict[tuple[Website, Language], CrawlerResult],
+        site: Website,
+        language: Language,
+    ) -> CrawlerResult | None:
+        if site not in MULTI_LANGUAGE_WEBSITES:
+            language = Language.UNDEFINED
+        if data := all_res.get((site, language)):
+            return data
+        return all_res.get((site, Language.UNDEFINED))
+
+    async def _call_crawler(
+        self, task_input: CrawlerInput, website: Website, timeout: float | None = 30
+    ) -> CrawlerResponse:
+        """
+        调用指定网站的爬虫函数
+
+        Args:
+            task_input (CrawlerInput): 包含爬虫所需的输入数据
+            website (str): 网站名称
+            timeout (float | None): 请求超时时间，默认为30秒
+
+        Raises:
+            asyncio.TimeoutError: 如果请求超时
+            Exception: 爬虫函数抛出的异常
+        """
+        short_number = task_input.short_number
+        original_number = task_input.number
+
+        # 259LUXU-1111， mgstage 和 avsex 之外使用 LUXU-1111（素人番号时，short_number有值，不带前缀数字；反之，short_number为空)
+        if short_number and website not in (Website.MGSTAGE, Website.AVSEX):
+            task_input.number = short_number
+
+        try:
+            c = await self.crawler_provider.get(website)
+
+            # 移除外层超时限制，让内层的 GatherGroup 处理超时和重试
+            # 原有的超时机制已由各个 HTTP 请求单独处理
+            r = await c.run(task_input)
+            return r
+        finally:
+            task_input.number = original_number
+
+    async def _call_crawlers(
+        self, task_input: CrawlerInput, classification: ScrapeClassification | list[Website] | set[Website]
+    ) -> CrawlersResult | None:
+        """
+        获取一组网站的数据：按照设置的网站组，请求各字段数据，并返回最终的数据
+        采用按需请求策略：仅请求必要的网站，失败时才请求下一优先级网站
+        """
+        use_type_field_config = isinstance(classification, ScrapeClassification)
+        if not isinstance(classification, ScrapeClassification):
+            classification = ScrapeClassification(FixedScrapingType.AUTO, "compat", sites=classification)
+        # 同番号缓存命中：同批次相同番号文件直接复用结果，跳过整批站点请求
+        cache_key = _crawl_cache_key(task_input)
+        if cache_key:
+            cached = await _crawl_cache_get(cache_key)
+            if cached is not None:
+                return cached
+        type_sites = list(classification.sites or [])
+        type_site_set = set(type_sites)
+        all_res: dict[tuple[Website, Language], CrawlerResult] = {}
+        failed: set[tuple[Website, Language]] = set()  # 记录失败的网站
+        failure_reasons: dict[Website, tuple[FailureReason, str]] = {}  # 记录各站点的结构化失败原因
+        reduced = CrawlersResult.empty()
+        req_info: list[str] = []  # 请求信息列表
+        try_all_images = bool(
+            getattr(self.config, "scrape_like", "") == "info"
+            and getattr(self.config, "field_priority_try_all_images", False)
+        )
+        image_fields = {CrawlerResultFields.THUMB, CrawlerResultFields.POSTER}
+
+        # 预收集所有需要请求的 (site, language) 键，并发请求去重网站
+        all_needed_keys: set[tuple[Website, Language]] = set()
+        for field in ManualConfig.REDUCED_FIELDS:
+            f_config = self.config.get_field_config(field)
+            type_field_config: FieldConfig | FieldPriorityConfig
+            if use_type_field_config and hasattr(self.config, "get_type_field_config"):
+                type_field_config = self.config.get_type_field_config(classification.scraping_type, field)
+            else:
+                type_field_config = f_config
+
+            if getattr(type_field_config, "skip", False) or getattr(f_config, "skip", False):
+                continue
+
+            f_sites = [s for s in type_field_config.site_prority if s in type_site_set]
+            f_lang = f_config.language
+            for site in f_sites:
+                key = (site, f_lang)
+                if site not in MULTI_LANGUAGE_WEBSITES:
+                    key = (site, Language.UNDEFINED)
+                all_needed_keys.add(key)
+
+        # 并发请求所有尚未请求的网站
+        async def _fetch_site(key: tuple[Website, Language]) -> None:
+            site, lang = key
+            try:
+                ti = _dc_replace(task_input, language=lang, org_language=lang)
+                if site in MULTI_LANGUAGE_WEBSITES and lang == Language.UNDEFINED:
+                    ti = _dc_replace(ti, language=Language.JP, org_language=Language.JP)
+                web_data = await self._call_crawler(ti, site)
+                req_info.append(f"{sprint_source(*key)} ({web_data.debug_info.execution_time:.2f}s)")
+                if web_data.data is None:
+                    if e := web_data.debug_info.error:
+                        raise e
+                    # 议题 #90：请求成功但未收录该条目 ≠ 站点不可用。不进 failed、不缓存，
+                    # 后续字段合并不跳过该站；仅站点级失败（超时/请求异常）才跳过。
+                    return
+                all_res[key] = web_data.data
+                if site in MULTI_LANGUAGE_WEBSITES and (site, Language.UNDEFINED) not in all_res:
+                    all_res[(site, Language.UNDEFINED)] = web_data.data
+            except TimeoutError:
+                failed.add(key)
+                failure_reasons.setdefault(site, (FailureReason.TIMEOUT, "请求超时"))
+            except Exception as e:
+                failed.add(key)
+                failure_reasons.setdefault(site, (FailureReason.classify(e), str(e).strip() or e.__class__.__name__))
+
+        pending_keys = [k for k in all_needed_keys if k not in all_res and k not in failed]
+        if pending_keys:
+            # 带总超时的并发请求：避免单个慢站点拖垮整批抓取
+            tasks = {asyncio.ensure_future(_fetch_site(k)): k for k in pending_keys}
+            done, pending = await asyncio.wait(
+                tasks,
+                timeout=_CRAWLER_BATCH_TIMEOUT,
+                return_when=asyncio.ALL_COMPLETED,
+            )
+            # 超时未完成的站点取消并标记失败，后续字段合并按失败跳过（不再二次请求）
+            for task in pending:
+                key = tasks[task]
+                task.cancel()
+                site, _lang = key
+                failed.add(key)
+                failure_reasons.setdefault(site, (FailureReason.TIMEOUT, "请求超时"))
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            # 消费已完成任务的异常，避免 "Task exception was never retrieved" 告警
+            for task in done:
+                if not task.cancelled():
+                    with suppress(Exception):
+                        task.exception()
+
+        # 按字段分别处理，每个字段按优先级尝试获取
+        # 站点级失败去重：同一站点的失败信息在 field_log 只记一次。
+        # 旧实现每字段重复一行 "(已失败, 跳过)"，实测单文件可累积
+        # 140+ 行重复标记（66 个失败文件的会话产生 9400 行噪声，
+        # 议题 #55 报告日志实证），信息量趋近于零。
+        failed_notified: set[Website] = set()
+        for field in ManualConfig.REDUCED_FIELDS:
+            # 获取该字段的优先级列表
+            f_config = self.config.get_field_config(field)
+            if use_type_field_config and hasattr(self.config, "get_type_field_config"):
+                type_field_config = self.config.get_type_field_config(classification.scraping_type, field)
+            else:
+                type_field_config = f_config
+
+            if getattr(type_field_config, "skip", False) or getattr(f_config, "skip", False):
+                reduced.field_log += f"\n\n    📌 {field} \n    ⏭️ 已跳过（skip 哨兵）"
+                continue
+
+            f_sites = [s for s in type_field_config.site_prority if s in type_site_set]
+            f_lang = f_config.language
+
+            if not f_sites:
+                continue
+
+            reduced.field_log += (
+                f"\n\n    📌 {field} \n    ====================================\n"
+                f"    🌐 优先级设置: {' -> '.join(s.value for s in f_sites)}"
+            )
+
+            # 按优先级依次尝试获取字段值
+            for site in f_sites:
+                # 检查是否已经请求过该网站
+                key = (site, f_lang)
+
+                # 如果网站不支持多语言, 则使用 UNDEFINED
+                if site not in MULTI_LANGUAGE_WEBSITES:
+                    key = (site, Language.UNDEFINED)
+
+                # 如果已有该网站数据，直接使用
+                if key in all_res:
+                    site_data = all_res[key]
+                elif key in failed:
+                    # 不再请求已失败的网站；失败信息站点级去重（见 failed_notified 说明）
+                    if site not in failed_notified:
+                        failed_notified.add(site)
+                        # 议题 #101：标注失败类因，让用户分辨"站点连不上/被拦截"与"逻辑问题"
+                        reason_text = ""
+                        if (fr := failure_reasons.get(site)) is not None:
+                            reason_map = {
+                                FailureReason.TIMEOUT: "请求超时",
+                                FailureReason.BLOCKED: "被站点拦截",
+                                FailureReason.NOT_FOUND: "未收录该番号",
+                                FailureReason.PARSE_ERROR: "响应解析失败",
+                                FailureReason.UNKNOWN: "请求异常",
+                            }
+                            reason_text = f"，原因: {reason_map.get(fr[0], '请求异常')}"
+                        reduced.field_log += f"\n    🔴 {site:<15} (已失败{reason_text}, 后续字段将跳过该站)"
+                    continue
+                else:
+                    # 如果网站数据尚未请求，则进行请求
+                    try:
+                        ti = _dc_replace(task_input, language=f_lang, org_language=f_lang)
+                        if site in MULTI_LANGUAGE_WEBSITES and key[1] == Language.UNDEFINED:
+                            ti = _dc_replace(ti, language=Language.JP, org_language=Language.JP)
+                        web_data = await self._call_crawler(ti, site)
+                        req_info.append(f"{sprint_source(*key)} ({web_data.debug_info.execution_time:.2f}s)")
+                        if web_data.data is None:
+                            if e := web_data.debug_info.error:
+                                raise e
+                            # 议题 #90：请求成功但未收录该条目 ≠ 站点不可用。不加入 failed，
+                            # 该站点后续字段仍可重试；仅站点级失败（超时/请求异常）才跳过。
+                            reduced.field_log += f"\n    🔴 {site:<15} (未收录该条目, 保留供后续字段重试)"
+                            continue
+                        site_data = web_data.data
+                        # 处理并保存结果
+                        all_res[key] = web_data.data
+                        # 多语言网站, 如果 undefined 尚不存在, 也使用当前语言数据
+                        if site in MULTI_LANGUAGE_WEBSITES and (site, Language.UNDEFINED) not in all_res:
+                            all_res[(site, Language.UNDEFINED)] = web_data.data
+                    except TimeoutError:
+                        reduced.field_log += f"\n    🔴 {site:<15} (请求超时)"
+                        failure_reasons.setdefault(site, (FailureReason.TIMEOUT, "请求超时"))
+                        failed.add(key)
+                        continue
+                    except Exception as e:
+                        reduced.field_log += f"\n    🔴 {site:<15} (失败: {e!s})"
+                        failure_reasons.setdefault(
+                            site, (FailureReason.classify(e), str(e).strip() or e.__class__.__name__)
+                        )
+                        failed.add(key)
+                        continue
+
+                # 检查字段数据
+                field_value = getattr(site_data, field.value, None)
+                if not field_value:
+                    reduced.field_log += f"\n    🔴 {site:<15} (未找到)"
+                    continue
+                if field == CrawlerResultFields.RUNTIME and self._is_invalid_runtime(field_value):
+                    reduced.field_log += f"\n    🟡 {site:<15} (runtime=0, 舍弃)"
+                    continue
+                if field == CrawlerResultFields.RELEASE:
+                    normalized_release = self._normalize_release(field_value)
+                    if not normalized_release:
+                        reduced.field_log += f"\n    🟡 {site:<15} (release无效, 舍弃: {field_value})"
+                        continue
+                    field_value = normalized_release
+                if field == CrawlerResultFields.YEAR:
+                    normalized_year = self._normalize_year(field_value)
+                    if not normalized_year:
+                        reduced.field_log += f"\n    🟡 {site:<15} (year无效, 舍弃: {field_value})"
+                        continue
+                    field_value = normalized_year
+
+                is_primary_field_value = not getattr(reduced, field.value, None)
+
+                # 添加来源信息
+                if is_primary_field_value:
+                    reduced.field_sources[field] = site.value
+
+                # 添加 external_id
+                reduced.external_ids[site] = site_data.external_id
+
+                if field == CrawlerResultFields.POSTER and is_primary_field_value:
+                    reduced.image_download = site_data.image_download
+                elif field == CrawlerResultFields.ORIGINALTITLE and site_data.actor:
+                    reduced.amazon_orginaltitle_actor = site_data.actor.split(",")[0]
+
+                # 保存数据
+                if is_primary_field_value:
+                    setattr(reduced, field.value, field_value)
+                    reduced.field_log += f"\n    🟢 {site}\n     ↳{getattr(reduced, field.value)}"
+                elif try_all_images and field in image_fields:
+                    reduced.field_log += f"\n    🟢 {site} (候选)\n     ↳{field_value}"
+                # 找到有效数据，跳出循环继续处理下一个字段
+                if not (try_all_images and field in image_fields):
+                    break
+            else:  # 所有来源都无此字段
+                reduced.field_log += "\n    🔴 所有来源均无数据"
+
+        # 所有来源均失败
+        if len(all_res) == 0:
+            reason_text = "；".join(f"{site.value}: {detail}" for site, (_reason, detail) in failure_reasons.items())
+            message = "所有刮削来源均未返回可用数据"
+            if reason_text:
+                message += f"。{reason_text}"
+            LogBuffer.error().write(message)
+            return None
+
+        poster_priority_config: FieldConfig | FieldPriorityConfig
+        if use_type_field_config and hasattr(self.config, "get_type_field_config"):
+            poster_priority_config = self.config.get_type_field_config(
+                classification.scraping_type, CrawlerResultFields.POSTER
+            )
+        else:
+            poster_priority_config = self.config.get_field_config(CrawlerResultFields.POSTER)
+
+        poster_priority_sites = poster_priority_config.site_prority
+        poster_language = self.config.get_field_config(CrawlerResultFields.POSTER).language
+
+        # 按海报优先级确定性收集 thumb（与 poster_list 顺序保持一致），避免并发填充顺序不确定导致抖动
+        _seen_thumb_sources: set[str] = set()
+        for site in poster_priority_sites:
+            data = self._get_cached_site_result(all_res, site, poster_language)
+            if data and data.thumb:
+                reduced.thumb_list.append((data.source, data.thumb))
+                _seen_thumb_sources.add(data.source)
+        # 兜底：收集其余来源的 thumb（按来源确定性排序，确保不遗漏）
+        for data in sorted(all_res.values(), key=lambda d: d.source or ""):
+            if data.thumb and data.source not in _seen_thumb_sources:
+                reduced.thumb_list.append((data.source, data.thumb))
+
+        for site in poster_priority_sites:
+            data = self._get_cached_site_result(all_res, site, poster_language)
+            # 记录海报候选时严格遵循当前类型的海报优先级，避免其它字段请求过的站点混入候选。
+            if data and data.poster:
+                reduced.poster_list.append((data.source, data.poster, data.image_download))
+
+        # 议题 #131：剧照候选按剧照字段优先级收集各站 URL 列表。主来源剧照被站点删除
+        # 导致下载失败时，下载层可依次回退到下一来源（如 javdb → avbase）。
+        ef_config = self.config.get_field_config(CrawlerResultFields.EXTRAFANART)
+        ef_priority_config: FieldConfig | FieldPriorityConfig
+        if use_type_field_config and hasattr(self.config, "get_type_field_config"):
+            ef_priority_config = self.config.get_type_field_config(
+                classification.scraping_type, CrawlerResultFields.EXTRAFANART
+            )
+        else:
+            ef_priority_config = ef_config
+        if not (getattr(ef_priority_config, "skip", False) or getattr(ef_config, "skip", False)):
+            _seen_ef_urls: set[tuple[str, ...]] = set()
+            for site in ef_priority_config.site_prority:
+                data = self._get_cached_site_result(all_res, site, ef_config.language)
+                if not (data and data.extrafanart):
+                    continue
+                urls_key = tuple(data.extrafanart)
+                if urls_key in _seen_ef_urls:
+                    continue
+                _seen_ef_urls.add(urls_key)
+                reduced.extrafanart_list.append((data.source, list(data.extrafanart)))
+
+        for data in all_res.values():
+            # 记录所有来源的 actor 用于 Amazon 搜图
+            if data.actor:
+                reduced.actor_amazon.extend(data.actors)
+        # 去重
+        reduced.thumb_list = list(dict.fromkeys(reduced.thumb_list))  # 保序
+        reduced.poster_list = list(dict.fromkeys(reduced.poster_list))  # 保序
+        reduced.actor_amazon = list(set(reduced.actor_amazon))
+
+        # 处理 release
+        if normalized_release := self._normalize_release(reduced.release):
+            reduced.release = normalized_release
+        else:
+            reduced.release = ""
+
+        # 处理 year
+        if normalized_year := self._normalize_year(reduced.year):
+            reduced.year = normalized_year
+        elif reduced.release:
+            reduced.year = reduced.release[:4]
+        else:
+            reduced.year = ""
+
+        # 处理 mosaic——按确定性顺序采信：并发请求完成顺序会让 all_res 的
+        # dict 顺序在多次刮削间抖动，mosaic 决定 NFO 标签与文件夹归类，
+        # 同文件重刮翻转归类结果属数据级不一致（对齐上方 thumb_list 的
+        # 优先级→来源排序双段模式）
+        for site in poster_priority_sites:
+            data = self._get_cached_site_result(all_res, site, poster_language)
+            if data and (mosaic := normalize_mosaic(data.mosaic)):
+                reduced.mosaic = mosaic
+                break
+        else:
+            for data in sorted(all_res.values(), key=lambda d: d.source or ""):
+                if mosaic := normalize_mosaic(data.mosaic):
+                    reduced.mosaic = mosaic
+                    break
+
+        # 使用 actors 字段补全 all_actors, 理想情况下前者应该是后者的子集
+        # 对 actors 的所有后处理都需要同样地应用到 all_actors
+        reduced.all_actors = list(dict.fromkeys(chain(reduced.all_actors, reduced.actors)))
+
+        reduced.site_log = f"\n 🌐 [website] {'-> '.join(req_info)}"
+
+        # 写入同番号缓存, 供同批次相同番号文件复用
+        if cache_key:
+            await _crawl_cache_put(cache_key, reduced)
+
+        return reduced
+
+    def _get_specific_crawler_language(self, website: Website) -> tuple[Language, Language]:
+        title_language = self.config.get_field_config(CrawlerResultFields.TITLE).language
+        org_language = title_language
+
+        if website not in SPECIFIC_CRAWLER_TITLE_LANGUAGE_SITES:
+            title_language = Language.JP
+
+        return title_language, org_language
+
+    def _convert_specific_crawler_result(
+        self,
+        web_data_json: CrawlerResult,
+        website: Website,
+        title_language: Language,
+        execution_time: float,
+    ) -> CrawlersResult:
+        res = update(CrawlersResult.empty(), web_data_json)
+        if res.title:
+            if res.thumb:
+                res.thumb_list = [(website, res.thumb)]
+            if res.poster:
+                res.poster_list = [(website, res.poster, res.image_download)]
+            if res.extrafanart:
+                res.extrafanart_list = [(website, list(res.extrafanart))]
+
+            # 加入来源信息
+            res.field_sources = dict.fromkeys(CrawlerResultFields, website.value)
+
+            # external_id
+            res.external_ids[website] = web_data_json.external_id
+
+            res.site_log = f"\n 🌐 [website] {sprint_source(website, title_language)} ({execution_time:.2f}s)"
+
+        res.actor_amazon = web_data_json.actors
+        res.all_actors = list(dict.fromkeys(chain(res.all_actors, web_data_json.actors)))
+        return res
+
+    async def _call_specific_crawler(self, task_input: CrawlerInput, website: Website) -> CrawlersResult | None:
+        file_number = task_input.number
+        short_number = task_input.short_number
+
+        title_language, org_language = self._get_specific_crawler_language(website)
+        task_input.language = title_language
+        task_input.org_language = org_language
+        web_data = await self._call_crawler(task_input, website)
+        web_data_json = web_data.data
+        if web_data_json is None:
+            if e := web_data.debug_info.error:
+                LogBuffer.error().write(str(e))
+            return None
+
+        res = self._convert_specific_crawler_result(
+            web_data_json, website, title_language, web_data.debug_info.execution_time
+        )
+
+        if short_number:
+            res.number = file_number
+
+        return res
+
+    async def _call_speed_crawlers(
+        self, task_input: CrawlerInput, classification: ScrapeClassification
+    ) -> CrawlersResult | None:
+        """
+        速度优先：按影片类型的网站顺序逐站尝试，首个返回数据的网站直接作为最终结果。
+        """
+        cache_key = _crawl_cache_key(task_input)
+        if cache_key:
+            cached = await _crawl_cache_get(cache_key)
+            if cached is not None:
+                return cached
+        failed_info: list[str] = []
+        for website in list(classification.sites or []):
+            title_language, org_language = self._get_specific_crawler_language(website)
+            task_input.language = title_language
+            task_input.org_language = org_language
+            try:
+                web_data = await self._call_crawler(task_input, website)
+            except TimeoutError:
+                failed_info.append(f"{website.value}(请求超时)")
+                continue
+            except Exception as e:
+                failed_info.append(f"{website.value}(失败: {e})")
+                continue
+
+            if web_data.data is None:
+                if dbg_error := web_data.debug_info.error:
+                    failed_info.append(f"{website.value}(失败: {dbg_error})")
+                else:
+                    failed_info.append(f"{website.value}(返回空数据)")
+                continue
+
+            res = self._convert_specific_crawler_result(
+                web_data.data, website, title_language, web_data.debug_info.execution_time
+            )
+            if failed_info:
+                res.field_log = "\n    ⚡ 速度优先跳过: " + " -> ".join(failed_info)
+            if cache_key:
+                await _crawl_cache_put(cache_key, res)
+            return res
+
+        if failed_info:
+            LogBuffer.error().write("速度优先所有来源均无结果: " + " -> ".join(failed_info))
+        return None
+
+    async def _crawl(self, task_input: CrawlTask, website: Website | None) -> CrawlersResult | None:  # 从JSON返回元数据
+        appoint_number = task_input.appoint_number
+        destroyed = task_input.destroyed
+        file_number = task_input.number
+        leak = task_input.leak
+        mosaic = task_input.mosaic
+        wuma = bool(task_input.wuma)
+        youma = task_input.youma
+
+        # ================================================网站规则添加开始================================================
+
+        if website is None:  # 从全部网站刮削
+            classification = classify_scrape_task(task_input, self.config)
+            if classification.mosaic:
+                task_input.mosaic = classification.mosaic
+                mosaic = classification.mosaic
+            if classification.website:
+                res = await self._call_specific_crawler(task_input, classification.website)
+            elif self.config.scrape_like == "speed":
+                res = await self._call_speed_crawlers(task_input, classification)
+            else:
+                res = await self._call_crawlers(task_input, classification)
+        else:
+            classification = classify_scrape_task(task_input, self.config, use_fixed_type=False)
+            res = await self._call_specific_crawler(task_input, website)
+
+        # ================================================网站请求结束================================================
+        # ======================================超时或未找到返回
+
+        if res is None:
+            return None
+
+        number = file_number  # res.number 实际上并未设置, 此处取 file_number
+        if appoint_number:
+            number = appoint_number
+        res.number = number  # 此处设置
+        apply_scrape_classification(res, classification)
+
+        # 从 res 获取 mosaic（res.number 已在上方设置，此处取 file_number 保持一致）
+        res.mosaic = normalize_mosaic(res.mosaic)
+        if is_plain_uncensored_mosaic(res.mosaic):
+            wuma = True
+
+        # 马赛克
+        if leak:
+            res.mosaic = "无码流出"
+        elif destroyed:
+            res.mosaic = "无码破解"
+        elif wuma:
+            res.mosaic = "无码"
+        elif youma:
+            res.mosaic = "有码"
+        elif mosaic:
+            res.mosaic = normalize_mosaic(mosaic)
+        if not res.mosaic:
+            if is_uncensored(number):
+                res.mosaic = "无码"
+            else:
+                res.mosaic = "有码"
+        res.mosaic = normalize_mosaic(res.mosaic)
+
+        # 原标题，用于amazon搜索
+        res.originaltitle_amazon = res.originaltitle
+        if res.actor_amazon:
+            for each in res.actor_amazon:  # 去除演员名，避免搜索不到
+                end_actor = re.compile(rf" {re.escape(each)}$")
+                res.originaltitle_amazon = re.sub(end_actor, "", res.originaltitle_amazon)
+        res.amazon_raw_director = res.director
+        res.amazon_raw_studio = res.studio
+        res.amazon_raw_publisher = res.publisher
+
+        # VR 时下载小封面
+        if "VR" in number:
+            res.image_download = True
+
+        return res
+
+    def _get_site(self, task_input: CrawlTask, file_mode: FileMode):
+        # 获取刮削网站
+        website_name = None
+        if file_mode == FileMode.Single:  # 刮削单文件（工具页面）
+            website_name = Flags.website_name
+        elif file_mode == FileMode.Again:  # 重新刮削
+            website_temp = task_input.website_name
+            if website_temp:
+                website_name = website_temp
+        elif self.config.scrape_like == "single":
+            website_name = self.config.website_single
+
+        return website_name
+
+    async def run(self, task_input: CrawlTask, file_mode: FileMode) -> CrawlersResult | None:
+        site = self._get_site(task_input, file_mode)
+        if site is not None:
+            site = Website(site)
+        res = await self._crawl(task_input, site)
+        if res is None:
+            return None
+        return _deal_res(res)

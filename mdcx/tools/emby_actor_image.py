@@ -1,0 +1,413 @@
+import asyncio
+import os
+import re
+import time
+from pathlib import Path
+from typing import Literal, cast
+from urllib.parse import quote
+
+import aiofiles
+import aiofiles.os
+
+from ..base.web import download_file_with_filepath
+from ..config.enums import EmbyAction
+from ..config.manager import manager
+from ..config.resources import resources
+from ..image import cut_pic, fix_pic_async
+from ..models.flags import Flags
+from ..signals import signal
+from ..utils import get_used_time
+from .emby_actor_manager import _parse_graphis_html, get_gfriends_index
+from .emby_shared import (
+    JELLYFIN_PERSON_FIELDS,
+    _append_query,
+    _build_jellyfin_headers,
+    _generate_server_url,
+    _is_jellyfin_server,
+    _upload_actor_photo,
+)
+
+
+class ActorPhotoTaskStopped(Exception): ...
+
+
+def _is_stop_requested() -> bool:
+    return signal.stop or Flags.stop_requested
+
+
+def _raise_if_stop_requested() -> None:
+    if _is_stop_requested():
+        raise ActorPhotoTaskStopped("手动停止演员头像补全")
+
+
+async def _get_actor_detail(actor: dict) -> tuple[dict | None, str]:
+    # Jellyfin 的 /Persons 列表已可返回补全信息所需字段，避免逐个演员再请求一次详情接口。
+    if _is_jellyfin_server() and any(field in actor for field in JELLYFIN_PERSON_FIELDS):
+        return actor, ""
+
+    _, actor_person, _, _, _, _ = _generate_server_url(actor)
+    headers = _build_jellyfin_headers()
+    async with manager.acquire_computed() as computed:
+        return await computed.async_client.get_json(actor_person, headers=headers, use_proxy=False)
+
+
+async def update_emby_actor_photo(*, manage_button_state: bool = True) -> None:
+    if manage_button_state:
+        signal.change_buttons_status.emit()
+    try:
+        _raise_if_stop_requested()
+        server_type = manager.config.server_type
+        if "emby" == server_type:
+            signal.show_log_text("👩🏻 开始补全 Emby 演员头像...")
+        else:
+            signal.show_log_text("👩🏻 开始补全 Jellyfin 演员头像...")
+        actor_list = await _get_emby_actor_list()
+        _raise_if_stop_requested()
+        gfriends_actor_data = await _get_gfriends_actor_data()
+        _raise_if_stop_requested()
+        if gfriends_actor_data:
+            await _update_emby_actor_photo_execute(actor_list, gfriends_actor_data)
+    except ActorPhotoTaskStopped:
+        signal.show_log_text("⛔️ 演员头像补全已手动停止！")
+    finally:
+        if manage_button_state:
+            signal.reset_buttons_status.emit()
+
+
+async def _get_emby_actor_list() -> list[dict]:
+    _raise_if_stop_requested()
+    base_url = str(manager.config.emby_url).rstrip("/")
+    # Emby/Jellyfin 统一用 Authorization 头携带 api_key 鉴权, 避免密钥暴露到 URL(及访问日志/调试日志)
+    headers = _build_jellyfin_headers()
+    # 获取 emby 的演员列表
+    if "emby" == manager.config.server_type:
+        server_name = "Emby"
+        url = _append_query(
+            base_url + "/emby/Persons",
+            {
+                "personTypes": "Actor",
+                "fields": "ImageTags,BackdropImageTags",
+                "userId": manager.config.user_id,
+            },
+        )
+    else:
+        server_name = "Jellyfin"
+        url = _append_query(
+            base_url + "/Persons",
+            {
+                "personTypes": "Actor",
+                "fields": ",".join(JELLYFIN_PERSON_FIELDS),
+                "enableImages": "true",
+                "userId": manager.config.user_id,
+            },
+        )
+
+    signal.show_log_text(f"⏳ 连接 {server_name} 服务器...")
+
+    if not manager.config.api_key:
+        signal.show_log_text(f"🔴 {server_name} API 密钥未填写！")
+        signal.show_log_text("================================================================================")
+        return []
+
+    async with manager.acquire_computed() as computed:
+        response, error = await computed.async_client.get_json(url, headers=headers, use_proxy=False)
+    _raise_if_stop_requested()
+    if response is None:
+        signal.show_log_text(f"🔴 {server_name} 连接失败！请检查 {server_name} 地址 和 API 密钥是否正确填写！ {error}")
+        return []
+
+    actor_list = response.get("Items", [])
+    signal.show_log_text(f"✅ {server_name} 连接成功！共有 {len(actor_list)} 个演员！")
+    if not actor_list:
+        signal.show_log_text("================================================================================")
+    return actor_list
+
+
+async def _get_gfriends_actor_data() -> dict[str, str] | Literal[False]:
+    _raise_if_stop_requested()
+    emby_on = manager.config.emby_on
+    if EmbyAction.ACTOR_PHOTO_NET not in emby_on:
+        return await asyncio.to_thread(_get_local_actor_photo)
+    result = await get_gfriends_index()
+    return result if result is not None else False
+
+
+async def _get_graphis_pic(actor_name: str) -> tuple[Path | None, Path | None, str]:
+    _raise_if_stop_requested()
+    emby_on = manager.config.emby_on
+
+    # 生成图片路径和请求地址
+    actor_folder = resources.u("actor/graphis")
+    pic_old = actor_folder / f"{actor_name}-org-old.jpg"
+    fix_old = actor_folder / f"{actor_name}-fix-old.jpg"
+    big_old = actor_folder / f"{actor_name}-big-old.jpg"
+    pic_new = actor_folder / f"{actor_name}-org-new.jpg"
+    fix_new = actor_folder / f"{actor_name}-fix-new.jpg"
+    big_new = actor_folder / f"{actor_name}-big-new.jpg"
+
+    # 优先新版（最新数据排前面），搜不到再 fallback 到旧版
+    pic_primary = pic_new
+    backdrop_primary = big_new if EmbyAction.GRAPHIS_BACKDROP in emby_on else fix_new
+    url_primary = f"https://graphis.ne.jp/monthly/?K={quote(actor_name)}"
+    pic_secondary = pic_old
+    backdrop_secondary = big_old if EmbyAction.GRAPHIS_BACKDROP in emby_on else fix_old
+    url_secondary = f"https://graphis.ne.jp/monthly/?S=1&K={quote(actor_name)}"
+
+    def _needs_network(pic_cached: bool, bd_cached: bool) -> bool:
+        """判断是否需要从网络获取"""
+        if EmbyAction.GRAPHIS_FACE not in emby_on:
+            return not bd_cached
+        if EmbyAction.GRAPHIS_BACKDROP not in emby_on:
+            return not pic_cached
+        return not (pic_cached and bd_cached)
+
+    # --- 辅助函数：检查是否需要网络请求 ---
+    prim_pic_cached = await aiofiles.os.path.isfile(pic_primary)
+    prim_bd_cached = await aiofiles.os.path.isfile(backdrop_primary)
+    sec_pic_cached = await aiofiles.os.path.isfile(pic_secondary)
+    sec_bd_cached = await aiofiles.os.path.isfile(backdrop_secondary)
+
+    # --- 尝试新版本 ---
+    if _needs_network(prim_pic_cached, prim_bd_cached):
+        async with manager.acquire_computed() as computed:
+            res, error = await computed.async_client.get_text(url_primary)
+        _raise_if_stop_requested()
+        if res is not None:
+            parsed = _parse_graphis_html(res, actor_name)
+            if parsed:
+                small_pic, big_pic = parsed
+                result = await _do_download_and_return(
+                    pic_primary, backdrop_primary, small_pic, big_pic, emby_on, actor_folder
+                )
+                if result:
+                    return result
+
+    # --- 尝试旧版本 ---
+    if _needs_network(sec_pic_cached, sec_bd_cached):
+        async with manager.acquire_computed() as computed:
+            res, error = await computed.async_client.get_text(url_secondary)
+        _raise_if_stop_requested()
+        if res is not None:
+            parsed = _parse_graphis_html(res, actor_name)
+            if parsed:
+                small_pic, big_pic = parsed
+                result = await _do_download_and_return(
+                    pic_secondary, backdrop_secondary, small_pic, big_pic, emby_on, actor_folder
+                )
+                if result:
+                    return result
+
+    # --- 有缓存直接返回 ---
+    if EmbyAction.GRAPHIS_FACE not in emby_on:
+        if prim_bd_cached:
+            return None, backdrop_primary, "✅ graphis.ne.jp 本地背景！ "
+        if sec_bd_cached:
+            return None, backdrop_secondary, "✅ graphis.ne.jp 本地背景！ "
+    elif EmbyAction.GRAPHIS_BACKDROP not in emby_on:
+        if prim_pic_cached:
+            return pic_primary, None, "✅ graphis.ne.jp 本地头像！ "
+        if sec_pic_cached:
+            return pic_secondary, None, "✅ graphis.ne.jp 本地头像！ "
+    else:
+        if prim_pic_cached and prim_bd_cached:
+            return pic_primary, backdrop_primary, ""
+        if sec_pic_cached and sec_bd_cached:
+            return pic_secondary, backdrop_secondary, ""
+
+    return None, None, "🍊 graphis.ne.jp 无结果！ "
+
+
+async def _do_download_and_return(
+    pic_p: Path,
+    bd_p: Path,
+    small: str,
+    big: str,
+    emby_on: list,
+    actor_folder: Path,
+) -> tuple[Path, Path, str] | None:
+    """下载图片并返回结果"""
+    logs = []
+    pic_ok = await download_file_with_filepath(small, pic_p, actor_folder)
+    bd_ok = (
+        await download_file_with_filepath(big, bd_p, actor_folder) if EmbyAction.GRAPHIS_BACKDROP in emby_on else False
+    )
+    if pic_ok:
+        logs.append("🍊 使用 graphis.ne.jp 头像！ ")
+        if EmbyAction.GRAPHIS_BACKDROP not in emby_on:
+            if not await aiofiles.os.path.isfile(bd_p):
+                await fix_pic_async(pic_p, bd_p)
+    if bd_ok:
+        logs.append("🍊 使用 graphis.ne.jp 背景！ ")
+        await fix_pic_async(bd_p, bd_p)
+    if pic_ok or bd_ok:
+        return pic_p, bd_p, "".join(logs)
+    return None
+
+
+async def _update_emby_actor_photo_execute(actor_list: list[dict], gfriends_actor_data: dict[str, str]) -> None:
+    start_time = time.time()
+    emby_on = manager.config.emby_on
+    actor_folder = resources.u("actor")
+
+    i = 0
+    succ = 0
+    fail = 0
+    skip = 0
+    count_all = len(actor_list)
+    for actor_js in actor_list:
+        _raise_if_stop_requested()
+        i += 1
+        deal_percent = f"{i / count_all:.2%}"
+        try:
+            # Emby 有头像时处理
+            actor_name = actor_js["Name"]
+            actor_imagetages = actor_js.get("ImageTags")
+            actor_backdrop_imagetages = actor_js.get("BackdropImageTags") or []
+            if " " in actor_name:
+                skip += 1
+                continue
+            actor_homepage, _, pic_url, backdrop_url, _, update_url = _generate_server_url(actor_js)
+            if actor_imagetages and EmbyAction.ACTOR_PHOTO_MISS in emby_on:
+                # self.show_log_text(f'\n{deal_percent} ✅ {i}/{count_all} 已有头像！跳过！ 👩🏻 {actor_name} \n{actor_homepage}')
+                skip += 1
+                continue
+
+            # 获取演员日文名字
+            actor_name_data = resources.get_actor_data(actor_name)
+            has_name = actor_name_data["has_name"]
+            jp_name = actor_name
+            if has_name:
+                jp_name = actor_name_data["jp"]
+
+            # graphis 判断
+            pic_path: Path | str | None
+            backdrop_path, logs = None, ""
+            if (
+                EmbyAction.ACTOR_PHOTO_NET in emby_on
+                and has_name
+                and (EmbyAction.GRAPHIS_BACKDROP in emby_on or EmbyAction.GRAPHIS_FACE in emby_on)
+            ):
+                pic_path, backdrop_path, logs = await _get_graphis_pic(jp_name)
+                _raise_if_stop_requested()
+            else:
+                pic_path = None
+
+            # 要上传的头像图片未找到时
+            if not pic_path:
+                pic_path = gfriends_actor_data.get(f"AI-Fix-{jp_name}.jpg")
+                if not pic_path:
+                    pic_path = gfriends_actor_data.get(f"{jp_name}.jpg")
+                if not pic_path:
+                    pic_path = gfriends_actor_data.get(f"{jp_name}.png")
+                if not pic_path:
+                    if actor_imagetages:
+                        signal.show_log_text(
+                            f"\n{deal_percent} ✅ {i}/{count_all} 没有找到头像！继续使用原有头像！ 👩🏻 {actor_name} {logs}\n{actor_homepage}"
+                        )
+                        succ += 1
+                        continue
+                    signal.show_log_text(
+                        f"\n{deal_percent} 🔴 {i}/{count_all} 没有找到头像！ 👩🏻 {actor_name}  {logs}\n{actor_homepage}"
+                    )
+                    fail += 1
+                    continue
+            else:
+                pass
+
+            # 头像需要下载时
+            if isinstance(pic_path, str) and pic_path.startswith(("http://", "https://")):
+                file_name = pic_path.split("/")[-1]
+                file_name_match = re.search(r"^[^?]+", file_name)
+                file_name = file_name_match.group(0) if file_name_match else f"{actor_name}.jpg"
+                # 加演员名前缀，避免不同演员同 URL 末段时缓存文件碰撞
+                file_path = actor_folder / f"{actor_name}-{file_name}"
+                if not await aiofiles.os.path.isfile(file_path):
+                    if not await download_file_with_filepath(pic_path, file_path, actor_folder):
+                        signal.show_log_text(
+                            f"\n{deal_percent} 🔴 {i}/{count_all} 头像下载失败！ 👩🏻 {actor_name}  {logs}\n{actor_homepage}"
+                        )
+                        fail += 1
+                        continue
+                pic_path = file_path
+            pic_path = cast(Path, pic_path)
+
+            # 检查背景是否存在
+            if not backdrop_path:
+                backdrop_path = pic_path.with_name(pic_path.stem + "-big.jpg")
+                if not await aiofiles.os.path.isfile(backdrop_path):
+                    await fix_pic_async(pic_path, backdrop_path)
+            _raise_if_stop_requested()
+
+            # 检查图片尺寸并裁剪为2:3
+            await asyncio.to_thread(cut_pic, pic_path)
+            _raise_if_stop_requested()
+
+            # 清理旧图片（backdrop 可以多张，不清理会一直累积；按索引逐个删除）
+            if actor_backdrop_imagetages:
+                headers = _build_jellyfin_headers()
+                for idx in range(len(actor_backdrop_imagetages)):
+                    del_url = f"{backdrop_url.rstrip('/')}/{idx}"
+                    async with manager.acquire_computed() as computed:
+                        await computed.async_client.request("DELETE", del_url, headers=headers, use_proxy=False)
+
+            # 头像和背景分别上传，避免头像成功时背景被跳过。
+            pic_ok, pic_err = await _upload_actor_photo(pic_url, pic_path)
+            _raise_if_stop_requested()
+            backdrop_ok, backdrop_err = await _upload_actor_photo(backdrop_url, backdrop_path)
+            _raise_if_stop_requested()
+            if pic_ok and backdrop_ok:
+                if not logs or logs == "🍊 graphis.ne.jp 无结果！":
+                    if EmbyAction.ACTOR_PHOTO_NET in manager.config.emby_on:
+                        logs += " ✅ 使用 Gfriends 头像和背景！"
+                    else:
+                        logs += " ✅ 使用本地头像库头像和背景！"
+                signal.show_log_text(
+                    f"\n{deal_percent} ✅ {i}/{count_all} 头像更新成功！ 👩🏻 {actor_name}  {logs}\n{actor_homepage}"
+                )
+                succ += 1
+            else:
+                error_parts = []
+                if not pic_ok:
+                    error_parts.append(f"头像上传失败: {pic_err}")
+                if not backdrop_ok:
+                    error_parts.append(f"背景上传失败: {backdrop_err}")
+                err = " | ".join(error_parts)
+                signal.show_log_text(
+                    f"\n{deal_percent} 🔴 {i}/{count_all} 头像上传失败！ 👩🏻 {actor_name}  {logs}\n{actor_homepage} {err}"
+                )
+                fail += 1
+        except Exception as e:
+            # 单个演员异常不中断整个任务
+            fail += 1
+            signal.show_log_text(
+                f"\n{deal_percent} 🔴 {i}/{count_all} 演员处理异常！ 👩🏻 {actor_js.get('Name', '?')}  {e}\n{actor_js.get('Id', '')}"
+            )
+    signal.show_log_text(
+        f"\n\n 🎉🎉🎉 演员头像补全完成！用时: {get_used_time(start_time)}秒 成功: {succ} 失败: {fail} 跳过: {skip}\n"
+    )
+
+
+def _get_local_actor_photo() -> dict[str, str] | Literal[False]:
+    """This function is intended to be sync."""
+    actor_photo_folder = manager.config.actor_photo_folder
+    if actor_photo_folder == "" or not os.path.isdir(actor_photo_folder):
+        signal.show_log_text("🔴 本地头像库文件夹不存在！补全已停止！")
+        signal.show_log_text("================================================================================")
+        return False
+    local_actor_photo_dic = {}
+    all_files = os.walk(actor_photo_folder)
+    for root, _dirs, files in all_files:
+        for file in files:
+            if (file.endswith("jpg") or file.endswith("png")) and file not in local_actor_photo_dic:
+                pic_path = os.path.join(root, file)
+                local_actor_photo_dic[file] = pic_path
+
+    if not local_actor_photo_dic:
+        signal.show_log_text("🔴 本地头像库文件夹未发现头像图片！请把图片放到文件夹中！")
+        signal.show_log_text("================================================================================")
+        return False
+    return local_actor_photo_dic
+
+
+if __name__ == "__main__":
+    asyncio.run(_get_gfriends_actor_data())

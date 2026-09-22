@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+import re
+from typing import cast, override
+
+from lxml import etree
+
+from ..config.enums import Website
+from ..config.manager import manager
+from ..number import get_number_letters
+from .base import BaseCrawler, Context, CrawlerData, CrawlerException, get_year
+from .dahlia import DahliaCrawler
+from .faleno import FalenoCrawler
+from .official_uncensored import crawl_uncensored_official
+from .prestige import PrestigeCrawler
+
+OFFICIAL_CRAWLER_BY_PREFIX = {
+    "DLDSS": DahliaCrawler,
+    "FNS": FalenoCrawler,
+    "JIMMY": FalenoCrawler,
+}
+
+DIRECTOR_PLACEHOLDER_CHARS = frozenset("-—－ー―‐~～·•. ")
+
+
+def get_title(html):
+    result = html.xpath('//h2[@class="p-workPage__title"]/text()')
+    return result[0].strip() if result else ""
+
+
+def get_actor(html):
+    actor_list = html.xpath(
+        '//a[@class="c-tag c-main-bg-hover c-main-font c-main-bd" and contains(@href, "/actress/")]/text()'
+    )
+    return ",".join(each.strip() for each in actor_list)
+
+
+def get_outline(html):
+    return html.xpath('string(//p[@class="p-workPage__text"])')
+
+
+def get_studio(html):
+    result = html.xpath('string(//div[contains(text(), "製作商")]/following-sibling::div)')
+    return result.strip()
+
+
+def get_runtime(html):
+    result = html.xpath('//div[@class="th" and text()="収録時間"]/following-sibling::div/div/p/text()')
+    return result[0].replace("分", "").strip() if result else ""
+
+
+def get_series(html):
+    result = html.xpath('//div[@class="th" and contains(text(), "シリーズ")]/following-sibling::div/a/text()')
+    return result[0].strip() if result else ""
+
+
+def get_publisher(html):
+    publisher = ""
+    studio = ""
+    result_1 = html.xpath('//meta[@name="description"]/@content')
+    if result_1:
+        result_2 = re.findall(r"【公式】([^(]+)\(([^\)]+)", result_1[0])
+        publisher, studio = result_2[0] if result_2 else ("", "")
+    result = html.xpath('//div[@class="th" and contains(text(), "レーベル")]/following-sibling::div/a/text()')
+    publisher = result[0].strip() if result else publisher
+    return publisher.replace("　", " "), studio
+
+
+def get_director(html):
+    result = html.xpath('//div[@class="th" and contains(text(), "監督")]/following-sibling::div/div/p/text()')
+    if not result:
+        return ""
+    director = result[0].strip()
+    if not director or director == "N/A" or all(char in DIRECTOR_PLACEHOLDER_CHARS for char in director):
+        return ""
+    return director
+
+
+def get_trailer(html):
+    result = html.xpath('//div[@class="video"]/video/@src')
+    return result[0] if result else ""
+
+
+def get_release(html):
+    result = html.xpath('//div[contains(text(), "発売日")]/following-sibling::div/div/a/text()')
+    return result[0].replace("年", "-").replace("月", "-").replace("日", "") if result else ""
+
+
+def get_tag(html):
+    result = html.xpath('//div[contains(text(), "ジャンル")]/following-sibling::div/div/a/text()')
+    return ",".join(result).replace(",Blu-ray（ブルーレイ）", "")
+
+
+def get_real_url(html, number):
+    result = html.xpath('//a[@class="img hover"]')
+    for each in result:
+        href = each.get("href")
+        posters = each.xpath("img/@data-src")
+        if not href or not posters:
+            continue
+        poster = posters[0]
+        if href.upper().endswith(number.upper().replace("-", "")):
+            return href, poster
+    return "", ""
+
+
+def get_cover(html):
+    result = html.xpath('//img[@class="swiper-lazy"]/@data-src')
+    return (result.pop(0), result) if result else ("", [])
+
+
+def split_csv(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+class OfficialCrawler(BaseCrawler):
+    # 议题 #165: 原描述主句只列无码五站、"综合有码+无码"塞在句尾, 且把有码前缀
+    # DLDSS/FNS/JIMMY 归在"无码官网"下——易被读成 official 只有无码路由。
+    # 重写为三档结构, 并注明网络检测覆盖面(无码五站)与抓取面的差异。
+    description = (
+        "按番号前缀自动路由官网，综合有码+无码，均走代理："
+        "有码 30 家厂牌官网（S1/Moodyz/Prestige 等，DLDSS→Dahlia、FNS/JIMMY→Faleno 专用爬虫）；"
+        "无码 5 站官网（Caribbeancom/Heyzo/1pondo/pacopacomama/10musume，JSON API 直连）。"
+        "注：「检测网络」仅逐站检测无码 5 站官网，有码 30 家不参与检测"
+    )
+
+    @classmethod
+    @override
+    def site(cls) -> Website:
+        return Website.OFFICIAL
+
+    @classmethod
+    @override
+    def base_url_(cls) -> str:
+        return ""
+
+    @override
+    async def _run(self, ctx: Context):
+        number = ctx.input.number
+        uncensored_data = await crawl_uncensored_official(ctx, self.async_client, number)
+        if uncensored_data is not None:
+            result = uncensored_data.to_result()
+            ctx.debug("official uncensored data success")
+            return result
+
+        number_letters = get_number_letters(number)
+        official_crawler_cls = cast("type[BaseCrawler]", OFFICIAL_CRAWLER_BY_PREFIX.get(number_letters.upper()))
+        if official_crawler_cls is not None:
+            child_response = await official_crawler_cls(client=self.async_client).run(ctx.input)
+            ctx.debug_info.logs.extend(child_response.debug_info.logs)
+            ctx.debug_info.search_urls = child_response.debug_info.search_urls
+            ctx.debug_info.detail_urls = child_response.debug_info.detail_urls
+            if child_response.debug_info.error is not None:
+                raise child_response.debug_info.error
+            if child_response.data is None:
+                raise CrawlerException("官网子爬虫未返回数据")
+            return child_response.data
+
+        official_url = manager.computed.official_websites.get(get_number_letters(number))
+        if not official_url:
+            raise CrawlerException("不在官网番号前缀列表中")
+        if official_url == "https://www.prestige-av.com":
+            return await PrestigeCrawler(client=self.async_client, base_url=official_url)._run(ctx)
+
+        website_name = official_url.split(".")[-2].replace("https://", "")
+        real_url = ctx.input.appoint_url
+        poster = ""
+
+        if not real_url:
+            search_url = official_url + "/search/list?keyword=" + number.replace("-", "")
+            ctx.debug(f"搜索地址: {search_url}")
+            ctx.debug_info.search_urls = [search_url]
+            html_search, error = await self.async_client.get_text(search_url)
+            if html_search is None:
+                raise CrawlerException(f"网络请求错误: {error}")
+
+            html = etree.fromstring(html_search, etree.HTMLParser())
+            real_url, poster = get_real_url(html, number)
+            if not real_url:
+                raise CrawlerException("搜索结果: 未匹配到番号！")
+
+        ctx.debug(f"番号地址: {real_url}")
+        ctx.debug_info.detail_urls = [real_url]
+        html_content, error = await self.async_client.get_text(real_url)
+        if html_content is None:
+            raise CrawlerException(f"网络请求错误: {error}")
+
+        html_info = etree.fromstring(html_content, etree.HTMLParser())
+        title = get_title(html_info)
+        if not title:
+            raise CrawlerException("数据获取失败: 未获取到title！")
+        cover_url, extrafanart = get_cover(html_info)
+        outline = get_outline(html_info)
+        actor = get_actor(html_info)
+        release = get_release(html_info)
+        publisher, studio = get_publisher(html_info)
+        if not studio:
+            studio = get_studio(html_info)
+        data = CrawlerData(
+            number=number,
+            title=title,
+            originaltitle=title,
+            actors=split_csv(actor),
+            outline=outline,
+            originalplot=outline,
+            tags=split_csv(get_tag(html_info)),
+            release=release,
+            year=get_year(release),
+            runtime=get_runtime(html_info),
+            score="",
+            series=get_series(html_info),
+            directors=split_csv(get_director(html_info)),
+            studio=studio,
+            publisher=publisher,
+            thumb=cover_url,
+            poster=poster,
+            extrafanart=extrafanart,
+            trailer=get_trailer(html_info),
+            image_download="VR" in number.upper(),
+            mosaic="有码",
+            external_id=real_url,
+            wanted="",
+            source=website_name,
+        )
+        result = data.to_result()
+        result.source = website_name
+        ctx.debug("数据获取成功！")
+        return result
+
+    @override
+    async def _generate_search_url(self, ctx: Context) -> list[str] | str | None:
+        return None
+
+    @override
+    async def _parse_search_page(self, ctx: Context, html, search_url: str) -> list[str] | str | None:
+        return None
+
+    @override
+    async def _parse_detail_page(self, ctx: Context, html, detail_url: str) -> CrawlerData | None:
+        return None

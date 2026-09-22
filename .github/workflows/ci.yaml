@@ -1,0 +1,198 @@
+name: CI/CD Pipeline
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            BASE_SHA="HEAD^"
+          fi
+          files=$(git diff --name-only "$BASE_SHA" "$GITHUB_SHA")
+          code_changed=false
+          actor_db_changed=false
+          info_db_changed=false
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            case "$file" in
+              resources/userdata/actor_database.xlsx|scripts/check_actor_db.py)
+                actor_db_changed=true
+                code_changed=true
+                ;;
+              resources/userdata/info_database.xlsx|scripts/check_info_db.py)
+                info_db_changed=true
+                code_changed=true
+                ;;
+              *.md|*.mdx|.monkeycode/*|docs/*) ;;
+              *) code_changed=true ;;
+            esac
+          done <<< "$files"
+          echo "code_changed=$code_changed" >> "$GITHUB_OUTPUT"
+          echo "actor_db_changed=$actor_db_changed" >> "$GITHUB_OUTPUT"
+          echo "info_db_changed=$info_db_changed" >> "$GITHUB_OUTPUT"
+
+      - name: Run docs-only check
+        if: steps.changes.outputs.code_changed != 'true'
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then BASE_SHA="HEAD^"; fi
+          git diff --check "$BASE_SHA" "$GITHUB_SHA"
+
+      - name: Install system dependencies
+        if: steps.changes.outputs.code_changed == 'true'
+        run: >
+          sudo apt-get update -y && sudo apt-get install -y
+          libglib2.0-0 libegl1 libgl1 libfontconfig1
+          libqt6core6 libqt6gui6 libqt6widgets6 libqt6network6 libqt6xml6
+          libdbus-1-3 libxkbcommon0 libopengl0
+          libxcb-cursor0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0
+          libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0
+
+      - name: Set up uv
+        if: steps.changes.outputs.code_changed == 'true'
+        uses: astral-sh/setup-uv@v10.1.0
+
+      - name: Install locked dependencies
+        if: steps.changes.outputs.code_changed == 'true'
+        run: uv sync --locked --dev
+
+      - name: Run ruff format
+        if: steps.changes.outputs.code_changed == 'true'
+        run: uv run ruff format --check
+
+      - name: Run ruff check
+        if: steps.changes.outputs.code_changed == 'true'
+        run: uv run ruff check --output-format=github
+
+      - name: Run mypy
+        if: steps.changes.outputs.code_changed == 'true'
+        run: uv run mypy mdcx/
+
+      - name: Run pytest
+        if: steps.changes.outputs.code_changed == 'true'
+        # PyQt6 需要 display 才能实例化 QApplication；offscreen 平台无需 X11/Wayland
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run pytest tests/ --tb=short -m "not network"
+
+      - name: Run check_actor_db
+        if: steps.changes.outputs.actor_db_changed == 'true'
+        run: uv run python -m scripts.check_actor_db
+
+      - name: Run check_info_db
+        if: steps.changes.outputs.info_db_changed == 'true'
+        run: uv run python -m scripts.check_info_db
+
+      - name: Run check_thread_safety
+        if: steps.changes.outputs.code_changed == 'true'
+        run: uv run python -m scripts.check_thread_safety
+
+  windows:
+    name: Windows Compatibility and Build
+    runs-on: windows-2025
+    timeout-minutes: 45
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: changes
+        shell: pwsh
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          $base = $env:BASE_SHA
+          if ($base -eq '0000000000000000000000000000000000000000' -or -not (git cat-file -e "$base^{commit}" 2>$null)) { $base = 'HEAD^' }
+          $files = git diff --name-only $base $env:GITHUB_SHA
+          $codeChanged = $false
+          foreach ($file in $files) {
+            if ([string]::IsNullOrWhiteSpace($file)) { continue }
+            if ($file -notmatch '(^|/)([^/]+\.md|[^/]+\.mdx)$' -and $file -notmatch '^\.monkeycode/' -and $file -notmatch '^docs/') { $codeChanged = $true; break }
+          }
+          "code_changed=$($codeChanged.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Run docs-only check
+        if: steps.changes.outputs.code_changed != 'true'
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        shell: pwsh
+        run: |
+          $base = $env:BASE_SHA
+          if ($base -eq '0000000000000000000000000000000000000000' -or -not (git cat-file -e "$base^{commit}" 2>$null)) { $base = 'HEAD^' }
+          git diff --check $base $env:GITHUB_SHA
+
+      - name: Set up Python 3.13
+        if: steps.changes.outputs.code_changed == 'true'
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        if: steps.changes.outputs.code_changed == 'true'
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          activate-environment: true
+
+      - name: Install dependencies
+        if: steps.changes.outputs.code_changed == 'true'
+        shell: pwsh
+        run: |
+          uv sync --locked --all-extras --dev
+
+      - name: Run Windows offline tests
+        if: steps.changes.outputs.code_changed == 'true'
+        env:
+          QT_QPA_PLATFORM: offscreen
+          PYTHONIOENCODING: utf-8
+        run: uv run pytest tests/ --tb=short -m "not network"
+
+      # 一体包硬失败：Windows 冒烟必须先有 build/sr_tools，否则 build.py 直接 BuildError。
+      # 缓存由 update-sr-tools.yml 预热；命中时 fetch 幂等跳过，未命中则当场拉取。
+      - name: Restore SR tools cache
+        if: steps.changes.outputs.code_changed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: build/sr_tools
+          key: sr-tools-windows
+
+      - name: Fetch SR tools
+        if: steps.changes.outputs.code_changed == 'true'
+        env:
+          PYTHONIOENCODING: utf-8
+        run: uv run python -m scripts.fetch_sr_tools --platform windows
+
+      # 打包参数回归（hidden-import / add-binary / 图标）只在发版 tag 才暴露，
+      # 这里做一次 PyInstaller 冒烟构建，把问题前置到 PR/主干。
+      - name: Build smoke test (PyInstaller)
+        if: steps.changes.outputs.code_changed == 'true'
+        timeout-minutes: 20
+        env:
+          PYTHONIOENCODING: utf-8
+        run: uv run scripts/build.py --version 0 --debug

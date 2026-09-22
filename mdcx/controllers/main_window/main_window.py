@@ -1,0 +1,4800 @@
+import html
+import os
+import platform
+import re
+import shutil
+import threading
+import time
+import traceback
+import webbrowser
+from collections import deque
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal, cast
+
+from PyQt6.QtCore import QEvent, QItemSelectionModel, QPoint, QPointF, QRect, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QCursor, QGuiApplication, QHoverEvent, QIcon, QKeySequence, QPixmap, QShortcut
+from PyQt6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QHBoxLayout,
+    QHeaderView,
+    QInputDialog,
+    QLineEdit,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QSystemTrayIcon,
+    QTableWidgetItem,
+    QTreeWidgetItem,
+    QVBoxLayout,
+)
+
+from mdcx.base.file import (
+    check_and_clean_files,
+    get_success_list,
+    movie_lists,
+    newtdisk_creat_symlink,
+    save_remain_list,
+    save_remain_list_now,
+    save_success_list,
+)
+from mdcx.base.image import add_del_extrafanart_copy
+from mdcx.base.video import add_del_extras, add_del_theme_videos
+from mdcx.base.web import check_theporndb_api_token, check_version
+from mdcx.base.web_sync import get_text_sync
+from mdcx.config.enums import NfoInclude, Switch, Website
+from mdcx.config.extend import deal_url, get_movie_path_setting, parse_media_paths
+from mdcx.config.manager import manager
+from mdcx.config.resources import resources
+from mdcx.consts import GITHUB_ISSUES_URL, GITHUB_RELEASES_URL, IS_WINDOWS, LOCAL_VERSION, VERSION_NAME
+from mdcx.core.naming import NameRenderOptions, NamingTarget, render_name
+from mdcx.core.network_check import (
+    NetworkCheckStatus,
+    merge_site_check_cache,
+    run_network_check,
+    scrape_probe_ladder_text,
+)
+from mdcx.core.nfo import write_nfo
+from mdcx.core.scrape_cache import ScrapeStateCache
+from mdcx.core.scraper import again_search, get_remain_list, start_new_scrape
+from mdcx.crawlers.fc2ppvdb import (
+    FC2CMADB_BASE_URL,
+    cookie_has_login_key,
+    cookie_str_to_dict,
+    fetch_article_info_with_warmup,
+)
+from mdcx.image import PreviewImageLoader
+from mdcx.models.enums import FileMode
+from mdcx.models.flags import Flags
+from mdcx.models.model_types import CrawlersResult, FileInfo, OtherInfo, ShowData
+from mdcx.signals import signal_qt
+from mdcx.tools.actress_db import ActressDB
+from mdcx.tools.missing import check_missing_number
+from mdcx.tools.subtitle import add_sub_for_all_video
+from mdcx.utils import (
+    add_html,
+    add_html_plain_text,
+    executor,
+    get_current_time,
+    get_used_time,
+    kill_a_thread,
+    split_path,
+)
+from mdcx.utils.file import (
+    create_hardlink_sync,
+    create_symlink_sync,
+    delete_file_sync,
+    open_file_thread,
+    resolve_link_source_sync,
+    resolve_success_record_source_sync,
+)
+from mdcx.utils.path import safe_rmtree
+from mdcx.views.CustomClass import CustomScrollArea
+from mdcx.views.MDCx import Ui_MDCx
+from mdcx.views.similar_window import SimilarDialog
+
+from ..cut_window import CutWindow
+from .handlers import show_netstatus
+from .health_check import run_startup_health_checks
+from .init import Init_QSystemTrayIcon, Init_Singal, Init_Ui, _adaptive_window_sizes, init_QTreeWidget
+from .load_config import load_config
+from .save_config import save_config
+from .site_priority_dialog import apply_site_priority_theme
+from .style import apply_application_palette, build_menu_style, set_dark_style, set_style
+
+if TYPE_CHECKING:
+    from PyQt6.QtGui import QMouseEvent
+
+
+LINK_DIR_INVALID_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]+')
+SCRAPE_INFO_EMOJI_RE = re.compile(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]\ufe0f?")
+WINDOWS_RESERVED_DIR_NAMES = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
+DEFAULT_LINK_DIR_NAME = "unnamed"
+
+
+class MyMAinWindow(QMainWindow):
+    # region 信号量
+    main_logs_show = pyqtSignal(str)  # 显示刮削日志信号
+    main_logs_clear = pyqtSignal(str)  # 清空刮削日志信号
+    req_logs_clear = pyqtSignal(str)  # 清空请求日志信号
+    main_req_logs_show = pyqtSignal(str)  # 显示刮削后台日志信号
+    net_logs_show = pyqtSignal(str)  # 显示网络检测日志信号
+    set_javdb_cookie = pyqtSignal(str)  # 加载javdb cookie文本内容到设置页面
+    set_javdb_status = pyqtSignal(str)  # javdb 检查状态更新
+    set_fc2ppvdb_status = pyqtSignal(str)  # fc2ppvdb 检查状态更新
+    set_javbus_cookie = pyqtSignal(str)  # 加载javbus cookie文本内容到设置页面
+    set_javbus_status = pyqtSignal(str)  # javbus 检查状态更新
+    exec_save_config = pyqtSignal()  # 主线程执行保存配置
+    set_label_file_path = pyqtSignal(str)  # 主界面更新路径信息显示
+    set_pic_pixmap = pyqtSignal(list, list)  # 主界面显示封面、缩略图
+    set_pic_text = pyqtSignal(str)  # 主界面显示封面信息
+    change_to_mainpage = pyqtSignal(str)  # 切换到主界面
+    request_preview_images = pyqtSignal(str, str)  # 主线程刷新封面/缩略图预览（poster_path, thumb_path）
+    label_result = pyqtSignal(str)
+    pushButton_start_cap = pyqtSignal(str)
+    pushButton_start_cap2 = pyqtSignal(str)
+    pushButton_start_single_file = pyqtSignal(str)
+    pushButton_add_sub_for_all_video = pyqtSignal(str)
+    pushButton_show_pic_actor = pyqtSignal(str)
+    pushButton_add_actor_info = pyqtSignal(str)
+    pushButton_add_actor_pic = pyqtSignal(str)
+    pushButton_add_actor_pic_kodi = pyqtSignal(str)
+    pushButton_del_actor_folder = pyqtSignal(str)
+    pushButton_check_and_clean_files = pyqtSignal(str)
+    pushButton_move_mp4 = pyqtSignal(str)
+    pushButton_find_missing_number = pyqtSignal(str)
+    pushButton_cover_backfill_start = pyqtSignal(str)
+    pushButton_actor_db_translate = pyqtSignal(str)
+    pushButton_actor_db_link = pyqtSignal(str)
+    pushButton_actor_db_sync_aliases = pyqtSignal(str)
+    pushButton_actor_db_fill_minnano = pyqtSignal(str)
+    pushButton_actor_db_fill_zh_javdb = pyqtSignal(str)
+    pushButton_actor_db_clean_male = pyqtSignal(str)
+    pushButton_actor_db_verify_tmdbid = pyqtSignal(str)
+    pushButton_actor_db_check = pyqtSignal(str)
+    pushButton_actor_db_update_nfo_tmdbid = pyqtSignal(str)
+    actor_db_finished = pyqtSignal(str)  # task_id；空串表示恢复所有按钮
+    label_show_version = pyqtSignal(str)
+    version_check_done = pyqtSignal(bool)  # 版本检查完成（参数为是否有新版本），主线程执行 UI 操作
+    net_check_done = pyqtSignal()  # 网络检测完成，主线程恢复按钮状态
+    net_check_progress = pyqtSignal(int, int)  # 网络检测单项完成 (done, total)，主线程刷新按钮进度文本
+    nfo_lib_data_loaded = pyqtSignal(str)  # NFO 库管理：后台读取 NFO 完成，主线程填充表单
+    nfo_lib_save_done = pyqtSignal(str)  # NFO 库管理：后台保存完成，主线程恢复按钮
+    nfo_lib_batch_done = pyqtSignal(str)  # NFO 库管理：批量操作完成，主线程更新状态
+    nfo_lib_batch_progress = pyqtSignal(str)  # NFO 库管理：批量操作进度，主线程更新标签
+
+    # endregion
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        # region 初始化需要的变量
+        self.localversion = LOCAL_VERSION  # 当前版本号(数值, 用于版本比较)
+        self.version_display = f"{VERSION_NAME} ({LOCAL_VERSION})"  # 展示用: v2.0.0 (220260712)
+        self.new_version = "\n点击检查最新版本"  # 有版本更新时在左下角显示的新版本信息
+        self.show_data: ShowData | None = None  # 当前树状图选中文件的数据
+        self.img_path = None  # 当前树状图选中文件的图片地址
+        self.m_drag = False  # 允许鼠标拖动的标识
+        self.m_DragPosition: QPoint | None = None  # 鼠标拖动位置
+        self.logs_counts = 0  # 日志次数（每1w次清屏）
+        self.req_logs_counts = 0  # 日志次数（每1w次清屏）
+        self.main_log_queue: deque[str] = deque()
+        self.main_log_batch_size = 80
+        self.main_log_max_count = 10000
+        self.network_check_cancel_event: threading.Event | None = None
+        self.network_check_future = None
+        self.file_main_open_path = Path()  # 主界面打开的文件路径
+        self.json_array: dict[str, ShowData] = {}  # 主界面右侧结果树状数据
+        self.preview_request_id = 0  # 主界面图片预览请求序号，用于丢弃过期加载结果
+        # 议题 #144: 原图 pixmap 缓存, 显示层按封面/缩略图框当前尺寸重缩放
+        # (最大化时框同步放大图片随之放大; resize/切番共用同一缩放出口)
+        self._poster_src_pixmap: QPixmap | None = None
+        self._thumb_src_pixmap: QPixmap | None = None
+        self._did_apply_initial_size = False
+        self._user_initiated_close = False  # 标记是否为用户主动关闭窗口
+
+        self.window_radius = 0  # 窗口四角弧度，为0时表示显示窗口标题栏
+        self.window_border = 0  # 窗口描边，为0时表示显示窗口标题栏
+        # 议题 #69: 恢复系统标题栏最大化按钮(议题 #67 曾按报告人要求禁用)。
+        # #62/#66/#68 的最大化布局错乱根因(缩放三连)已在当时修复:
+        # resizeEvent → _sync_page_layouts 会统一同步所有休眠页与内部组件,
+        # 最大化路径由 tests/test_window_state_matrix.py 的最大化用例回归锁定。
+        # 历史陷阱记录: setWindowFlags 触发 changeEvent, 若在 window_radius 等属性
+        # 初始化前调用会在事件处理器内抛 AttributeError(PyQt6 qFatal abort 的形态之一)。
+        # 当前无 setWindowFlags 调用, 此陷阱仅作为后续改动的注意事项保留。
+        self.dark_mode = False  # 暗黑模式标识
+        self.check_mac = True  # 检测配置目录
+        self._actor_db_running: set[str] = set()  # 正在运行的 actor_db 异步任务的 btn_attr 集合
+        self._nfo_lib_current_path: Path | None = None  # NFO 库管理：当前选中的 NFO 路径
+        self._nfo_lib_pending_data: CrawlersResult | None = None  # NFO 库管理：后台读取的临时数据
+        self._nfo_lib_pending_info: OtherInfo | None = None  # NFO 库管理：后台读取的临时 OtherInfo
+        self._nfo_lib_save_result: bool = False  # NFO 库管理：后台保存结果
+        self._nfo_lib_batch_result: tuple[int, int, int] = (0, 0, 0)  # NFO 库管理：批量结果 (成功, 失败, 总数)
+        self._nfo_lib_original_data: CrawlersResult | None = None  # NFO 库管理：加载时的原始数据（diff 基准）
+        # self.window_marjin = 0 窗口外边距，为0时不往里缩
+        self.show_flag = True  # 是否加载刷新样式
+
+        self.timer = QTimer()  # 初始化一个定时器，用于显示日志
+        self.timer.timeout.connect(self.show_detail_log)
+        self.timer.timeout.connect(self._flush_main_log_queue)
+        self.timer.start(100)  # 设置间隔100毫秒
+        self.timer_scrape = QTimer()  # 初始化一个定时器，用于间隔刮削
+        self.timer_scrape.timeout.connect(self.auto_scrape)
+        self.timer_update = QTimer()  # 初始化一个定时器，用于检查更新
+        self.timer_update.timeout.connect(check_version)
+        self.timer_update.start(43200000)  # 设置检查间隔12小时
+        self.timer_remain_task = QTimer()  # 初始化一个定时器，用于显示保存剩余任务
+        self.timer_remain_task.timeout.connect(save_remain_list)
+        self.timer_remain_task.start(1500)  # 设置间隔1.5秒
+        self.atuo_scrape_count = 0  # 循环刮削次数
+        # endregion
+
+        # region 其它属性声明
+        self.threads_list: list[threading.Thread] = []  # 启动的线程列表
+        self.start_click_time = 0
+        self.start_click_pos: QPoint
+        self.window_marjin = None
+        self.now_show_name = None
+        self._nfo_editor_snapshot: tuple[str, ...] | None = None
+        self.show_name = None
+        self.t_net = None
+        self.options: QFileDialog.Option
+        self.tray_icon: QSystemTrayIcon
+        self.item_succ: QTreeWidgetItem
+        self.item_fail: QTreeWidgetItem
+        # endregion
+
+        # region 初始化 UI
+        resources.get_fonts()
+        resources.start_data_loading()
+        self.Ui = Ui_MDCx()  # 实例化 Ui
+        self.Ui.setupUi(self)  # 初始化 Ui
+        # QStackedWidget 只会把当前可见页 resize 到自身尺寸，休眠页永远停留在设计尺寸；
+        # 切页后必须重新同步一次内部几何，否则"先改窗口尺寸再切页"时页面内容全部按陈旧尺寸布局
+        self.Ui.stackedWidget.currentChanged.connect(self._sync_page_layouts)
+        self.Ui.stackedWidget.currentChanged.connect(self._on_page_change_nfo_panel)
+        self._bind_system_theme_refresh()
+        self.cutwindow = CutWindow(self)
+        self.preview_image_loader = PreviewImageLoader(self)
+        self.preview_image_loader.loaded.connect(self._apply_preview_images)
+        self.Init_Singal()  # 信号连接
+        self.Init_Ui()  # 设置Ui初始状态
+        self.load_config()  # 加载配置
+        self._setup_name_template_preview()
+        get_success_list()  # 获取历史成功刮削列表
+        # endregion
+
+        # region 启动显示信息和后台检查更新
+        self.show_scrape_info()  # 主界面左下角显示一些配置信息
+        self.show_net_info("\n🏠 代理设置在:【设置】 - 【网络】 - 【网络设置】。")
+        show_netstatus()  # 检查网络界面显示当前网络代理信息
+        self.show_net_info(
+            "\n💡 Cloudflare Bypass：在【设置】-【网络】-【外部 CF 服务】填写 TRAWL / FlareSolverr "
+            "服务地址后生效，例如 http://127.0.0.1:8191。\n"
+            "▶️ 点击右上角 【开始检测】按钮以测试网络连通性。"
+        )
+        signal_qt.add_log("🍯 你可以点击左下角的图标来 显示 / 隐藏 请求信息面板！")
+        run_startup_health_checks()  # 启动自检：配置目录可写/代理可达/TMDB key
+        self.show_version()  # 日志页面显示版本信息
+        self.creat_right_menu()  # 加载右键菜单
+        self.pushButton_main_clicked()  # 切换到主界面
+        self.auto_start()  # 自动开始刮削
+        # endregion
+
+    def _setup_name_template_preview(self) -> None:
+        self.Ui.plainTextEdit_name_template_preview.setPlainText(
+            self.Ui.lineEdit_media_name.text()
+            or "{{ number }}{% if studio %} [{{ studio }}]{% endif %} {{ originaltitle }}"
+        )
+        self.Ui.plainTextEdit_name_template_preview.textChanged.connect(self._update_name_template_preview)
+        self._update_name_template_preview()
+
+    def _build_name_preview_sample(self) -> tuple[FileInfo, CrawlersResult]:
+        file_info = FileInfo.empty()
+        file_info.number = "ABC-123"
+        file_info.file_path = Path("D:/Media/Input/ABC-123.mp4")
+        file_info.folder_path = file_info.file_path.parent
+        file_info.file_name = "ABC-123"
+        file_info.definition = "4K"
+        file_info.c_word = "-中字"
+        file_info.wuma = "-无码"
+
+        result = CrawlersResult.empty()
+        result.number = "ABC-123"
+        result.title = "中文标题"
+        result.originaltitle = "Original Title"
+        result.actors = ["演员A", "演员B"]
+        result.all_actors = ["演员A", "演员B", "男演员C"]
+        result.directors = ["导演A"]
+        result.series = "系列A"
+        result.studio = "Studio A"
+        result.publisher = "发行商A"
+        result.release = "2024-01-02"
+        result.runtime = "120"
+        result.mosaic = "有码"
+        result.letters = "ABC"
+        result.wanted = "123"
+        result.score = "4.5"
+        result.outline = "示例简介"
+        return file_info, result
+
+    def _update_name_template_preview(self) -> None:
+        template = self.Ui.plainTextEdit_name_template_preview.toPlainText()
+        if not template.strip():
+            self.Ui.label_name_template_preview_result.setText("状态：等待输入模板")
+            return
+        try:
+            file_info, result = self._build_name_preview_sample()
+            rendered = render_name(
+                template,
+                file_info,
+                result,
+                NameRenderOptions(
+                    target=NamingTarget.FILE,
+                    show_definition_suffix=False,
+                    show_cnword_suffix=False,
+                    show_moword_suffix=False,
+                    max_length=120,
+                ),
+            )
+        except Exception as exc:
+            self.Ui.label_name_template_preview_result.setStyleSheet("color: rgb(190, 0, 0);")
+            self.Ui.label_name_template_preview_result.setText("状态：语法错误\n" + html.escape(str(exc), quote=False))
+            return
+
+        self.Ui.label_name_template_preview_result.setStyleSheet("color: rgb(8, 128, 128);")
+        self.Ui.label_name_template_preview_result.setText(
+            "状态：语法正确\n"
+            f"结果：{html.escape(rendered.text, quote=False)}\n"
+            "示例字段：number=ABC-123, studio=Studio A, originaltitle=Original Title, definition=4K"
+        )
+
+    # region Init
+    def Init_Ui(self): ...
+
+    def Init_Singal(self): ...
+
+    def Init_QSystemTrayIcon(self): ...
+
+    def init_QTreeWidget(self): ...
+
+    def load_config(self): ...
+
+    def creat_right_menu(self):
+        self.menu_start = QAction(QIcon(resources.start_icon), "  开始刮削\tS", self)
+        self.menu_stop = QAction(QIcon(resources.stop_icon), "  停止刮削\tS", self)
+        self.menu_number = QAction(QIcon(resources.input_number_icon), "  重新刮削\tN", self)
+        self.menu_website = QAction(QIcon(resources.input_website_icon), "  输入网址重新刮削\tU", self)
+        self.menu_del_file = QAction(QIcon(resources.del_file_icon), "  删除文件\tD", self)
+        self.menu_del_folder = QAction(QIcon(resources.del_folder_icon), "  删除文件和文件夹\tA", self)
+        self.menu_make_symlink = QAction(QIcon(resources.open_folder_icon), "  在指定位置创建软链接", self)
+        self.menu_make_symlink_in_dir = QAction(
+            QIcon(resources.open_folder_icon), "  在指定位置创建软链接（按文件名建目录）", self
+        )
+        self.menu_make_hardlink = QAction(QIcon(resources.open_folder_icon), "  在指定位置创建硬链接", self)
+        self.menu_make_hardlink_in_dir = QAction(
+            QIcon(resources.open_folder_icon), "  在指定位置创建硬链接（按文件名建目录）", self
+        )
+        self.menu_folder = QAction(QIcon(resources.open_folder_icon), "  打开文件夹\tF", self)
+        self.menu_nfo = QAction(QIcon(resources.open_nfo_icon), "  编辑 NFO\tE", self)
+        self.menu_play = QAction(QIcon(resources.play_icon), "  播放\tP", self)
+        self.menu_hide = QAction(QIcon(resources.hide_boss_icon), "  隐藏\tQ", self)
+        self.menu_similar = QAction(QIcon(resources.open_folder_icon), "  查看相似片推荐", self)
+
+        self.menu_start.triggered.connect(self.pushButton_start_scrape_clicked)
+        self.menu_stop.triggered.connect(self.pushButton_start_scrape_clicked)
+        self.menu_number.triggered.connect(self.search_by_number_clicked)
+        self.menu_website.triggered.connect(self.search_by_url_clicked)
+        self.menu_del_file.triggered.connect(self.main_del_file_click)
+        self.menu_del_folder.triggered.connect(self.main_del_folder_click)
+        self.menu_make_symlink.triggered.connect(self.main_make_symlink_click)
+        self.menu_make_symlink_in_dir.triggered.connect(self.main_make_symlink_in_dir_click)
+        self.menu_make_hardlink.triggered.connect(self.main_make_hardlink_click)
+        self.menu_make_hardlink_in_dir.triggered.connect(self.main_make_hardlink_in_dir_click)
+        self.menu_folder.triggered.connect(self.main_open_folder_click)
+        self.menu_nfo.triggered.connect(self.main_open_nfo_click)
+        self.menu_play.triggered.connect(self.main_play_click)
+        self.menu_hide.triggered.connect(self.hide)
+        self.menu_similar.triggered.connect(self.main_show_similar_click)
+
+        QShortcut(QKeySequence(self.tr("N")), self, self.search_by_number_clicked)
+        QShortcut(QKeySequence(self.tr("U")), self, self.search_by_url_clicked)
+        QShortcut(QKeySequence(self.tr("D")), self, self.main_del_file_click)
+        QShortcut(QKeySequence(self.tr("A")), self, self.main_del_folder_click)
+        QShortcut(QKeySequence(self.tr("F")), self, self.main_open_folder_click)
+        QShortcut(QKeySequence(self.tr("E")), self, self.main_open_nfo_click)
+        QShortcut(QKeySequence(self.tr("P")), self, self.main_play_click)
+        QShortcut(QKeySequence(self.tr("S")), self, self.pushButton_start_scrape_clicked)
+        QShortcut(QKeySequence(self.tr("Q")), self, self.hide)
+        # QShortcut(QKeySequence(self.tr("Esc")), self, self.hide)
+        QShortcut(QKeySequence(self.tr("Ctrl+M")), self, self.pushButton_min_clicked2)
+        QShortcut(QKeySequence(self.tr("Ctrl+W")), self, self.ready_to_exit)
+
+        self.Ui.page_main.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.Ui.page_main.customContextMenuRequested.connect(self._menu)
+
+    def _menu(self, pos=None):
+        if not pos:
+            pos = self.Ui.pushButton_right_menu.pos() + QPoint(40, 10)
+            # pos = QCursor().pos()
+        menu = QMenu()
+        menu.setStyleSheet(build_menu_style(self.dark_mode))
+        selected_entries = self._get_selected_entries()
+        selected_entry = selected_entries[0] if len(selected_entries) == 1 else None
+        if len(selected_entries) > 1:
+            menu.addAction(QAction(f"已选择 {len(selected_entries)} 项", self))
+            menu.addSeparator()
+            menu.addAction(self.menu_del_file)
+            menu.addAction(self.menu_del_folder)
+            menu.addAction(self.menu_make_symlink)
+            menu.addAction(self.menu_make_symlink_in_dir)
+            menu.addAction(self.menu_make_hardlink)
+            menu.addAction(self.menu_make_hardlink_in_dir)
+            menu.exec(self.Ui.page_main.mapToGlobal(pos))
+            return
+
+        if selected_entry is not None:
+            _, _, _, file_path = selected_entry
+            file_name = split_path(file_path)[1]
+            menu.addAction(QAction(file_name, self))
+            menu.addSeparator()
+        elif self.file_main_open_path:
+            file_name = split_path(self.file_main_open_path)[1]
+            menu.addAction(QAction(file_name, self))
+            menu.addSeparator()
+        else:
+            menu.addAction(QAction("请刮削后使用！", self))
+            menu.addSeparator()
+            if self.Ui.pushButton_start_cap.text() != "开始":
+                menu.addAction(self.menu_stop)
+            else:
+                menu.addAction(self.menu_start)
+        menu.addAction(self.menu_number)
+        menu.addAction(self.menu_website)
+        menu.addSeparator()
+        menu.addAction(self.menu_del_file)
+        menu.addAction(self.menu_del_folder)
+        menu.addAction(self.menu_make_symlink)
+        menu.addAction(self.menu_make_symlink_in_dir)
+        menu.addAction(self.menu_make_hardlink)
+        menu.addAction(self.menu_make_hardlink_in_dir)
+        menu.addSeparator()
+        menu.addAction(self.menu_folder)
+        menu.addAction(self.menu_nfo)
+        menu.addAction(self.menu_play)
+        menu.addAction(self.menu_hide)
+        menu.addAction(self.menu_similar)
+        menu.exec(self.Ui.page_main.mapToGlobal(pos))
+        # menu.move(pos)
+        # menu.show()
+
+    def _tree_result_context_menu(self, pos: QPoint):
+        item = self.Ui.treeWidget_number.itemAt(pos)
+        if item is not None and item.text(0) not in {"成功", "失败"}:
+            self._set_result_item_as_current_selection(item)
+        global_pos = self.Ui.treeWidget_number.viewport().mapToGlobal(pos)
+        self._menu(self.Ui.page_main.mapFromGlobal(global_pos))
+
+    # endregion
+
+    # region 窗口操作
+    def tray_icon_click(self, e):
+        if e == QSystemTrayIcon.ActivationReason.Trigger and IS_WINDOWS:
+            if self.isVisible():
+                self.hide()
+            else:
+                self.activateWindow()
+                self.raise_()
+                self.show()
+
+    def tray_icon_show(self):
+        if self.windowState() & Qt.WindowState.WindowMinimized:  # 最小化时恢复
+            self.showNormal()
+        self.recover_windowflags()  # 恢复焦点
+        self.activateWindow()
+        self.raise_()
+        self.show()
+
+    def change_mainpage(self, t):
+        self.pushButton_main_clicked()
+
+    def eventFilter(self, a0, a1):
+        # print(event.type())
+
+        if a1.type() == QEvent.Type.MouseButtonRelease:  # 松开鼠标，检查是否在前台
+            self.recover_windowflags()
+        # 议题 #132：不再在 ApplicationActivate 时自动 show() 隐藏的主窗。
+        # 主窗隐藏（托盘图标隐藏 / 关闭到托盘 / 最小化到托盘）都是用户主动行为，
+        # 此时操作 Emby 演员管理器等工具会触发 ApplicationActivate，旧逻辑会把隐藏的
+        # 主窗拉出前台。恢复显示只由托盘菜单/托盘图标点击（tray_icon_show /
+        # tray_icon_click）负责；最小化态由 Qt 自行保持。
+        # 议题 #102 曾保留「非最小化隐藏态」的 show()，议题 #132 实测反馈表明托盘
+        # 隐藏后操作管理器仍会弹出主窗，故此处改为完全不自动弹出。
+        if a0.objectName() == "label_poster" or a0.objectName() == "label_thumb":
+            if a1.type() == QEvent.Type.MouseButtonPress:
+                a1 = cast("QMouseEvent", a1)
+                if a1.button() == Qt.MouseButton.LeftButton:
+                    self.start_click_time = time.time()
+                    self.start_click_pos = a1.globalPosition().toPoint()
+            elif a1.type() == QEvent.Type.MouseButtonRelease:
+                a1 = cast("QMouseEvent", a1)
+                if a1.button() == Qt.MouseButton.LeftButton:
+                    if not bool(a1.globalPosition().toPoint() - self.start_click_pos) or (
+                        time.time() - self.start_click_time < 0.05
+                    ):
+                        self._pic_main_clicked()
+        if a0 is self.Ui.textBrowser_log_main.viewport() or a0 is self.Ui.textBrowser_log_main_2.viewport():
+            if not self.Ui.textBrowser_log_main_3.isHidden() and a1.type() == QEvent.Type.MouseButtonPress:
+                self.Ui.textBrowser_log_main_3.hide()
+                self.Ui.pushButton_scraper_failed_list.hide()
+                self.Ui.pushButton_save_failed_list.hide()
+        return super().eventFilter(a0, a1)
+
+    def showEvent(self, a0):
+        if not self._did_apply_initial_size:
+            self._did_apply_initial_size = True
+            self._apply_adaptive_default_size()  # 首次显示时按屏幕自适应默认窗口大小
+        super().showEvent(a0)
+
+    def _apply_adaptive_default_size(self) -> None:
+        """默认尺寸自适应（历史固定 1030x700 偏小，现按所在屏可用区缩放，大屏 1280x860）。"""
+        screen = self.screen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            _, _, def_w, def_h = _adaptive_window_sizes(avail.width(), avail.height())
+        else:
+            def_w, def_h = 1030, 700
+        self.resize(def_w, def_h)
+
+    # 用于计算窗口各子页面初始设计尺寸，被 resizeEvent 用于按比例缩放
+    _BASE_W = 1040
+    _BASE_H = 760
+
+    # 窗口缩放时，需要用子页面内容的实际高度来自定义 MDCx 中央区域的高度
+    _CONTENT_TOP_OFFSET = 6
+    _CONTENT_BOTTOM_MARGIN = 2
+
+    # 议题 #117：信息管理页「简介/标签」多行框的设计高度（.ui 中 min=max=60）。
+    # 视口放不下整表时按缺口压缩这两个框，压缩下限 40（再矮就没法看内容，
+    # 宁可保留滚动条）。
+    _NFO_LIB_FIELD_FULL_H = 60
+    _NFO_LIB_FIELD_MIN_H = 40
+
+    def _sync_nfo_lib_form_fields(self) -> None:
+        """小窗时压缩信息管理页「简介/标签」高度，让保存按钮免滚动可见（议题 #117）。
+
+        现象：窗口缩到默认尺寸以下时，15 行表单 + 底部余量总高超出滚动视口，
+        出现垂直滚动条，「保存当前 NFO」被推到视口外，用户以为按钮丢了。
+        做法：按视口可用高动态定这两个多行框的高——全高放得下就保持设计高
+        （最大化时布局完全不变），放不下就按缺口在两个框之间等分压缩，
+        最低压到 _NFO_LIB_FIELD_MIN_H。
+        """
+        ui = self.Ui
+        scroll = ui.scrollArea_nfo_lib_form
+        content = ui.scrollAreaWidgetContents_nfo_lib
+        layout = content.layout()
+        viewport_h = scroll.viewport().height()
+        if layout is None or viewport_h <= 0:
+            return
+        boxes = (ui.plainTextEdit_nfo_lib_outline, ui.plainTextEdit_nfo_lib_tag)
+        full = self._NFO_LIB_FIELD_FULL_H
+        floor = self._NFO_LIB_FIELD_MIN_H
+
+        def apply_box_height(height: int) -> int:
+            """把两个多行框钉到 height，返回整表紧凑排布所需高（含底部余量）。"""
+            for box in boxes:
+                box.setMinimumHeight(height)
+                box.setMaximumHeight(height)
+            layout.invalidate()
+            layout.activate()
+            content.updateGeometry()
+            return layout.sizeHint().height() + scroll.content_bottom_margin()
+
+        deficit = apply_box_height(full) - viewport_h
+        if deficit > 0:
+            # 缺口在两个框之间均摊（向上取整保证压够），并守住可读下限
+            shrink = min(-(-deficit // len(boxes)), full - floor)
+            if shrink > 0:
+                apply_box_height(full - shrink)
+        scroll.sync_content_min_height()
+
+    def resizeEvent(self, a0):
+        # 全局 UI 为绝对定位布局（上游遗留），centralwidget 无布局管理器，
+        # 窗口缩放时手动同步导航栏/内容区/顶部进度条几何，否则最大化后内容区固定 820x692
+        super().resizeEvent(a0)
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        width, height = self.width(), self.height()
+        ui.widget_setting.setGeometry(0, 0, 210, height)
+        # 议题 #86：左侧状态区（正常模式/actor.json/MDCx 版本/点击检查最新版本）
+        # 与浮标数字图标原本固定设计 y 坐标，窗口拉高后滞留在上半区——贴 widget_setting
+        # 底部随窗口同步下移。label_show_version 设计 (0,489,210,201)：底部对齐的文本框
+        # 需保持底边与 widget_setting 底边贴齐；label_local_number 设计 (0,680,21,21)。
+        # 议题 #102：贴底预留 40px，避免状态区紧贴窗底"太靠下"，视觉上往上移一行。
+        # max(..., 489) 只是"不低于设计位置"的下限；窗口高度 < 730 时底边会超出窗口，
+        # 底对齐文字末行（配置文件名/版本号）被窗底裁掉——再用 min(..., height-h) 上限
+        # 保证 label 完整落在窗口内（最小高按屏幕自适应后仍可能低于 730，见 init.py）。
+        _STATUS_BOTTOM_PAD = 40
+        ui.label_show_version.move(0, min(max(height - 201 - _STATUS_BOTTOM_PAD, 489), height - 201))
+        ui.label_local_number.move(0, min(max(height - 21 - _STATUS_BOTTOM_PAD, 680), height - 21))
+        ui.stackedWidget.setGeometry(210, 6, max(width - 210 - 2, 400), max(height - 8, 300))
+        ui.progressBar_scrape.setGeometry(209, -1, max(width - 211, 100), 7)
+        self._sync_page_layouts()  # 同步动态页面的内部尺寸
+
+    # 议题 #154：「编辑 NFO」覆盖层内容区字段最小高度（设计值）
+    _NFO_EDITOR_TEXT_MIN_H = 150
+    _NFO_EDITOR_TAG_MIN_H = 100
+    _NFO_COMMA_HINT = "多个以逗号隔开"
+    _NFO_OVERLAY_X = 8
+    _NFO_OVERLAY_Y = 8
+    _NFO_OVERLAY_MARGIN = 12
+    _NFO_OVERLAY_BTN_W = 91
+    _NFO_OVERLAY_BTN_H = 40
+    _NFO_OVERLAY_BTN_GAP = 108
+    _NFO_OVERLAY_BAR_H = 50
+    _NFO_OVERLAY_TREE_GAP = 8
+
+    def _ensure_nfo_editor_layout(self) -> None:
+        """议题 #154/#166：覆盖层内容区改为行式布局，字段随宽度拉伸。
+
+        .ui 里内容区固定 860×1300、19 个字段按绝对坐标摆放。改为 QVBoxLayout
+        + 每行 QHBoxLayout；逗号提示改挂到演员/标签字段，不再占独立行。
+        仅首次构建。
+        """
+        ui = self.Ui
+        ui.label_370.hide()
+        ui.label_379.hide()
+        ui.lineEdit_nfo_actor.setPlaceholderText(self._NFO_COMMA_HINT)
+        ui.lineEdit_nfo_actor.setToolTip(self._NFO_COMMA_HINT)
+        ui.textEdit_nfo_tag.setPlaceholderText(self._NFO_COMMA_HINT)
+        ui.textEdit_nfo_tag.setToolTip(self._NFO_COMMA_HINT)
+        content = ui.scrollAreaWidgetContents_nfo_editor
+        if content.layout() is not None:
+            return
+        ui.scrollArea_nfo.set_content_bottom_margin(0)
+        outer = QVBoxLayout(content)
+        outer.setContentsMargins(9, 6, 9, 12)
+        outer.setSpacing(6)
+
+        def _label(text_label):
+            text_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            text_label.setFixedWidth(82)
+            return text_label
+
+        def add_full_row(text_label, field) -> None:
+            row = QHBoxLayout()
+            row.setSpacing(10)
+            row.addWidget(_label(text_label))
+            row.addWidget(field, 1)
+            outer.addLayout(row)
+
+        def add_pair_row(l1, f1, l2, f2) -> None:
+            row = QHBoxLayout()
+            row.setSpacing(10)
+            row.addWidget(_label(l1))
+            row.addWidget(f1, 1)
+            row.addWidget(_label(l2))
+            row.addWidget(f2, 1)
+            outer.addLayout(row)
+
+        def add_triple_row(l1, f1, l2, f2, l3, f3) -> None:
+            row = QHBoxLayout()
+            row.setSpacing(10)
+            for text_label, field in ((l1, f1), (l2, f2), (l3, f3)):
+                row.addWidget(_label(text_label))
+                row.addWidget(field, 1)
+            outer.addLayout(row)
+
+        add_full_row(ui.label_381, ui.label_nfo)
+        add_triple_row(
+            ui.label_360,
+            ui.lineEdit_nfo_number,
+            ui.label_369,
+            ui.comboBox_nfo,
+            ui.label_380,
+            ui.lineEdit_nfo_year,
+        )
+        add_full_row(ui.label_359, ui.lineEdit_nfo_actor)
+        add_full_row(ui.label_361, ui.lineEdit_nfo_title)
+        add_full_row(ui.label_372, ui.lineEdit_nfo_originaltitle)
+        add_full_row(ui.label_19, ui.textEdit_nfo_outline)
+        add_full_row(ui.label_371, ui.textEdit_nfo_originalplot)
+        add_full_row(ui.label_362, ui.textEdit_nfo_tag)
+        add_pair_row(ui.label_363, ui.lineEdit_nfo_release, ui.label_364, ui.lineEdit_nfo_runtime)
+        add_pair_row(ui.label_373, ui.lineEdit_nfo_score, ui.label_374, ui.lineEdit_nfo_wanted)
+        add_pair_row(ui.label_366, ui.lineEdit_nfo_director, ui.label_365, ui.lineEdit_nfo_series)
+        add_pair_row(ui.label_368, ui.lineEdit_nfo_studio, ui.label_367, ui.lineEdit_nfo_publisher)
+        add_full_row(ui.label_375, ui.lineEdit_nfo_poster)
+        add_full_row(ui.label_376, ui.lineEdit_nfo_cover)
+        add_full_row(ui.label_377, ui.lineEdit_nfo_trailer)
+        add_full_row(ui.label_378, ui.lineEdit_nfo_website)
+        for box, height in (
+            (ui.textEdit_nfo_outline, self._NFO_EDITOR_TEXT_MIN_H),
+            (ui.textEdit_nfo_originalplot, self._NFO_EDITOR_TEXT_MIN_H),
+            (ui.textEdit_nfo_tag, self._NFO_EDITOR_TAG_MIN_H),
+        ):
+            box.setMinimumHeight(height)
+
+    def _nfo_overlay_right_edge(self) -> int:
+        """覆盖层右缘 = min(缩略图右缘, 结果树左缘 - 间距)，不盖住番号树。"""
+        ui = self.Ui
+        stacked_x = ui.stackedWidget.x()
+        thumb = ui.label_thumb
+        tree = ui.treeWidget_number
+        thumb_right = stacked_x + thumb.x() + thumb.width()
+        tree_left = stacked_x + tree.x()
+        return min(thumb_right, tree_left - self._NFO_OVERLAY_TREE_GAP)
+
+    def _sync_nfo_overlay_geometry(self) -> None:
+        """议题 #166：覆盖层作为主页伴侣面板，右缘收到缩略图/结果树之间。"""
+        ui = self.Ui
+        nfo = ui.widget_nfo
+        if nfo is None or nfo.isHidden():
+            return
+        self._ensure_nfo_editor_layout()
+        nfo_x, nfo_y, margin = self._NFO_OVERLAY_X, self._NFO_OVERLAY_Y, self._NFO_OVERLAY_MARGIN
+        nfo_right = self._nfo_overlay_right_edge()
+        nfo_w = max(nfo_right - nfo_x, 280)
+        tree_limit = ui.stackedWidget.x() + ui.treeWidget_number.x() - self._NFO_OVERLAY_TREE_GAP
+        if nfo_x + nfo_w > tree_limit:
+            nfo_w = max(tree_limit - nfo_x, 280)
+        max_h = max(self.height() - nfo_y - margin, 300)
+        content = ui.scrollAreaWidgetContents_nfo_editor
+        lay = content.layout()
+        if lay is not None:
+            lay.activate()
+            content_h = max(lay.sizeHint().height(), 200)
+        else:
+            content_h = 200
+        nfo_h = min(29 + content_h + self._NFO_OVERLAY_BAR_H, max_h)
+        nfo.setGeometry(nfo_x, nfo_y, nfo_w, nfo_h)
+        btn_w, btn_h, gap, bar_h = (
+            self._NFO_OVERLAY_BTN_W,
+            self._NFO_OVERLAY_BTN_H,
+            self._NFO_OVERLAY_BTN_GAP,
+            self._NFO_OVERLAY_BAR_H,
+        )
+        pair_w = btn_w + gap + btn_w
+        save_x = max((nfo_w - pair_w) // 2, 0)
+        close_x = save_x + btn_w + gap
+        btn_y = max(nfo_h - margin - btn_h, 0)
+        ui.pushButton_nfo_close.setGeometry(close_x, btn_y, btn_w, btn_h)
+        ui.pushButton_nfo_save.setGeometry(save_x, btn_y, btn_w, btn_h)
+        ui.pushButton_nfo_save.raise_()
+        ui.pushButton_nfo_close.raise_()
+        ui.label_save_tips.setGeometry(margin, max(nfo_h - margin - 24, 0), max(save_x - margin, 60), 20)
+        ui.label_4.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        ui.label_4.setGeometry(0, 5, nfo_w, ui.label_4.height())
+        scroll = ui.scrollArea_nfo
+        if scroll is not None:
+            scroll.setGeometry(9, 29, max(nfo_w - 9 - margin, 200), max(nfo_h - 29 - bar_h, 200))
+
+    def _sync_page_layouts(self) -> None:
+        """让所有页面的内部组件跟随主窗口尺寸缩放。
+
+        窗口右侧 stackedWidget resizeEvent 同步，但子页面（page_setting里的tabWidget、
+        page_tool的自定义区域、page_net的textBrowser），仅需位置在绝对坐标系下按比例还原。
+        方法：基于主窗口追加 (210,6) → 用处当前发扬的尺寸作为基准，对元素调用一次 setGeometry。
+        每个组件保留最初设计偏移 (X, Y)，仅需对宽 高 按比例缩放。
+        """
+        ui = self.Ui
+        # stackedWidget 可用宽高（扣除侧栏和上下间距）
+        avail_w = max(self.width() - 210 - 2, 400)
+        avail_h = max(self.height() - self._CONTENT_TOP_OFFSET - self._CONTENT_BOTTOM_MARGIN, 300)
+
+        # 关键前置：QStackedWidget 只 resize 当前可见页，休眠页永远停留在设计尺寸。
+        # 必须先把所有页面统一 resize 到 stackedWidget 尺寸，后续基于 page.width()/height()
+        # 的计算才有正确基准（否则"先缩放窗口再切页"时全部按设计尺寸 820x692 布局）。
+        # Windows 原生边框最大化时，对带 QLayout 页面的 resize 可能因窗口重建事件
+        # 时序错过布局更新（议题 #78：信息管理页右侧残留 ~194px 空白、底部控件坠落
+        # 视野）——resize 后对每页布局显式 invalidate + activate 强制重排。
+        stacked = ui.stackedWidget
+        for index in range(stacked.count()):
+            page = stacked.widget(index)
+            page.resize(avail_w, avail_h)
+            layout = page.layout()
+            if layout is not None:
+                layout.invalidate()
+                layout.activate()
+
+        # ============ page_main（软件界面）：横向 + 纵向跟随 ============
+        # 设计基准宽 820：宽幅控件拉伸贴右缘、右缘锚定控件保持宽度平移、其余保持原位。
+        main_page = ui.page_main
+        main_w = main_page.width()
+        # 幂等：基于设计基准 820 的 cover_scale（全函数共用，须在统计栏/封面段前计算）
+        cover_scale = main_w / 820
+        # 宽幅拉伸（设计右缘≈页面右缘）：文件路径标签、分隔线
+        ui.label_file_path.resize(max(main_w - 34, 300), ui.label_file_path.height())
+        ui.line_14.resize(max(main_w - 49, 300), ui.line_14.height())
+        # 右缘锚定（结果树宽随 cover_scale 拉伸贴向缩略图右缘、右缘贴齐页面右 18px；
+        # 议题 #173：固定 202 宽在最大化时离缩略图过远，改随窗口拉伸、两态间距一致）
+        tree_w = max(int(202 * cover_scale), 202)
+        ui.pushButton_start_cap.move(max(main_w - 120 - 20, 20), 13)
+        # 统计标签最大化时左对齐到结果树左缘、贴到「成功」列正上方（此前右对齐会停在
+        # 树右上角、与「成功」错位）；纵向两态同高、始终贴住顶部分隔线下方，与还原/
+        # 最小化一致，避免最大化时整组下沉、与顶部线之间留出空隙
+        _maxed = self.isMaximized()
+        _tree_x = max(main_w - tree_w - 18, 300)
+        ui.label_result.move(_tree_x if _maxed else max(main_w - 211 - 9, 300), 70)
+        ui.treeWidget_number.move(_tree_x, 110)
+        ui.treeWidget_number.resize(tree_w, max(ui.treeWidget_number.height(), 100))
+        ui.pushButton_tree_clear.move(max(main_w - 20 - 40, 300), 110)
+        # 选择目录按钮跟随开始按钮左移，保持 14px 视觉间距（设计 666 与 680 之间）
+        ui.pushButton_select_media_folder.move(max(ui.pushButton_start_cap.x() - 101 - 14, 20), 13)
+
+        # 议题 #124/#135：封面/缩略图按窗口宽度横向等比放大（160×220 → ×scale），
+        # 下方信息区（简介/标签/日期/导演/制作 + 右列时长/系列/发行 + 分隔线 + 勾选框）
+        # 按封面框的增高量整体**下移**，保持与「番号/标题/封面」同一左列（x 不变），
+        # 从而不会被放大的黑框盖住。#135 修正：此前误将信息区整组**右移**到缩略图
+        # 右侧，导致最小化时字段被推到窗口右半、与番号/标题/封面不对齐。
+        ui.label_poster.setGeometry(int(80 * cover_scale), 160, int(156 * cover_scale), int(220 * cover_scale))
+        ui.label_thumb.setGeometry(int(252 * cover_scale), 160, int(328 * cover_scale), int(220 * cover_scale))
+        # 议题 #144: 框放大后原图按新框尺寸重渲染(窗口缩放与图片显示同步)
+        self._rescale_preview_pixmaps()
+        cover_bottom = int(160 + 220 * cover_scale)
+        # 信息区下移量 = 封面框增高量；再夹到页面可用高度内，避免宽而矮的窗口把末行裁掉
+        info_delta = min(cover_bottom - 380, max(main_page.height() - 700, 0))
+        # 议题 #154（撤销 #152 的行高增长）：简介/标签恒定 40px、最多两行，超出的文本
+        # 按当前宽度做两行省略（宽度越大每行容纳越多，最大化自然比最小化显示更多）；
+        # 下方各行只随封面增高 info_delta 下移，不再被行高增量推出页底。
+        info_grow = info_delta  # 简介/标签以下各行的总下移量
+        ui.label_poster_size.setGeometry(
+            int(80 * cover_scale), cover_bottom, int(411 * cover_scale), int(40 * cover_scale)
+        )
+        ui.label_thumb_size.setGeometry(
+            int(222 * cover_scale), cover_bottom, int(201 * cover_scale), int(40 * cover_scale)
+        )
+        ui.checkBox_cover.move(490, cover_bottom)
+        # 信息区各控件：左列标签锚定设计 x=30（与「番号/标题/封面」对齐），y 统一下移
+        # info_delta；下划线/值列按 cover_scale 等比例加长（议题 #141）：
+        #   · 简介/标签（设计 x=70、宽 500）与右列时长/系列/发行（设计 x=350）的下划线
+        #     右缘延伸到「缩略图框右缘」thumb_right = 580×scale；
+        #   · 左列窄字段（日期/导演/制作，设计宽 220）宽度按 ×scale 加长；
+        #   · 右列整体按 ×scale 右移，避免与加长后的左列窄字段重叠。
+        thumb_right = int(580 * cover_scale)
+        # 左列标签（x 固定，保持与番号/标题/封面竖向对齐）
+        # 简介/标签两行标签与其值行同顶（#154 行高恒定），其余行用 info_grow
+        ui.label_18.move(30, 430 + info_delta)
+        ui.label_33.move(30, 480 + info_delta)
+        for name, y in (
+            ("label_13", 530),
+            ("label_23", 580),
+            ("label_30", 630),
+        ):
+            getattr(ui, name).move(30, y + info_grow)
+        # 简介/标签：左缘 x=70，右缘延伸到缩略图右缘；行高恒定 40px、最多两行（#154），
+        # 下划线贴行底(设计偏移 30)，简介之下的各行只随 info_delta 下移
+        wide_w = max(thumb_right - 70, 60)
+        ui.label_outline.setGeometry(70, 430 + info_delta, wide_w, 40)
+        ui.line_6.setGeometry(70, 460 + info_delta, wide_w, ui.line_6.height())
+        ui.label_tag.setGeometry(70, 480 + info_delta, wide_w, 40)
+        ui.line_7.setGeometry(70, 510 + info_delta, wide_w, ui.line_7.height())
+        # 宽度变化后按新宽度重算简介/标签的两行省略文本（#154：最大化显示更多内容）
+        self._refresh_main_outline_tag()
+        # 左列窄字段（日期/导演/制作）：宽度按 ×scale 等比例加长
+        narrow_w = max(int(220 * cover_scale), 60)
+        for name, y in (
+            ("label_release", 530),
+            ("label_director", 580),
+            ("label_studio", 630),
+            ("line_8", 560),
+            ("line_12", 610),
+            ("line_13", 660),
+        ):
+            getattr(ui, name).setGeometry(70, y + info_grow, narrow_w, getattr(ui, name).height())
+        # 右列（标签 x=310、值 x=350，按 ×scale 右移）：下划线右缘延伸到缩略图右缘
+        right_label_x = int(310 * cover_scale)
+        right_value_x = int(350 * cover_scale)
+        right_line_w = max(thumb_right - right_value_x, 60)
+        for name, y in (
+            ("label_31", 580),
+            ("label_22", 530),
+            ("label_24", 630),
+        ):
+            getattr(ui, name).move(right_label_x, y + info_grow)
+        for name, y in (
+            ("label_series", 580),
+            ("label_runtime", 530),
+            ("label_publish", 630),
+            ("line_9", 560),
+            ("line_10", 610),
+            ("line_11", 660),
+        ):
+            getattr(ui, name).setGeometry(right_value_x, y + info_grow, right_line_w, getattr(ui, name).height())
+        # 上区行（y70 番号/演员、y110 标题）右界受同右行按钮限制（label_source 460 /
+        # pushButton_open_nfo 427）：右界 = min(对应限制, 结果树左缘-30)
+        top_right = max(min(450, ui.treeWidget_number.x() - 30), 420)
+        title_right = max(min(417, ui.treeWidget_number.x() - 30), 390)
+        ui.label_number.resize(max(top_right - 80, 161), ui.label_number.height())
+        ui.label_actor.resize(max(top_right - 300, 161), ui.label_actor.height())
+        ui.label_title.resize(max(title_right - 80, 341), ui.label_title.height())
+
+        # ============ page_setting: tabWidget + 内部12个 scrollArea ============
+        # tabWidget 设计参考几何(20,10,800,682) → scrollArea(0,0,796,658)
+        # 保持 tabWidget 固定 X/Y=20,10，宽高跟随主窗口
+        tab_w = max(avail_w - 40, 200)
+        tab_h = max(avail_h - 20, 150)
+        scroll_w = max(tab_w - 4, 396)
+        scroll_h = max(tab_h - 24, 326)  # tab栏约占24px + 4px 边框
+        ui.tabWidget.setGeometry(20, 10, tab_w, tab_h)
+
+        # Qt 绝对定位布局中：先让所有 tab 的 tab_page 自身 resize 到正确尺寸，
+        # 这样 scrollArea 才会感知到变化；然后对每个 scrollArea 显式设置几何。
+        # 否则 scrollArea 保留设计器固定尺寸（如 796x658），不跟随变化。
+        for index in range(ui.tabWidget.count()):
+            tab_page = ui.tabWidget.widget(index)
+            # 关键：tab_page 必须先获得新尺寸，scrollArea 才能跟随同步
+            tab_page.resize(tab_w, tab_h)
+            scroll_area = tab_page.findChild(CustomScrollArea)
+            if scroll_area is not None and scroll_area.parentWidget() == tab_page:
+                scroll_area.setGeometry(0, 0, scroll_w, scroll_h)
+
+        # ---- page_setting 底部配置操作浮框（当前配置/另存为/恢复默认/保存）----
+        # 设计基准 y620-692 贴页底（page_setting 高 692）。窗口放大后浮框停在设计
+        # 高度、视觉悬空——整组按 (设计页高 692 - 设计 y) 的下缘边距锚定新底部，
+        # 保存按钮（设计右缘 731/页宽 820）同步右缘锚定，背景 label 拉伸贴宽。
+        setting_page = ui.page_setting
+        sp_h = setting_page.height()
+        sp_w = setting_page.width()
+        bottom = max(sp_h - (692 - 630), 100)  # 控件组设计基线 y=630
+        ui.label_config.setGeometry(0, max(sp_h - (692 - 620), 90), max(sp_w - 21, 400), 72)
+        ui.comboBox_change_config.move(100, max(bottom + 5, 105))
+        ui.pushButton_save_new_config.move(270, bottom)
+        ui.pushButton_init_config.move(380, bottom)
+        ui.pushButton_save_config.move(max(sp_w - 241 - 89, 500), bottom)
+        # 「当前配置:」标签（设计 y=629，与基线 630 差 1）随浮框组贴底，
+        # 否则最大化后停在设计位置、悬在滚动内容中部（用户截图中的浮框问题）
+        ui.label_241.move(20, max(bottom - 1, 100))
+
+        # ============ page_tool: scrollArea_10 ============
+        tool_area = ui.page_tool
+        scroll_10 = tool_area.findChild(CustomScrollArea)
+        if scroll_10 is not None and scroll_10.parentWidget() == tool_area:
+            scroll_10.setGeometry(20, 0, max(tool_area.width() - 20 - 20, 400), max(tool_area.height() - 0, 300))
+
+        # ============ page_net: textBrowser_net_main + 右侧按钮 ============
+        # 议题 #67: 文本区从按钮条带下方 (y=60) 开始, 按钮不再悬浮遮挡日志首行
+        net_area = ui.page_net
+        net_browser = ui.textBrowser_net_main
+        if net_browser.parentWidget() == net_area:
+            net_browser.setGeometry(30, 60, max(net_area.width() - 30 - 2, 400), max(net_area.height() - 60, 300))
+        # 设计基准页面宽 822：check_net 右缘 800(右距20)、net_copy 右缘 670(右距152)、net_retry 右缘 548(右距274)
+        ui.pushButton_check_net.move(max(net_area.width() - 142, 20), 13)
+        ui.pushButton_net_copy.move(max(net_area.width() - 262, 20), 13)
+        ui.pushButton_net_retry.move(max(net_area.width() - 384, 20), 13)
+
+        # ============ page_about: textBrowser_about ============
+        about_browser = ui.textBrowser_about
+        if about_browser.parentWidget() == ui.page_about:
+            about_browser.setGeometry(
+                30, 0, max(ui.page_about.width() - 30 - 2, 300), max(ui.page_about.height() - 0, 300)
+            )
+
+        # ============ page_log: textBrowser_log_main (上) / textBrowser_log_main_2 (下) / log_main_3(失败列表) ============
+        log_page = ui.page_log
+        log_w = max(log_page.width() - 28 - 2, 300)
+        log_h_total = log_page.height()
+        # 下栏（失败日志）隐藏时上栏铺满整页；显示时上下按原比例 (421:271 ≈ 61%:39%) 分高
+        lower_browser = ui.textBrowser_log_main_2
+        if lower_browser.isHidden():
+            upper_h = max(log_h_total, 100)
+        else:
+            upper_h = max(int(log_h_total * 0.61), 100)
+        lower_h = max(log_h_total - upper_h - 1, 100)
+        upper_w = max(log_w, 300)
+        ui.textBrowser_log_main.setGeometry(28, 0, upper_w, upper_h)
+        if not lower_browser.isHidden():
+            lower_browser.setGeometry(28, upper_h + 1, upper_w, lower_h)
+        # 覆盖性日志视图 (失败列表) 铺满整个日志页
+        ui.textBrowser_log_main_3.setGeometry(0, 0, max(log_page.width() - 2, 300), max(log_page.height() - 2, 300))
+        # 设计基准页面宽 822/高 692：按钮右缘锚定右侧、底部按钮锚定下缘
+        ui.pushButton_start_cap2.move(max(log_page.width() - 142, 20), 13)
+        ui.pushButton_view_failed_list.move(max(log_page.width() - 257, 20), 13)
+        ui.pushButton_show_hide_logs.move(0, max(log_page.height() - 42, 13))
+        ui.pushButton_save_failed_list.move(0, max(log_page.height() - 42, 13))
+
+        # ============ widget_nfo（「编辑 NFO」覆盖层）随主窗口缩放（议题 #152/#154/#166）============
+        # 可见时作为主页伴侣面板：左贴导航右缘、右收到缩略图/结果树之间，不盖住番号树。
+        self._sync_nfo_overlay_geometry()
+
+        # ============ page_nfo_library: 简介/标签高度自适应（议题 #117）============
+        self._sync_nfo_lib_form_fields()
+
+    # 当隐藏边框时，最小化后，点击任务栏时，需要监听事件，在恢复窗口时隐藏边框
+    def changeEvent(self, a0):
+        # self.show_traceback_log(QEvent.WindowStateChange)
+        # WindowState （WindowNoState=0 正常窗口; WindowMinimized= 1 最小化;
+        # WindowMaximized= 2 最大化; WindowFullScreen= 3 全屏;WindowActive= 8 可编辑。）
+        # windows平台无问题，仅mac平台python版有问题
+        # 议题：最大化/还原时 resizeEvent 中 isMaximized() 时序不可靠（状态位尚未更新），
+        # 在窗口状态变更事件后延迟一帧重算布局，确保统计标签 y 坐标正确跟随最大化状态
+        if a0.type() == QEvent.Type.WindowStateChange:
+            QTimer.singleShot(0, self._sync_page_layouts)
+        if (
+            not IS_WINDOWS
+            and self.window_radius
+            and a0.type() == QEvent.Type.WindowStateChange
+            and self.windowState() == Qt.WindowState.WindowNoState
+        ):
+            self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)  # 隐藏边框
+            self.show()
+
+        # activeAppName = AppKit.NSWorkspace.sharedWorkspace().activeApplication()['NSApplicationName'] # 活动窗口的标题
+
+    def closeEvent(self, a0):
+        if Switch.HIDE_CLOSE in manager.config.switch_on:
+            self.hide()
+        else:
+            self.ready_to_exit()
+        if a0:
+            a0.ignore()
+
+    # 显示与隐藏窗口标题栏
+    def _windows_auto_adjust(self):
+        if manager.config.window_title == "hide":  # 隐藏标题栏
+            if self.window_radius == 0:
+                self.show_flag = True
+            self.window_radius = 5
+            if IS_WINDOWS:
+                self.window_border = 1
+                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            else:
+                self.window_border = 0
+            self.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)  # 隐藏标题栏
+            self.Ui.pushButton_close.setVisible(True)
+            self.Ui.pushButton_min.setVisible(True)
+            self.Ui.widget_buttons.move(0, 50)
+
+        else:  # 显示标题栏
+            if self.window_radius == 5:
+                self.show_flag = True
+            self.window_radius = 0
+            self.window_border = 0
+            self.window_marjin = 0
+            if IS_WINDOWS:
+                self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+            self.setWindowFlag(Qt.WindowType.FramelessWindowHint, False)  # 显示标题栏
+            self.Ui.pushButton_close.setVisible(False)
+            self.Ui.pushButton_min.setVisible(False)
+            self.Ui.widget_buttons.move(0, 20)
+
+        if bool(self.dark_mode != self.Ui.checkBox_dark_mode.isChecked()):
+            self.show_flag = True
+            self.dark_mode = self.Ui.checkBox_dark_mode.isChecked()
+
+        if self.show_flag:
+            self.show_flag = False
+            self.set_style()  # 样式美化
+            apply_site_priority_theme(self)
+
+            # self.setWindowState(Qt.WindowNoState)                               # 恢复正常窗口
+            self.show()
+            self._change_page()
+
+    def _change_page(self):
+        page = int(self.Ui.stackedWidget.currentIndex())
+        if page == 0:
+            self.pushButton_main_clicked()
+        elif page == 1:
+            self.pushButton_show_log_clicked()
+        elif page == 2:
+            self.pushButton_show_net_clicked()
+        elif page == 3:
+            self.pushButton_tool_clicked()
+        elif page == 4:
+            self.pushButton_setting_clicked()
+        elif page == 5:
+            self.pushButton_about_clicked()
+
+    def set_style(self): ...
+
+    def set_dark_style(self): ...
+
+    def _bind_system_theme_refresh(self) -> None:
+        try:
+            style_hints = QGuiApplication.styleHints()
+            if style_hints is not None:
+                style_hints.colorSchemeChanged.connect(lambda *_args: apply_application_palette(self.dark_mode))
+        except Exception:
+            pass
+
+    # region 拖动窗口
+    # 按下鼠标
+    def mousePressEvent(self, a0):
+        if a0 and a0.button() == Qt.MouseButton.LeftButton:
+            self.m_drag = True
+            self.m_DragPosition = a0.globalPosition().toPoint() - self.pos()
+            self.setCursor(QCursor(Qt.CursorShape.OpenHandCursor))  # 按下左键改变鼠标指针样式为手掌
+
+    # 松开鼠标
+    def mouseReleaseEvent(self, a0):
+        if a0 and a0.button() == Qt.MouseButton.LeftButton:
+            self.m_drag = False
+            self.m_DragPosition = None
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))  # 释放左键改变鼠标指针样式为箭头
+
+    # 拖动鼠标
+    def mouseMoveEvent(self, a0):
+        if a0 and self.m_drag and self.m_DragPosition is not None and a0.buttons() & Qt.MouseButton.LeftButton:
+            self.move(a0.globalPosition().toPoint() - self.m_DragPosition)
+            a0.accept()
+        else:
+            self.m_drag = False
+            self.m_DragPosition = None
+            self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+
+    # endregion
+
+    # region 关闭
+    # 关闭按钮点击事件响应函数
+    def pushButton_close_clicked(self):
+        self._user_initiated_close = True
+        if Switch.HIDE_CLOSE in manager.config.switch_on:
+            self.hide()
+        else:
+            self.ready_to_exit()
+
+    def ready_to_exit(self):
+        if Switch.SHOW_DIALOG_EXIT in manager.config.switch_on:
+            if not self.isVisible():
+                self.show()
+            if self.windowState() & Qt.WindowState.WindowMinimized:
+                self.showNormal()
+
+            # print(self.window().isActiveWindow()) # 是否为活动窗口
+            self.raise_()
+            box = QMessageBox(QMessageBox.Icon.Warning, "退出", "确定要退出吗？")
+            box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            box.button(QMessageBox.StandardButton.Yes).setText("退出 MDCx")
+            box.button(QMessageBox.StandardButton.No).setText("取消")
+            box.setDefaultButton(QMessageBox.StandardButton.No)
+            reply = box.exec()
+            if reply != QMessageBox.StandardButton.Yes:
+                self.raise_()
+                self.show()
+                return
+        self.exit_app()
+
+    # 关闭窗口
+    def exit_app(self):
+        show_poster = manager.config.show_poster
+        switch_on = manager.config.switch_on
+        need_save_config = False
+
+        if self.Ui.checkBox_cover.isChecked() != show_poster:
+            manager.config.show_poster = self.Ui.checkBox_cover.isChecked()
+            need_save_config = True
+        if self.Ui.textBrowser_log_main_2.isHidden() == (Switch.SHOW_LOGS in switch_on):
+            if self.Ui.textBrowser_log_main_2.isHidden():
+                manager.config.switch_on.remove(Switch.SHOW_LOGS)
+            else:
+                manager.config.switch_on.append(Switch.SHOW_LOGS)
+            need_save_config = True
+        if need_save_config:
+            try:
+                manager.save()
+            except Exception:
+                signal_qt.show_traceback_log(traceback.format_exc())
+        if hasattr(self, "preview_image_loader"):
+            self.preview_image_loader.shutdown()
+        if hasattr(self, "tray_icon"):
+            self.tray_icon.hide()
+        signal_qt.show_traceback_log("\n\n\n\n************ 程序正常退出！************\n")
+        QApplication.quit()
+
+    # endregion
+
+    # 最小化窗口
+    def pushButton_min_clicked(self):
+        if Switch.HIDE_MINI in manager.config.switch_on:
+            self.hide()
+            return
+        # mac 平台 python 版本 最小化有问题，此处就是为了兼容它，需要先设置为显示窗口标题栏才能最小化
+        if not IS_WINDOWS:
+            self.setWindowFlag(Qt.WindowType.FramelessWindowHint, False)  # 不隐藏边框
+
+        # self.setWindowState(Qt.WindowState.WindowMinimized)
+        # self.show_traceback_log(self.isMinimized())
+        self.showMinimized()
+
+    def pushButton_min_clicked2(self):
+        if not IS_WINDOWS:
+            self.setWindowFlag(Qt.WindowType.FramelessWindowHint, False)  # 不隐藏边框
+            # self.show()  # 加上后可以显示缩小动画
+        self.showMinimized()
+
+    # 重置左侧按钮样式
+    def set_left_button_style(self):
+        try:
+            if self.dark_mode:
+                self.Ui.left_backgroud_widget.setStyleSheet(
+                    f"background: #1F272F;border-right: 1px solid #20303F;border-top-left-radius: {self.window_radius}px;border-bottom-left-radius: {self.window_radius}px;"
+                )
+                self.Ui.pushButton_main.setStyleSheet(
+                    "QPushButton:hover#pushButton_main{color: white;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_log.setStyleSheet(
+                    "QPushButton:hover#pushButton_log{color: white;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_net.setStyleSheet(
+                    "QPushButton:hover#pushButton_net{color: white;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_tool.setStyleSheet(
+                    "QPushButton:hover#pushButton_tool{color: white;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_emby_manager_nav.setStyleSheet(
+                    "QPushButton:hover#pushButton_emby_manager_nav{color: white;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_nfo_library.setStyleSheet(
+                    "QPushButton:hover#pushButton_nfo_library{color: white;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_setting.setStyleSheet(
+                    "QPushButton:hover#pushButton_setting{color: white;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_about.setStyleSheet(
+                    "QPushButton:hover#pushButton_about{color: white;background-color: rgba(160,160,165,40);}"
+                )
+            else:
+                self.Ui.pushButton_main.setStyleSheet(
+                    "QPushButton:hover#pushButton_main{color: black;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_log.setStyleSheet(
+                    "QPushButton:hover#pushButton_log{color: black;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_net.setStyleSheet(
+                    "QPushButton:hover#pushButton_net{color: black;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_tool.setStyleSheet(
+                    "QPushButton:hover#pushButton_tool{color: black;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_emby_manager_nav.setStyleSheet(
+                    "QPushButton:hover#pushButton_emby_manager_nav{color: black;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_nfo_library.setStyleSheet(
+                    "QPushButton:hover#pushButton_nfo_library{color: black;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_setting.setStyleSheet(
+                    "QPushButton:hover#pushButton_setting{color: black;background-color: rgba(160,160,165,40);}"
+                )
+                self.Ui.pushButton_about.setStyleSheet(
+                    "QPushButton:hover#pushButton_about{color: black;background-color: rgba(160,160,165,40);}"
+                )
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+
+    # endregion
+
+    # region 显示版本号
+    def show_version(self):
+        try:
+            t = threading.Thread(target=self._show_version_thread)
+            t.start()  # 启动线程,即让线程开始执行
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            signal_qt.show_log_text(traceback.format_exc())
+
+    def _show_version_thread(self):
+        version_info = f"基于 MDC-GUI 修改 当前版本: {self.version_display}"
+        download_link = ""
+        has_new_version = False
+        latest_version = check_version()
+        if latest_version:
+            if int(self.localversion) < int(latest_version):
+                has_new_version = True
+                self.new_version = f"\n有新版本了！（{latest_version}）"
+                signal_qt.show_scrape_info()
+                version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="red" >最新版本是: {latest_version}，请及时更新！🚀 </font>）'
+                download_link = f' ⬇️ <a href="{GITHUB_RELEASES_URL}">下载新版本</a>'
+            else:
+                version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="green">你使用的是最新版本！🎉 </font>）'
+
+        feedback = f' 💌 问题反馈: <a href="{GITHUB_ISSUES_URL}">GitHub Issues</a>'
+
+        # 显示版本信息和反馈入口
+        signal_qt.show_log_text(version_info)
+        if feedback or download_link:
+            self.main_logs_show.emit(f"{feedback}{download_link}")
+        signal_qt.show_log_text("================================================================================")
+        # 议题 #73: 用户误以为启动自检在某项失败后"停止检测"。声明自检范围与
+        # 全量检测入口, 避免混淆（全量检测在「检测网络」页, 单站失败互相独立）。
+        signal_qt.show_log_text(
+            " 启动自检：数据库 / ThePornDB / JavDb / JavBus / FC2PPVDB 连通性（如需检测全部站点，请到左侧「检测网络」页）"
+        )
+        # QWidget 与 cookie 检查必须在主线程执行：通过信号调度回主线程
+        self.version_check_done.emit(has_new_version)
+        if manager.config.use_database:
+            ActressDB.init_db()
+        try:
+            t = threading.Thread(target=check_theporndb_api_token)
+            t.start()  # 启动线程,即让线程开始执行
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            signal_qt.show_log_text(traceback.format_exc())
+
+    def _on_version_check_done(self, has_new_version: bool):
+        """主线程：版本检查完成后的 UI 更新与 cookie 检测。"""
+        if has_new_version:
+            self.Ui.label_show_version.setCursor(Qt.CursorShape.OpenHandCursor)  # 设置鼠标形状为十字形
+        self.pushButton_check_javdb_cookie_clicked()  # 检测javdb cookie
+        self.pushButton_check_javbus_cookie_clicked()  # 检测javbus cookie
+        # 议题 #130：启动时也检测 FC2PPVDB cookie 有效性（未填写时该函数直接返回，不发请求）
+        self.pushButton_check_fc2ppvdb_cookie_clicked()  # 检测fc2ppvdb cookie
+
+    # endregion
+
+    # region 各种点击跳转浏览器
+    def label_version_clicked(self, ev):
+        try:
+            webbrowser.open(GITHUB_RELEASES_URL)
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+
+    # endregion
+
+    # region 左侧切换页面
+    # 点左侧的主界面按钮
+    def pushButton_main_clicked(self):
+        self.Ui.left_backgroud_widget.setStyleSheet(
+            f"background: #F5F5F6;border-right: 1px solid #EDEDED;border-top-left-radius: {self.window_radius}px;border-bottom-left-radius: {self.window_radius}px;"
+        )
+        self.Ui.stackedWidget.setCurrentIndex(0)
+        self.set_left_button_style()
+        self.Ui.pushButton_main.setStyleSheet("font-weight: bold; background-color: rgba(160,160,165,60);")
+
+    # 点左侧的日志按钮
+    def pushButton_show_log_clicked(self):
+        self.Ui.left_backgroud_widget.setStyleSheet(
+            f"background: #F5F7FF;border-right: 1px solid #E1E7FF;border-top-left-radius: {self.window_radius}px;border-bottom-left-radius: {self.window_radius}px;"
+        )
+        self.Ui.stackedWidget.setCurrentIndex(1)
+        self.set_left_button_style()
+        self.Ui.pushButton_log.setStyleSheet(
+            "font-weight: bold; background-color: rgba(160,160,165,60);"
+        )  # self.Ui.textBrowser_log_main.verticalScrollBar().setValue(  #     self.Ui.textBrowser_log_main.verticalScrollBar().maximum())  # self.Ui.textBrowser_log_main_2.verticalScrollBar().setValue(  #     self.Ui.textBrowser_log_main_2.verticalScrollBar().maximum())
+
+    # 点左侧的工具按钮
+    def pushButton_tool_clicked(self):
+        self.Ui.left_backgroud_widget.setStyleSheet(
+            f"background: #F5F7FF;border-right: 1px solid #E1E7FF;border-top-left-radius: {self.window_radius}px;border-bottom-left-radius: {self.window_radius}px;"
+        )
+        self.Ui.stackedWidget.setCurrentIndex(3)
+        self.set_left_button_style()
+        self.Ui.pushButton_tool.setStyleSheet("font-weight: bold; background-color: rgba(160,160,165,60);")
+
+    # 点左侧的设置按钮
+    def pushButton_setting_clicked(self):
+        self.Ui.left_backgroud_widget.setStyleSheet(
+            f"background: #EEF3FF;border-right: 1px solid #D8E2FF;border-top-left-radius: {self.window_radius}px;border-bottom-left-radius: {self.window_radius}px;"
+        )
+        self.Ui.stackedWidget.setCurrentIndex(4)
+        self.set_left_button_style()
+        try:
+            if self.dark_mode:
+                self.Ui.pushButton_setting.setStyleSheet("font-weight: bold; background-color: rgba(160,160,165,60);")
+            else:
+                self.Ui.pushButton_setting.setStyleSheet("font-weight: bold; background-color: rgba(160,160,165,100);")
+            self._check_mac_config_folder()
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+
+    # 点击左侧【检测网络】按钮，切换到检测网络页面
+    def pushButton_show_net_clicked(self):
+        self.Ui.left_backgroud_widget.setStyleSheet(
+            f"background: #F5F7FF;border-right: 1px solid #E1E7FF;border-top-left-radius: {self.window_radius}px;border-bottom-left-radius: {self.window_radius}px;"
+        )
+        self.Ui.stackedWidget.setCurrentIndex(2)
+        self.set_left_button_style()
+        self.Ui.pushButton_net.setStyleSheet("font-weight: bold; background-color: rgba(160,160,165,60);")
+
+    # 点左侧的关于按钮
+    def pushButton_about_clicked(self):
+        self.Ui.left_backgroud_widget.setStyleSheet(
+            f"background: #F5F7FF;border-right: 1px solid #E1E7FF;border-top-left-radius: {self.window_radius}px;border-bottom-left-radius: {self.window_radius}px;"
+        )
+        self.Ui.stackedWidget.setCurrentIndex(5)
+        self.set_left_button_style()
+        self.Ui.pushButton_about.setStyleSheet("font-weight: bold; background-color: rgba(160,160,165,60);")
+
+    # endregion
+
+    # region NFO 库管理
+
+    def pushButton_nfo_library_clicked(self):
+        from .nfo_library import pushButton_nfo_library_clicked
+
+        pushButton_nfo_library_clicked(self)
+
+    def pushButton_nfo_lib_select_dir_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_select_dir_clicked
+
+        pushButton_nfo_lib_select_dir_clicked(self)
+
+    def pushButton_nfo_lib_select_all_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_select_all_clicked
+
+        pushButton_nfo_lib_select_all_clicked(self)
+
+    def pushButton_nfo_lib_select_none_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_select_none_clicked
+
+        pushButton_nfo_lib_select_none_clicked(self)
+
+    def pushButton_nfo_lib_refresh_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_refresh_clicked
+
+        pushButton_nfo_lib_refresh_clicked(self)
+
+    def listWidget_nfo_lib_item_clicked(self):
+        from .nfo_library import listWidget_nfo_lib_item_clicked
+
+        listWidget_nfo_lib_item_clicked(self)
+
+    def pushButton_nfo_lib_save_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_save_clicked
+
+        pushButton_nfo_lib_save_clicked(self)
+
+    def on_nfo_lib_data_loaded(self, nfo_path_str: str):
+        from .nfo_library import on_nfo_lib_data_loaded
+
+        on_nfo_lib_data_loaded(self, nfo_path_str)
+
+    def on_nfo_lib_save_done(self, nfo_path_str: str):
+        from .nfo_library import on_nfo_lib_save_done
+
+        on_nfo_lib_save_done(self, nfo_path_str)
+
+    def lineEdit_nfo_lib_filter_changed(self):
+        from .nfo_library import lineEdit_nfo_lib_filter_changed
+
+        lineEdit_nfo_lib_filter_changed(self)
+
+    def pushButton_nfo_lib_crop_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_crop_clicked
+
+        pushButton_nfo_lib_crop_clicked(self)
+
+    def pushButton_nfo_lib_batch_actor_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_batch_actor_clicked
+
+        pushButton_nfo_lib_batch_actor_clicked(self)
+
+    def pushButton_nfo_lib_batch_add_tag_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_batch_add_tag_clicked
+
+        pushButton_nfo_lib_batch_add_tag_clicked(self)
+
+    def pushButton_nfo_lib_batch_del_tag_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_batch_del_tag_clicked
+
+        pushButton_nfo_lib_batch_del_tag_clicked(self)
+
+    def pushButton_nfo_lib_batch_series_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_batch_series_clicked
+
+        pushButton_nfo_lib_batch_series_clicked(self)
+
+    def pushButton_nfo_lib_batch_save_clicked(self):
+        from .nfo_library import pushButton_nfo_lib_batch_save_clicked
+
+        pushButton_nfo_lib_batch_save_clicked(self)
+
+    def on_nfo_lib_batch_done(self, arg: str):
+        from .nfo_library import on_nfo_lib_batch_done
+
+        on_nfo_lib_batch_done(self, arg)
+
+    def on_nfo_lib_batch_progress(self, text: str):
+        from .nfo_library import on_nfo_lib_batch_progress
+
+        on_nfo_lib_batch_progress(self, text)
+
+    def listWidget_nfo_lib_context_menu(self, pos):
+        from .nfo_library import listWidget_nfo_lib_context_menu
+
+        listWidget_nfo_lib_context_menu(self, pos)
+
+    # endregion
+
+    # region 主界面
+    # 开始刮削按钮
+    def pushButton_start_scrape_clicked(self):
+        text = self.Ui.pushButton_start_cap.text()
+        if text == "开始":
+            if not get_remain_list():
+                start_new_scrape(FileMode.Default)
+        elif text == "■ 停止":
+            self.pushButton_stop_scrape_clicked()
+        # text == "■ 停止中"：防抖——用户疯狂点击时静默忽略，避免重复触发 stop 流程
+
+    # 停止确认弹窗
+    def pushButton_stop_scrape_clicked(self):
+        if Switch.SHOW_DIALOG_STOP_SCRAPE in manager.config.switch_on:
+            box = QMessageBox(QMessageBox.Icon.Warning, "停止刮削", "确定要停止刮削吗？")
+            box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            box.button(QMessageBox.StandardButton.Yes).setText("停止刮削")
+            box.button(QMessageBox.StandardButton.No).setText("取消")
+            box.setDefaultButton(QMessageBox.StandardButton.No)
+            reply = box.exec()
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+        if self.Ui.pushButton_start_cap.text() == "■ 停止":
+            Flags.stop_requested = True
+            signal_qt.stop = True
+            executor.run(save_success_list())
+            # 停止时立即持久化最新剩余任务，不能只依赖 1.5s 定时器
+            # （停止后定时器保存到的可能是竞态旧快照，续刮会丢任务，议题 #98）
+            save_remain_list_now()
+            Flags.rest_time_convert_ = Flags.rest_time_convert
+            Flags.rest_time_convert = 0
+            self.Ui.pushButton_start_cap.setText(" ■ 停止中 ")
+            self.Ui.pushButton_start_cap2.setText(" ■ 停止中 ")
+            signal_qt.show_scrape_info("⛔️ 刮削停止中...")
+            executor.cancel_async()  # 取消异步任务
+            if not self.threads_list:
+                self.stop_used_time = 0.0
+                self.show_stop_info_thread()
+                return
+            t = threading.Thread(target=self._kill_threads)  # 关闭线程池
+            t.start()
+
+    # 显示停止信息
+    def _show_stop_info(self):
+        signal_qt.reset_buttons_status.emit()
+        try:
+            Flags.rest_time_convert = Flags.rest_time_convert_
+            if Flags.stop_other:
+                signal_qt.show_scrape_info("⛔️ 已手动停止！")
+                signal_qt.show_log_text(
+                    "⛔️ 已手动停止！\n================================================================================"
+                )
+                self.set_label_file_path.emit("⛔️ 已手动停止！")
+                return
+            signal_qt.exec_set_processbar.emit(0)
+            end_time = time.time()
+            used_time = str(round((end_time - Flags.start_time), 2))
+            if Flags.scrape_done:
+                average_time = str(round((end_time - Flags.start_time) / Flags.scrape_done, 2))
+            else:
+                average_time = used_time
+            signal_qt.show_scrape_info("⛔️ 刮削已手动停止！")
+            self.set_label_file_path.emit(
+                f"⛔️ 刮削已手动停止！\n   已刮削 {Flags.scrape_done} 个视频, 还剩余 {Flags.total_count - Flags.scrape_done} 个! 刮削用时 {used_time} 秒"
+            )
+            signal_qt.show_log_text(
+                f"\n ⛔️ 刮削已手动停止！\n 😊 已刮削 {Flags.scrape_done} 个视频, 还剩余 {Flags.total_count - Flags.scrape_done} 个! 刮削用时 {used_time} 秒, 停止用时 {self.stop_used_time} 秒"
+            )
+            signal_qt.show_log_text("================================================================================")
+            signal_qt.show_log_text(
+                " ⏰ Start time".ljust(13) + ": " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(Flags.start_time))
+            )
+            signal_qt.show_log_text(
+                " 🏁 End time".ljust(13) + ": " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(end_time))
+            )
+            signal_qt.show_log_text(f"{' ⏱ Used time'.ljust(13)}: {used_time}S")
+            signal_qt.show_log_text(f"{' 🍕 Per time'.ljust(13)}: {average_time}S")
+            signal_qt.show_log_text("================================================================================")
+            Flags.again_dic.clear()
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            signal_qt.show_log_text(traceback.format_exc())
+        finally:
+            signal_qt.stop = False
+
+    def show_stop_info_thread(
+        self,
+    ):
+        t = threading.Thread(target=self._show_stop_info)
+        t.start()
+
+    # 关闭线程池和扫描线程
+    def _kill_threads(self):
+        Flags.total_kills = len(self.threads_list)
+        Flags.now_kill = 0
+        start_time = time.time()
+        self.set_label_file_path.emit(f"⛔️ 正在停止刮削...\n   正在停止已在运行的任务线程（1/{Flags.total_kills}）...")
+        signal_qt.show_log_text(
+            f"\n ⛔️ {get_current_time()} 已停止添加新的刮削任务，正在停止已在运行的任务线程（{Flags.total_kills}）..."
+        )
+        signal_qt.show_traceback_log(f"⛔️ 正在停止正在运行的任务线程 ({Flags.total_kills}) ...")
+        i = 0
+        for each in self.threads_list:
+            i += 1
+            signal_qt.show_traceback_log(f"正在停止线程: {i}/{Flags.total_kills} {each.name} ...")
+        signal_qt.show_traceback_log(
+            "线程正在停止中，请稍后...\n 🍯 停止时间与线程数量及线程正在执行的任务有关，比如正在执行网络请求、文件下载等IO操作时，需要等待其释放资源。。。\n"
+        )
+        signal_qt.stop = True
+        for each in self.threads_list:  # 线程池的线程
+            kill_a_thread(each, timeout=0.0)
+
+        # 对全部线程使用一个总等待窗口，避免线程数量放大停止耗时。
+        wait_deadline = time.monotonic() + 12.0
+        while any(each.is_alive() for each in self.threads_list) and time.monotonic() < wait_deadline:
+            time.sleep(0.05)
+
+        self.stop_used_time = get_used_time(start_time)
+        stopped_count = sum(not each.is_alive() for each in self.threads_list)
+        signal_qt.show_log_text(f" 🕷 已停止线程：{stopped_count}/{Flags.total_kills}")
+        if stopped_count == Flags.total_kills:
+            signal_qt.show_traceback_log(f"所有线程已停止！！！({self.stop_used_time}s)\n ⛔️ 刮削已手动停止！\n")
+            signal_qt.show_log_text(f" ⛔️ {get_current_time()} 所有线程已停止！({self.stop_used_time}s)")
+        else:
+            remaining = ", ".join(each.name for each in self.threads_list if each.is_alive())
+            signal_qt.show_traceback_log(f"线程停止超时({self.stop_used_time}s)：{remaining}")
+            signal_qt.show_log_text(f" ⚠️ {get_current_time()} 线程停止超时：{remaining}")
+        thread_remain_list = []
+        [thread_remain_list.append(t.name) for t in threading.enumerate()]  # 剩余线程名字列表
+        thread_remain = ", ".join(thread_remain_list)
+        signal_qt.show_traceback_log(f"剩余线程 ({len(thread_remain_list)}): {thread_remain}")
+        self.show_stop_info_thread()
+
+    # 进度条
+    def set_processbar(self, value):
+        self.Ui.progressBar_scrape.setProperty("value", value)
+
+    # region 刮削结果显示
+    def _addTreeChild(self, result, filename):
+        node = QTreeWidgetItem()
+        node.setText(0, filename)
+        if result == "succ":
+            self.item_succ.addChild(node)
+        else:
+            self.item_fail.addChild(node)
+        # self.Ui.treeWidget_number.verticalScrollBar().setValue(self.Ui.treeWidget_number.verticalScrollBar().maximum())
+        # self.Ui.treeWidget_number.setCurrentItem(node)
+        # self.Ui.treeWidget_number.scrollToItem(node)
+
+    def _get_single_selected_entry(self) -> tuple[QTreeWidgetItem, str, ShowData, Path] | None:
+        selected_entries = self._get_selected_entries()
+        if len(selected_entries) != 1:
+            return None
+        return selected_entries[0]
+
+    def _has_single_selected_result_item(self) -> bool:
+        return self._get_single_selected_entry() is not None
+
+    def _set_result_item_as_current_selection(self, item: QTreeWidgetItem) -> None:
+        if item.text(0) in {"成功", "失败"}:
+            return
+
+        tree = self.Ui.treeWidget_number
+        selected_items = tree.selectedItems()
+        if item not in selected_items:
+            tree.clearSelection()
+            item.setSelected(True)
+        model_index = tree.indexFromItem(item)
+        if model_index.isValid():
+            tree.selectionModel().setCurrentIndex(model_index, QItemSelectionModel.SelectionFlag.NoUpdate)
+
+    def show_list_name(self, status: Literal["succ", "fail"], show_data: ShowData, real_number=""):
+        # 添加树状节点
+        self._addTreeChild(status, show_data.show_name)
+
+        if not show_data.data.title:
+            show_data.data.title = show_data.show_name
+            show_data.data.number = real_number
+        self.json_array[show_data.show_name] = show_data
+        if not self._has_single_selected_result_item():
+            self.show_name = show_data.show_name
+            self.set_main_info(show_data)
+
+    @staticmethod
+    def _elide_label_two_lines(label, text: str, max_lines: int = 2) -> str:
+        """议题 #154：把文本按标签当前宽度裁到最多两行，超出部分以省略号截断。
+
+        简介/标签恒定 40px 高，最多显示两行；不同窗口宽度下每行容纳的字数不同，
+        因此必须按实际宽度重算，最大化才能比最小化显示更多内容。
+        """
+        text = text or ""
+        if not text:
+            return text
+        width = label.width()
+        if width <= 0:
+            return text
+        metrics = label.fontMetrics()
+        max_h = metrics.lineSpacing() * max_lines
+        flags = int(Qt.TextFlag.TextWordWrap)
+        # 用无界高度测量真实换行高度，再与两行上限比较（受限高度会把返回值截断）
+        probe = QRect(0, 0, width, 1_000_000)
+        if metrics.boundingRect(probe, flags, text).height() <= max_h:
+            return text
+        low, high = 0, len(text)
+        while low < high:
+            mid = (low + high + 1) // 2
+            candidate = text[:mid].rstrip() + "…"
+            if metrics.boundingRect(probe, flags, candidate).height() <= max_h:
+                low = mid
+            else:
+                high = mid - 1
+        return text[:low].rstrip() + "…"
+
+    def _set_main_two_line(self, label, text: str) -> None:
+        label.setText(self._elide_label_two_lines(label, text))
+
+    def _refresh_main_outline_tag(self) -> None:
+        """议题 #154：窗口宽度变化后，按新宽度重算简介/标签的两行省略文本。"""
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        self._set_main_two_line(ui.label_outline, getattr(self, "_main_outline_text", ""))
+        self._set_main_two_line(ui.label_tag, getattr(self, "_main_tag_text", ""))
+
+    def set_main_info(self, show_data: "ShowData | None"):
+        if show_data is not None:
+            self.show_data = show_data
+            file_info = show_data.file_info
+            data = show_data.data
+            other = show_data.other
+            self.show_name = show_data.show_name
+        else:
+            file_info = FileInfo.empty()
+            data = CrawlersResult.empty()
+            other = OtherInfo.empty()
+            self.show_name = None
+        try:
+            number = data.number
+            self.Ui.label_number.setToolTip(number)
+            if len(number) > 11:
+                number = number[:10] + "……"
+            self.Ui.label_number.setText(number)
+            actor = str(data.actor)
+            if data.all_actor and NfoInclude.ACTOR_ALL in manager.config.nfo_include_new:
+                actor = str(data.all_actor)
+            self.Ui.label_actor.setToolTip(actor)
+            if number and not actor:
+                actor = manager.config.actor_no_name
+            if len(actor) > 10:
+                actor = actor[:9] + "……"
+            self.Ui.label_actor.setText(actor)
+            self.file_main_open_path = file_info.file_path  # 文件路径
+
+            title = data.title.split("\n")[0].strip(" :")
+            self.Ui.label_title.setToolTip(title)
+            if len(title) > 27:
+                title = title[:25] + "……"
+            self.Ui.label_title.setText(title)
+            outline = str(data.outline)
+            self._main_outline_text = outline
+            self.Ui.label_outline.setToolTip(outline)
+            self._set_main_two_line(self.Ui.label_outline, outline)
+            tag = ", ".join(str(item) for item in data.tag) if isinstance(data.tag, list) else str(data.tag)
+            self._main_tag_text = tag
+            self.Ui.label_tag.setToolTip(tag)
+            self._set_main_two_line(self.Ui.label_tag, tag)
+            self.Ui.label_release.setText(str(data.release))
+            self.Ui.label_release.setToolTip(str(data.release))
+            if data.runtime:
+                self.Ui.label_runtime.setText(str(data.runtime) + " 分钟")
+                self.Ui.label_runtime.setToolTip(str(data.runtime) + " 分钟")
+            else:
+                self.Ui.label_runtime.setText("")
+            self.Ui.label_director.setText(str(data.director))
+            self.Ui.label_director.setToolTip(str(data.director))
+            series = str(data.series)
+            self.Ui.label_series.setToolTip(series)
+            if len(series) > 32:
+                series = series[:31] + "……"
+            self.Ui.label_series.setText(series)
+            self.Ui.label_studio.setText(data.studio)
+            self.Ui.label_studio.setToolTip(data.studio)
+            self.Ui.label_publish.setText(data.publisher)
+            self.Ui.label_publish.setToolTip(data.publisher)
+            self.Ui.label_poster.setToolTip("点击裁剪图片")
+            self.Ui.label_thumb.setToolTip("点击裁剪图片")
+            # 生成img_path，用来裁剪使用
+            img_path = other.fanart_path if other.fanart_path and other.fanart_path.is_file() else other.thumb_path
+            self.img_path = img_path
+            if self.Ui.checkBox_cover.isChecked():  # 主界面显示封面和缩略图
+                poster_path = other.poster_path
+                thumb_path = other.thumb_path
+                fanart_path = other.fanart_path
+                if not (thumb_path and thumb_path.is_file()) and fanart_path and fanart_path.is_file():
+                    thumb_path = fanart_path
+                poster_from = data.poster_from
+                cover_from = data.thumb_from
+                self._request_preview_images(poster_path, thumb_path, poster_from, cover_from)
+        except Exception:
+            if not signal_qt.stop:
+                signal_qt.show_traceback_log(traceback.format_exc())
+
+    def _request_preview_images(
+        self,
+        poster_path: Path | None,
+        thumb_path: Path | None,
+        poster_from="",
+        cover_from="",
+        force_reload: bool = False,
+    ) -> None:
+        self.preview_request_id += 1
+        if not poster_path or not poster_path.is_file():
+            self.resize_label_and_setpixmap([False, "", "暂无封面图", 156, 220], None)
+        if not thumb_path or not thumb_path.is_file():
+            self.resize_label_and_setpixmap(None, [False, "", "暂无缩略图", 328, 220])
+        self.preview_image_loader.load(
+            self.preview_request_id,
+            poster_path,
+            thumb_path,
+            poster_from,
+            cover_from,
+            force_reload=force_reload,
+        )
+
+    def _apply_preview_images(self, request_id: int, poster_pix: list, thumb_pix: list) -> None:
+        if request_id != self.preview_request_id:
+            return
+        poster_text = poster_pix[2] if poster_pix[2] != "暂无封面图" else ""
+        thumb_text = thumb_pix[2] if thumb_pix[2] != "暂无缩略图" else ""
+        self.Ui.label_poster_size.setText((poster_text + " " + thumb_text).strip())
+        self.resize_label_and_setpixmap(poster_pix, thumb_pix)
+
+    def _on_request_preview_images(self, poster_path: str, thumb_path: str) -> None:
+        """主线程：裁剪完成后刷新主界面预览（由 request_preview_images 信号触发）。"""
+        self._request_preview_images(
+            Path(poster_path) if poster_path else None,
+            Path(thumb_path) if thumb_path else None,
+            poster_from="cut",
+            cover_from="local",
+            force_reload=True,
+        )
+
+    def _rescale_preview_pixmaps(self) -> None:
+        """议题 #144: 按 label 当前几何重渲染原图, 保证窗口缩放与图片显示同步。
+
+        缩放规则 KeepAspectRatio(等比、不裁剪、居中留白由 QLabel 对齐负责),
+        design 尺寸与原行为一致; 缓存为空(占位文本态)时跳过。
+        """
+        for src, label in (
+            (self._poster_src_pixmap, self.Ui.label_poster),
+            (self._thumb_src_pixmap, self.Ui.label_thumb),
+        ):
+            if src is None or src.isNull():
+                continue
+            size = label.size()
+            if size.width() <= 0 or size.height() <= 0:
+                continue
+            label.setPixmap(
+                src.scaled(
+                    size,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+
+    def resize_label_and_setpixmap(self, poster_pix, thumb_pix):
+        if poster_pix is not None:
+            if poster_pix[0]:
+                self._poster_src_pixmap = (
+                    poster_pix[1] if isinstance(poster_pix[1], QPixmap) else QPixmap.fromImage(poster_pix[1])
+                )
+            else:
+                self._poster_src_pixmap = None
+                self.Ui.label_poster.clear()
+                self.Ui.label_poster.setText(poster_pix[2])
+
+        if thumb_pix is not None:
+            if thumb_pix[0]:
+                self._thumb_src_pixmap = (
+                    thumb_pix[1] if isinstance(thumb_pix[1], QPixmap) else QPixmap.fromImage(thumb_pix[1])
+                )
+            else:
+                self._thumb_src_pixmap = None
+                self.Ui.label_thumb.clear()
+                self.Ui.label_thumb.setText(thumb_pix[2])
+
+        # 议题 #144: 几何归 _sync_page_layouts 管辖(此前 resize(156,220/328,220)
+        # 会把已放大的框砸回设计尺寸), 这里只负责按当前框尺寸出图
+        self._rescale_preview_pixmaps()
+
+    # endregion
+
+    def _get_selected_result_items(self) -> list[QTreeWidgetItem]:
+        """
+        获取当前树状图中有效的结果项（不包含成功/失败根节点）。
+        """
+        selected_items = []
+        for item in self.Ui.treeWidget_number.selectedItems():
+            if not item or item.text(0) in {"成功", "失败"}:
+                continue
+            if item.text(0) not in self.json_array:
+                continue
+            selected_items.append(item)
+        return selected_items
+
+    def _get_selected_entries(self) -> list[tuple[QTreeWidgetItem, str, ShowData, Path]]:
+        result = []
+        for item in self._get_selected_result_items():
+            show_name = item.text(0)
+            show_data = self.json_array.get(show_name)
+            if show_data is None or not show_data.file_info.file_path:
+                continue
+            result.append((item, show_name, show_data, show_data.file_info.file_path))
+        return result
+
+    def _build_delete_preview(self, paths: list[Path], limit: int = 8) -> str:
+        preview = "\n".join(str(path) for path in paths[:limit])
+        if len(paths) > limit:
+            preview += f"\n... 其余 {len(paths) - limit} 项省略"
+        return preview
+
+    def _shorten_text(self, text: str, limit: int) -> str:
+        text = str(text).strip()
+        if len(text) <= limit:
+            return text
+        return text[: limit - 1] + "…"
+
+    def _normalize_delete_error_reason(self, error_text: str) -> str:
+        if not error_text:
+            return "未知错误"
+
+        lines = [line.strip() for line in str(error_text).splitlines() if line.strip()]
+        full_text = "\n".join(lines).lower()
+
+        if "symbolic link privilege not held" in full_text or "winerror 1314" in full_text:
+            return "当前没有创建软链接权限，请尝试以管理员身份运行或开启开发者模式"
+
+        if (
+            "winerror 17" in full_text
+            or "different disk drive" in full_text
+            or "cross-device link" in full_text
+            or "not same device" in full_text
+        ):
+            return "硬链接要求源文件与目标路径位于同一磁盘，请改用软链接"
+
+        if "目标已存在:" in str(error_text):
+            for line in lines:
+                if "目标已存在:" in line:
+                    return line.strip()
+
+        for line in lines:
+            if line.startswith("错误:"):
+                return line.removeprefix("错误:").strip()
+
+        for line in reversed(lines):
+            if "PermissionError:" in line:
+                return line.split("PermissionError:", 1)[1].strip()
+            if "FileNotFoundError:" in line:
+                return line.split("FileNotFoundError:", 1)[1].strip()
+            if "OSError:" in line:
+                return line.split("OSError:", 1)[1].strip()
+
+        return lines[-1]
+
+    def _build_action_result_text(self, success_count: int, failure_count: int, skipped_count: int = 0) -> str:
+        parts = [f"成功 {success_count} 个"]
+        if skipped_count:
+            parts.append(f"跳过 {skipped_count} 个")
+        parts.append(f"失败 {failure_count} 个")
+        return "，".join(parts)
+
+    def _show_action_failure_feedback(
+        self,
+        action_name: str,
+        success_count: int,
+        failure_details: list[tuple[Path, str]],
+        skipped_count: int = 0,
+    ) -> None:
+        if not failure_details:
+            return
+
+        preview_limit = 3
+        preview_lines = [
+            f"- {self._shorten_text(str(path), 90)}\n  原因：{self._shorten_text(reason, 70)}"
+            for path, reason in failure_details[:preview_limit]
+        ]
+        if len(failure_details) > preview_limit:
+            preview_lines.append(f"... 其余 {len(failure_details) - preview_limit} 条请展开“显示详情”或查看日志")
+
+        detail_limit = 20
+        detail_lines = [
+            f"{index}. {path}\n   原因：{reason}"
+            for index, (path, reason) in enumerate(failure_details[:detail_limit], start=1)
+        ]
+        if len(failure_details) > detail_limit:
+            detail_lines.append(f"... 其余 {len(failure_details) - detail_limit} 条请查看日志")
+        detail_text = "\n\n".join(detail_lines)
+
+        box = QMessageBox(QMessageBox.Icon.Warning, f"{action_name}结果", f"{action_name}完成")
+        box.setInformativeText(
+            f"{self._build_action_result_text(success_count, len(failure_details), skipped_count)}\n\n"
+            f"{str(chr(10)).join(preview_lines)}"
+        )
+        box.setDetailedText(detail_text)
+        view_log_button = box.addButton("查看日志", QMessageBox.ButtonRole.ActionRole)
+        box.addButton("确定", QMessageBox.ButtonRole.AcceptRole)
+        self._bind_localized_message_box_detail_buttons(box)
+        box.exec()
+
+        if box.clickedButton() == view_log_button:
+            self.pushButton_show_log_clicked()
+            self.show_hide_logs(True)
+
+    def _localize_message_box_detail_buttons(self, box: QMessageBox) -> None:
+        for button in box.findChildren(QPushButton):
+            text = button.text().strip()
+            if text == "Show Details...":
+                button.setText("显示详情")
+            elif text == "Hide Details...":
+                button.setText("隐藏详情")
+
+    def _bind_localized_message_box_detail_buttons(self, box: QMessageBox) -> None:
+        def relocalize() -> None:
+            self._localize_message_box_detail_buttons(box)
+
+        relocalize()
+        QTimer.singleShot(0, relocalize)
+        for button in box.findChildren(QPushButton):
+            button.clicked.connect(lambda _checked=False: QTimer.singleShot(0, relocalize))
+
+    def _select_link_output_dir(self, link_name: str) -> Path | None:
+        default_dir = str(get_movie_path_setting().softlink_path)
+        selected_dir = QFileDialog.getExistingDirectory(
+            None,
+            f"选择{link_name}目标目录",
+            default_dir,
+            options=self.options | QFileDialog.Option.ShowDirsOnly,
+        )
+        return Path(selected_dir) if selected_dir else None
+
+    def _confirm_record_link_paths(self, link_name: str) -> bool | None:
+        box = QMessageBox(
+            QMessageBox.Icon.Question,
+            f"创建{link_name}",
+            f"是否将本次成功创建的{link_name}路径写入程序的刮削成功列表？",
+        )
+        box.setInformativeText("已存在的同源链接会自动去重；取消则中止本次创建。")
+        box.setStandardButtons(
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+        )
+        yes_button = box.button(QMessageBox.StandardButton.Yes)
+        assert yes_button is not None
+        yes_button.setText("写入并继续")
+        no_button = box.button(QMessageBox.StandardButton.No)
+        assert no_button is not None
+        no_button.setText("仅创建")
+        cancel_button = box.button(QMessageBox.StandardButton.Cancel)
+        assert cancel_button is not None
+        cancel_button.setText("取消")
+        box.setDefaultButton(QMessageBox.StandardButton.Yes)
+        reply = box.exec()
+        if reply == QMessageBox.StandardButton.Cancel:
+            return None
+        return reply == QMessageBox.StandardButton.Yes
+
+    def _build_link_target_path(
+        self,
+        source_path: Path,
+        output_dir: Path,
+        display_path: Path | None = None,
+        group_in_named_dir: bool = False,
+    ) -> tuple[Path, list[str]]:
+        file_name = display_path.name if display_path is not None else source_path.name
+        if not group_in_named_dir:
+            return output_dir / file_name, []
+
+        raw_dir_name = file_name.rsplit(".", 1)[0] if "." in file_name else file_name
+        raw_dir_name = raw_dir_name or file_name
+        dir_name, dir_notes = self._sanitize_link_dir_name(raw_dir_name)
+        target_dir, collision_note = self._get_available_link_target_dir(output_dir, dir_name, file_name)
+        if collision_note:
+            dir_notes.append(f"链接目录名已自动避让冲突: {dir_name} -> {target_dir.name}")
+        return target_dir / file_name, dir_notes
+
+    def _get_link_dir_name_max(self) -> int:
+        folder_name_max = int(manager.config.folder_name_max)
+        if folder_name_max <= 0 or folder_name_max > 255:
+            return 60
+        return folder_name_max
+
+    def _fit_link_dir_name_length(self, dir_name: str, suffix: str = "") -> str:
+        max_length = self._get_link_dir_name_max()
+        if len(dir_name) + len(suffix) <= max_length:
+            return dir_name + suffix
+
+        base_length = max(max_length - len(suffix), 1)
+        trimmed = dir_name[:base_length].rstrip(". ").rstrip()
+        if not trimmed:
+            trimmed = DEFAULT_LINK_DIR_NAME[:base_length].rstrip(". ").rstrip() or DEFAULT_LINK_DIR_NAME[:1]
+        return trimmed + suffix
+
+    def _is_windows_reserved_dir_name(self, dir_name: str) -> bool:
+        return dir_name.rstrip(". ").upper() in WINDOWS_RESERVED_DIR_NAMES
+
+    def _sanitize_link_dir_name(self, raw_name: str) -> tuple[str, list[str]]:
+        sanitized = LINK_DIR_INVALID_CHARS_RE.sub("_", raw_name)
+        sanitized = re.sub(r"\s+", " ", sanitized)
+        sanitized = re.sub(r"_+", "_", sanitized)
+        sanitized = sanitized.strip().strip(". ").rstrip(". ").strip()
+        notes: list[str] = []
+
+        if not sanitized or not sanitized.strip("._- "):
+            sanitized = DEFAULT_LINK_DIR_NAME
+            notes.append(f"链接目录名清洗后为空，已回退为默认目录名: {raw_name} -> {sanitized}")
+        elif sanitized != raw_name:
+            notes.append(f"链接目录名已清洗: {raw_name} -> {sanitized}")
+
+        if self._is_windows_reserved_dir_name(sanitized):
+            original_name = sanitized
+            sanitized = f"{sanitized}_"
+            notes.append(f"链接目录名命中 Windows 保留名，已自动调整: {original_name} -> {sanitized}")
+
+        fitted_name = self._fit_link_dir_name_length(sanitized)
+        if fitted_name != sanitized:
+            notes.append(f"链接目录名过长，已按最大长度截断: {sanitized} -> {fitted_name}")
+        return fitted_name, notes
+
+    def _can_reuse_link_target_dir(self, target_dir: Path, file_name: str) -> bool:
+        if not target_dir.exists():
+            return True
+        if not target_dir.is_dir():
+            return False
+
+        target_file = target_dir / file_name
+        if target_file.exists() or target_file.is_symlink():
+            return True
+
+        try:
+            return not any(target_dir.iterdir())
+        except Exception:
+            return False
+
+    def _get_available_link_target_dir(self, output_dir: Path, dir_name: str, file_name: str) -> tuple[Path, str]:
+        candidate_dir = output_dir / dir_name
+        if self._can_reuse_link_target_dir(candidate_dir, file_name):
+            return candidate_dir, ""
+
+        suffix_index = 2
+        while True:
+            candidate_name = self._fit_link_dir_name_length(dir_name, f"_{suffix_index}")
+            candidate_dir = output_dir / candidate_name
+            if self._can_reuse_link_target_dir(candidate_dir, file_name):
+                return candidate_dir, candidate_name
+            suffix_index += 1
+
+    def _prepare_link_target_dir(self, target_path: Path, group_in_named_dir: bool) -> tuple[bool, str, bool]:
+        if not group_in_named_dir:
+            return True, "", False
+
+        target_dir = target_path.parent
+        if target_dir == target_path:
+            return False, "目标目录无效", False
+        if target_dir.exists():
+            if target_dir.is_dir():
+                return True, "", False
+            return False, f"目标目录已存在同名文件: {target_dir}", False
+
+        try:
+            target_dir.mkdir(parents=True, exist_ok=False)
+            return True, "", True
+        except Exception as error:
+            return False, self._normalize_delete_error_reason(str(error)), False
+
+    def _cleanup_empty_link_target_dir(self, target_path: Path, created_dir: bool) -> None:
+        if not created_dir:
+            return
+
+        target_dir = target_path.parent
+        try:
+            if target_dir.exists() and target_dir.is_dir() and not any(target_dir.iterdir()):
+                target_dir.rmdir()
+                signal_qt.show_log_text(f" ↩ 创建失败，已回滚空目录: {target_dir}")
+        except Exception as error:
+            signal_qt.show_log_text(
+                f" ⚠ 回滚空目录失败: {target_dir}\n    原因: {self._normalize_delete_error_reason(str(error))}"
+            )
+
+    def _create_links_for_selected_files(
+        self, link_type: Literal["soft", "hard"], group_in_named_dir: bool = False
+    ) -> None:
+        selected_entries = self._get_selected_entries()
+        if selected_entries:
+            link_targets = [(show_name, file_path) for _, show_name, _, file_path in selected_entries]
+        else:
+            if not self._check_main_file_path():
+                return
+            link_targets = [(self.show_name or "", self.file_main_open_path)]
+
+        if not link_targets:
+            return
+
+        link_name = "软链接" if link_type == "soft" else "硬链接"
+        if group_in_named_dir:
+            link_name = f"{link_name}（按文件名建目录）"
+        should_record_success = self._confirm_record_link_paths(link_name)
+        if should_record_success is None:
+            return
+        output_dir = self._select_link_output_dir(link_name)
+        if output_dir is None:
+            return
+
+        signal_qt.show_log_text(f" 🔗 开始创建{link_name}")
+        signal_qt.show_log_text(f" 📁 目标目录: {output_dir}")
+        signal_qt.show_log_text(f" 📝 成功列表写入: {'是' if should_record_success else '否'}")
+
+        success_count = 0
+        skipped_count = 0
+        success_paths_to_record: set[Path] = set()
+        failure_details: list[tuple[Path, str]] = []
+        for _show_name, file_path in link_targets:
+            success, source_path, error_info = resolve_link_source_sync(file_path)
+            if not success:
+                failure_details.append((file_path, self._normalize_delete_error_reason(error_info)))
+                signal_qt.show_log_text(
+                    f" ❌ {link_name}失败: {file_path}\n    原因: {self._normalize_delete_error_reason(error_info)}"
+                )
+                continue
+
+            target_path, target_notes = self._build_link_target_path(
+                source_path, output_dir, file_path, group_in_named_dir
+            )
+            for note in target_notes:
+                signal_qt.show_log_text(f" ℹ {note}")
+            ok, dir_error, created_dir = self._prepare_link_target_dir(target_path, group_in_named_dir)
+            if not ok:
+                failure_details.append((target_path, dir_error))
+                signal_qt.show_log_text(
+                    f" ❌ {link_name}失败: {target_path}\n    源文件: {source_path}\n    原因: {dir_error}"
+                )
+                continue
+
+            if link_type == "soft":
+                result, info = create_symlink_sync(source_path, target_path)
+            else:
+                result, info = create_hardlink_sync(source_path, target_path)
+
+            record_success, success_record_path, record_info = resolve_success_record_source_sync(file_path)
+            if not record_success:
+                success_record_path = file_path
+                record_info = (
+                    f"解析成功列表源路径失败，已回退记录当前路径: {self._normalize_delete_error_reason(record_info)}"
+                )
+
+            if result:
+                if "已存在同源" in info:
+                    skipped_count += 1
+                    if should_record_success:
+                        success_paths_to_record.add(success_record_path)
+                    if record_info:
+                        signal_qt.show_log_text(f" ℹ 成功列表记录路径: {success_record_path}\n    说明: {record_info}")
+                    signal_qt.show_log_text(f" ⏭ 已跳过{link_name}: {target_path}\n    原因: {info}")
+                else:
+                    success_count += 1
+                    if should_record_success:
+                        success_paths_to_record.add(success_record_path)
+                    if record_info:
+                        signal_qt.show_log_text(f" ℹ 成功列表记录路径: {success_record_path}\n    说明: {record_info}")
+                    signal_qt.show_log_text(f" ✅ 已创建{link_name}: {target_path}\n    源文件: {source_path}")
+            else:
+                self._cleanup_empty_link_target_dir(target_path, created_dir)
+                failure_details.append((target_path, self._normalize_delete_error_reason(info)))
+                signal_qt.show_log_text(
+                    f" ❌ {link_name}失败: {target_path}\n    源文件: {source_path}\n    原因: {self._normalize_delete_error_reason(info)}"
+                )
+
+        if should_record_success and success_paths_to_record:
+            Flags.success_list.update(success_paths_to_record)
+            executor.run(save_success_list())
+            signal_qt.show_log_text(f" 💾 已写入成功列表 {len(success_paths_to_record)} 项")
+
+        fail_count = len(failure_details)
+        signal_qt.show_log_text(
+            f" 🎉 创建{link_name}完成：成功 {success_count} 个，跳过 {skipped_count} 个，失败 {fail_count} 个"
+        )
+        if fail_count:
+            signal_qt.show_scrape_info(
+                f"💡 创建{link_name}完成，成功 {success_count} 个，跳过 {skipped_count} 个，失败 {fail_count} 个！{get_current_time()}"
+            )
+            self._show_action_failure_feedback(f"创建{link_name}", success_count, failure_details, skipped_count)
+        elif skipped_count and not success_count:
+            signal_qt.show_scrape_info(
+                f"💡 所选文件的{link_name}已存在，已跳过 {skipped_count} 个！{get_current_time()}"
+            )
+        elif skipped_count:
+            signal_qt.show_scrape_info(
+                f"💡 创建{link_name}完成，成功 {success_count} 个，跳过 {skipped_count} 个！{get_current_time()}"
+            )
+        elif success_count == 1:
+            signal_qt.show_scrape_info(f"💡 已创建{link_name}！{get_current_time()}")
+        else:
+            signal_qt.show_scrape_info(f"💡 已创建 {success_count} 个{link_name}！{get_current_time()}")
+
+    def _find_result_item_by_name(self, show_name: str) -> QTreeWidgetItem | None:
+        for root_item in (self.item_succ, self.item_fail):
+            for i in range(root_item.childCount()):
+                child = root_item.child(i)
+                if child is not None and child.text(0) == show_name:
+                    return child
+        return None
+
+    def _nfo_editor_field_values(self) -> tuple[str, ...]:
+        ui = self.Ui
+        return (
+            ui.lineEdit_nfo_number.text(),
+            ui.lineEdit_nfo_actor.text(),
+            ui.lineEdit_nfo_year.text(),
+            ui.lineEdit_nfo_title.text(),
+            ui.lineEdit_nfo_originaltitle.text(),
+            ui.textEdit_nfo_outline.toPlainText(),
+            ui.textEdit_nfo_originalplot.toPlainText(),
+            ui.textEdit_nfo_tag.toPlainText(),
+            ui.lineEdit_nfo_release.text(),
+            ui.lineEdit_nfo_runtime.text(),
+            ui.lineEdit_nfo_score.text(),
+            ui.lineEdit_nfo_wanted.text(),
+            ui.lineEdit_nfo_director.text(),
+            ui.lineEdit_nfo_series.text(),
+            ui.lineEdit_nfo_studio.text(),
+            ui.lineEdit_nfo_publisher.text(),
+            ui.lineEdit_nfo_poster.text(),
+            ui.lineEdit_nfo_cover.text(),
+            ui.lineEdit_nfo_trailer.text(),
+            ui.lineEdit_nfo_website.text(),
+            ui.comboBox_nfo.currentText(),
+        )
+
+    def _nfo_editor_is_dirty(self) -> bool:
+        if self.Ui.widget_nfo.isHidden() or self._nfo_editor_snapshot is None:
+            return False
+        return self._nfo_editor_field_values() != self._nfo_editor_snapshot
+
+    def _confirm_nfo_editor_leave(self) -> bool:
+        """离开当前编辑对象前确认未保存改动。False 表示取消本次离开。"""
+        if not self._nfo_editor_is_dirty():
+            return True
+        box = QMessageBox(QMessageBox.Icon.Question, "编辑 NFO", "当前 NFO 有未保存的修改，是否先保存？")
+        box.setStandardButtons(
+            QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel
+        )
+        save_btn = box.button(QMessageBox.StandardButton.Save)
+        assert save_btn is not None
+        save_btn.setText("保存")
+        discard_btn = box.button(QMessageBox.StandardButton.Discard)
+        assert discard_btn is not None
+        discard_btn.setText("丢弃")
+        cancel_btn = box.button(QMessageBox.StandardButton.Cancel)
+        assert cancel_btn is not None
+        cancel_btn.setText("取消")
+        box.setDefaultButton(QMessageBox.StandardButton.Save)
+        reply = box.exec()
+        if reply == QMessageBox.StandardButton.Cancel:
+            return False
+        if reply == QMessageBox.StandardButton.Save:
+            self.save_nfo_info()
+        return True
+
+    def _close_nfo_editor(self) -> None:
+        if not self._confirm_nfo_editor_leave():
+            return
+        self.Ui.widget_nfo.hide()
+        self._nfo_editor_snapshot = None
+
+    def _on_page_change_nfo_panel(self, index: int) -> None:
+        """议题 #177: 切页时暂隐编辑 NFO 面板(非关闭, 表单与结果树选中态保留),
+        切回主界面自动恢复; 有未保存改动时取消切页以留在主界面继续编辑。"""
+        nfo = self.Ui.widget_nfo
+        if index != 0:
+            if not nfo.isHidden():
+                if self._nfo_editor_is_dirty() and not self._confirm_nfo_editor_leave():
+                    stacked = self.Ui.stackedWidget
+                    stacked.blockSignals(True)
+                    stacked.setCurrentIndex(0)
+                    stacked.blockSignals(False)
+                    return
+                nfo.hide()
+                self._nfo_page_hiding = True
+        elif getattr(self, "_nfo_page_hiding", False):
+            nfo.show()
+            self._sync_nfo_overlay_geometry()
+            self._nfo_page_hiding = False
+
+    def _clear_main_info_panel(self, *, force: bool = False) -> None:
+        if not force and not self.Ui.widget_nfo.isHidden() and not self._confirm_nfo_editor_leave():
+            return
+        self.set_main_info(None)
+        self.file_main_open_path = Path()
+        self.show_name = None
+        self.show_data = None
+        if not self.Ui.widget_nfo.isHidden():
+            self.Ui.widget_nfo.hide()
+        self._nfo_editor_snapshot = None
+
+    def _remove_deleted_result_items(self, show_names: list[str]) -> None:
+        if not show_names:
+            return
+
+        current_show_name = self.show_name
+        for show_name in show_names:
+            self.json_array.pop(show_name, None)
+
+        for show_name in show_names:
+            item = self._find_result_item_by_name(show_name)
+            if item is None:
+                continue
+            parent = item.parent()
+            if parent is not None:
+                parent.removeChild(item)
+
+        self.Ui.treeWidget_number.clearSelection()
+        if current_show_name in show_names:
+            self._clear_main_info_panel(force=True)
+
+    # 主界面-点击树状条目
+    def treeWidget_number_clicked(self, *_args):
+        selected_items = self._get_selected_result_items()
+        if len(selected_items) != 1:
+            if len(selected_items) > 1:
+                self._clear_main_info_panel()
+            return
+
+        item = selected_items[0]
+        try:
+            index_json = str(item.text(0))
+            if index_json == self.show_name:
+                return
+            overlay_open = not self.Ui.widget_nfo.isHidden()
+            if overlay_open and not self._confirm_nfo_editor_leave():
+                prev = self._find_result_item_by_name(self.show_name) if self.show_name else None
+                tree = self.Ui.treeWidget_number
+                tree.blockSignals(True)
+                try:
+                    tree.clearSelection()
+                    if prev is not None:
+                        prev.setSelected(True)
+                finally:
+                    tree.blockSignals(False)
+                return
+            self.set_main_info(self.json_array[index_json])
+            self._show_nfo_info()
+            if overlay_open:
+                self._sync_nfo_overlay_geometry()
+        except Exception:
+            signal_qt.show_traceback_log(item.text(0) + ": No info!")
+
+    def _check_main_file_path(self):
+        selected_entries = self._get_selected_entries()
+        if len(selected_entries) > 1:
+            QMessageBox.about(self, "选择过多", "请只选择一个项目后再使用！！")
+            signal_qt.show_scrape_info(f"💡 请只选择一个项目后再使用！{get_current_time()}")
+            return False
+        if len(selected_entries) == 1:
+            _, show_name, show_data, file_path = selected_entries[0]
+            self.show_name = show_name
+            self.set_main_info(show_data)
+            self.file_main_open_path = file_path
+
+        if self.file_main_open_path == Path() or not self.file_main_open_path.is_file():
+            QMessageBox.about(self, "没有目标文件", "请刮削后再使用！！")
+            signal_qt.show_scrape_info(f"💡 请刮削后使用！{get_current_time()}")
+            return False
+        return True
+
+    def main_play_click(self):
+        """
+        主界面点播放
+        """
+        # 发送hover事件，清除hover状态（因为弹窗后，失去焦点，状态不会变化）
+        self.Ui.pushButton_play.setAttribute(Qt.WidgetAttribute.WA_UnderMouse, False)
+        event = QHoverEvent(QEvent.Type.HoverLeave, QPointF(40, 40), QPointF(0, 0))
+        QApplication.sendEvent(self.Ui.pushButton_play, event)
+        if self._check_main_file_path():
+            # mac需要改为无焦点状态，不然弹窗失去焦点后，再切换回来会有找不到焦点的问题（windows无此问题）
+            # if not self.is_windows:
+            #     self.setWindowFlags(self.windowFlags() | Qt.WindowDoesNotAcceptFocus)
+            #     self.show()
+            # 启动线程打开文件
+            t = threading.Thread(target=open_file_thread, args=(self.file_main_open_path, False))
+            t.start()
+
+    def main_open_folder_click(self):
+        """
+        主界面点打开文件夹
+        """
+        self.Ui.pushButton_open_folder.setAttribute(Qt.WidgetAttribute.WA_UnderMouse, False)
+        event = QHoverEvent(QEvent.Type.HoverLeave, QPointF(40, 40), QPointF(0, 0))
+        QApplication.sendEvent(self.Ui.pushButton_open_folder, event)
+        if self._check_main_file_path():
+            # mac需要改为无焦点状态，不然弹窗失去焦点后，再切换回来会有找不到焦点的问题（windows无此问题）
+            # if not self.is_windows:
+            #     self.setWindowFlags(self.windowFlags() | Qt.WindowDoesNotAcceptFocus)
+            #     self.show()
+            # 启动线程打开文件
+            t = threading.Thread(target=open_file_thread, args=(self.file_main_open_path, True))
+            t.start()
+
+    def main_open_nfo_click(self):
+        """
+        主界面点打开nfo
+        """
+        self.Ui.pushButton_open_nfo.setAttribute(Qt.WidgetAttribute.WA_UnderMouse, False)
+        event = QHoverEvent(QEvent.Type.HoverLeave, QPointF(40, 40), QPointF(0, 0))
+        QApplication.sendEvent(self.Ui.pushButton_open_nfo, event)
+        if self._check_main_file_path():
+            self.Ui.widget_nfo.show()
+            # 议题 #154：首次打开路径不经过 resizeEvent，需显式同步覆盖层几何，
+            # 否则沿用 .ui 设计尺寸、字段布局与钉底按钮错位。
+            self._sync_nfo_overlay_geometry()
+            self._show_nfo_info()
+
+    def main_show_similar_click(self):
+        """
+        主界面点查看相似片推荐
+        """
+        entries = self._get_selected_entries()
+        if not entries:
+            if not self.show_data or not self.show_data.data.number:
+                signal_qt.show_log_text(" 🔴 请先在结果树中选择一部影片，再查看相似推荐！")
+                return
+            target = self.show_data.data
+        else:
+            target = entries[0][2].data
+
+        # 相似语料 = 历史成功结果（跨会话，来自 SQLite 缓存）+ 当次刮削结果
+        corpus = SimilarDialog.collect_corpus(Flags.json_data_dic)
+        cache = ScrapeStateCache(resources.u("scrape_state.db"))
+        if cache.open():
+            try:
+                cached_corpus = SimilarDialog.collect_corpus_from_cache(cache)
+                seen_numbers = {getattr(c, "number", "") for c in corpus}
+                for c in cached_corpus:
+                    if c.number not in seen_numbers:
+                        corpus.append(c)
+            finally:
+                cache.close()
+        if len(corpus) < 2:
+            signal_qt.show_log_text(" 🔴 相似推荐需要至少 2 部已刮削影片，请先刮削更多！")
+            return
+
+        dialog = SimilarDialog(corpus, target, parent=self)
+        dialog.item_selected.connect(self._jump_to_similar_number)
+        dialog.exec()
+
+    def _jump_to_similar_number(self, number: str):
+        """双击相似推荐项后，在结果树中定位到对应影片。"""
+        for show_name, show_data in self.json_array.items():
+            if getattr(show_data, "data", None) and show_data.data.number == number:
+                item = self._find_result_item_by_name(show_name)
+                if item is not None:
+                    self.Ui.treeWidget_number.clearSelection()
+                    item.setSelected(True)
+                    self.Ui.treeWidget_number.scrollToItem(item)
+                    self.treeWidget_number_clicked()
+                return
+        # 历史缓存中的结果不在当次结果树中，无法跳转，仅提示
+        signal_qt.show_log_text(f" 💡 番号 {number} 是历史刮削结果，不在本次结果树中，无法跳转")
+
+    def main_open_right_menu(self):
+        """
+        主界面点打开右键菜单
+        """
+        # 发送hover事件，清除hover状态（因为弹窗后，失去焦点，状态不会变化）
+        self.Ui.pushButton_right_menu.setAttribute(Qt.WidgetAttribute.WA_UnderMouse, False)
+        event = QHoverEvent(QEvent.Type.HoverLeave, QPointF(40, 40), QPointF(0, 0))
+        QApplication.sendEvent(self.Ui.pushButton_right_menu, event)
+        self._menu()
+
+    def search_by_number_clicked(self):
+        """
+        主界面点输入番号
+        """
+        if self._check_main_file_path():
+            file_path = self.file_main_open_path
+            main_file_name = split_path(file_path)[1]
+            default_text = os.path.splitext(main_file_name)[0].upper()
+            text, ok = QInputDialog.getText(
+                self, "输入番号重新刮削", f"文件名: {main_file_name}\n请输入番号:", text=default_text
+            )
+            if ok and text:
+                Flags.again_dic[file_path] = (text, "", "")
+                signal_qt.show_scrape_info(f"💡 已添加刮削！{get_current_time()}")
+                if self.Ui.pushButton_start_cap.text() == "开始":
+                    again_search()
+
+    def search_by_url_clicked(self):
+        """
+        主界面点输入网址
+        """
+        if self._check_main_file_path():
+            file_path = self.file_main_open_path
+            main_file_name = split_path(file_path)[1]
+            from mdcx.manual import ManualConfig
+
+            supported_sites = ", ".join(sorted({site.value for site in ManualConfig.WEB_DIC.values()}))
+            text, ok = QInputDialog.getText(
+                self,
+                "输入网址重新刮削",
+                f"文件名: {main_file_name}\n支持网站: {supported_sites}"
+                "\n请输入番号对应的网址（不是网站首页地址！！！是番号页面地址！！！）:",
+            )
+            if ok and text:
+                website, url = deal_url(text)
+                if website:
+                    Flags.again_dic[file_path] = ("", url, website)
+                    signal_qt.show_scrape_info(f"💡 已添加刮削！{get_current_time()}")
+                    if self.Ui.pushButton_start_cap.text() == "开始":
+                        again_search()
+                else:
+                    signal_qt.show_scrape_info(f"💡 不支持的网站！{get_current_time()}")
+
+    def main_del_file_click(self):
+        """
+        主界面点删除文件
+        """
+        selected_entries = self._get_selected_entries()
+        if selected_entries:
+            delete_targets = [(show_name, file_path) for _, show_name, _, file_path in selected_entries]
+        else:
+            if not self._check_main_file_path():
+                return
+            delete_targets = [(self.show_name or "", self.file_main_open_path)]
+
+        if not delete_targets:
+            return
+
+        file_paths = [file_path for _, file_path in delete_targets]
+        if len(file_paths) == 1:
+            box_text = f"将要删除文件: \n{file_paths[0]}\n\n 你确定要删除吗？"
+        else:
+            box_text = (
+                f"将要删除 {len(file_paths)} 个文件：\n{self._build_delete_preview(file_paths)}\n\n你确定要继续吗？"
+            )
+
+        box = QMessageBox(QMessageBox.Icon.Warning, "删除文件", box_text)
+        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        box.button(QMessageBox.StandardButton.Yes).setText("删除文件")
+        box.button(QMessageBox.StandardButton.No).setText("取消")
+        box.setDefaultButton(QMessageBox.StandardButton.No)
+        reply = box.exec()
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        signal_qt.show_log_text(" 🗑 开始删除文件")
+        signal_qt.show_log_text(f" 📦 本次待删除文件数: {len(file_paths)}")
+
+        success_show_names = []
+        failure_details: list[tuple[Path, str]] = []
+        for show_name, file_path in delete_targets:
+            result, error_info = delete_file_sync(file_path)
+            if result:
+                if show_name:
+                    success_show_names.append(show_name)
+                signal_qt.show_log_text(f" ✅ 已删除文件: {file_path}")
+            else:
+                reason = self._normalize_delete_error_reason(error_info)
+                failure_details.append((file_path, reason))
+                signal_qt.show_log_text(f" ❌ 删除文件失败: {file_path}\n    原因: {reason}")
+
+        self._remove_deleted_result_items(success_show_names)
+        fail_count = len(failure_details)
+        success_count = len(file_paths) - fail_count
+        signal_qt.show_log_text(f" 🎉 删除文件完成：成功 {success_count} 个，失败 {fail_count} 个")
+        if fail_count:
+            signal_qt.show_scrape_info(
+                f"💡 文件删除完成，成功 {success_count} 个，失败 {fail_count} 个！{get_current_time()}"
+            )
+            self._show_action_failure_feedback("删除文件", success_count, failure_details)
+        elif success_count == 1:
+            signal_qt.show_scrape_info(f"💡 已删除文件！{get_current_time()}")
+        else:
+            signal_qt.show_scrape_info(f"💡 已删除 {success_count} 个文件！{get_current_time()}")
+
+    def main_del_folder_click(self):
+        """
+        主界面点删除文件夹
+        """
+        selected_entries = self._get_selected_entries()
+        if selected_entries:
+            delete_targets = [(show_name, file_path) for _, show_name, _, file_path in selected_entries]
+        else:
+            if not self._check_main_file_path():
+                return
+            delete_targets = [(self.show_name or "", self.file_main_open_path)]
+
+        if not delete_targets:
+            return
+
+        file_paths = [file_path for _, file_path in delete_targets]
+        folder_to_show_names: dict[Path, list[str]] = {}
+        for show_name, file_path in delete_targets:
+            folder_path = Path(split_path(file_path)[0])
+            folder_to_show_names.setdefault(folder_path, [])
+            if show_name:
+                folder_to_show_names[folder_path].append(show_name)
+
+        folder_paths = sorted(folder_to_show_names, key=lambda p: len(p.parts), reverse=True)
+        if len(folder_paths) == 1:
+            box_text = f"将要删除文件夹: \n{folder_paths[0]}\n\n 你确定要删除吗？"
+        else:
+            box_text = (
+                f"将要删除 {len(folder_paths)} 个文件夹（来源于 {len(file_paths)} 个选中项）：\n"
+                f"{self._build_delete_preview(folder_paths)}\n\n你确定要继续吗？"
+            )
+
+        box = QMessageBox(QMessageBox.Icon.Warning, "删除文件", box_text)
+        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        box.button(QMessageBox.StandardButton.Yes).setText("删除文件和文件夹")
+        box.button(QMessageBox.StandardButton.No).setText("取消")
+        box.setDefaultButton(QMessageBox.StandardButton.No)
+        reply = box.exec()
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        signal_qt.show_log_text(" 🗑 开始删除文件夹")
+        signal_qt.show_log_text(f" 📦 本次待删除文件夹数: {len(folder_paths)}")
+
+        success_folder_count = 0
+        success_show_names: list[str] = []
+        failure_details: list[tuple[Path, str]] = []
+        for folder_path in folder_paths:
+            try:
+                # 守护: 拒绝系统关键路径(用户主目录/文件根), 防止路径计算错误误删用户文件
+                safe_rmtree(folder_path)
+                success_folder_count += 1
+                success_show_names.extend(folder_to_show_names.get(folder_path, []))
+                signal_qt.show_log_text(f" ✅ 已删除文件夹: {folder_path}")
+            except FileNotFoundError:
+                success_folder_count += 1
+                success_show_names.extend(folder_to_show_names.get(folder_path, []))
+                signal_qt.show_log_text(f" ✅ 文件夹不存在，按已删除处理: {folder_path}")
+            except Exception as error:
+                reason = self._normalize_delete_error_reason(str(error))
+                failure_details.append((folder_path, reason))
+                signal_qt.show_log_text(f" ❌ 删除文件夹失败: {folder_path}\n    原因: {reason}")
+
+        if success_show_names:
+            self._remove_deleted_result_items(success_show_names)
+
+        fail_count = len(failure_details)
+        signal_qt.show_log_text(f" 🎉 删除文件夹完成：成功 {success_folder_count} 个，失败 {fail_count} 个")
+        if fail_count:
+            self.show_scrape_info(
+                f"💡 文件夹删除完成，成功 {success_folder_count} 个，失败 {fail_count} 个！{get_current_time()}"
+            )
+            self._show_action_failure_feedback("删除文件夹", success_folder_count, failure_details)
+        elif success_folder_count == 1:
+            self.show_scrape_info(f"💡 已删除文件夹！{get_current_time()}")
+        else:
+            self.show_scrape_info(f"💡 已删除 {success_folder_count} 个文件夹！{get_current_time()}")
+
+    def main_make_symlink_click(self):
+        """
+        主界面在指定位置创建软链接
+        """
+        self._create_links_for_selected_files("soft")
+
+    def main_make_symlink_in_dir_click(self):
+        """
+        主界面在指定位置创建软链接，并按文件名创建目录
+        """
+        self._create_links_for_selected_files("soft", group_in_named_dir=True)
+
+    def main_make_hardlink_click(self):
+        """
+        主界面在指定位置创建硬链接
+        """
+        self._create_links_for_selected_files("hard")
+
+    def main_make_hardlink_in_dir_click(self):
+        """
+        主界面在指定位置创建硬链接，并按文件名创建目录
+        """
+        self._create_links_for_selected_files("hard", group_in_named_dir=True)
+
+    def _pic_main_clicked(self):
+        """
+        主界面点图片
+        """
+        file_info = None if self.show_data is None else self.show_data.file_info
+        self.cutwindow.showimage(self.img_path, file_info)
+        self.cutwindow.show()
+
+    # 主界面-开关封面显示
+    def checkBox_cover_clicked(self):
+        if not self.Ui.checkBox_cover.isChecked():
+            self.Ui.label_poster.setText("封面图")
+            self.Ui.label_thumb.setText("缩略图")
+            # 议题 #144: 占位文本态同时清原图缓存, 否则 resize 重放会把图盖回占位;
+            # 几何归 _sync_page_layouts 管辖, 此处不再 resize 设计尺寸
+            self._poster_src_pixmap = None
+            self._thumb_src_pixmap = None
+            self.Ui.label_poster_size.setText("")
+            self.Ui.label_thumb_size.setText("")
+        else:
+            self.set_main_info(self.show_data)
+
+    def update_amazon_strict_pic_verify_state(self, *_args):
+        """Amazon 高清搜索关闭时联动禁用其子选项（严格校验开关已随读零校验架构移除）。"""
+        amazon_enabled = self.Ui.checkBox_amazon_big_pic.isChecked()
+        self.Ui.checkBox_amazon_skip_poster_size_precheck.setEnabled(amazon_enabled)
+        self.Ui.label_amazon_skip_poster_size_precheck.setEnabled(amazon_enabled)
+        if not amazon_enabled:
+            self.Ui.checkBox_amazon_skip_poster_size_precheck.setChecked(False)
+
+    def update_field_priority_try_all_images_state(self, *_args):
+        self.Ui.checkBox_field_priority_try_all_images.setEnabled(self.Ui.radioButton_scrape_info.isChecked())
+
+    # region 主界面编辑nfo
+    def _show_nfo_info(self):
+        try:
+            if not self.show_name:
+                return
+            show_data = self.json_array[self.show_name]
+            json_data = show_data.data
+            file_info = show_data.file_info
+            self.now_show_name = show_data.show_name
+            actor = json_data.actor
+            if json_data.all_actor and NfoInclude.ACTOR_ALL in manager.config.nfo_include_new:
+                actor = json_data.all_actor
+            self.Ui.label_nfo.setText(str(file_info.file_path))
+            self.Ui.lineEdit_nfo_number.setText(json_data.number)
+            self.Ui.lineEdit_nfo_actor.setText(actor)
+            self.Ui.lineEdit_nfo_year.setText(json_data.year)
+            self.Ui.lineEdit_nfo_title.setText(json_data.title)
+            self.Ui.lineEdit_nfo_originaltitle.setText(json_data.originaltitle)
+            self.Ui.textEdit_nfo_outline.setPlainText(json_data.outline)
+            self.Ui.textEdit_nfo_originalplot.setPlainText(json_data.originalplot)
+            self.Ui.textEdit_nfo_tag.setPlainText(json_data.tag)
+            self.Ui.lineEdit_nfo_release.setText(json_data.release)
+            self.Ui.lineEdit_nfo_runtime.setText(json_data.runtime)
+            self.Ui.lineEdit_nfo_score.setText(json_data.score)
+            self.Ui.lineEdit_nfo_wanted.setText(json_data.wanted)
+            self.Ui.lineEdit_nfo_director.setText(json_data.director)
+            self.Ui.lineEdit_nfo_series.setText(json_data.series)
+            self.Ui.lineEdit_nfo_studio.setText(json_data.studio)
+            self.Ui.lineEdit_nfo_publisher.setText(json_data.publisher)
+            self.Ui.lineEdit_nfo_poster.setText(json_data.poster)
+            self.Ui.lineEdit_nfo_cover.setText(json_data.thumb)
+            self.Ui.lineEdit_nfo_trailer.setText(json_data.trailer)
+            all_items = [self.Ui.comboBox_nfo.itemText(i) for i in range(self.Ui.comboBox_nfo.count())]
+            self.Ui.comboBox_nfo.setCurrentIndex(all_items.index(json_data.country))
+            self._nfo_editor_snapshot = self._nfo_editor_field_values()
+        except Exception:
+            if not signal_qt.stop:
+                signal_qt.show_traceback_log(traceback.format_exc())
+
+    def save_nfo_info(self):
+        try:
+            if self.now_show_name is None:
+                return
+            show_data = self.json_array[self.now_show_name]
+            json_data = show_data.data
+            file_info = show_data.file_info
+            nfo_path = file_info.file_path.with_suffix(".nfo")
+            nfo_folder = nfo_path.parent
+            json_data.number = self.Ui.lineEdit_nfo_number.text()
+            if NfoInclude.ACTOR_ALL in manager.config.nfo_include_new:
+                json_data.all_actor = self.Ui.lineEdit_nfo_actor.text()
+            json_data.actor = self.Ui.lineEdit_nfo_actor.text()
+            json_data.year = self.Ui.lineEdit_nfo_year.text()
+            json_data.title = self.Ui.lineEdit_nfo_title.text()
+            json_data.originaltitle = self.Ui.lineEdit_nfo_originaltitle.text()
+            json_data.outline = self.Ui.textEdit_nfo_outline.toPlainText()
+            json_data.originalplot = self.Ui.textEdit_nfo_originalplot.toPlainText()
+            json_data.tag = self.Ui.textEdit_nfo_tag.toPlainText()
+            json_data.release = self.Ui.lineEdit_nfo_release.text()
+            json_data.runtime = self.Ui.lineEdit_nfo_runtime.text()
+            json_data.score = self.Ui.lineEdit_nfo_score.text()
+            json_data.wanted = self.Ui.lineEdit_nfo_wanted.text()
+            json_data.director = self.Ui.lineEdit_nfo_director.text()
+            json_data.series = self.Ui.lineEdit_nfo_series.text()
+            json_data.studio = self.Ui.lineEdit_nfo_studio.text()
+            json_data.publisher = self.Ui.lineEdit_nfo_publisher.text()
+            json_data.poster = self.Ui.lineEdit_nfo_poster.text()
+            json_data.thumb = self.Ui.lineEdit_nfo_cover.text()
+            json_data.trailer = self.Ui.lineEdit_nfo_trailer.text()
+            if executor.run(write_nfo(file_info, json_data, nfo_path, nfo_folder, update=True)):
+                self.Ui.label_save_tips.setText(f"已保存! {get_current_time()}")
+                self.set_main_info(show_data)
+                self._nfo_editor_snapshot = self._nfo_editor_field_values()
+            else:
+                self.Ui.label_save_tips.setText(f"保存失败! {get_current_time()}")
+        except Exception:
+            if not signal_qt.stop:
+                signal_qt.show_traceback_log(traceback.format_exc())
+
+    # endregion
+
+    # 主界面左下角显示信息
+    def show_scrape_info(self, before_info=""):
+        try:
+            before_info = SCRAPE_INFO_EMOJI_RE.sub("", before_info).strip()
+            if Flags.file_mode == FileMode.Single:
+                website_label = self.Ui.comboBox_website_all.currentData() or self.Ui.comboBox_website_all.currentText()
+                scrape_info = f"单文件刮削\n{Flags.main_mode_text} · {website_label}"
+            else:
+                scrape_info = f"{Flags.main_mode_text} · {Flags.scrape_like_text}"
+                if manager.config.scrape_like == "single":
+                    scrape_info = f"{manager.config.website_single} 刮削\n" + scrape_info
+            if manager.config.soft_link == 1:
+                scrape_info = "软链接 · 开\n" + scrape_info
+            elif manager.config.soft_link == 2:
+                scrape_info = "硬链接 · 开\n" + scrape_info
+            after_info = f"\n{scrape_info}\n{manager.file}\nMDCx {self.localversion}"
+            self.label_show_version.emit(before_info + after_info + self.new_version)
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+
+    # region 获取/保存成功刮削列表
+    def pushButton_success_list_save_clicked(self):
+        box = QMessageBox(QMessageBox.Icon.Warning, "保存成功列表", "确定要将当前列表保存为已刮削成功文件列表吗？")
+        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        box.button(QMessageBox.StandardButton.Yes).setText("保存")
+        box.button(QMessageBox.StandardButton.No).setText("取消")
+        box.setDefaultButton(QMessageBox.StandardButton.No)
+        reply = box.exec()
+        if reply == QMessageBox.StandardButton.Yes:
+            success_text = self.Ui.textBrowser_show_success_list.toPlainText().replace("暂无成功刮削的文件", "").strip()
+            Flags.success_list = {
+                p for path in success_text.splitlines() if (line := path.strip()) and (p := Path(line)).suffix
+            }
+            executor.run(save_success_list())
+            get_success_list()
+            self.Ui.widget_show_success.hide()
+
+    def pushButton_success_list_clear_clicked(self):
+        box = QMessageBox(QMessageBox.Icon.Warning, "清空成功列表", "确定要清空当前已刮削成功文件列表吗？")
+        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        box.button(QMessageBox.StandardButton.Yes).setText("清空")
+        box.button(QMessageBox.StandardButton.No).setText("取消")
+        box.setDefaultButton(QMessageBox.StandardButton.No)
+        reply = box.exec()
+        if reply == QMessageBox.StandardButton.Yes:
+            Flags.success_list.clear()
+            executor.run(save_success_list())
+            self.Ui.widget_show_success.hide()
+
+    def pushButton_view_success_file_clicked(self):
+        self.Ui.widget_show_success.show()
+        info = "暂无成功刮削的文件"
+        if len(Flags.success_list):
+            info = "\n".join(sorted(str(p) for p in Flags.success_list))
+        self.Ui.textBrowser_show_success_list.setText(info)
+
+    # endregion
+    # endregion
+
+    # region 日志页
+    # 日志页点展开折叠日志
+    def pushButton_show_hide_logs_clicked(self):
+        if self.Ui.textBrowser_log_main_2.isHidden():
+            self.show_hide_logs(True)
+        else:
+            self.show_hide_logs(False)
+
+    # 日志页点展开折叠日志
+    def show_hide_logs(self, show):
+        if show:
+            self.Ui.pushButton_show_hide_logs.setIcon(QIcon(resources.hide_logs_icon))
+            self.Ui.textBrowser_log_main_2.show()
+            # 硬编码 resize 会覆盖窗口缩放同步结果（议题 #68），统一交给 _sync_page_layouts
+            self._sync_page_layouts()
+            self.Ui.textBrowser_log_main.verticalScrollBar().setValue(
+                self.Ui.textBrowser_log_main.verticalScrollBar().maximum()
+            )
+            self.Ui.textBrowser_log_main_2.verticalScrollBar().setValue(
+                self.Ui.textBrowser_log_main_2.verticalScrollBar().maximum()
+            )
+
+            # self.Ui.textBrowser_log_main_2.moveCursor(self.Ui.textBrowser_log_main_2.textCursor().End)
+
+        else:
+            self.Ui.pushButton_show_hide_logs.setIcon(QIcon(resources.show_logs_icon))
+            self.Ui.textBrowser_log_main_2.hide()
+            self._sync_page_layouts()
+            self.Ui.textBrowser_log_main.verticalScrollBar().setValue(
+                self.Ui.textBrowser_log_main.verticalScrollBar().maximum()
+            )
+
+    # 日志页点展开折叠失败列表
+    def pushButton_show_hide_failed_list_clicked(self):
+        if self.Ui.textBrowser_log_main_3.isHidden():
+            self.show_hide_failed_list(True)
+        else:
+            self.show_hide_failed_list(False)
+
+    # 日志页点展开折叠失败列表
+    def show_hide_failed_list(self, show):
+        if show:
+            self.Ui.textBrowser_log_main_3.show()
+            self.Ui.pushButton_scraper_failed_list.show()
+            self.Ui.pushButton_save_failed_list.show()
+            self.Ui.textBrowser_log_main_3.verticalScrollBar().setValue(
+                self.Ui.textBrowser_log_main_3.verticalScrollBar().maximum()
+            )
+
+        else:
+            self.Ui.pushButton_save_failed_list.hide()
+            self.Ui.textBrowser_log_main_3.hide()
+            self.Ui.pushButton_scraper_failed_list.hide()
+
+    # 日志页点一键刮削失败列表
+    def pushButton_scraper_failed_list_clicked(self):
+        if len(Flags.failed_list) and self.Ui.pushButton_start_cap.text() == "开始":
+            start_new_scrape(FileMode.Default, movie_list=[s[0] for s in Flags.failed_list])
+            self.show_hide_failed_list(False)
+
+    # 日志页点另存失败列表
+    def pushButton_save_failed_list_clicked(self):
+        if len(Flags.failed_list):
+            log_name = "failed_" + time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) + ".txt"
+            log_name = get_movie_path_setting().movie_path / log_name
+            filename, filetype = QFileDialog.getSaveFileName(
+                None, "保存失败文件列表", log_name.as_posix(), "Text Files (*.txt)", options=self.options
+            )
+            if filename:
+                with open(filename, "w", encoding="utf-8") as f:
+                    f.write(self.Ui.textBrowser_log_main_3.toPlainText().strip())
+
+    def _write_main_logs_to_file(self, logs: list[str]):
+        if not logs:
+            return
+        text = "\n".join(logs) + "\n"
+        try:
+            Flags.log_txt.write(text.encode("utf-8"))
+        except Exception:
+            log_folder = manager.data_folder / "Log"
+            if not os.path.exists(log_folder):
+                os.makedirs(log_folder, exist_ok=True)
+            log_name = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()) + ".txt"
+            log_name = log_folder / log_name
+            try:
+                old = Flags.log_txt
+                if old is not None:
+                    try:
+                        old.close()
+                    except Exception:
+                        pass
+                Flags.log_txt = open(log_name, "wb", buffering=0)
+                Flags.log_txt.write(text.encode("utf-8"))
+                self.main_log_queue.appendleft(f"创建日志文件: {log_name}")
+            except Exception:
+                signal_qt.show_traceback_log(traceback.format_exc())
+
+    def _flush_main_log_queue(self):
+        if not self.main_log_queue:
+            return
+        logs: list[str] = []
+        while self.main_log_queue and len(logs) < self.main_log_batch_size:
+            logs.append(self.main_log_queue.popleft())
+        if manager.config.save_log:
+            self._write_main_logs_to_file(logs)
+        try:
+            self.logs_counts += len(logs)
+            if self.logs_counts >= self.main_log_max_count:
+                self.logs_counts = len(logs)
+                self.main_logs_clear.emit("")
+                self.main_logs_show.emit(add_html(" 🗑️ 日志过多，已清屏！"))
+            self.main_logs_show.emit(add_html("\n".join(logs)))
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            self.Ui.textBrowser_log_main.append(traceback.format_exc())
+
+    # 显示详细日志
+    def show_detail_log(self):
+        text = signal_qt.get_log()
+        if text and manager.config.show_web_log:
+            self.main_req_logs_show.emit(add_html_plain_text(text))
+            if self.req_logs_counts < 10000:
+                self.req_logs_counts += 1
+            else:
+                self.req_logs_counts = 0
+                self.req_logs_clear.emit("")
+                self.main_req_logs_show.emit(add_html_plain_text(" 🗑️ 日志过多，已清屏！"))
+
+    # 日志页面显示内容
+    def show_log_text(self, text):
+        if not text:
+            return
+        self.main_log_queue.append(str(text))
+
+    # endregion
+
+    # region 工具页
+    # 工具页面点查看本地番号
+    def label_local_number_clicked(self, ev):
+        if self.Ui.pushButton_find_missing_number.isEnabled():
+            self.pushButton_show_log_clicked()  # 点击按钮后跳转到日志页面
+            if self.Ui.lineEdit_actors_name.text() != manager.config.actors_name:  # 保存配置
+                self.pushButton_save_config_clicked()
+            executor.submit(check_missing_number(False))
+
+    # 工具页面本地资源库点选择目录
+    def pushButton_select_local_library_clicked(self):
+        from .tool_handlers import pushButton_select_local_library_clicked
+
+        pushButton_select_local_library_clicked(self)
+
+    # 工具页面网盘目录点选择目录
+    def pushButton_select_netdisk_path_clicked(self):
+        from .tool_handlers import pushButton_select_netdisk_path_clicked
+
+        pushButton_select_netdisk_path_clicked(self)
+
+    # 工具页面本地目录点选择目录
+    def pushButton_select_localdisk_path_clicked(self):
+        from .tool_handlers import pushButton_select_localdisk_path_clicked
+
+        pushButton_select_localdisk_path_clicked(self)
+
+    # 工具/设置页面点选择目录
+    def pushButton_select_media_folder_clicked(self):
+        from .tool_handlers import pushButton_select_media_folder_clicked
+
+        pushButton_select_media_folder_clicked(self)
+
+    # 工具-软链接助手
+    def pushButton_creat_symlink_clicked(self):
+        """
+        工具点一键创建软链接
+        """
+        self.pushButton_show_log_clicked()  # 点击按钮后跳转到日志页面
+
+        if (Switch.COPY_NETDISK_NFO in manager.config.switch_on) != self.Ui.checkBox_copy_netdisk_nfo.isChecked():
+            self.pushButton_save_config_clicked()
+
+        try:
+            executor.submit(newtdisk_creat_symlink(self.Ui.checkBox_copy_netdisk_nfo.isChecked()))
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            signal_qt.show_log_text(traceback.format_exc())
+
+    # 工具-检查番号
+    def pushButton_find_missing_number_clicked(self):
+        """
+        工具点检查缺失番号
+        """
+        self.pushButton_show_log_clicked()  # 点击按钮后跳转到日志页面
+
+        # 如果本地资源库或演员与配置内容不同，则自动保存
+        if (
+            self.Ui.lineEdit_actors_name.text() != manager.config.actors_name
+            or self.Ui.lineEdit_local_library_path.text() != manager.config.local_library
+        ):
+            self.pushButton_save_config_clicked()
+        executor.submit(check_missing_number(True))
+
+    # 工具-单文件刮削
+    def pushButton_select_file_clicked(self):
+        media_path = self.Ui.lineEdit_movie_path.text()  # 获取待刮削目录作为打开目录
+        if not media_path:
+            media_path = manager.data_folder
+        else:
+            media_path = parse_media_paths(media_path)[0]
+        file_path, filetype = QFileDialog.getOpenFileName(
+            None,
+            "选取视频文件",
+            media_path.as_posix(),
+            "Movie Files(*.mp4 "
+            "*.avi *.rmvb *.wmv "
+            "*.mov *.mkv *.flv *.ts "
+            "*.webm *.MP4 *.AVI "
+            "*.RMVB *.WMV *.MOV "
+            "*.MKV *.FLV *.TS "
+            "*.WEBM);;All Files(*)",
+            options=self.options,
+        )
+        if file_path:
+            self.Ui.lineEdit_single_file_path.setText(file_path)
+
+    def pushButton_start_single_file_clicked(self):  # 点刮削
+        Flags.single_file_path = Path(self.Ui.lineEdit_single_file_path.text().strip())
+        if not Flags.single_file_path:
+            signal_qt.show_scrape_info("💡 请选择文件！")
+            return
+
+        if not os.path.isfile(Flags.single_file_path):
+            signal_qt.show_scrape_info("💡 文件不存在！")  # 主界面左下角显示信息
+            return
+
+        if not self.Ui.lineEdit_appoint_url.text():
+            signal_qt.show_scrape_info("💡 请填写番号网址！")  # 主界面左下角显示信息
+            return
+
+        self.pushButton_show_log_clicked()  # 点击刮削按钮后跳转到日志页面
+        Flags.appoint_url = self.Ui.lineEdit_appoint_url.text().strip()
+        # 单文件刮削从用户输入的网址中识别网址名，复用现成的逻辑=>主页面输入网址刮削
+        website, url = deal_url(Flags.appoint_url)
+        if website:
+            Flags.website_name = website
+        else:
+            signal_qt.show_scrape_info(f"💡 不支持的网站！{get_current_time()}")
+            return
+        start_new_scrape(FileMode.Single)
+
+    def pushButton_select_file_clear_info_clicked(self):  # 点清空信息
+        self.Ui.lineEdit_single_file_path.setText("")
+        self.Ui.lineEdit_appoint_url.setText("")
+
+        # self.Ui.lineEdit_movie_number.setText('')
+
+    # 工具-裁剪封面图
+    def pushButton_select_thumb_clicked(self):
+        path = self.Ui.lineEdit_movie_path.text()
+        if not path:
+            path = manager.data_folder.as_posix()
+        else:
+            path = parse_media_paths(path)[0].as_posix()
+        file_path, fileType = QFileDialog.getOpenFileName(
+            None, "选取缩略图", path, "Picture Files(*.jpg *.png);;All Files(*)", options=self.options
+        )
+        if file_path:
+            self.cutwindow.showimage(Path(file_path))
+            self.cutwindow.show()
+
+    # 工具-视频移动
+    def pushButton_move_mp4_clicked(self):
+        box = QMessageBox(QMessageBox.Icon.Warning, "移动视频和字幕", "确定要移动视频和字幕吗？")
+        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        box.button(QMessageBox.StandardButton.Yes).setText("移动")
+        box.button(QMessageBox.StandardButton.No).setText("取消")
+        box.setDefaultButton(QMessageBox.StandardButton.No)
+        reply = box.exec()
+        if reply == QMessageBox.StandardButton.Yes:
+            self.pushButton_show_log_clicked()  # 点击开始移动按钮后跳转到日志页面
+            try:
+                t = threading.Thread(target=self._move_file_thread)
+                self.threads_list.append(t)
+                t.start()  # 启动线程,即让线程开始执行
+            except Exception:
+                signal_qt.show_traceback_log(traceback.format_exc())
+                signal_qt.show_log_text(traceback.format_exc())
+
+    def _move_file_thread(self):
+        signal_qt.change_buttons_status.emit()
+        try:
+            self._move_files_core()
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            signal_qt.show_log_text(traceback.format_exc())
+        finally:
+            signal_qt.reset_buttons_status.emit()
+
+    def _move_files_core(self):
+        movie_items = []
+        for movie_path in get_movie_path_setting().movie_paths:
+            if not Path(movie_path).exists():
+                signal_qt.show_log_text(f" 🔴 Movie folder does not exist: {movie_path}")
+                continue
+            c = get_movie_path_setting(movie_path_override=movie_path)
+            ignore_dirs = c.ignore_dirs
+            ignore_dirs.append(movie_path / "Movie_moved")
+            movie_list = executor.run(
+                movie_lists(ignore_dirs, manager.config.media_type + manager.config.sub_type, movie_path)
+            )
+            movie_items.extend((movie_path, file_path) for file_path in movie_list)
+        if not movie_items:
+            signal_qt.show_log_text("No movie found!")
+            signal_qt.show_log_text("================================================================================")
+            return
+        signal_qt.show_log_text("Start move movies...")
+        skip_list = []
+        for movie_path, file_path in movie_items:
+            des_path = movie_path / "Movie_moved"
+            if not des_path.exists():
+                signal_qt.show_log_text(f"Created folder: {des_path}")
+            os.makedirs(des_path, exist_ok=True)
+            file_name = file_path.name
+            file_ext = file_path.suffix.lower()
+            try:
+                shutil.move(file_path, des_path)
+                if file_ext in manager.config.media_type:
+                    signal_qt.show_log_text("   Move movie: " + file_name + " to Movie_moved Success!")
+                else:
+                    signal_qt.show_log_text("   Move sub: " + file_name + " to Movie_moved Success!")
+            except Exception as e:
+                skip_list.append([file_name, file_path, str(e)])
+        if skip_list:
+            signal_qt.show_log_text(f"\n{len(skip_list)} file(s) did not move!")
+
+    # 工具-封面补图
+    def pushButton_cover_backfill_start_clicked(self):
+        from .tool_handlers import pushButton_cover_backfill_start_clicked
+
+        pushButton_cover_backfill_start_clicked(self)
+
+    def pushButton_actor_db_translate_clicked(self):
+        from .tool_handlers import pushButton_actor_db_translate_clicked
+
+        pushButton_actor_db_translate_clicked(self)
+
+    def pushButton_actor_db_link_clicked(self):
+        from .tool_handlers import pushButton_actor_db_link_clicked
+
+        pushButton_actor_db_link_clicked(self)
+
+    def pushButton_actor_db_sync_aliases_clicked(self):
+        from .tool_handlers import pushButton_actor_db_sync_aliases_clicked
+
+        pushButton_actor_db_sync_aliases_clicked(self)
+
+    def pushButton_actor_db_fill_minnano_clicked(self):
+        self._run_actor_db_tool("fill_minnano")
+
+    def pushButton_actor_db_fill_zh_javdb_clicked(self):
+        offset = self.Ui.spinBox_actor_db_sync_offset.value()
+        limit = self.Ui.spinBox_actor_db_sync_limit.value()
+        slice_hint = f"，起始行={offset}，限量={limit if limit > 0 else '不限'}"
+        signal_qt.show_log_text(
+            "开始扫描 actor_database.xlsx：从 JavDB 补全中文名/繁体名（仅处理「中文名==日文原名」的行）"
+            + slice_hint
+            + ")..."
+        )
+        self._run_actor_db_tool("fill_zh_javdb", offset=offset, limit=limit)
+
+    def pushButton_actor_db_open_clicked(self):
+        from .tool_handlers import pushButton_actor_db_open_clicked
+
+        pushButton_actor_db_open_clicked(self)
+
+    def pushButton_actor_db_clean_male_clicked(self):
+        from .tool_handlers import pushButton_actor_db_clean_male_clicked
+
+        pushButton_actor_db_clean_male_clicked(self)
+
+    def pushButton_actor_db_verify_tmdbid_clicked(self):
+        from .tool_handlers import pushButton_actor_db_verify_tmdbid_clicked
+
+        pushButton_actor_db_verify_tmdbid_clicked(self)
+
+    def pushButton_actor_db_check_clicked(self):
+        from .tool_handlers import pushButton_actor_db_check_clicked
+
+        pushButton_actor_db_check_clicked(self)
+
+    def pushButton_actor_db_pick_nfo_dir_clicked(self):
+        from .tool_handlers import pushButton_actor_db_pick_nfo_dir_clicked
+
+        pushButton_actor_db_pick_nfo_dir_clicked(self)
+
+    def pushButton_actor_db_update_nfo_tmdbid_clicked(self):
+        from .tool_handlers import pushButton_actor_db_update_nfo_tmdbid_clicked
+
+        pushButton_actor_db_update_nfo_tmdbid_clicked(self)
+
+    # btn_attr → 任务完成后按钮应恢复的 idle 文案
+    _ACTOR_DB_IDLE_TEXT_MAP: dict[str, str] = {
+        "actor_db_translate": "补全中文名",
+        "actor_db_link": "补全 LibreDMM 链接",
+        "actor_db_sync_aliases": "补全别名",
+        "actor_db_fill_minnano": "minnano 补全",
+        "actor_db_fill_zh_javdb": "JavDB 中文名",
+        "actor_db_clean_male": "剔除男演员",
+        "actor_db_verify_tmdbid": "校验 tmdbid 有效性",
+        "actor_db_check": "检查用户库",
+        "actor_db_update_nfo_tmdbid": "更新 nfo tmdbid",
+    }
+    # 由 change_buttons_status/reset_buttons_status 管理的 actor_db 按钮子集；
+    # 这些按钮在主刮削时被禁用、刮削结束后若未在跑 actor_db 任务则被恢复。
+    _ACTOR_DB_SCRAPE_MANAGED: frozenset[str] = frozenset(
+        {
+            "actor_db_translate",
+            "actor_db_link",
+            "actor_db_sync_aliases",
+            "actor_db_fill_minnano",
+            "actor_db_fill_zh_javdb",
+        }
+    )
+
+    def _run_actor_db_async(
+        self,
+        btn_attr: str,
+        busy_text: str,
+        log_prefix: str,
+        coro_factory,
+    ) -> None:
+        """演员库工具入口的通用模板：按钮防重入 + executor.submit + 完成信号。
+
+        Args:
+            btn_attr: Ui.pushButton_xxx 与 self.pushButton_xxx 共用属性名（无 'pushButton_' 前缀）。
+            busy_text: 按钮按下时的临时文案。
+            log_prefix: 异常日志前缀（如 "演员库维护"、"剔除男演员"、"校验 tmdbid"）。
+            coro_factory: 无参 callable，返回协程。协程内异常会被捕获并 show_log。
+        """
+        from mdcx.utils.qt_thread import run_in_background
+
+        run_in_background(
+            button=getattr(self.Ui, f"pushButton_{btn_attr}"),
+            coro_factory=coro_factory,
+            busy_signal=getattr(self, f"pushButton_{btn_attr}"),
+            busy_text=busy_text,
+            finished_signal=self.actor_db_finished,
+            finished_arg=btn_attr,
+            log_prefix=log_prefix,
+        )
+        self._actor_db_running.add(btn_attr)
+
+    def _run_actor_db_tool(self, mode: str, **kwargs) -> None:
+        """运行演员库维护工具（翻译/链接/别名/minnano 补全），统一走通用模板。"""
+        from mdcx.tools.actor_db_tool import run_actor_db_xlsx
+
+        button_map = {
+            "translate": "actor_db_translate",
+            "link": "actor_db_link",
+            "sync_aliases": "actor_db_sync_aliases",
+            "fill_minnano": "actor_db_fill_minnano",
+            "fill_zh_javdb": "actor_db_fill_zh_javdb",
+        }
+        busy_text = {
+            "translate": "运行中...",
+            "link": "运行中...",
+            "sync_aliases": "运行中...",
+            "fill_minnano": "运行中...",
+            "fill_zh_javdb": "运行中...",
+        }[mode]
+        self._run_actor_db_async(
+            button_map[mode],
+            busy_text,
+            "演员库维护",
+            lambda: run_actor_db_xlsx(mode=mode, **kwargs),
+        )
+
+    def _run_actor_db_clean_male(self) -> None:
+        """运行「剔除男演员」存量清洗（按 tmdbid 校验 TMDB gender，删除男优）。"""
+        from mdcx.tools.actor_db_tool import clean_male_actors
+
+        self._run_actor_db_async("actor_db_clean_male", "清洗中...", "剔除男演员", clean_male_actors)
+
+    def _run_actor_db_verify_tmdbid(self) -> None:
+        """运行「校验 tmdbid 有效性」存量清洗（404 失效 id 清除回无 id 状态）。"""
+        from mdcx.tools.actor_db_tool import verify_tmdb_ids
+
+        self._run_actor_db_async("actor_db_verify_tmdbid", "校验中...", "校验 tmdbid", verify_tmdb_ids)
+
+    def _run_actor_db_check(self) -> None:
+        """运行「检查用户库」：对运行库执行格式/结构/数据异常检查，弹窗报告+自动修复安全项。"""
+        from mdcx.tools.actor_db_tool import _check_actor_db_issues
+
+        db_path = Path(resources.u("actor_database.xlsx"))
+        if not db_path.exists():
+            signal_qt.show_log_text("🔴 actor_database.xlsx 不存在，请先刮削或执行一次演员库维护生成数据库")
+            return
+
+        btn = self.Ui.pushButton_actor_db_check
+        if not btn.isEnabled():
+            return
+
+        btn.setEnabled(False)
+        self.pushButton_actor_db_check.emit("检查中...")
+        self._actor_db_running.add("actor_db_check")
+
+        try:
+            issues = _check_actor_db_issues(db_path)
+        except Exception as e:
+            signal_qt.show_log_text(f"🔴 检查用户库异常: {e}")
+            import traceback as tb
+
+            signal_qt.show_log_text(tb.format_exc())
+            self._on_actor_db_finished("actor_db_check")
+            return
+
+        try:
+            self._show_actor_db_check_dialog(issues, db_path)
+        finally:
+            # 弹窗关闭后恢复按钮
+            self._on_actor_db_finished("actor_db_check")
+
+    def _show_actor_db_check_dialog(self, issues: dict, db_path: Path) -> None:
+        """弹窗展示检查结果：无问题→绿色提示；有问题→红色列表+「自动修复」按钮。"""
+        from PyQt6.QtWidgets import QMessageBox
+
+        errors = issues["errors"]
+        warnings = issues["warnings"]
+        total = len(errors) + len(warnings)
+
+        if total == 0:
+            QMessageBox.information(self, "检查用户库", "✅ 未发现任何问题。\n\n库结构、格式、数据完整性均正常。")
+            signal_qt.show_log_text("✅ 检查用户库完成：未发现问题")
+            return
+
+        # 分类统计
+        from collections import Counter
+
+        cat_names = {
+            "jp_empty": "jp 为空",
+            "jp_dup": "jp 重复",
+            "kw_format": "keyword 格式",
+            "kw_dup": "keyword 重复",
+            "birth_format": "出生日期格式",
+            "birth_range": "出生日期年份异常",
+            "career_no_year": "生涯无年份",
+            "tmdb_no_id": "tmdbid 空缺",
+            "tmdb_mismatch": "tmdb id 与 url 不匹配",
+            "tmdb_dup": "tmdbid 重复",
+            "orphan_link": "孤儿链接",
+            "name_empty": "中/文名空缺",
+            "bio_jp": "简介日文残留",
+            "bio_unstruct": "简介非结构化",
+        }
+        error_cats = Counter(cat for _, _, cat in errors)
+        warning_cats = Counter(cat for _, _, cat in warnings)
+
+        lines = [f"检查发现 {len(errors)} 个错误 + {len(warnings)} 个警告：\n"]
+        lines.append("<b style='color: #c62828;'>错误（需立即处理）：</b>")
+        for cat, count in sorted(error_cats.items(), key=lambda x: -x[1]):
+            lines.append(f"  • {cat_names.get(cat, cat)}: {count} 项")
+        for row, msg, _cat in errors[:20]:
+            lines.append(f"&nbsp;&nbsp;- 行{row}: {msg}")
+        if len(errors) > 20:
+            lines.append(f"&nbsp;&nbsp;... 还有 {len(errors) - 20} 条未显示")
+        lines.append("")
+        if warnings:
+            lines.append("<b style='color: #ef6c00;'>警告（建议处理）：</b>")
+            for cat, count in sorted(warning_cats.items(), key=lambda x: -x[1]):
+                lines.append(f"  • {cat_names.get(cat, cat)}: {count} 项")
+            for row, msg, _cat in warnings[:10]:
+                lines.append(f"&nbsp;&nbsp;- 行{row}: {msg}")
+            if len(warnings) > 10:
+                lines.append(f"&nbsp;&nbsp;... 还有 {len(warnings) - 10} 条未显示")
+
+        msg_html = "<br>".join(lines)
+
+        # 区分可自动修/需人工
+        auto_fixable = {"jp_empty", "jp_dup", "kw_format", "kw_dup", "birth_range", "career_no_year", "tmdb_mismatch"}
+        needs_manual = {"tmdb_no_id", "tmdb_dup", "tmdb_dup_url"}
+        auto_count = sum(c for cat, c in error_cats.items() if cat in auto_fixable)
+        manual_count = sum(c for cat, c in error_cats.items() if cat in needs_manual)
+
+        if manual_count > 0:
+            lines.append("")
+            lines.append(
+                f"<b style='color: #ef6c00;'>{manual_count} 项 tmdb 相关需人工处理</b>（打开数据库后手动修复）"
+            )
+            for row, msg, cat in errors:
+                if cat in needs_manual:
+                    lines.append(f"&nbsp;&nbsp;- 行{row}: {msg}")
+
+            lines.append("")
+            lines.append("<b>手动修复步骤：</b>")
+            lines.append("1. 点击「打开数据库」按钮，在 Excel/WPS/LibreOffice 中打开 actor_database.xlsx")
+            lines.append("2. 根据告警信息定位到错误行")
+            lines.append("3. 处理 tdb 相关错误：")
+            lines.append("   • tmdbid 空缺：删除该行的 tmdb url 链接")
+            lines.append("   • tmdbid 重复：核对 TMDB 网站后修正为正确的 id 或删除重复行")
+            lines.append("   • id 与 url 不匹配：以 tmdbid 为准，重新生成 url 或改 tmdbid")
+            lines.append("4. 保存并重新打开本工具检查")
+
+            msg_html = "<br>".join(lines)
+
+        if auto_count > 0:
+            box = QMessageBox(self)
+            box.setWindowTitle("检查用户库 — 发现问题")
+            box.setIcon(QMessageBox.Icon.Warning)
+            box.setTextFormat(Qt.TextFormat.RichText)
+            box.setText(msg_html)
+            fix_btn = box.addButton(f"自动修复 {auto_count} 项", QMessageBox.ButtonRole.AcceptRole)
+            open_btn = box.addButton("打开数据库查看", QMessageBox.ButtonRole.ActionRole)
+            box.addButton(QMessageBox.StandardButton.Cancel)
+            box.exec()
+            clicked = box.clickedButton()
+            if clicked is fix_btn:
+                self._do_actor_db_auto_fix(db_path)
+            elif clicked is open_btn:
+                from mdcx.utils.file import open_file_thread
+
+                try:
+                    open_file_thread(db_path, False)
+                except Exception as e:
+                    signal_qt.show_log_text(f"⚠️ 无法打开数据库: {e}")
+        else:
+            box = QMessageBox(self)
+            box.setWindowTitle("检查用户库 — 发现问题（无自动修复项）")
+            box.setIcon(QMessageBox.Icon.Warning)
+            box.setTextFormat(Qt.TextFormat.RichText)
+            box.setText(msg_html)
+            open_btn = box.addButton("打开数据库查看", QMessageBox.ButtonRole.ActionRole)
+            box.addButton(QMessageBox.StandardButton.Ok)
+            box.exec()
+            if box.clickedButton() is open_btn:
+                from mdcx.utils.file import open_file_thread
+
+                try:
+                    open_file_thread(db_path, False)
+                except Exception as e:
+                    signal_qt.show_log_text(f"⚠️ 无法打开数据库: {e}")
+
+    def _do_actor_db_auto_fix(self, db_path: Path) -> None:
+        """执行自动修复并反馈结果。"""
+        from PyQt6.QtWidgets import QMessageBox
+
+        from mdcx.tools.actor_db_tool import auto_fix_actor_db
+
+        try:
+            result = auto_fix_actor_db(db_path)
+            fixed = result["fixed"]
+            needs_manual = result["needs_manual"]
+
+            lines = [f"自动修复完成：{sum(fixed.values())} 项已修复"]
+            save_error = result.get("save_error")
+            if save_error:
+                lines.insert(0, f"<font color='red'>⚠️ 修复结果保存失败：{save_error}</font>")
+                lines.insert(1, "<font color='red'>请关闭 Excel 或其他占用该文件的程序后重试！</font>")
+            if fixed:
+                for cat, count in fixed.items():
+                    cat_names = {
+                        "jp_empty": "jp 空行删除",
+                        "jp_dup": "jp 重复合并",
+                        "kw_format": "keyword 格式规范化",
+                        "birth_range": "出生日期越界清空",
+                        "career_no_year": "生涯无年份删除",
+                        "tmdb_mismatch": "tmdb url 重置",
+                    }
+                    lines.append(f"  • {cat_names.get(cat, cat)}: {count}")
+            if needs_manual:
+                lines.append("")
+                lines.append(f"{len(needs_manual)} 项需人工处理：")
+                for row, msg, _cat in needs_manual[:10]:
+                    lines.append(f"  - 行{row}: {msg}")
+                if len(needs_manual) > 10:
+                    lines.append(f"  ... 还有 {len(needs_manual) - 10} 项")
+        except Exception as e:
+            lines = [f"自动修复失败: {e}"]
+
+        box = QMessageBox(self)
+        box.setWindowTitle("自动修复完成")
+        box.setIcon(QMessageBox.Icon.Information)
+        box.setText("<br>".join(lines))
+        open_btn = box.addButton("打开数据库验证", QMessageBox.ButtonRole.ActionRole)
+        box.addButton(QMessageBox.StandardButton.Ok)
+        box.exec()
+        if box.clickedButton() is open_btn:
+            from mdcx.utils.file import open_file_thread
+
+            try:
+                open_file_thread(db_path, False)
+            except Exception as e:
+                signal_qt.show_log_text(f"⚠️ 无法打开数据库: {e}")
+
+    def _run_actor_db_update_nfo(self) -> None:
+        """运行「更新 nfo tmdbid」（用本地库新 id 覆盖 nfo 旧 id，无 id 的补上）。"""
+        from pathlib import Path
+
+        from mdcx.tools.actor_db_tool import update_nfo_tmdb_ids
+
+        dir_text = self.Ui.lineEdit_actor_db_nfo_dir.text().strip()
+        if not dir_text:
+            signal_qt.show_log_text("🔴 请先选择 nfo 目录")
+            return
+        dir_path = Path(dir_text)
+        if not dir_path.is_dir():
+            signal_qt.show_log_text(f"🔴 nfo 目录不存在: {dir_text}")
+            return
+
+        self._run_actor_db_async(
+            "actor_db_update_nfo_tmdbid",
+            "更新中...",
+            "更新 nfo",
+            lambda: update_nfo_tmdb_ids(dir_path),
+        )
+
+    def pushButton_actor_db_stop_clicked(self) -> None:
+        """停止当前演员库维护任务（独立于主界面刮削停止）。
+
+        置位 signal_qt.stop 与 Flags.stop_requested，各维护工具的
+        _is_stop_requested() 会在滑动窗口每轮响应并保存已处理部分。
+        """
+        Flags.stop_requested = True
+        signal_qt.stop = True
+        signal_qt.show_log_text("⛔️ 已请求停止演员库维护任务，正在保存已处理部分...")
+
+    def _on_actor_db_finished(self, task_id: str = "") -> None:
+        """主线程恢复演员库维护按钮状态（由 actor_db_finished 信号触发）。
+
+        task_id: 完成的按钮 attr（如 "actor_db_clean_male"）。空串表示恢复全部按钮
+        （兼容旧调用，例如 _run_actor_db_check / _run_actor_db_update_nfo 的同步路径）。
+        """
+        self._actor_db_running.discard(task_id)
+
+        if task_id and task_id in self._ACTOR_DB_IDLE_TEXT_MAP:
+            btn_attr = task_id
+            btn = getattr(self.Ui, f"pushButton_{btn_attr}")
+            # 仍在跑的任务只重置文案，不重置 enabled（避免与其他 actor_db 任务交叉）
+            btn.setEnabled(btn_attr not in self._actor_db_running)
+            getattr(self, f"pushButton_{btn_attr}").emit(self._ACTOR_DB_IDLE_TEXT_MAP[btn_attr])
+            return
+
+        # 空 task_id 或未知 attr：仅恢复未在跑任务的按钮；在跑的保持 disabled
+        for btn_attr, idle_text in self._ACTOR_DB_IDLE_TEXT_MAP.items():
+            btn = getattr(self.Ui, f"pushButton_{btn_attr}", None)
+            sig = getattr(self, f"pushButton_{btn_attr}", None)
+            if btn is not None and btn_attr not in self._actor_db_running:
+                btn.setEnabled(True)
+            if sig is not None:
+                sig.emit(idle_text)
+
+        # 演员库任务全部结束后复位停止标志。
+        # pushButton_actor_db_stop_clicked 只置位不复位，若在非刮削状态点击停止，
+        # signal_qt.stop / Flags.stop_requested 将永久为 True，导致日志静默、下一任务秒停。
+        # 演员库任务与主刮削互斥（change_buttons_status 会禁用 actor_db 按钮），此处复位安全。
+        if not self._actor_db_running:
+            Flags.stop_requested = False
+            signal_qt.stop = False
+
+    # region 设置页
+    # region 选择目录
+    # 设置-目录-软链接目录-点选择目录
+    def pushButton_select_softlink_folder_clicked(self):
+        from .tool_handlers import pushButton_select_softlink_folder_clicked
+
+        pushButton_select_softlink_folder_clicked(self)
+
+    # 设置-目录-成功输出目录-点选择目录
+    def pushButton_select_sucess_folder_clicked(self):
+        from .tool_handlers import pushButton_select_sucess_folder_clicked
+
+        pushButton_select_sucess_folder_clicked(self)
+
+    # 设置-目录-失败输出目录-点选择目录
+    def pushButton_select_failed_folder_clicked(self):
+        from .tool_handlers import pushButton_select_failed_folder_clicked
+
+        pushButton_select_failed_folder_clicked(self)
+
+    # 设置-字幕-字幕文件目录-点选择目录
+    def pushButton_select_subtitle_folder_clicked(self):
+        from .tool_handlers import pushButton_select_subtitle_folder_clicked
+
+        pushButton_select_subtitle_folder_clicked(self)
+
+    # 设置-头像-头像文件目录-点选择目录
+    def pushButton_select_actor_photo_folder_clicked(self):
+        from .tool_handlers import pushButton_select_actor_photo_folder_clicked
+
+        pushButton_select_actor_photo_folder_clicked(self)
+
+    # 设置-演员-Gfriends本地仓库-点选择目录
+    def pushButton_select_gfriends_local_clicked(self):
+        from .tool_handlers import pushButton_select_gfriends_local_clicked
+
+        pushButton_select_gfriends_local_clicked(self)
+
+    # 设置-演员-Gfriends本地仓库-点更新
+    def pushButton_sync_gfriends_clicked(self):
+        from .tool_handlers import pushButton_sync_gfriends_clicked
+
+        pushButton_sync_gfriends_clicked(self)
+
+    # 设置-其他-配置文件目录-点选择目录
+    def pushButton_select_config_folder_clicked(self):
+        p = self._get_select_folder_path(self.Ui.lineEdit_config_folder)
+        if not p:
+            return
+        p = Path(p)
+        if p.is_dir() and p != manager.data_folder:
+            manager.list_configs()
+            config_path = p / "config.json"
+            manager.path = config_path
+            if config_path.is_file():
+                temp_dark = self.dark_mode
+                temp_window_radius = self.window_radius
+                self.load_config()
+                if temp_dark != self.dark_mode and temp_window_radius == self.window_radius:
+                    self.show_flag = True
+                    self._windows_auto_adjust()
+            else:
+                self.Ui.lineEdit_config_folder.setText(str(p))
+                self.pushButton_save_config_clicked()
+            signal_qt.show_scrape_info(f"💡 目录已切换！{get_current_time()}")
+
+    # endregion
+
+    # 设置-演员-补全信息-演员信息数据库-选择文件按钮
+    def pushButton_select_actor_info_db_clicked(self):
+        from .tool_handlers import pushButton_select_actor_info_db_clicked
+
+        pushButton_select_actor_info_db_clicked(self)
+
+    # region 设置-问号
+    def pushButton_tips_normal_mode_clicked(self):
+        self._show_tips(self.Ui.pushButton_tips_normal_mode.toolTip())
+
+    def pushButton_tips_sort_mode_clicked(self):
+        self._show_tips(self.Ui.pushButton_tips_sort_mode.toolTip())
+
+    def pushButton_tips_update_mode_clicked(self):
+        self._show_tips(self.Ui.pushButton_tips_update_mode.toolTip())
+
+    def pushButton_tips_read_mode_clicked(self):
+        self._show_tips(self.Ui.pushButton_tips_read_mode.toolTip())
+
+    def pushButton_tips_soft_clicked(self):
+        self._show_tips(self.Ui.pushButton_tips_soft.toolTip())
+
+    def pushButton_tips_hard_clicked(self):
+        self._show_tips(self.Ui.pushButton_tips_hard.toolTip())
+
+    # 设置-显示说明信息
+    def _show_tips(self, msg):
+        self.Ui.textBrowser_show_tips.setText(msg)
+        self.Ui.widget_show_tips.show()
+
+    # 设置-刮削网站和字段中的详细说明弹窗
+    def pushButton_scrape_note_clicked(self):
+        from mdcx.crawlers import get_registered_crawler_site_values
+
+        sites_html = "".join(f"  <li>{site}</li>\n" for site in get_registered_crawler_site_values())
+        self._show_tips(f"""<html>
+<head/>
+<body>
+  <p><span style=" font-weight:700;">所有可用网站:</span></p>
+{sites_html}  <p><span style=" font-weight:700;">指定类型影片可指定刮削网站:<span></p>
+   <p>· 有码：dmm、dmm_api、thejavdb_api、libredmm、r18dev、avbase、xcity、prestige、mgstage、getchu、javlibrary、freejavbt、lulubar、avmoo，以及 javbus、javdb 系、missav 系、official（含 Dahlia/Faleno 厂牌与无码官网路由）、airav_cc、avsex、javday、javfree、iqqtv、7mmtv 等综合站；javdb_api/javdb_app/missav_api/r18dev/thejavdb_api 是免 CF 直连通道</p>
+   <p>· 无码：aventertainments、avsox，以及 javbus、javdb 系、missav 系、avsex、official、javday、iqqtv、7mmtv 等综合站</p>
+  <p>· 欧美：theporndb、avheat</p>
+  <p>· 国产：madouqu、madou_club、avsex、iqqtv、javday</p>
+  <p>· 里番：getchu </p>
+  <p>· Mywife：mywife </p>
+  <p>· 素人：mgstage、prestige、javbus、javdb 系、dmm、dmm_api、avbase、missav、missav_api、mywife、iqqtv、7mmtv </p>
+  <p>· FC2：fc2、fc2ppvdb、javdb 系、javfree、7mmtv </p>
+</body>
+</html>""")
+
+    def pushButton_field_tips_nfo_clicked(self):
+        msg = """
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n\
+<movie>\n\
+    <plot><![CDATA[剧情简介]]></plot>\n\
+    <outline><![CDATA[剧情简介]]></outline>\n\
+    <originalplot><![CDATA[原始剧情简介]]></originalplot>\n\
+    <tagline>发行日期 XXXX-XX-XX</tagline> \n\
+    <premiered>发行日期</premiered>\n\
+    <releasedate>发行日期</releasedate>\n\
+    <release>发行日期</release>\n\
+    <num>番号</num>\n\
+    <title>标题</title>\n\
+    <originaltitle>原始标题</originaltitle>\n\
+    <sorttitle>类标题 </sorttitle>\n\
+    <mpaa>家长分级</mpaa>\n\
+    <customrating>自定义分级</customrating>\n\
+    <actor>\n\
+        <name>名字</name>\n\
+        <type>类型：演员</type>\n\
+    </actor>\n\
+    <director>导演</director>\n\
+    <rating>评分</rating>\n\
+    <criticrating>影评人评分</criticrating>\n\
+    <votes>想看人数</votes>\n\
+    <year>年份</year>\n\
+    <runtime>时长</runtime>\n\
+    <series>系列</series>\n\
+    <set>\n\
+        <name>合集</name>\n\
+    </set>\n\
+    <studio>片商/制作商</studio> \n\
+    <maker>片商/制作商</maker>\n\
+    <publisher>厂牌/发行商</publisher>\n\
+    <label>厂牌/发行商</label>\n\
+    <tag>标签</tag>\n\
+    <genre>风格</genre>\n\
+    <cover>背景图地址</cover>\n\
+    <poster>封面图地址</poster>\n\
+    <trailer>预告片地址</trailer>\n\
+    <website>刮削网址</website>\n\
+</movie>\n\
+        """
+        self._show_tips(msg)
+
+    # endregion
+
+    # 设置-刮削目录 点击检查待刮削目录并清理文件
+    def pushButton_check_and_clean_files_clicked(self):
+        if not manager.computed.can_clean:
+            self.pushButton_save_config_clicked()
+        self.pushButton_show_log_clicked()
+        try:
+            executor.submit(check_and_clean_files())
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            signal_qt.show_log_text(traceback.format_exc())
+
+    # 设置-字幕 为所有视频中的无字幕视频添加字幕
+    def pushButton_add_sub_for_all_video_clicked(self):
+        self.pushButton_show_log_clicked()  # 点按钮后跳转到日志页面
+        try:
+            executor.submit(add_sub_for_all_video())
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            signal_qt.show_log_text(traceback.format_exc())
+
+    # region 设置-下载
+    # 为所有视频中的创建/删除剧照附加内容
+    def pushButton_add_all_extras_clicked(self):
+        self.pushButton_show_log_clicked()  # 点按钮后跳转到日志页面
+        try:
+            executor.submit(add_del_extras("add"))
+        except Exception:
+            signal_qt.show_log_text(traceback.format_exc())
+
+    def pushButton_del_all_extras_clicked(self):
+        self.pushButton_show_log_clicked()  # 点按钮后跳转到日志页面
+        try:
+            executor.submit(add_del_extras("del"))
+        except Exception:
+            signal_qt.show_log_text(traceback.format_exc())
+
+    # 为所有视频中的创建/删除剧照副本
+    def pushButton_add_all_extrafanart_copy_clicked(self):
+        self.pushButton_show_log_clicked()  # 点按钮后跳转到日志页面
+        self.pushButton_save_config_clicked()
+        try:
+            executor.submit(add_del_extrafanart_copy("add"))
+        except Exception:
+            signal_qt.show_log_text(traceback.format_exc())
+
+    def pushButton_del_all_extrafanart_copy_clicked(self):
+        self.pushButton_show_log_clicked()  # 点按钮后跳转到日志页面
+        self.pushButton_save_config_clicked()
+        try:
+            executor.submit(add_del_extrafanart_copy("del"))
+        except Exception:
+            signal_qt.show_log_text(traceback.format_exc())
+
+    # 为所有视频中的创建/删除主题视频
+    def pushButton_add_all_theme_videos_clicked(self):
+        self.pushButton_show_log_clicked()  # 点按钮后跳转到日志页面
+        try:
+            executor.submit(add_del_theme_videos("add"))
+        except Exception:
+            signal_qt.show_log_text(traceback.format_exc())
+
+    def pushButton_del_all_theme_videos_clicked(self):
+        self.pushButton_show_log_clicked()  # 点按钮后跳转到日志页面
+        try:
+            executor.submit(add_del_theme_videos("del"))
+        except Exception:
+            signal_qt.show_log_text(traceback.format_exc())
+
+    # endregion
+
+    # region 设置-演员
+    # 设置-演员 补全演员信息
+    def pushButton_add_actor_info_clicked(self):
+        from .tool_handlers import pushButton_add_actor_info_clicked
+
+        pushButton_add_actor_info_clicked(self)
+
+    # 设置-演员 补全演员头像按钮
+    def pushButton_add_actor_pic_clicked(self):
+        from .tool_handlers import pushButton_add_actor_pic_clicked
+
+        pushButton_add_actor_pic_clicked(self)
+
+    # 设置-演员 补全演员头像按钮 kodi
+    def pushButton_add_actor_pic_kodi_clicked(self):
+        from .tool_handlers import pushButton_add_actor_pic_kodi_clicked
+
+        pushButton_add_actor_pic_kodi_clicked(self)
+
+    # 设置-演员 清除演员头像按钮 kodi
+    def pushButton_del_actor_folder_clicked(self):
+        from .tool_handlers import pushButton_del_actor_folder_clicked
+
+        pushButton_del_actor_folder_clicked(self)
+
+    # 工具-Emby 演员管理器
+    def pushButton_emby_actor_manager_clicked(self):
+        from .tool_handlers import pushButton_emby_actor_manager_clicked
+
+        pushButton_emby_actor_manager_clicked(self)
+
+    # 设置-演员 查看演员列表按钮
+    def pushButton_show_pic_actor_clicked(self):
+        from .tool_handlers import pushButton_show_pic_actor_clicked
+
+        pushButton_show_pic_actor_clicked(self)
+
+    # endregion
+
+    # 设置-线程数量
+    def lcdNumber_thread_change(self):
+        thread_number = self.Ui.horizontalSlider_thread.value()
+        self.Ui.lcdNumber_thread.display(thread_number)
+
+    # 设置-javdb延时
+    def lcdNumber_javdb_time_change(self):
+        javdb_time = self.Ui.horizontalSlider_javdb_time.value()
+        self.Ui.lcdNumber_javdb_time.display(javdb_time)
+
+    # 设置-其他网站延时
+    def lcdNumber_thread_time_change(self):
+        thread_time = self.Ui.horizontalSlider_thread_time.value()
+        self.Ui.lcdNumber_thread_time.display(thread_time)
+
+    # 设置-超时时间
+    def lcdNumber_timeout_change(self):
+        timeout = self.Ui.horizontalSlider_timeout.value()
+        self.Ui.lcdNumber_timeout.display(timeout)
+
+    # 设置-重试次数
+    def lcdNumber_retry_change(self):
+        retry = self.Ui.horizontalSlider_retry.value()
+        self.Ui.lcdNumber_retry.display(retry)
+
+    # 设置-水印大小
+    def lcdNumber_mark_size_change(self):
+        mark_size = self.Ui.horizontalSlider_mark_size.value()
+        self.Ui.lcdNumber_mark_size.display(mark_size)
+
+    # 设置-网络-网址设置-下拉框切换
+    def switch_custom_website_change(self, site):
+        # 显示文本可能带区域标签后缀（如 "javdb（勿用日本节点）"），剥掉后再转枚举
+        site = site.split("（")[0].strip()
+        if site not in Website:
+            return
+        site = Website(site)
+        self.Ui.lineEdit_site_custom_url.setText(manager.config.get_site_url(site))
+
+    # 切换配置
+
+    # 设置 - 网络 - 使用代理 - 添加网站
+    def _add_no_proxy_site(self, site_value: str):
+        """当用户从下拉框选择网站时，添加到输入框"""
+        # 显示文本可能带区域标签后缀（如 "javdb（勿用日本节点）"），取值时剥掉
+        site_value = site_value.split("（")[0].strip()
+        if not site_value or site_value == "选择网站...":
+            return
+        # 重置下拉框到默认值
+        self.Ui.comboBox_no_proxy_sites.setCurrentIndex(0)
+        # 获取当前输入
+        current = self.Ui.lineEdit_no_proxy_sites.text().strip()
+        # 分割现有值
+        existing_sites = [s.strip() for s in current.split(",") if s.strip()]
+        # 添加新网站（如果不存在）
+        if site_value not in existing_sites:
+            existing_sites.append(site_value)
+            # 更新输入框
+            self.Ui.lineEdit_no_proxy_sites.setText(",".join(existing_sites))
+
+    def config_file_change(self, new_config_file: str):
+        if new_config_file != manager.file:
+            new_config_path = manager.data_folder / new_config_file
+            signal_qt.show_log_text(
+                f"\n================================================================================\n切换配置：{new_config_path}"
+            )
+            manager.path = new_config_path
+            temp_dark = self.dark_mode
+            temp_window_radius = self.window_radius
+            self.load_config()
+            if temp_dark != self.dark_mode and temp_window_radius == self.window_radius:
+                self.show_flag = True
+                self._windows_auto_adjust()
+            signal_qt.show_scrape_info(f"💡 配置已切换！{get_current_time()}")
+
+    # 重置配置
+    def pushButton_init_config_clicked(self):
+        self.Ui.pushButton_init_config.setEnabled(False)
+        manager.reset()
+        temp_dark = self.dark_mode
+        temp_window_radius = self.window_radius
+        self.load_config()
+        if temp_dark and temp_window_radius:
+            self.show_flag = True
+            self._windows_auto_adjust()
+        self.Ui.pushButton_init_config.setEnabled(True)
+        signal_qt.show_scrape_info(f"💡 配置已重置！{get_current_time()}")
+
+    # 设置-命名-分集-字母
+    def checkBox_cd_part_a_clicked(self):
+        if self.Ui.checkBox_cd_part_a.isChecked():
+            self.Ui.checkBox_cd_part_c.setEnabled(True)
+        else:
+            self.Ui.checkBox_cd_part_c.setEnabled(False)
+
+    # 设置-刮削目录-同意清理(我已知晓/我已同意)
+    def checkBox_i_agree_clean_clicked(self):
+        if self.Ui.checkBox_i_understand_clean.isChecked() and self.Ui.checkBox_i_agree_clean.isChecked():
+            self.Ui.pushButton_check_and_clean_files.setEnabled(True)
+            self.Ui.checkBox_auto_clean.setEnabled(True)
+        else:
+            self.Ui.pushButton_check_and_clean_files.setEnabled(False)
+            self.Ui.checkBox_auto_clean.setEnabled(False)
+
+    # 读取设置页的设置, 保存config.ini，然后重新加载
+    def _check_mac_config_folder(self):
+        if self.check_mac and not IS_WINDOWS and ".app/Contents/Resources" in manager.data_folder.as_posix():
+            self.check_mac = False
+            box = QMessageBox(
+                QMessageBox.Icon.Warning,
+                "选择配置文件目录",
+                f"检测到当前配置文件目录为：\n {manager.data_folder}\n\n由于 MacOS 平台在每次更新 APP 版本时会覆盖该目录的配置，因此请选择其他的配置目录！\n这样下次更新 APP 时，选择相同的配置目录即可读取你之前的配置！！！",
+            )
+            box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            box.button(QMessageBox.StandardButton.Yes).setText("选择目录")
+            box.button(QMessageBox.StandardButton.No).setText("取消")
+            box.setDefaultButton(QMessageBox.StandardButton.Yes)
+            reply = box.exec()
+            if reply == QMessageBox.StandardButton.Yes:
+                self.pushButton_select_config_folder_clicked()
+
+    # 设置-保存
+    def pushButton_save_config_clicked(self):
+        try:
+            self.save_config()
+            self.load_config()  # 确保界面显示和实际配置一致
+        except Exception:
+            error = traceback.format_exc()
+            signal_qt.show_traceback_log(error)
+            self.tray_icon_show()
+            QMessageBox.critical(self, "保存配置失败", f"配置保存失败，软件已保持运行。\n\n{error}")
+            return
+        signal_qt.show_scrape_info(f"💡 配置已保存！{get_current_time()}")
+
+    # 设置-另存为
+    def pushButton_save_new_config_clicked(self):
+        new_config_name, ok = QInputDialog.getText(self, "另存为新配置", "请输入新配置的文件名")
+        if ok and new_config_name:
+            new_config_name = new_config_name.replace("/", "").replace("\\", "")
+            new_config_name = re.sub(r'[\\:*?"<>|\r\n]+', "", new_config_name)
+            if os.path.splitext(new_config_name)[1] != ".json":
+                new_config_name += ".json"
+            if new_config_name != manager.file:
+                manager.path = manager.data_folder / new_config_name
+                self.pushButton_save_config_clicked()
+
+    def save_config(self): ...
+
+    # endregion
+
+    # region 检测网络
+    def network_check(self):
+        try:
+            signal_qt.show_net_info("\n⛑ 开始检测网络...")
+            cancel_event = threading.Event()
+            self.network_check_cancel_event = cancel_event
+            self.network_check_results = None
+            self._net_check_lines = []
+
+            def progress(line):
+                self._net_check_lines.append(line)
+                signal_qt.show_net_info(line)
+
+            def on_item_done(done: int, total: int):
+                self.net_check_progress.emit(done, total)
+
+            self.network_check_future = executor.submit(
+                run_network_check(progress=progress, on_item_done=on_item_done, cancel_event=cancel_event)
+            )
+            self.network_check_results = self.network_check_future.result()
+            merge_site_check_cache(self.network_check_results)  # 持久化供站点选择列表回显
+        except Exception as e:
+            # 议题 #73 实证：空消息异常（裸 TimeoutError 等）只显示「出现异常：」毫无线索。
+            # 带异常类型名，并把 traceback 直接展示在检测页——用户复制结果就是完整诊断。
+            signal_qt.show_net_info(f"\n⛔️ 网络检测出现异常：{type(e).__name__}: {e}")
+            signal_qt.show_net_info(
+                "================================================================================\n"
+            )
+            signal_qt.show_net_info(traceback.format_exc().rstrip())
+            signal_qt.show_traceback_log(str(e))
+            signal_qt.show_traceback_log(traceback.format_exc())
+        finally:
+            self.network_check_cancel_event = None
+            self.network_check_future = None
+            # 按钮状态必须在主线程恢复，经信号调度
+            self.net_check_done.emit()
+
+    def _run_net_retry(self):
+        """后台线程：重试上次检测的失败/警告项。"""
+        results = self.network_check_results
+        if not results:
+            signal_qt.show_net_info("⛔️ 请先运行一次完整检测，再使用「重试失败项」")
+            return
+        failed_specs = [
+            result.spec
+            for result in results
+            if result.status in (NetworkCheckStatus.FAILED, NetworkCheckStatus.WARNING)
+        ]
+        if not failed_specs:
+            signal_qt.show_net_info("✅ 上次检测没有失败/警告项，无需重试")
+            return
+        try:
+            signal_qt.show_net_info(f"\n⛑ 重试 {len(failed_specs)} 个失败/警告项...")
+            cancel_event = threading.Event()
+            self.network_check_cancel_event = cancel_event
+            self._net_check_lines = []
+            # 议题 #118：探测超时递进已移进单轮内部（30s/45s/60s 最多三次），
+            # 「重试失败项」回归纯重测——价值在于用户改完代理/CF 配置后再给一次机会
+            signal_qt.show_net_info(f"⏱ 单站刮削探测自动递进重试，超时阶梯 {scrape_probe_ladder_text()}")
+
+            def progress(line):
+                self._net_check_lines.append(line)
+                signal_qt.show_net_info(line)
+
+            def on_item_done(done: int, total: int):
+                self.net_check_progress.emit(done, total)
+
+            self.network_check_future = executor.submit(
+                run_network_check(
+                    progress=progress,
+                    on_item_done=on_item_done,
+                    cancel_event=cancel_event,
+                    specs=failed_specs,
+                    emit_header=False,
+                )
+            )
+            self.network_check_results = self.network_check_future.result()
+            merge_site_check_cache(self.network_check_results)  # 部分重测同样合并进缓存
+        except Exception as e:
+            signal_qt.show_net_info(f"\n⛔️ 重试失败项出现异常：{type(e).__name__}: {e}")
+            signal_qt.show_net_info(traceback.format_exc().rstrip())
+            signal_qt.show_traceback_log(traceback.format_exc())
+        finally:
+            self.network_check_cancel_event = None
+            self.network_check_future = None
+            self.net_check_done.emit()
+
+    def pushButton_net_retry_clicked(self):
+        if self.network_check_future is not None:
+            signal_qt.show_net_info("⏳ 上一次检测仍在进行，请稍后再试")
+            return
+        t = threading.Thread(target=self._run_net_retry, daemon=True)
+        t.start()
+
+    def pushButton_net_copy_clicked(self):
+        lines = getattr(self, "_net_check_lines", None) or []
+        if not lines:
+            signal_qt.show_net_info("⛔️ 暂无可复制内容，请先运行检测")
+            return
+        header = self._build_net_diagnostic_header()
+        text = "\n".join(header + lines)
+        QApplication.clipboard().setText(text)
+        signal_qt.show_net_info("✅ 检测报告已复制到剪贴板（含版本/系统概要，代理地址已脱敏，可直接粘贴到 issue 求助）")
+
+    @staticmethod
+    def _build_net_diagnostic_header() -> list[str]:
+        """生成复制到剪贴板的诊断报告头部：版本/系统/脱敏后的网络配置概要。"""
+        from mdcx.utils import mask_proxy_url
+
+        config = manager.config
+        use_proxy = bool(config.use_proxy and config.proxy)
+        proxy_info = mask_proxy_url(config.proxy) if use_proxy else "未启用"
+        return [
+            "=" * 88,
+            "MDCx 网络诊断报告（提 issue 时可直接粘贴本段全部内容）",
+            f"  版本: {VERSION_NAME} ({LOCAL_VERSION})",
+            f"  系统: {platform.system()} {platform.release()} ({platform.machine()})",
+            f"  时间: {time.strftime('%Y-%m-%d %H:%M:%S')}",
+            f"  代理: {proxy_info}    CF Bypass: {'已配置' if config.cf_bypass_url.strip() else '未配置'}"
+            f"    外部 CF 服务: {'已配置' if config.cf_bypass_trawl_url.strip() else '未配置'}",
+            "=" * 88,
+        ]
+
+    def _on_net_check_progress(self, done: int, total: int):
+        """主线程：检测进行中，按钮文本显示进度百分比。"""
+        if total > 0 and self.network_check_future is not None:
+            self.Ui.pushButton_check_net.setText(f"停止检测 {done}/{total}")
+
+    def _on_net_check_done(self):
+        """主线程：网络检测完成，恢复按钮状态并刷新站点下拉框的检测状态徽标。"""
+        from .init import refresh_network_check_badges
+
+        refresh_network_check_badges(self)
+        self.Ui.pushButton_check_net.setEnabled(True)
+        self.Ui.pushButton_check_net.setText("开始检测")
+        self.Ui.pushButton_check_net.setStyleSheet(
+            "QPushButton#pushButton_check_net{background-color:#4C6EFF}QPushButton:hover#pushButton_check_net{background-color: rgba(76,110,255,240)}QPushButton:pressed#pushButton_check_net{#4C6EE0}"
+        )
+
+    # 网络检查
+    def pushButton_check_net_clicked(self):
+        if self.Ui.pushButton_check_net.text() == "开始检测":
+            if self.network_check_future is not None:
+                # 上一个检测线程尚未结束，避免并发启动多个实例
+                return
+            self.Ui.pushButton_check_net.setText("停止检测")
+            self.Ui.pushButton_check_net.setStyleSheet(
+                "QPushButton#pushButton_check_net{color: white;background-color:#3758D8;}QPushButton:hover#pushButton_check_net{color: white;background-color:#4C6EFF;}QPushButton:pressed#pushButton_check_net{color: white;background-color:#2F49B8;}"
+            )
+            try:
+                self.t_net = threading.Thread(target=self.network_check)
+                self.t_net.start()  # 启动线程,即让线程开始执行
+            except Exception:
+                signal_qt.show_traceback_log(traceback.format_exc())
+                signal_qt.show_net_info(traceback.format_exc())
+        elif self.Ui.pushButton_check_net.text().startswith("停止检测"):
+            if self.network_check_cancel_event:
+                self.network_check_cancel_event.set()
+            signal_qt.show_net_info("\n⛔️ 正在停止网络检测...")
+            self.Ui.pushButton_check_net.setStyleSheet(
+                "QPushButton#pushButton_check_net{color: white;background-color:#4C6EFF;}QPushButton:hover#pushButton_check_net{color: white;background-color: rgba(76,110,255,240)}QPushButton:pressed#pushButton_check_net{color: white;background-color:#4C6EE0}"
+            )
+            self.Ui.pushButton_check_net.setText("开始检测")
+        else:
+            try:
+                if self.network_check_cancel_event:
+                    self.network_check_cancel_event.set()
+            except Exception as e:
+                signal_qt.show_traceback_log(str(e))
+                signal_qt.show_traceback_log(traceback.format_exc())
+
+    # 检测网络界面日志显示；按行首状态图标着色，便于小白快速定位失败项
+    def show_net_info(self, text):
+        try:
+            color = ""
+            stripped = str(text or "").lstrip()
+            if stripped.startswith(("❌", "⛔️", "⛔")):
+                color = "#e53935"
+            elif stripped.startswith("⚠"):
+                color = "#f9a825"
+            elif stripped.startswith("✅"):
+                color = "#43a047"
+            self.net_logs_show.emit(add_html_plain_text(text, color=color))
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            self.Ui.textBrowser_net_main.append(traceback.format_exc())
+
+    # 检查javdb cookie
+    def pushButton_check_javdb_cookie_clicked(self):
+        input_cookie = self.Ui.plainTextEdit_cookie_javdb.toPlainText()
+        if not input_cookie:
+            self.set_javdb_status.emit("❌ 未填写 Cookie")
+            self.show_log_text(" ❌ JavDb 未填写 Cookie，可在「软件设置」-「网络」添加！")
+            return
+        self.set_javdb_status.emit("⏳ 正在检测中...")
+        try:
+            t = threading.Thread(target=self._check_javdb_cookie, args=(input_cookie,))
+            t.start()  # 启动线程,即让线程开始执行
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            signal_qt.show_log_text(traceback.format_exc())
+
+    def _check_javdb_cookie(self, input_cookie: str):
+        tips = "❌ 未填写 Cookie，影响 FC2 刮削！"
+        if not input_cookie:
+            self.set_javdb_status.emit(tips)
+            return tips
+        # self.Ui.pushButton_check_javdb_cookie.setEnabled(False)
+        tips = "✅ 连接正常！"
+        header = {"cookie": input_cookie}
+        javdb_url = manager.config.get_site_url(Website.JAVDB, "https://javdb.com") + "/v/D16Q5?locale=zh"
+        try:
+            response, error = get_text_sync(javdb_url, headers=header)
+            if response is None:
+                if "Cookie" in error:
+                    # 议题 #130：网络/站点不可达不等于 cookie 失效，一律只告警、保留 cookie
+                    tips = "❌ Cookie 检查失败（网络/站点不可达），已保留原 Cookie"
+                else:
+                    tips = f"❌ 连接失败！请检查网络或代理设置！ {response}"
+            else:
+                if "The owner of this website has banned your access based on your browser's behaving" in response:
+                    ip_adress_list = re.findall(r"(\d+\.\d+\.\d+\.\d+)", response)
+                    ip_adress = ip_adress_list[0] + " " if ip_adress_list else ""
+                    tips = f"❌ 你的 IP {ip_adress}被 JavDb 封了！"
+                elif "Due to copyright restrictions" in response or "Access denied" in response:
+                    tips = "❌ 当前 IP 被禁止访问！请使用非日本节点！"
+                elif "ray-id" in response:
+                    tips = "❌ 访问被 CloudFlare 拦截！"
+                elif "/logout" in response:  # 已登录，有登出按钮
+                    vip_info = "未开通 VIP"
+                    tips = f"✅ 连接正常！（{vip_info}）"
+                    if input_cookie:
+                        if "icon-diamond" in response or "/v/D16Q5" in response:  # 有钻石图标或者跳到详情页表示已开通
+                            vip_info = "已开通 VIP"
+                        if manager.config.javdb != input_cookie:  # 保存cookie
+                            tips = f"✅ 连接正常！（{vip_info}）Cookie 已保存！"
+                            self.exec_save_config.emit()
+                        else:
+                            tips = f"✅ 连接正常！（{vip_info}）"
+                else:
+                    # 议题 #130：/logout 缺失只说明"未检测到登录态"，可能是维护页/拦截页，
+                    # 不构成 cookie 失效的确凿证据——只告警、保留 cookie，由用户手动替换。
+                    tips = "❌ 未检测到登录态，Cookie 可能无效（已保留，可手动替换）"
+        except Exception as e:
+            tips = f"❌ 连接失败！请检查网络或代理设置！ {e}"
+            signal_qt.show_traceback_log(tips)
+        if input_cookie:
+            self.set_javdb_status.emit(tips)
+            # self.Ui.pushButton_check_javdb_cookie.setEnabled(True)
+        self.show_log_text(tips.replace("❌", " ❌ JavDb").replace("✅", " ✅ JavDb"))
+        return tips
+
+    # 检查 fc2ppvdb cookie
+    # region 刮削缓存管理
+    def _apply_scrape_cache_header_modes(self) -> None:
+        """议题 #179: 失败列表列宽策略。
+
+        旧实现列宽固定 5×130=650（Interactive），表格宽随窗口伸缩而列不动——
+        窄窗（用户截图 1032 视口 641）出水平滚动条，宽窗/最大化右侧大片空白。
+        改为文件名/最后错误 Stretch 分摊视口剩余宽、其余三列按内容收缩，
+        列总宽恒等于视口宽，两种现象同时消除。
+        """
+        header = self.Ui.tableWidget_scrape_cache_failed.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+
+    def _open_scrape_cache(self) -> ScrapeStateCache | None:
+        cache = ScrapeStateCache(resources.u("scrape_state.db"))
+        if not cache.open():
+            signal_qt.show_log_text(" 🔴 刮削缓存数据库不可用")
+            return None
+        return cache
+
+    def pushButton_scrape_cache_refresh_clicked(self) -> None:
+        cache = self._open_scrape_cache()
+        if cache is None:
+            return
+        try:
+            stats = cache.stats()
+            failed = cache.list_failed_detail()
+        finally:
+            cache.close()
+        self._update_scrape_cache_ui(stats, failed)
+        signal_qt.show_log_text(
+            f" 刮削缓存已刷新：完成 {stats['done']} / 失败 {stats['failed']} / 总计 {stats['total']}"
+        )
+
+    def _update_scrape_cache_ui(self, stats: dict, failed: list) -> None:
+        self.Ui.label_scrape_cache_done.setText(f"已完成：{stats['done']}")
+        self.Ui.label_scrape_cache_failed.setText(f"失败：{stats['failed']}")
+        self.Ui.label_scrape_cache_exhausted.setText(f"超限失败：{stats['failed_exhausted']}")
+        self.Ui.label_scrape_cache_total.setText(f"总计：{stats['total']}")
+        self.Ui.label_scrape_cache_dbpath.setText(f"数据库：{stats['db_path']}")
+        self.Ui.label_scrape_cache_dbsize.setText(f"大小：{stats['db_size_kb']} KB")
+        tw = self.Ui.tableWidget_scrape_cache_failed
+        tw.setRowCount(len(failed))
+        for i, f in enumerate(failed):
+            name_item = QTableWidgetItem(Path(f.file_path).name)
+            name_item.setData(Qt.ItemDataRole.UserRole + 1, f.file_path)
+            tw.setItem(i, 0, name_item)
+            tw.setItem(i, 1, QTableWidgetItem(f.number))
+            tw.setItem(i, 2, QTableWidgetItem(str(f.fail_count)))
+            err = f.error or ""
+            tw.setItem(i, 3, QTableWidgetItem(err[:100] + ("…" if len(err) > 100 else "")))
+            tw.setItem(
+                i,
+                4,
+                QTableWidgetItem(
+                    time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(f.scraped_at)) if f.scraped_at else ""
+                ),
+            )
+        # 议题 #179: 原 resizeColumnsToContents()+setColumnWidth(3,260) 与列宽伸缩策略冲突
+        # （长文本会把列总宽撑出视口，实测 sum=1462 必出横向滚动条），列宽交给 header 模式管理。
+
+    def pushButton_scrape_cache_export_clicked(self) -> None:
+        path, _ = QFileDialog.getSaveFileName(self, "导出失败列表", "scrape_failed.csv", "CSV (*.csv)")
+        if not path:
+            return
+        cache = self._open_scrape_cache()
+        if cache is None:
+            return
+        try:
+            failed = cache.list_failed_detail(limit=100000)
+        finally:
+            cache.close()
+        import csv
+
+        with open(path, "w", newline="", encoding="utf-8-sig") as fp:
+            w = csv.writer(fp)
+            w.writerow(["文件路径", "番号", "失败次数", "最后错误", "时间"])
+            for f in failed:
+                w.writerow(
+                    [
+                        f.file_path,
+                        f.number,
+                        f.fail_count,
+                        f.error,
+                        time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(f.scraped_at)) if f.scraped_at else "",
+                    ]
+                )
+        signal_qt.show_log_text(f" 已导出 {len(failed)} 条失败记录到 {path}")
+
+    def pushButton_scrape_cache_reset_clicked(self) -> None:
+        tw = self.Ui.tableWidget_scrape_cache_failed
+        rows = sorted({idx.row() for idx in tw.selectedIndexes()})
+        if not rows:
+            signal_qt.show_log_text(" 请先在表格中选中要重置的记录")
+            return
+        paths = []
+        for r in rows:
+            item = tw.item(r, 0)
+            if item is not None:
+                p = item.data(Qt.ItemDataRole.UserRole + 1)
+                if p:
+                    paths.append(p)
+        if not paths:
+            return
+        cache = self._open_scrape_cache()
+        if cache is None:
+            return
+        try:
+            for p in paths:
+                cache.delete_state(Path(p))
+        finally:
+            cache.close()
+        signal_qt.show_log_text(f" 已重置 {len(paths)} 条记录（下次刮削将重新处理）")
+        self.pushButton_scrape_cache_refresh_clicked()
+
+    def pushButton_scrape_cache_clear_clicked(self) -> None:
+        reply = QMessageBox.question(
+            self,
+            "确认清空缓存",
+            "将清空全部刮削缓存状态，下次刮削将重新处理所有文件。\n已生成的 NFO 不会被删除。确认清空？",
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        cache = self._open_scrape_cache()
+        if cache is None:
+            return
+        try:
+            cache.clear()
+        finally:
+            cache.close()
+        signal_qt.show_log_text(" 刮削缓存已全部清空")
+        self.pushButton_scrape_cache_refresh_clicked()
+
+    # endregion
+    def pushButton_check_fc2ppvdb_cookie_clicked(self):
+        input_cookie = self.Ui.plainTextEdit_cookie_fc2ppvdb.toPlainText().strip()
+        if not input_cookie:
+            self.set_fc2ppvdb_status.emit("❌ 未填写 Cookie")
+            self.show_log_text(" ❌ FC2PPVDB 未填写 Cookie，可在「软件设置」-「网络」添加！")
+            return
+        self.set_fc2ppvdb_status.emit("⏳ 正在检测中...")
+        try:
+            t = threading.Thread(target=self._check_fc2ppvdb_cookie, args=(input_cookie,))
+            t.start()  # 启动线程,即让线程开始执行
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            signal_qt.show_log_text(traceback.format_exc())
+
+    def _check_fc2ppvdb_cookie(self, input_cookie: str):
+        tips = "❌ 未填写 Cookie"
+        if not input_cookie:
+            self.set_fc2ppvdb_status.emit(tips)
+            return tips
+
+        if not cookie_has_login_key(input_cookie):
+            tips = "❌ Cookie 无效！请粘贴 fc2cmadb.com 登录后的完整 cookie（含 XSRF-TOKEN 与 session 项）"
+        else:
+            cookies = cookie_str_to_dict(input_cookie)
+            with manager.acquire_computed() as computed:
+                response, error = executor.run(
+                    fetch_article_info_with_warmup(
+                        computed.async_client,
+                        base_url=FC2CMADB_BASE_URL,
+                        number="3259498",
+                        cookies=cookies,
+                        use_proxy=manager.config.use_proxy,
+                    )
+                )
+            if response is None:
+                tips = f"❌ Cookie 检查失败：{error}"
+            elif not response.get("article"):
+                tips = "❌ Cookie 检查失败：返回数据异常"
+            elif not response.get("actresses") and not response.get("article", {}).get("actresses"):
+                tips = "⚠️ Cookie 连通但未获取到演员数据，请确认已登录 fc2cmadb.com"
+                if manager.config.fc2ppvdb != input_cookie:
+                    self.exec_save_config.emit()
+            elif manager.config.fc2ppvdb != input_cookie:
+                self.exec_save_config.emit()
+                tips = "✅ 连接正常，Cookie 已保存！"
+            else:
+                tips = "✅ 连接正常！"
+
+        self.set_fc2ppvdb_status.emit(tips)
+        self.show_log_text(tips.replace("❌", " ❌ FC2PPVDB").replace("✅", " ✅ FC2PPVDB"))
+        return tips
+
+    # javbus cookie
+    def pushButton_check_javbus_cookie_clicked(self):
+        input_cookie = self.Ui.plainTextEdit_cookie_javbus.toPlainText()
+        self.set_javbus_status.emit("⏳ 正在检测中...")
+        try:
+            t = threading.Thread(target=self._check_javbus_cookie, args=(input_cookie,))
+            t.start()  # 启动线程,即让线程开始执行
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+            self.show_log_text(traceback.format_exc())
+
+    def _check_javbus_cookie(self, input_cookie: str):
+        # self.Ui.pushButton_check_javbus_cookie.setEnabled(False)
+        tips = "✅ 连接正常！"
+        headers = {"Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6", "cookie": input_cookie}
+        javbus_url = manager.config.get_site_url(Website.JAVBUS, "https://javbus.com") + "/FSDSS-660"
+
+        try:
+            response, error = get_text_sync(javbus_url, headers=headers)
+
+            if response is None:
+                tips = f"❌ 连接失败！请检查网络或代理设置！ {error}"
+            elif "lostpasswd" in response:
+                if input_cookie:
+                    tips = "❌ Cookie 无效！"
+                else:
+                    tips = "❌ 当前节点需要 Cookie 才能刮削！请填写 Cookie 或更换节点！"
+            elif manager.config.javbus != input_cookie:
+                self.exec_save_config.emit()
+                tips = "✅ 连接正常！Cookie 已保存！  "
+
+        except Exception as e:
+            tips = f"❌ 连接失败！请检查网络或代理设置！ {e}"
+
+        self.show_log_text(tips.replace("❌", " ❌ JavBus").replace("✅", " ✅ JavBus"))
+        self.set_javbus_status.emit(tips)
+        # self.Ui.pushButton_check_javbus_cookie.setEnabled(True)
+        return tips
+
+    # endregion
+
+    # region 其它
+    # 点选择目录弹窗
+    def _get_select_folder_path(self, default_source: QLineEdit | str | Path | None = None):
+        media_path = self._get_select_folder_default_path(default_source).as_posix()
+        media_folder_path = QFileDialog.getExistingDirectory(
+            None, "选择目录", media_path, options=self.options | QFileDialog.Option.ShowDirsOnly
+        )
+        return media_folder_path
+
+    def _get_select_folder_default_path(self, default_source: QLineEdit | str | Path | None = None) -> Path:
+        if isinstance(default_source, QLineEdit):
+            default_text = default_source.text()
+        elif default_source is None:
+            default_text = ""
+        else:
+            default_text = str(default_source)
+
+        for path in self._iter_select_folder_candidates(default_text):
+            if path.is_dir():
+                return path
+
+        for path in self._iter_select_folder_candidates(self.Ui.lineEdit_movie_path.text()):
+            if path.is_dir():
+                return path
+
+        if manager.data_folder.is_dir():
+            return manager.data_folder
+        return Path.home()
+
+    def _iter_select_folder_candidates(self, path_text: str):
+        movie_roots = [path for path in parse_media_paths(self.Ui.lineEdit_movie_path.text()) if path.is_dir()]
+        for item in re.split(r"[;；,，]", path_text):
+            item = item.strip().strip("\"'")
+            if not item:
+                continue
+            path = Path(item)
+            if path.is_absolute():
+                yield path
+                continue
+            for movie_root in movie_roots:
+                yield movie_root / path
+            yield path
+
+    # 改回接受焦点状态
+    def recover_windowflags(self):
+        return
+
+    def change_buttons_status(self):
+        Flags.stop_other = True
+        self.Ui.pushButton_start_cap.setText("■ 停止")
+        self.Ui.pushButton_start_cap2.setText("■ 停止")
+        self.Ui.pushButton_select_media_folder.setVisible(False)
+        self.Ui.pushButton_start_single_file.setEnabled(False)
+        self.Ui.pushButton_start_single_file.setText("正在刮削中...")
+        self.Ui.pushButton_add_sub_for_all_video.setEnabled(False)
+        self.Ui.pushButton_add_sub_for_all_video.setText("正在刮削中...")
+        self.Ui.pushButton_show_pic_actor.setEnabled(False)
+        self.Ui.pushButton_show_pic_actor.setText("刮削中...")
+        self.Ui.pushButton_add_actor_info.setEnabled(False)
+        self.Ui.pushButton_add_actor_info.setText("正在刮削中...")
+        self.Ui.pushButton_add_actor_pic.setEnabled(False)
+        self.Ui.pushButton_add_actor_pic.setText("正在刮削中...")
+        self.Ui.pushButton_add_actor_pic_kodi.setEnabled(False)
+        self.Ui.pushButton_add_actor_pic_kodi.setText("正在刮削中...")
+        self.Ui.pushButton_del_actor_folder.setEnabled(False)
+        self.Ui.pushButton_del_actor_folder.setText("正在刮削中...")
+        # self.Ui.pushButton_check_and_clean_files.setEnabled(False)
+        self.Ui.pushButton_check_and_clean_files.setText("正在刮削中...")
+        self.Ui.pushButton_move_mp4.setEnabled(False)
+        self.Ui.pushButton_move_mp4.setText("正在刮削中...")
+        self.Ui.pushButton_find_missing_number.setEnabled(False)
+        self.Ui.pushButton_find_missing_number.setText("正在刮削中...")
+        self.Ui.pushButton_start_cap.setStyleSheet(
+            "QPushButton#pushButton_start_cap{color: white;background-color:#DC2626;}QPushButton:hover#pushButton_start_cap{color: white;background-color:#EF4444;}QPushButton:pressed#pushButton_start_cap{color: white;background-color:#B91C1C;}"
+        )
+        self.Ui.pushButton_start_cap2.setStyleSheet(
+            "QPushButton#pushButton_start_cap2{color: white;background-color:#DC2626;}QPushButton:hover#pushButton_start_cap2{color: white;background-color:#EF4444;}QPushButton:pressed#pushButton_start_cap2{color: white;background-color:#B91C1C;}"
+        )
+        self.Ui.pushButton_cover_backfill_start.setEnabled(False)
+        self.Ui.pushButton_actor_db_translate.setEnabled(False)
+        self.Ui.pushButton_actor_db_link.setEnabled(False)
+        self.Ui.pushButton_actor_db_sync_aliases.setEnabled(False)
+        self.Ui.pushButton_actor_db_fill_minnano.setEnabled(False)
+        self.Ui.pushButton_actor_db_fill_zh_javdb.setEnabled(False)
+
+    def reset_buttons_status(self):
+        self.Ui.pushButton_start_cap.setEnabled(True)
+        self.Ui.pushButton_start_cap2.setEnabled(True)
+        self.pushButton_start_cap.emit("开始")
+        self.pushButton_start_cap2.emit("开始")
+        self.Ui.pushButton_select_media_folder.setVisible(True)
+        self.Ui.pushButton_start_single_file.setEnabled(True)
+        self.pushButton_start_single_file.emit("刮削")
+        self.Ui.pushButton_add_sub_for_all_video.setEnabled(True)
+        self.pushButton_add_sub_for_all_video.emit("点击检查所有视频的字幕情况并为无字幕视频添加字幕")
+
+        self.Ui.pushButton_show_pic_actor.setEnabled(True)
+        self.pushButton_show_pic_actor.emit("查看")
+        self.Ui.pushButton_add_actor_info.setEnabled(True)
+        self.pushButton_add_actor_info.emit("开始补全")
+        self.Ui.pushButton_add_actor_pic.setEnabled(True)
+        self.pushButton_add_actor_pic.emit("开始补全")
+        self.Ui.pushButton_add_actor_pic_kodi.setEnabled(True)
+        self.pushButton_add_actor_pic_kodi.emit("开始补全")
+        self.Ui.pushButton_del_actor_folder.setEnabled(True)
+        self.pushButton_del_actor_folder.emit("清除所有.actors文件夹")
+        self.Ui.pushButton_check_and_clean_files.setEnabled(True)
+        self.pushButton_check_and_clean_files.emit("点击检查待刮削目录并清理文件")
+        self.Ui.pushButton_move_mp4.setEnabled(True)
+        self.pushButton_move_mp4.emit("开始移动")
+        self.Ui.pushButton_find_missing_number.setEnabled(True)
+        self.pushButton_find_missing_number.emit("检查缺失番号")
+        self.Ui.pushButton_cover_backfill_start.setEnabled(True)
+        # actor_db 由主刮削管理（change_buttons_status 禁用）的按钮子集：
+        # 仅当对应 btn_attr 不在 _actor_db_running 时才恢复 Enabled；在跑则保持 disabled。
+        for btn_attr in self._ACTOR_DB_SCRAPE_MANAGED:
+            btn = getattr(self.Ui, f"pushButton_{btn_attr}", None)
+            sig = getattr(self, f"pushButton_{btn_attr}", None)
+            if btn is not None and btn_attr not in self._actor_db_running:
+                btn.setEnabled(True)
+            if sig is not None:
+                sig.emit(self._ACTOR_DB_IDLE_TEXT_MAP[btn_attr])
+
+        self.Ui.pushButton_start_cap.setStyleSheet(
+            "QPushButton#pushButton_start_cap{color: white;background-color:#4C6EFF;}QPushButton:hover#pushButton_start_cap{color: white;background-color: rgba(76,110,255,240)}QPushButton:pressed#pushButton_start_cap{color: white;background-color:#4C6EE0}"
+        )
+        self.Ui.pushButton_start_cap2.setStyleSheet(
+            "QPushButton#pushButton_start_cap2{color: white;background-color:#4C6EFF;}QPushButton:hover#pushButton_start_cap2{color: white;background-color: rgba(76,110,255,240)}QPushButton:pressed#pushButton_start_cap2{color: white;background-color:#4C6EE0}"
+        )
+        Flags.file_mode = FileMode.Default
+        self.threads_list = []
+        if len(Flags.failed_list):
+            self.Ui.pushButton_scraper_failed_list.setText(f"一键重新刮削当前 {len(Flags.failed_list)} 个失败文件")
+        else:
+            self.Ui.pushButton_scraper_failed_list.setText("当有失败任务时，点击可以一键刮削当前失败列表")
+
+    # endregion
+
+    # region 自动刮削
+    def auto_scrape(self):
+        if Switch.TIMED_SCRAPE in manager.config.switch_on and self.Ui.pushButton_start_cap.text() == "开始":
+            QTimer.singleShot(100, self._auto_scrape_do_work)
+
+    def _auto_scrape_do_work(self):
+        timed_interval = manager.config.timed_interval
+        self.atuo_scrape_count += 1
+        signal_qt.show_log_text(
+            f"\n\n 🍔 已启用「循环刮削」！间隔时间：{timed_interval}！即将开始第 {self.atuo_scrape_count} 次循环刮削！"
+        )
+        if Flags.scrape_start_time:
+            signal_qt.show_log_text(
+                " ⏰ 上次刮削时间: " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(Flags.scrape_start_time))
+            )
+        start_new_scrape(FileMode.Default)
+
+    def auto_start(self):
+        if Switch.AUTO_START in manager.config.switch_on:
+            signal_qt.show_log_text("\n\n 🍔 已启用「软件启动后自动刮削」！即将开始自动刮削！")
+            self.pushButton_start_scrape_clicked()
+
+    # endregion
+
+
+# region 外部方法定义
+MyMAinWindow.load_config = load_config  # type: ignore[method-assign]
+MyMAinWindow.save_config = save_config  # type: ignore[method-assign]
+MyMAinWindow.Init_QSystemTrayIcon = Init_QSystemTrayIcon  # type: ignore[method-assign]
+MyMAinWindow.Init_Ui = Init_Ui  # type: ignore[method-assign]
+MyMAinWindow.Init_Singal = Init_Singal  # type: ignore[method-assign]
+MyMAinWindow.init_QTreeWidget = init_QTreeWidget  # type: ignore[method-assign]
+MyMAinWindow.set_style = set_style  # type: ignore[method-assign]
+MyMAinWindow.set_dark_style = set_dark_style  # type: ignore[method-assign]
+# endregion

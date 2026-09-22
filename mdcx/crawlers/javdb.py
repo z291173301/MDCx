@@ -1,0 +1,279 @@
+import asyncio
+import random
+import re
+import time
+from typing import override
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
+
+from parsel import Selector
+
+from ..config.manager import manager
+from ..config.models import Website
+from ..models.model_types import CrawlerResult
+from ..number import match_number, number_search_variants
+from .base import BaseCrawler, CrawlerData, CrawlerException, DetailPageParser, extract_all_texts, extract_text
+
+
+class Parser(DetailPageParser):
+    async def number(self, ctx, html: Selector) -> str:
+        result = extract_text(html, '//a[@class="button is-white copy-to-clipboard"]/@data-clipboard-text')
+        return result or ctx.input.number
+
+    async def title(self, ctx, html: Selector) -> str:
+        return extract_text(html, 'string(//h2[@class="title is-4"]/strong[@class="current-title"])')
+
+    async def originaltitle(self, ctx, html: Selector) -> str:
+        return extract_text(html, 'string(//h2[@class="title is-4"]/span[@class="origin-title"])')
+
+    async def actors(self, ctx, html: Selector) -> list[str]:
+        # parsel css 不支持 :has() 中的多个选择器, 这是一个已知问题: https://github.com/scrapy/cssselect/issues/138
+        # 注意不能用 html.css(...).xpath("//strong...")，// 会从文档根重新选择导致 css 作用域失效
+        return html.xpath("//strong[contains(@class, 'female')]/preceding-sibling::a/text()").getall()
+
+    async def all_actors(self, ctx, html: Selector) -> list[str]:
+        return (html.css("span:has(strong.female)") or html.css("span:has(strong.male)")).xpath("a/text()").getall()
+
+    async def studio(self, ctx, html: Selector) -> str:
+        return extract_text(
+            html,
+            '//strong[contains(text(),"片商:")]/../span/a/text()',
+            '//strong[contains(text(),"Maker:")]/../span/a/text()',
+        )
+
+    async def publisher(self, ctx, html: Selector) -> str:
+        return extract_text(
+            html,
+            '//strong[contains(text(),"發行:")]/../span/a/text()',
+            '//strong[contains(text(),"Publisher:")]/../span/a/text()',
+        )
+
+    async def runtime(self, ctx, html: Selector) -> str:
+        result = extract_text(
+            html,
+            '//strong[contains(text(),"時長")]/../span/text()',
+            '//strong[contains(text(),"Duration:")]/../span/text()',
+        )
+        return result.replace(" 分鍾", "").replace(" minute(s)", "")
+
+    async def series(self, ctx, html: Selector) -> str:
+        return extract_text(
+            html,
+            '//strong[contains(text(),"系列:")]/../span/a/text()',
+            '//strong[contains(text(),"Series:")]/../span/a/text()',
+        )
+
+    async def release(self, ctx, html: Selector) -> str:
+        return extract_text(
+            html,
+            '//strong[contains(text(),"日期:")]/../span/text()',
+            '//strong[contains(text(),"Released Date:")]/../span/text()',
+        )
+
+    async def year(self, ctx, html: Selector) -> str:
+        release_date = await self.release(ctx, html)
+        try:
+            result = re.search(r"\d{4}", release_date)
+            return result.group() if result else release_date
+        except Exception:
+            return release_date
+
+    async def tags(self, ctx, html: Selector) -> list[str]:
+        tags = extract_all_texts(
+            html,
+            '//strong[contains(text(),"類別:")]/../span/a/text()',
+            '//strong[contains(text(),"Tags:")]/../span/a/text()',
+        )
+        tags = [tag.replace("\\xa0", "").replace("'", "").replace(" ", "").strip() for tag in tags if tag.strip()]
+        return list(dict.fromkeys(tags))
+
+    async def thumb(self, ctx, html: Selector) -> str:
+        return extract_text(html, "//img[@class='video-cover']/@src")
+
+    async def extrafanart(self, ctx, html: Selector) -> list[str]:
+        return extract_all_texts(html, "//div[@class='tile-images preview-images']/a[@class='tile-item']/@href")
+
+    async def trailer(self, ctx, html: Selector) -> str:
+        return extract_text(html, "//video[@id='preview-video']/source/@src")
+
+    async def directors(self, ctx, html: Selector) -> list[str]:
+        return extract_all_texts(
+            html,
+            '//strong[contains(text(),"導演:")]/../span/a/text()',
+            '//strong[contains(text(),"Director:")]/../span/a/text()',
+        )
+
+    async def score(self, ctx, html: Selector) -> str:
+        result = extract_text(html, "//span[@class='score-stars']/../text()")
+        try:
+            score_match = re.search(r"(\d{1,2}\.\d+)(分|,)", result)
+            return score_match.group(1) if score_match else ""
+        except Exception:
+            return ""
+
+    async def wanted(self, ctx, html: Selector) -> str:
+        html_text = html.get()
+        result = re.search(r"(\d+)(人想看| want to watch it)", html_text)
+        return result.group(1) if result else ""
+
+    async def image_download(self, ctx, html: Selector) -> bool:
+        return False
+
+
+class JavdbCrawler(BaseCrawler):
+    description = "JavDB 综合信息站（综合：有码+无码）"
+    parser = Parser()
+
+    def __init__(self, client, base_url: str = "", browser=None):
+        super().__init__(client=client, base_url=base_url, browser=browser)
+        self._page_request_lock = asyncio.Lock()
+        self._last_page_request_at = 0.0
+
+    @classmethod
+    @override
+    def site(cls) -> Website:
+        return Website.JAVDB
+
+    @classmethod
+    @override
+    def base_url_(cls) -> str:
+        return manager.config.get_site_url(Website.JAVDB, "https://javdb.com")
+
+    @override
+    def _get_headers(self, ctx) -> dict[str, str] | None:
+        if manager.config.javdb:
+            return {"cookie": manager.config.javdb}
+
+    @staticmethod
+    def _number_key(value: str) -> str:
+        key = value.upper().strip()
+        key = re.sub(r"[\s_\-]+", "", key)
+        return key.replace("FC2PPV", "FC2")
+
+    @classmethod
+    def _search_candidates(cls, number: str) -> list[str]:
+        cleaned = number.strip()
+        candidates = list(number_search_variants(cleaned))
+        key = cls._number_key(cleaned)
+        if key.startswith("FC2"):
+            digits = re.sub(r"\D", "", key[3:])
+            if digits:
+                candidates.extend([f"FC2-{digits}", digits])
+        return list(dict.fromkeys(candidate for candidate in candidates if candidate))
+
+    @staticmethod
+    def _with_locale_zh(url: str) -> str:
+        parsed = urlparse(url)
+        query_items = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k.lower() != "locale"]
+        query_items.append(("locale", "zh"))
+        return urlunparse(parsed._replace(query=urlencode(query_items, doseq=True)))
+
+    async def _throttle_page_request(self, ctx, request_type: str, url: str) -> None:
+        now = time.monotonic()
+        if self._last_page_request_at > 0:
+            interval = random.uniform(1.0, 2.0)
+            wait_seconds = interval - (now - self._last_page_request_at)
+            if wait_seconds > 0:
+                ctx.debug(f"Javdb 请求限流({request_type})，等待 {wait_seconds:.2f}s: {url}")
+                await asyncio.sleep(wait_seconds)
+        self._last_page_request_at = time.monotonic()
+
+    @override
+    async def _fetch_search(self, ctx, url: str, use_browser: bool | None = False) -> tuple[str | None, str]:
+        async with self._page_request_lock:
+            await self._throttle_page_request(ctx, "搜索", url)
+            return await super()._fetch_search(ctx, url, use_browser)
+
+    @override
+    async def _fetch_detail(self, ctx, url: str, use_browser: bool | None = False) -> tuple[str | None, str]:
+        async with self._page_request_lock:
+            detail_url = self._with_locale_zh(url)
+            if detail_url != url:
+                ctx.debug(f"详情页语言规范化: {url} -> {detail_url}")
+            await self._throttle_page_request(ctx, "详情", detail_url)
+            return await super()._fetch_detail(ctx, detail_url, use_browser)
+
+    @override
+    async def _generate_search_url(self, ctx) -> list[str]:
+        number = ctx.input.number.strip()
+
+        # 处理日期格式的番号
+        if "." in number:
+            old_date = re.findall(r"\D+(\d{2}\.\d{2}\.\d{2})$", number)
+            if old_date:
+                old_date = old_date[0]
+                new_date = "20" + old_date
+                number = number.replace(old_date, new_date)
+
+        search_urls = [
+            f"{self.base_url}/search?q={candidate}&locale=zh" for candidate in self._search_candidates(number)
+        ]
+        ctx.debug(f"搜索地址: {search_urls}")
+        return search_urls
+
+    @override
+    async def _parse_search_page(self, ctx, html: Selector, search_url: str) -> list[str] | None:
+        html_text = html._text or ""
+        if "The owner of this website has banned your access based on your browser's behaving" in html_text:
+            raise CrawlerException(f"由于请求过多，javdb网站暂时禁止了你当前IP的访问！！点击 {search_url} 查看详情！")
+        if "Due to copyright restrictions" in html_text:
+            raise CrawlerException(
+                f"由于版权限制，javdb网站禁止了日本IP的访问！！请更换日本以外代理！点击 {search_url} 查看详情！"
+            )
+        if "ray-id" in html_text:
+            raise CrawlerException("搜索结果: 被 Cloudflare 5 秒盾拦截！请尝试更换cookie！")
+
+        # 获取搜索结果
+        res_list = html.xpath("//a[@class='box']")
+        if not res_list:
+            return None
+
+        info_list = []
+        for each in res_list:
+            href = extract_text(each, "@href")
+            title = extract_text(each, "div[@class='video-title']/strong/text()")
+            meta = extract_text(each, "div[@class='meta']/text()")
+
+            if href:
+                info_list.append([href, title, meta])
+
+        # 精确匹配
+        number = ctx.input.number
+        for href, title, _meta in info_list:
+            if title and match_number(title, number):
+                return [self._with_locale_zh(urljoin(self.base_url, href))]
+
+        # 模糊匹配
+        clean_number = number.upper().replace(".", "").replace("-", "").replace(" ", "")
+        for href, title, meta in info_list:
+            clean_content = ((title or "") + (meta or "")).upper().replace("-", "").replace(".", "").replace(" ", "")
+            if match_number(clean_content, clean_number):
+                return [self._with_locale_zh(urljoin(self.base_url, href))]
+
+        return None
+
+    @override
+    async def _parse_detail_page(self, ctx, html: Selector, detail_url: str) -> CrawlerData | None:
+        # 提取 javdbid
+        javdbid = ""
+        if r := re.search(r"/v/([a-zA-Z0-9]+)", detail_url):
+            javdbid = r.group(1)
+        return await self.parser.parse(ctx, html, external_id=javdbid)
+
+    @override
+    async def post_process(self, ctx, res: CrawlerResult) -> CrawlerResult:
+        if not res.originaltitle:
+            res.originaltitle = res.title
+        res.poster = res.thumb.replace("/covers/", "/thumbs/")
+        is_uncensored = any(keyword in res.title for keyword in ["無碼", "無修正", "Uncensored"])
+        if self._number_key(res.number or "").startswith("FC2"):
+            is_uncensored = True
+        res.mosaic = "无码" if is_uncensored else "有码"
+        if res.trailer.startswith("//"):
+            res.trailer = "https:" + res.trailer
+        if not is_uncensored:
+            from mdcx.crawlers.dmm_direct import upgrade_dmm_cover
+
+            thumb, poster = await upgrade_dmm_cover(ctx, str(res.number or ""), res.thumb, res.poster)
+            res.thumb = thumb
+            res.poster = poster
+        return res

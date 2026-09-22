@@ -1,0 +1,651 @@
+import re
+import time
+import traceback
+from io import StringIO
+from pathlib import Path
+
+import aiofiles
+import aiofiles.os
+from lxml import etree
+
+from ..config.enums import (
+    DownloadableFile,
+    KeepableFile,
+    Language,
+    NfoInclude,
+    NfoMergeStrategy,
+    OutlineShow,
+    ReadMode,
+    Website,
+)
+from ..config.manager import manager
+from ..config.resource_policy import resource_policy
+from ..gen.field_enums import CrawlerResultFields
+from ..manual import ManualConfig
+from ..models.log_buffer import LogBuffer
+from ..models.model_types import CrawlersResult, FileInfo, OtherInfo
+from ..number import get_number_letters
+from ..signals import signal
+from ..utils import get_used_time
+from ..utils.file import delete_file_async, write_file_atomic_async
+from ..utils.language import is_japanese
+from ..utils.xml import build_cdata, escape_xml_text, normalize_xml_text
+from .mosaic import normalize_mosaic
+from .naming import NameRenderOptions, NamingTarget, render_name
+from .tag_priority import prioritize_nfo_tags
+
+
+def get_external_id_tag_name(site: Website | str) -> str:
+    site_name = re.sub(r"^\d+", "", str(site))
+    # 确保 site_name 非空，兜底使用 site 的原始字符串
+    if not site_name:
+        site_name = str(site)
+    return f"{site_name}id"
+
+
+def _strip_number_prefix(text: str, number: str) -> str:
+    if not text or not number:
+        return text
+    return re.sub(rf"^{re.escape(number)}\s+", "", text, count=1).strip()
+
+
+def _build_generated_read_tags(
+    *,
+    actor_list: list[str],
+    letters: str,
+    mosaic: str,
+    publisher: str,
+    series: str,
+    studio: str,
+) -> set[str]:
+    generated_tags: set[str] = set()
+
+    generated_tags.add("中文字幕")
+    if letters and letters != "未知车牌":
+        generated_tags.add(letters)
+    if mosaic:
+        generated_tags.add(mosaic)
+
+    actor_template = getattr(manager.config, "nfo_tag_actor", "actor")
+    for actor_name in actor_list:
+        if actor_name:
+            generated_tags.add(actor_template.replace("actor", actor_name))
+
+    if series:
+        generated_tags.add(manager.config.nfo_tag_series.replace("series", series))
+    if studio:
+        generated_tags.add(manager.config.nfo_tag_studio.replace("studio", studio))
+    if publisher:
+        generated_tags.add(manager.config.nfo_tag_publisher.replace("publisher", publisher))
+
+    return {tag for tag in generated_tags if tag}
+
+
+async def write_nfo(
+    file_info: FileInfo,
+    data: CrawlersResult,
+    nfo_file: Path,
+    output_dir: Path,
+    update=False,
+    skip_merge=False,
+    preserve_tag_order=False,
+) -> bool:
+    start_time = time.time()
+    download_files = manager.config.download_files
+    keep_files = manager.config.keep_files
+    nfo_policy = resource_policy(
+        DownloadableFile.NFO,
+        KeepableFile.NFO,
+        download_files=download_files,
+        keep_files=keep_files,
+    )
+    outline_show = manager.config.outline_format
+
+    if not update:
+        # 不写nfo
+        # 不下载，不保留时
+        if not nfo_policy.should_download:
+            if not nfo_policy.should_keep and await aiofiles.os.path.exists(nfo_file):
+                await delete_file_async(nfo_file)
+            return True
+
+        LogBuffer.log().write(f"\n 🍀 Nfo done! (old)({get_used_time(start_time)}s)")
+        return True
+
+    if manager.config.main_mode == 3:
+        nfo_title_template = manager.config.update_titletemplate
+    else:
+        nfo_title_template = manager.config.naming_media
+
+    # NFO 合并策略：非 prefer_scraper 时读取现有 NFO 并按策略合并。
+    # skip_merge=True（NFO 库表单编辑保存）时跳过合并，避免 PREFER_NFO 等策略用磁盘旧值覆盖用户表单修改。
+    merge_strategy = manager.config.nfo_merge_strategy
+    if not skip_merge and merge_strategy != NfoMergeStrategy.PREFER_SCRAPER and await aiofiles.os.path.exists(nfo_file):
+        try:
+            existing_data, _ = await get_nfo_data(file_info.file_path, data.number)
+            if existing_data is not None:
+                from .nfo_merger import merge_nfo_fields
+
+                data = merge_nfo_fields(data, existing_data, merge_strategy)
+        except Exception as e:
+            LogBuffer.error().write(f"\n ⚠️ NFO合并失败，使用新数据: {e}")
+
+    def normalize_linebreaks(raw: str) -> str:
+        raw = (
+            raw.replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .replace("\\r\\n", "\n")
+            .replace("\\n", "\n")
+            .replace("\\r", "\n")
+        )
+        raw = re.sub(r"(?i)&lt;\s*br\s*/?\s*&gt;", "\n", raw)
+        return re.sub(r"(?i)<\s*br\s*/?\s*>", "\n", raw)
+
+    originalplot = normalize_linebreaks(normalize_xml_text(data.originalplot))
+    originaltitle = normalize_xml_text(data.originaltitle)
+    outline = normalize_linebreaks(normalize_xml_text(data.outline))
+    publisher = normalize_xml_text(data.publisher)
+    series = normalize_xml_text(data.series)
+    studio = normalize_xml_text(data.studio)
+    title = normalize_xml_text(data.title)
+    release = normalize_xml_text(data.release)
+
+    # 读取模式：剥离 data.title 中已累积的 [番号] 前缀，防止每次刮削叠套
+    if manager.config.main_mode == 4 and data.number:
+        number_prefix = f"[{data.number}]"
+        while data.title.startswith(number_prefix):
+            data.title = data.title[len(number_prefix) :]
+        title = normalize_xml_text(data.title)
+
+    def write_text_element(code: StringIO, tag_name: str, value: str, indent: str = "  ") -> None:
+        print(f"{indent}<{tag_name}>{escape_xml_text(value)}</{tag_name}>", file=code)
+
+    show_4k = False
+    show_cnword = False
+    show_moword = False
+    # 获取在媒体文件中显示的规则，不需要过滤Windows异常字符
+    nfo_title = render_name(
+        nfo_title_template,
+        file_info,
+        data,
+        NameRenderOptions(
+            target=NamingTarget.NFO_TITLE,
+            show_definition_suffix=show_4k,
+            show_cnword_suffix=show_cnword,
+            show_moword_suffix=show_moword,
+        ),
+    ).text
+
+    # 获取字段
+    nfo_include_new = manager.config.nfo_include_new
+    cd_part = file_info.cd_part
+    cover = data.thumb
+    directors = data.directors
+    number = data.number
+    poster = data.poster
+    runtime = data.runtime
+    trailer = data.trailer
+    year = data.year
+    series_tag = manager.config.nfo_tag_series.replace("series", series) if series else ""
+    if preserve_tag_order:
+        tags = data.tags
+    else:
+        tags = prioritize_nfo_tags(data.tags, series_tag=series_tag, series_template=manager.config.nfo_tag_series)
+
+    try:
+        await aiofiles.os.makedirs(output_dir, exist_ok=True)
+        # 原子写入（临时文件 + os.replace）：避免115出现重复文件，同时防止写入中断损坏旧 NFO
+
+        code = StringIO()
+        print('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>', file=code)
+        print("<movie>", file=code)
+
+        # 输出剧情简介
+        if outline:
+            if originalplot and originalplot != outline:
+                if OutlineShow.SHOW_ZH_JP in outline_show:
+                    outline += f"\n\n{originalplot}"
+                elif OutlineShow.SHOW_JP_ZH in outline_show:
+                    outline = f"{originalplot}\n\n{outline}"
+                outline_from = (
+                    data.outline_from.capitalize()
+                    .replace("Youdao", "有道")
+                    .replace("Baidu", "百度")
+                    .replace("Llm", "LLM")
+                )
+                if OutlineShow.SHOW_FROM in outline_show and outline_from:
+                    outline += f"\n\n由 {outline_from} 提供翻译"
+            if NfoInclude.OUTLINE_NO_CDATA in nfo_include_new:
+                temp_outline = outline.replace("\n", "")
+                if NfoInclude.PLOT_ in nfo_include_new:
+                    write_text_element(code, "plot", temp_outline)
+                if NfoInclude.OUTLINE in nfo_include_new:
+                    write_text_element(code, "outline", temp_outline)
+            else:
+                if NfoInclude.PLOT_ in nfo_include_new:
+                    print(f"  <plot>{build_cdata(outline)}</plot>", file=code)
+                if NfoInclude.OUTLINE in nfo_include_new:
+                    print(f"  <outline>{build_cdata(outline)}</outline>", file=code)
+
+        # 输出日文剧情简介
+        if originalplot and NfoInclude.ORIGINALPLOT in nfo_include_new:
+            if NfoInclude.OUTLINE_NO_CDATA in nfo_include_new:
+                temp_originalplot = originalplot.replace("\n", "")
+                write_text_element(code, "originalplot", temp_originalplot)
+            else:
+                print(f"  <originalplot>{build_cdata(originalplot)}</originalplot>", file=code)
+
+        # 输出发行日期
+        if release:
+            nfo_tagline = manager.config.nfo_tagline.replace("release", release)
+            if nfo_tagline:
+                write_text_element(code, "tagline", nfo_tagline)
+            if NfoInclude.PREMIERED in nfo_include_new:
+                write_text_element(code, "premiered", release)
+            if NfoInclude.RELEASEDATE in nfo_include_new:
+                write_text_element(code, "releasedate", release)
+            if NfoInclude.RELEASE_ in nfo_include_new:
+                write_text_element(code, "release", release)
+
+        # 输出番号
+        write_text_element(code, "num", number)
+
+        # 输出标题
+        if cd_part and NfoInclude.TITLE_CD in nfo_include_new:
+            nfo_title += " " + cd_part[1:].upper()
+        write_text_element(code, "title", nfo_title)
+
+        # 输出原标题
+        if NfoInclude.ORIGINALTITLE in nfo_include_new:
+            if number != title:
+                write_text_element(code, "originaltitle", number + " " + originaltitle)
+            else:
+                write_text_element(code, "originaltitle", originaltitle)
+
+        # 输出类标题
+        if NfoInclude.SORTTITLE in nfo_include_new:
+            if cd_part:
+                originaltitle += " " + cd_part[1:].upper()
+            if number != title:
+                write_text_element(code, "sorttitle", number + " " + originaltitle)
+            else:
+                write_text_element(code, "sorttitle", number)
+
+        # 输出国家和分级
+        country = data.country
+
+        # 输出家长分级
+        if NfoInclude.MPAA in nfo_include_new:
+            if country == "JP":
+                print("  <mpaa>JP-18+</mpaa>", file=code)
+            else:
+                print("  <mpaa>NC-17</mpaa>", file=code)
+
+        # 输出自定义分级
+        if NfoInclude.CUSTOMRATING in nfo_include_new:
+            if country == "JP":
+                print("  <customrating>JP-18+</customrating>", file=code)
+            else:
+                print("  <customrating>NC-17</customrating>", file=code)
+
+        # 输出国家
+        if NfoInclude.COUNTRY in nfo_include_new:
+            write_text_element(code, "countrycode", country)
+
+        # 输出男女演员
+        if NfoInclude.ACTOR_ALL in nfo_include_new:
+            actors = data.all_actors
+        else:
+            actors = data.actors
+        # 有演员时输出演员
+        if NfoInclude.ACTOR in nfo_include_new:
+            if not actors:
+                actors = [manager.config.actor_no_name]
+            actor_tmdb_ids = data.actor_tmdb_ids if NfoInclude.ACTOR_TMDBID in nfo_include_new else {}
+            actor_name_to_tmdbid: dict[str, int] = {}
+            if actor_tmdb_ids:
+                if data.original_actors and len(data.original_actors) == len(actors):
+                    for i, mapped_name in enumerate(actors):
+                        if i < len(data.original_actors):
+                            if tmdbid := actor_tmdb_ids.get(data.original_actors[i].strip()):
+                                actor_name_to_tmdbid[mapped_name.strip()] = tmdbid
+                for actor_name, tid in actor_tmdb_ids.items():
+                    actor_name_to_tmdbid.setdefault(actor_name.strip(), tid)
+            for name in actors:
+                print("  <actor>", file=code)
+                write_text_element(code, "name", name, indent="    ")
+                write_text_element(code, "type", "Actor", indent="    ")
+                if tmdbid := actor_name_to_tmdbid.get(name.strip()):
+                    write_text_element(code, "tmdbid", str(tmdbid), indent="    ")
+                print("  </actor>", file=code)
+
+        # 输出导演
+        if NfoInclude.DIRECTOR in nfo_include_new:
+            for name in directors:
+                write_text_element(code, "director", name)
+
+        # 输出公众评分、影评人评分
+        try:
+            if data.score:
+                score = float(data.score)
+                if NfoInclude.SCORE in nfo_include_new:
+                    write_text_element(code, "rating", str(score), indent="  ")
+                if NfoInclude.CRITICRATING in nfo_include_new:
+                    write_text_element(code, "criticrating", str(int(score * 10)), indent="  ")
+        except Exception:
+            LogBuffer.log().write(traceback.format_exc())
+
+        # 输出我想看人数
+        try:
+            if data.wanted and NfoInclude.WANTED in nfo_include_new:
+                write_text_element(code, "votes", data.wanted, indent="  ")
+        except Exception:
+            LogBuffer.log().write(traceback.format_exc())
+
+        # 输出年代
+        if str(year) and NfoInclude.YEAR in nfo_include_new:
+            write_text_element(code, "year", str(year), indent="  ")
+
+        # 输出时长
+        if str(runtime) and NfoInclude.RUNTIME in nfo_include_new:
+            write_text_element(code, "runtime", str(runtime).replace(" ", ""), indent="  ")
+
+        # 输出合集(使用演员)
+        if NfoInclude.ACTOR_SET in nfo_include_new:
+            for name in data.actors:
+                print("  <set>", file=code)
+                write_text_element(code, "name", name, indent="    ")
+                print("  </set>", file=code)
+
+        # 输出合集(使用系列)
+        if NfoInclude.SERIES_SET in nfo_include_new and series:
+            print("  <set>", file=code)
+            write_text_element(code, "name", series, indent="    ")
+            print("  </set>", file=code)
+
+        # 输出系列
+        if series and NfoInclude.SERIES in nfo_include_new:
+            write_text_element(code, "series", series)
+
+        # 输出片商/制作商
+        if studio:
+            if NfoInclude.STUDIO in nfo_include_new:
+                write_text_element(code, "studio", studio)
+            if NfoInclude.MAKER in nfo_include_new:
+                write_text_element(code, "maker", studio)
+
+        # 输出发行商 label（厂牌/唱片公司） publisher（发行商）
+        if publisher:
+            if NfoInclude.PUBLISHER in nfo_include_new:
+                write_text_element(code, "publisher", publisher)
+            if NfoInclude.LABEL in nfo_include_new:
+                write_text_element(code, "label", publisher)
+
+        # 输出 tag
+        if NfoInclude.TAG in nfo_include_new:
+            for t in tags:
+                if t:
+                    write_text_element(code, "tag", t)
+
+        # 输出 genre
+        if NfoInclude.GENRE in nfo_include_new:
+            for t in tags:
+                if t:
+                    write_text_element(code, "genre", t)
+
+        # 输出封面地址
+        if poster and NfoInclude.POSTER in nfo_include_new:
+            write_text_element(code, "poster", poster)
+
+        # 输出背景地址
+        if cover and NfoInclude.COVER in nfo_include_new:
+            write_text_element(code, "cover", cover)
+
+        # 输出预告片
+        if trailer and NfoInclude.TRAILER in nfo_include_new:
+            write_text_element(code, "trailer", trailer)
+
+        # external id
+        for site, u in data.external_ids.items():
+            if u:
+                tag_name = get_external_id_tag_name(site)
+                write_text_element(code, tag_name, u)
+        # 没有时使用搜索关键词填充 javdbsearchid # todo 允许配置其他网站的后备字段, 允许控制是否输出该字段
+        if not data.external_ids.get(Website.JAVDB):
+            write_text_element(code, "javdbsearchid", number)
+
+        print("</movie>", file=code)
+
+        await write_file_atomic_async(nfo_file, code.getvalue())
+        LogBuffer.log().write(f"\n 🍀 Nfo done! (new)({get_used_time(start_time)}s)")
+        return True
+
+    except Exception as e:
+        LogBuffer.log().write(f"\n 🔴 Nfo failed! \n     {e!s}")
+        signal.show_traceback_log(traceback.format_exc())
+        signal.show_log_text(traceback.format_exc())
+        return False
+
+
+async def get_nfo_data(file_path: Path, movie_number: str) -> tuple[CrawlersResult | None, OtherInfo | None]:
+    local_nfo_path = file_path.with_suffix(".nfo")
+    local_nfo_name = local_nfo_path.name
+    file_folder = file_path.parent
+    json_data = CrawlersResult.empty()
+    json_data.field_sources = dict.fromkeys(CrawlerResultFields, "local")
+
+    if not await aiofiles.os.path.exists(local_nfo_path):
+        LogBuffer.error().write("nfo文件不存在")
+        json_data.outline = file_path.name
+        json_data.tag = str(file_path)
+        return None, None
+
+    async with aiofiles.open(local_nfo_path, encoding="utf-8") as f:
+        content = await f.read()
+
+    parser = etree.XMLParser(encoding="utf-8", recover=True)
+    try:
+        xml_nfo = etree.fromstring(content.encode("utf-8"), parser)
+    except etree.XMLSyntaxError:
+        LogBuffer.error().write("nfo文件XML解析失败")
+        json_data.outline = file_path.name
+        json_data.tag = str(file_path)
+        return None, None
+
+    title = "".join(xml_nfo.xpath("//title/text()"))
+    # 获取不到标题，表示xml错误，重新刮削
+    if not title:
+        LogBuffer.error().write("nfo文件损坏")
+        json_data.outline = file_path.name
+        json_data.tag = str(file_path)
+        return None, None
+    # 剥离 CD 编号后缀（CD1/CD2/.../CD10+，兼容大小写/空格）；不剥离无 CD 前缀的结尾数字（避免误删"系列 5"）
+    title = re.sub(r"\s*CD\s*\d+$", "", title, flags=re.IGNORECASE)
+
+    # 获取其他数据
+    originaltitle = "".join(xml_nfo.xpath("//originaltitle/text()"))
+    number = "".join(xml_nfo.xpath("//num/text()"))
+    if not number:
+        number = movie_number
+    letters = get_number_letters(number)
+    title = _strip_number_prefix(title, number)
+    originaltitle = _strip_number_prefix(originaltitle, number)
+    originaltitle_amazon = originaltitle
+    if originaltitle:
+        for key, value in ManualConfig.SPECIAL_WORD.items():
+            originaltitle_amazon = originaltitle_amazon.replace(value, key)
+    actor_elements = xml_nfo.xpath("//actor")
+    actor_list: list[str] = []
+    actor_tmdb_ids: dict[str, int] = {}
+    for ae in actor_elements:
+        name = "".join(ae.xpath("name/text()"))
+        tmdbid_text = "".join(ae.xpath("tmdbid/text()"))
+        if name:
+            actor_list.append(name)
+            if tmdbid_text and tmdbid_text.isdigit():
+                actor_tmdb_ids[name] = int(tmdbid_text)
+    actor = ",".join(actor_list)
+    originalplot = "".join(xml_nfo.xpath("//originalplot/text()"))
+    outline = xml_nfo.xpath("string(//plot)") or xml_nfo.xpath("string(//outline)")
+    outline = outline.replace("\r\n", "\n").replace("\r", "\n").strip()
+    # 若 plot/outline 均无可读文本，尝试用 originalplot 作为"简介"
+    if not outline and originalplot:
+        outline = originalplot
+        # fallback 后 outline == originalplot，跳过下面的"剥离原文"逻辑
+        is_fallback_outline = True
+    else:
+        is_fallback_outline = False
+    if outline:
+        if match := re.search(r"(?:\n\s*\n|<br>\s*<br>)由\s*(.+?)\s*提供翻译\s*$", outline, re.S):
+            json_data.outline_from = match.group(1).strip()
+            outline = outline[: match.start()].rstrip()
+        if originalplot and originalplot in outline and not is_fallback_outline:
+            outline = outline.replace(originalplot, "", 1).strip()
+            outline = re.sub(r"(?:\n\s*){3,}", "\n\n", outline)
+    tag = ",".join(xml_nfo.xpath("//tag/text()"))
+    release = "".join(xml_nfo.xpath("//release/text()"))
+    if not release:
+        release = "".join(xml_nfo.xpath("//releasedate/text()"))
+    if not release:
+        release = "".join(xml_nfo.xpath("//premiered/text()"))
+    if release:
+        release = release.replace("/", "-").strip(". ")
+        if len(release) < 10:
+            release_list = re.findall(r"(\d{4})-(\d{1,2})-(\d{1,2})", release)
+            if release_list:
+                r_year, r_month, r_day = release_list[0]
+                r_month = "0" + r_month if len(r_month) == 1 else r_month
+                r_day = "0" + r_day if len(r_day) == 1 else r_day
+                release = r_year + "-" + r_month + "-" + r_day
+    json_data.release = release
+    year = "".join(xml_nfo.xpath("//year/text()"))
+    runtime = "".join(xml_nfo.xpath("//runtime/text()"))
+    score = "".join(xml_nfo.xpath("//rating/text()"))
+    if not score:
+        # write_nfo 把 10 分制评分写入 <criticrating>（int(score*10)），读回时转回
+        score = "".join(xml_nfo.xpath("//criticrating/text()"))
+        if score:
+            try:
+                score = str(int(score) / 10)
+            except ValueError:
+                score = ""
+    series = "".join(xml_nfo.xpath("//series/text()"))
+    director = ",".join(xml_nfo.xpath("//director/text()"))
+    studio = "".join(xml_nfo.xpath("//studio/text()"))
+    if not studio:
+        studio = "".join(xml_nfo.xpath("//maker/text()"))
+    publisher = "".join(xml_nfo.xpath("//publisher/text()"))
+    if not publisher:
+        publisher = "".join(xml_nfo.xpath("//label/text()"))
+    cover = "".join(xml_nfo.xpath("//cover/text()")).replace("&amp;", "&")
+    poster = "".join(xml_nfo.xpath("//poster/text()")).replace("&amp;", "&")
+    trailer = "".join(xml_nfo.xpath("//trailer/text()")).replace("&amp;", "&")
+    wanted = "".join(xml_nfo.xpath("//votes/text()"))
+
+    # 判断马赛克
+    if "国产" in tag or "國產" in tag:
+        json_data.mosaic = "国产"
+    elif "破解" in tag:
+        json_data.mosaic = "无码破解"
+    elif "有码" in tag or "有碼" in tag:
+        json_data.mosaic = "有码"
+    elif "流出" in tag:
+        json_data.mosaic = "流出"
+    elif "无码" in tag or "無碼" in tag or "無修正" in tag:
+        json_data.mosaic = "无码"
+    elif "里番" in tag or "裏番" in tag:
+        json_data.mosaic = "里番"
+    elif "动漫" in tag or "動漫" in tag:
+        json_data.mosaic = "动漫"
+    json_data.mosaic = normalize_mosaic(json_data.mosaic)
+
+    # 读取模式下移除后续会由 translate_info() 重建的标签，保留其余结构化标签
+    generated_tags = _build_generated_read_tags(
+        actor_list=actor_list,
+        letters=letters,
+        mosaic=json_data.mosaic,
+        publisher=publisher,
+        series=series,
+        studio=studio,
+    )
+    temp_tag_list = [item.strip() for item in re.split(r"[,，]", tag) if item.strip()]
+    only_tag_list = [each_tag for each_tag in temp_tag_list if each_tag not in generated_tags]
+    tag_only = ",".join(only_tag_list)
+
+    # 获取本地图片路径
+    poster_path_1 = file_path.with_name(file_path.stem + "-poster.jpg")
+    poster_path_2 = file_folder / "poster.jpg"
+    thumb_path_1 = file_path.with_name(file_path.stem + "-thumb.jpg")
+    thumb_path_2 = file_folder / "thumb.jpg"
+    fanart_path_1 = file_path.with_name(file_path.stem + "-fanart.jpg")
+    fanart_path_2 = file_folder / "fanart.jpg"
+    if await aiofiles.os.path.isfile(poster_path_1):
+        poster_path = poster_path_1
+    elif await aiofiles.os.path.isfile(poster_path_2):
+        poster_path = poster_path_2
+    else:
+        poster_path = None
+    if await aiofiles.os.path.isfile(thumb_path_1):
+        thumb_path = thumb_path_1
+    elif await aiofiles.os.path.isfile(thumb_path_2):
+        thumb_path = thumb_path_2
+    else:
+        thumb_path = None
+    if await aiofiles.os.path.isfile(fanart_path_1):
+        fanart_path = fanart_path_1
+    elif await aiofiles.os.path.isfile(fanart_path_2):
+        fanart_path = fanart_path_2
+    else:
+        fanart_path = None
+
+    # 返回数据
+    json_data.title = title
+    if (
+        manager.config.get_field_config(CrawlerResultFields.TITLE).language == Language.JP
+        and ReadMode.READ_UPDATE_NFO in manager.config.read_mode
+        and originaltitle
+    ):
+        json_data.title = originaltitle
+    json_data.originaltitle = originaltitle
+    if is_japanese(originaltitle):
+        json_data.originaltitle_amazon = originaltitle
+        if actor:
+            json_data.actor_amazon = actor.split(",")
+    json_data.number = number
+    json_data.letters = letters
+    json_data.actor = actor
+    json_data.all_actor = actor
+    json_data.actor_tmdb_ids = actor_tmdb_ids
+    json_data.original_actors = actor_list.copy()  # 保存 NFO 中的原始演员名（可能是映射名）
+    json_data.outline = outline
+    if (
+        manager.config.get_field_config(CrawlerResultFields.OUTLINE).language == Language.JP
+        and ReadMode.READ_UPDATE_NFO in manager.config.read_mode
+        and originalplot
+    ):
+        json_data.outline = originalplot
+    json_data.originalplot = originalplot
+    json_data.tag = tag
+    if ReadMode.READ_UPDATE_NFO in manager.config.read_mode:
+        json_data.tag = tag_only
+    json_data.release = release
+    json_data.year = year
+    json_data.runtime = runtime
+    json_data.score = score
+    json_data.director = director
+    json_data.series = series
+    json_data.studio = studio
+    json_data.publisher = publisher
+    json_data.thumb = cover
+    if cover:
+        json_data.thumb_list.append(("local", cover))
+    json_data.poster = poster
+    json_data.trailer = trailer
+    json_data.wanted = wanted
+    info = OtherInfo.empty()
+    info.poster_path = poster_path
+    info.thumb_path = thumb_path
+    info.fanart_path = fanart_path
+    LogBuffer.log().write(f"\n 📄 [NFO] {local_nfo_name}")
+    signal.show_traceback_log(f"{number} {json_data.mosaic}")
+    return json_data, info

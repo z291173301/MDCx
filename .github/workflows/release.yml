@@ -1,0 +1,317 @@
+name: Build and Release with Python3.13
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+on:
+  push:
+    tags:
+      - 2*
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag（留空则自动取 consts.py 的 LOCAL_VERSION，必须为纯数字；也可手动填写）"
+        required: false
+        default: ""
+      prerelease:
+        description: "是否作为预发布（pre-release）"
+        required: false
+        default: "false"
+
+jobs:
+  init-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      # https://github.com/actions/runner/issues/1985#issuecomment-1573518052
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          items=()
+
+          # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners
+
+          items+=('{"build": "macos", "os": "macos-latest", "arch": "aarch64"}')
+          items+=('{"build": "macos", "os": "macos-15-intel", "arch": "x86_64"}')
+          items+=('{"build": "windows", "os": "windows-2025", "arch": "x86_64"}')
+          items+=('{"build": "linux", "os": "ubuntu-latest", "arch": "x86_64"}')
+
+          # 合并items到json数组
+          matrix="matrix=["
+          for ((i=0; i<${#items[@]}; i++)); do
+            matrix+=" ${items[i]}"
+            if ((i != ${#items[@]}-1)); then
+              matrix+=","
+            fi
+          done
+          matrix+="]"
+
+          # 输出matrix到GITHUB_OUTPUT
+          echo $matrix >> $GITHUB_OUTPUT
+
+  build-app:
+    needs: init-matrix
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{fromJson(needs.init-matrix.outputs.matrix)}}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ github.ref }}
+
+      - name: Resolve release tag
+        id: release-tag
+        shell: bash
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+          REF_TAG: ${{ github.ref_name }}
+        run: |
+          tag="$DISPATCH_TAG"
+          if [ -z "$tag" ] && [ -n "$REF_TAG" ] && [ "$REF_TAG" != "main" ]; then tag="$REF_TAG"; fi
+          # 手动触发且没有事件版本时，取 consts.py 的 LOCAL_VERSION。
+          if [ -z "$tag" ]; then
+            tag=$(grep -oE 'LOCAL_VERSION[[:space:]]*=[[:space:]]*[0-9]+' mdcx/consts.py | grep -oE '[0-9]+')
+          fi
+
+          # P2-4: tag 必须是纯数字(供 check_version 的 int(tag_name) 使用),
+          # 非数字(如 v2.0.0)会导致自动更新永久失效。手动填错直接报错退出, 避免建出破坏性 release。
+          if ! [[ "$tag" =~ ^[0-9]+$ ]]; then
+            echo "::error::Release tag 必须是纯数字 YYYYMMDD（供 check_version 的 int(tag) 使用）, 当前为 '$tag'。请检查 mdcx/consts.py 的 LOCAL_VERSION 或手动输入。"
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          activate-environment: true
+
+      - name: Install Linux system dependencies
+        if: ${{ matrix.build == 'linux' }}
+        run: >
+          sudo apt-get update -y && sudo apt-get install -y
+          libglib2.0-0 libegl1 libgl1 libfontconfig1
+          libqt6core6 libqt6gui6 libqt6widgets6 libqt6network6 libqt6xml6
+          libdbus-1-3 libxkbcommon0 libopengl0
+          libxcb-cursor0 libxcb-xinerama0 libxcb-icccm4 libxcb-image0
+          libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0
+
+      - name: Install locked dependencies
+        shell: bash
+        run: uv sync --locked --all-extras --dev
+
+      # 超分工具一体包：Windows/Linux 打包期内嵌（macOS 不内嵌，保持首次使用按需下载）。
+      # 缓存由 update-sr-tools.yml 定期刷新；命中时 fetch 脚本幂等跳过下载，未命中则直接拉取。
+      - name: Restore SR tools cache (Windows/Linux)
+        if: ${{ matrix.build == 'windows' || matrix.build == 'linux' }}
+        uses: actions/cache@v4
+        with:
+          path: build/sr_tools
+          key: sr-tools-${{ matrix.build }}
+
+      - name: Fetch SR tools (Windows/Linux)
+        if: ${{ matrix.build == 'windows' || matrix.build == 'linux' }}
+        shell: bash
+        env:
+          PYTHONIOENCODING: utf-8
+        run: uv run python -m scripts.fetch_sr_tools --platform ${{ matrix.build }}
+
+      - name: Build macOS app - macOS
+        if: ${{ matrix.build == 'macos' }}
+        run: |
+          version="${{ steps.release-tag.outputs.tag }}"
+          uv run scripts/build.py --create-dmg --version "$version" --debug
+          mv dist/MDCx.dmg "dist/MDCx-${{ matrix.arch }}.dmg"
+
+      - name: Build Windows app - Windows
+        if: ${{ matrix.build == 'windows' }}
+        env:
+          PYTHONIOENCODING: utf-8
+        run: uv run scripts/build.py --version "${{ steps.release-tag.outputs.tag }}" --debug
+
+      - name: Build Linux app - Linux
+        if: ${{ matrix.build == 'linux' }}
+        env:
+          PYTHONIOENCODING: utf-8
+        run: uv run scripts/build.py --version "${{ steps.release-tag.outputs.tag }}" --debug
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v7
+        if: ${{ matrix.build == 'macos' }}
+        with:
+          name: mdcx-macos-${{ matrix.arch }}
+          path: dist/MDCx-${{ matrix.arch }}.dmg
+
+      - name: Pre-check Windows artifact for release upload
+        if: ${{ matrix.build == 'windows' }}
+        shell: pwsh
+        run: |
+          $releaseTag = "${{ steps.release-tag.outputs.tag }}"
+          $platform = "${{ matrix.build }}"
+          $arch = "${{ matrix.arch }}"
+          $sha = "${{ github.sha }}"
+          $artifactPath = "dist/MDCx.exe"
+          $expectedAssetName = "MDCx-${releaseTag}-${platform}-${arch}-${sha}.exe"
+
+          Write-Host "检查发布产物：$artifactPath"
+          Write-Host "计划发布文件名：$expectedAssetName"
+
+          if (-not (Test-Path -LiteralPath $artifactPath)) {
+            throw "发布产物缺失：$artifactPath，请先确认构建成功"
+          }
+
+          if ((Get-Item -LiteralPath $artifactPath).Length -le 0) {
+            throw "发布产物为空文件：$artifactPath"
+          }
+
+          if ([string]::IsNullOrWhiteSpace($releaseTag)) {
+            throw "发布 Tag 为空，无法确认上传文件名规则"
+          }
+
+          if ([string]::IsNullOrWhiteSpace($platform) -or [string]::IsNullOrWhiteSpace($arch)) {
+            throw "发布平台/架构信息缺失，无法确认上传文件名规则"
+          }
+
+          $artifactSizeBytes = (Get-Item -LiteralPath $artifactPath).Length
+          if ($artifactSizeBytes -lt 1048576) {
+            Write-Warning "产物文件较小，可能异常：$artifactPath size=${artifactSizeBytes} bytes。请确认构建输出是否完整。"
+          }
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v7
+        if: ${{ matrix.build == 'windows' }}
+        with:
+          name: mdcx-windows-${{ matrix.arch }}
+          path: dist/MDCx.exe
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v7
+        if: ${{ matrix.build == 'linux' }}
+        with:
+          name: mdcx-linux-${{ matrix.arch }}
+          path: dist/MDCx
+
+  publish-release:
+    needs: build-app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Resolve release metadata
+        id: metadata
+        shell: bash
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+          REF_TAG: ${{ github.ref_name }}
+          DISPATCH_PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          tag="$DISPATCH_TAG"
+          if [ -z "$tag" ] && [ -n "$REF_TAG" ] && [ "$REF_TAG" != "main" ]; then tag="$REF_TAG"; fi
+          if [ -z "$tag" ]; then
+            tag=$(grep -oE 'LOCAL_VERSION[[:space:]]*=[[:space:]]*[0-9]+' mdcx/consts.py | grep -oE '[0-9]+')
+          fi
+          if ! [[ "$tag" =~ ^[0-9]+$ ]]; then
+            echo "::error::Release tag 必须是纯数字，当前为 '$tag'。"
+            exit 1
+          fi
+
+          version_name=$(grep -oE 'VERSION_NAME[[:space:]]*=[[:space:]]*"[^"]+"' mdcx/consts.py | grep -oE '"[^"]+"' | tr -d '"')
+          version_name=${version_name:-MDCx}
+          prerelease=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$DISPATCH_PRERELEASE" = "true" ]; then
+            prerelease=true
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "name=${version_name} (${tag})" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: mdcx-*
+          path: dist
+          merge-multiple: true
+
+      - name: Extract current changelog
+        id: changelog
+        shell: bash
+        run: |
+          version_name=$(grep -oE 'VERSION_NAME[[:space:]]*=[[:space:]]*"[^"]+"' mdcx/consts.py | grep -oE '"[^"]+"' | tr -d '"')
+          if [ ! -s docs/changelog.md ] || [ -z "$version_name" ]; then
+            echo "::error::无法读取当前版本 changelog。"
+            exit 1
+          fi
+          if ! grep -Eq "^## ${version_name}( |$)" docs/changelog.md; then
+            echo "::error::changelog 中缺少 ${version_name} 区段。"
+            exit 1
+          fi
+          delimiter="__MDCX_CHANGELOG_EOF__"
+          {
+            echo "CHANGELOG<<$delimiter"
+            awk -v version="${version_name}" '$0 ~ "^## " version "( |$)" {found=1; print; next} found && /^## / {exit} found {print}' docs/changelog.md
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Release - macOS (Apple Silicon)
+        uses: svenstaro/upload-release-action@v2
+        with:
+          overwrite: true
+          release_name: ${{ steps.metadata.outputs.name }}
+          asset_name: MDCx-${{ steps.metadata.outputs.tag }}-macos-aarch64-${{ github.sha }}.dmg
+          file: dist/MDCx-aarch64.dmg
+          prerelease: ${{ steps.metadata.outputs.prerelease }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          tag: ${{ steps.metadata.outputs.tag }}
+
+      - name: Create Release - macOS (Intel)
+        uses: svenstaro/upload-release-action@v2
+        with:
+          overwrite: true
+          release_name: ${{ steps.metadata.outputs.name }}
+          asset_name: MDCx-${{ steps.metadata.outputs.tag }}-macos-x86_64-${{ github.sha }}.dmg
+          file: dist/MDCx-x86_64.dmg
+          prerelease: ${{ steps.metadata.outputs.prerelease }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          tag: ${{ steps.metadata.outputs.tag }}
+
+      - name: Create Release - Windows
+        uses: svenstaro/upload-release-action@v2
+        with:
+          overwrite: true
+          release_name: ${{ steps.metadata.outputs.name }}
+          asset_name: MDCx-${{ steps.metadata.outputs.tag }}-windows-x86_64-${{ github.sha }}.exe
+          file: dist/MDCx.exe
+          prerelease: ${{ steps.metadata.outputs.prerelease }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          tag: ${{ steps.metadata.outputs.tag }}
+
+      - name: Create Release - Linux
+        uses: svenstaro/upload-release-action@v2
+        with:
+          overwrite: true
+          release_name: ${{ steps.metadata.outputs.name }}
+          asset_name: MDCx-${{ steps.metadata.outputs.tag }}-linux-x86_64-${{ github.sha }}
+          file: dist/MDCx
+          prerelease: ${{ steps.metadata.outputs.prerelease }}
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
+          tag: ${{ steps.metadata.outputs.tag }}

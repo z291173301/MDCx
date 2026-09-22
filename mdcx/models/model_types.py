@@ -1,0 +1,544 @@
+import asyncio
+import re
+from dataclasses import dataclass, field
+from enum import StrEnum
+from pathlib import Path
+from typing import Literal
+
+from ..config.enums import FixedScrapingType, Language, Website
+from ..gen.field_enums import CrawlerResultFields
+
+
+@dataclass
+class FileInfo:
+    """
+    读取媒体文件获得的基础信息
+    """
+
+    number: str
+    mosaic: str
+
+    appoint_number: str
+    appoint_url: str
+    c_word: str
+    cd_part: str
+    destroyed: str
+    file_ex: str
+    file_name: str
+    file_path: Path
+    file_show_name: str
+    file_show_path: Path
+    folder_path: Path
+    has_sub: bool
+    leak: str
+    letters: str
+    short_number: str
+    sub_list: list[str]
+    website_name: str  # 仅用于重新刮削
+    wuma: str
+    youma: str
+
+    definition: str
+    codec: str
+
+    # 读模式下被 NFO 番号覆盖后的实际番号（共享番号注册键之一，供释放方使用）
+    shared_number: str | None = None
+
+    @property
+    def optional_file_path(self) -> Path | None:
+        if self.file_path == Path() or not self.file_path.is_file():
+            return None
+        return self.file_path
+
+    def crawler_input(self) -> "CrawlerInput":
+        """
+        将 FileInfo 转换为 CallCrawlerInput 类型
+        """
+        return CrawlerInput(
+            appoint_number=self.appoint_number,
+            appoint_url=self.appoint_url,
+            file_path=self.optional_file_path,
+            number=self.number,
+            mosaic=self.mosaic,
+            short_number=self.short_number,
+            language=Language.UNDEFINED,
+            org_language=Language.UNDEFINED,
+        )
+
+    def crawl_task(self) -> "CrawlTask":
+        """
+        将 FileInfo 转换为 CrawlTask 类型
+        """
+        return CrawlTask(
+            appoint_number=self.appoint_number,
+            appoint_url=self.appoint_url,
+            file_path=self.optional_file_path,
+            number=self.number,
+            mosaic=self.mosaic,
+            short_number=self.short_number,
+            has_sub=self.has_sub,
+            c_word=self.c_word,
+            leak=self.leak,
+            wuma=self.wuma,
+            youma=self.youma,
+            cd_part=self.cd_part,
+            destroyed=self.destroyed,
+            website_name=self.website_name,
+            language=Language.UNDEFINED,
+            org_language=Language.UNDEFINED,
+        )
+
+    @classmethod
+    def empty(cls) -> "FileInfo":
+        """
+        返回一个空的 FileInfo 实例
+        """
+        return cls(
+            number="",
+            mosaic="",
+            appoint_number="",
+            appoint_url="",
+            c_word="",
+            cd_part="",
+            destroyed="",
+            file_ex="",
+            file_name="",
+            file_path=Path(),
+            file_show_name="",
+            file_show_path=Path(),
+            folder_path=Path(),
+            has_sub=False,
+            leak="",
+            letters="",
+            short_number="",
+            sub_list=[],
+            website_name="",
+            wuma="",
+            youma="",
+            definition="",
+            codec="",
+        )
+
+
+@dataclass
+class CrawlerInput:
+    """调用单个 crawler 所需输入"""
+
+    appoint_number: str
+    appoint_url: str
+    file_path: Path | None
+    mosaic: str
+    number: str
+    short_number: str
+
+    # 向后兼容
+    language: Language
+    org_language: Language
+
+    @classmethod
+    def empty(cls) -> "CrawlerInput":
+        return FileInfo.empty().crawler_input()
+
+
+@dataclass
+class CrawlTask(CrawlerInput):
+    """刮削一个文件所需的信息"""
+
+    c_word: str
+    cd_part: str
+    destroyed: str
+    has_sub: bool
+    leak: str
+    website_name: str  # 用于重新刮削时指定网站
+    wuma: str
+    youma: str
+
+    @classmethod
+    def empty(cls) -> "CrawlTask":
+        return FileInfo.empty().crawl_task()
+
+
+@dataclass
+class BaseCrawlerResult:
+    """
+    爬虫结果的公共基础类型, 包含 CrawlerResult 和 CrawlersResult 的共同字段
+    (注释由 AI 生成, 仅供参考)
+    """
+
+    number: str  # 番号
+    mosaic: str  # 马赛克类型（有码/无码）
+    image_download: bool  # 是否需要下载图片
+    # 以下字段会从多个来源 reduce 到一个最终结果
+    actors: list[str]
+    # actor: str  # 演员名称，逗号分隔
+    all_actors: list[str]
+    # all_actor: str  # 包含男演员的所有演员名称
+    directors: list[str]
+    # director: str  # 导演
+    extrafanart: list[str]  # 额外剧照URL列表
+    originalplot: str  # 原始简介（日文）
+    originaltitle: str  # 原始标题（日文）
+    outline: str  # 简介
+    poster: str  # 海报URL
+    publisher: str  # 发行商
+    release: str  # 发行日期
+    runtime: str  # 片长（分钟）
+    score: str  # 评分
+    series: str  # 系列
+    studio: str  # 制作商
+    tags: list[str]
+    # tag: str  # 标签，逗号分隔
+    thumb: str  # 缩略图URL # todo 需修改为 list[str] 支持多个候选地址
+    title: str  # 标题
+    trailer: str  # 预告片URL
+    wanted: str
+    year: str  # 发行年份 # todo 移除. 总是可以从 release 推断
+
+    @property
+    def country(self) -> Literal["CN", "JP", "US"]:
+        """
+        根据 mosaic 字段返回国家代码
+        """
+        country = "JP"
+        if self.mosaic in ["国产", "國產"]:
+            country = "CN"
+        elif re.findall(r"\.\d{2}\.\d{2}\.\d{2}", self.number):
+            country = "US"
+        return country  # type: ignore[return-value]
+
+    @property
+    def tag(self) -> str:
+        """
+        向后兼容. 返回标签字段, 如果 tags 不为空则使用 tags, 否则使用 tag
+        """
+        return ",".join(self.tags)
+
+    @tag.setter
+    def tag(self, value: str):
+        """
+        向后兼容. 设置标签字段, 将逗号分隔的字符串转换为列表
+        """
+        self.tags = value.split(",") if value else []
+
+    @property
+    def actor(self) -> str:
+        """
+        向后兼容. 返回演员字段, 如果 actors 不为空则使用 actors, 否则使用 actor
+        """
+        return ",".join(self.actors)
+
+    @actor.setter
+    def actor(self, value: str):
+        """
+        向后兼容. 设置演员字段, 将逗号分隔的字符串转换为列表
+        """
+        self.actors = value.split(",") if value else []
+
+    @property
+    def all_actor(self) -> str:
+        """
+        向后兼容. 返回所有演员字段, 如果 all_actors 不为空则使用 all_actors, 否则使用 all_actor
+        """
+        return ",".join(self.all_actors)
+
+    @all_actor.setter
+    def all_actor(self, value: str):
+        """
+        向后兼容. 设置所有演员字段, 将逗号分隔的字符串转换为列表
+        """
+        self.all_actors = value.split(",") if value else []
+
+    @property
+    def director(self) -> str:
+        """
+        向后兼容. 返回导演字段, 如果 directors 不为空则使用 directors, 否则使用 director
+        """
+        return ",".join(self.directors)
+
+    @director.setter
+    def director(self, value: str):
+        """
+        向后兼容. 设置导演字段, 将逗号分隔的字符串转换为列表
+        """
+        self.directors = value.split(",") if value else []
+
+    @classmethod
+    def empty(cls) -> "BaseCrawlerResult":
+        """
+        返回一个空的 BaseCrawlerResultDataClass 实例
+        """
+        return cls(
+            number="",
+            mosaic="",
+            image_download=False,
+            actors=[],
+            all_actors=[],
+            directors=[],
+            extrafanart=[],
+            originalplot="",
+            originaltitle="",
+            outline="",
+            poster="",
+            publisher="",
+            release="",
+            runtime="",
+            # 评分不能初始化为 "0.0"：字段优先级合并用 `not getattr(reduced, field)`
+            # 判定"待填充"，"0.0" 为 truthy 会导致爬虫返回的真实评分被永远跳过，
+            # 全库 NFO <rating> 恒为 0.0（实测复现：站点返回 8.5 被丢弃）
+            score="",
+            series="",
+            studio="",
+            tags=[],
+            thumb="",
+            title="",
+            trailer="",
+            wanted="",
+            year="",
+        )
+
+
+@dataclass
+class CrawlerResult(BaseCrawlerResult):
+    """
+    单一网站爬虫返回的结果
+    """
+
+    source: str  # 数据来源（爬虫名称）
+    external_id: str
+
+    @classmethod
+    def empty(cls) -> "CrawlerResult":
+        """
+        返回一个空的 CrawlerResultDataclass 实例
+        """
+        return cls(
+            **BaseCrawlerResult.empty().__dict__,
+            source="",
+            external_id="",
+        )
+
+
+class FailureReason(StrEnum):
+    """
+    单站刮削失败的结构化原因分类, 用于把异常归入可读的枚举类型.
+
+    取值与 javapi 的 ScrapeStatus 对齐(timeout/not_found/blocked),
+    便于在日志中统一展示失败原因.
+    """
+
+    NOT_FOUND = "not_found"  # 站点无此番号结果
+    BLOCKED = "blocked"  # 被站点/CDN 拦截(如 Cloudflare)
+    TIMEOUT = "timeout"  # 请求超时
+    PARSE_ERROR = "parse_error"  # 响应解析失败
+    UNKNOWN = "unknown"  # 其他未知错误
+
+    @classmethod
+    def classify(cls, error: Exception) -> "FailureReason":
+        """
+        根据异常特征将错误归类为 FailureReason.
+
+        Args:
+            error: 爬虫抛出的异常.
+
+        Returns:
+            归类的失败原因.
+        """
+        if isinstance(error, (TimeoutError, asyncio.TimeoutError)):
+            return cls.TIMEOUT
+        text = str(error).strip().lower()
+        if not text:
+            return cls.UNKNOWN
+        if any(keyword in text for keyword in ("cloudflare", "cf_chl", "__cf", "403", "forbidden", "blocked", "拦截")):
+            return cls.BLOCKED
+        if any(keyword in text for keyword in ("not found", "未找到", "没有找到", "无结果", "搜索失败", "空数据")):
+            return cls.NOT_FOUND
+        if any(keyword in text for keyword in ("parse", "解析", "html", "json")):
+            return cls.PARSE_ERROR
+        return cls.UNKNOWN
+
+
+@dataclass
+class CrawlerDebugInfo:
+    execution_time: float = 0.0
+    error: Exception | None = None
+    search_urls: list[str] = field(default_factory=list)
+    detail_urls: list[str] = field(default_factory=list)
+    logs: list[str] = field(default_factory=list)
+
+
+@dataclass
+class CrawlerResponse:
+    """
+    封装单个爬虫的完整执行信息
+    """
+
+    debug_info: CrawlerDebugInfo
+    data: CrawlerResult | None = None
+
+
+@dataclass
+class CrawlersResult(BaseCrawlerResult):
+    """
+    整合所有网站的爬虫结果
+    """
+
+    # 以下用于后续下载资源
+    scraping_type: FixedScrapingType  # 实际使用的网站分类，保持与“锁定刮削类型”一致
+    scraping_type_source: str  # fixed/auto，用于区分用户锁定和自动识别
+    actor_amazon: list[str]  # 用于 Amazon 搜索的演员名称
+    amazon_orginaltitle_actor: str  # 用于 Amazon 搜索的原始标题中的演员
+    thumb_list: list[tuple[str, str]]  # 所有来源的缩略图URL列表
+    poster_list: list[tuple[str, str, bool]]  # 所有来源的海报URL列表(来源, URL, 是否直下)
+    extrafanart_list: list[tuple[str, list[str]]]  # 所有来源的剧照URL列表(来源, URL列表)
+    originaltitle_amazon: str  # 用于 Amazon 搜索的原始标题
+    amazon_raw_director: str  # Amazon 标题清洗用导演（未映射）
+    amazon_raw_studio: str  # Amazon 标题清洗用制作商（未映射）
+    amazon_raw_publisher: str  # Amazon 标题清洗用发行商（未映射）
+    actor_tmdb_ids: dict[str, int]  # 演员原名 -> TMDB ID 映射
+    original_actors: list[str]  # 映射前的原始演员名列表（用于读取模式反向查找）
+
+    # 用于 log
+    site_log: str
+    field_log: str  # 字段来源信息
+
+    # 字段来源
+    field_sources: dict[CrawlerResultFields, str]
+    # 各来源的 externalId
+    external_ids: dict[Website, str]
+
+    # in FileInfo
+    # 除 letters 不确定外, 其它字段是只读的, 所以后续流程可以直接从 FileInfo 获取
+    letters: str  # 番号字母部分, 理论上 get_file_info 函数会返回这个字段
+
+    @classmethod
+    def empty(cls) -> "CrawlersResult":
+        """
+        返回一个空的 CrawlersResultDataClass 实例
+        """
+        return cls(
+            **BaseCrawlerResult.empty().__dict__,
+            scraping_type=FixedScrapingType.AUTO,
+            scraping_type_source="",
+            actor_amazon=[],
+            amazon_orginaltitle_actor="",
+            thumb_list=[],
+            poster_list=[],
+            extrafanart_list=[],
+            originaltitle_amazon="",
+            amazon_raw_director="",
+            amazon_raw_studio="",
+            amazon_raw_publisher="",
+            actor_tmdb_ids={},
+            original_actors=[],
+            site_log="",
+            field_log="",
+            field_sources=dict.fromkeys(CrawlerResultFields, ""),
+            external_ids={},
+            letters="",
+        )
+
+    # 以下为向后兼容
+    @property
+    def extrafanart_from(self) -> str:
+        return self.field_sources[CrawlerResultFields.EXTRAFANART]
+
+    @extrafanart_from.setter
+    def extrafanart_from(self, value: str):
+        self.field_sources[CrawlerResultFields.EXTRAFANART] = value
+
+    @property
+    def outline_from(self) -> str:
+        return self.field_sources[CrawlerResultFields.OUTLINE]
+
+    @outline_from.setter
+    def outline_from(self, value: str):
+        self.field_sources[CrawlerResultFields.OUTLINE] = value
+
+    @property
+    def poster_from(self) -> str:
+        return self.field_sources[CrawlerResultFields.POSTER]
+
+    @poster_from.setter
+    def poster_from(self, value: str):
+        self.field_sources[CrawlerResultFields.POSTER] = value
+
+    @property
+    def thumb_from(self) -> str:
+        return self.field_sources[CrawlerResultFields.THUMB]
+
+    @thumb_from.setter
+    def thumb_from(self, value: str):
+        self.field_sources[CrawlerResultFields.THUMB] = value
+
+    @property
+    def trailer_from(self) -> str:
+        return self.field_sources[CrawlerResultFields.TRAILER]
+
+    @trailer_from.setter
+    def trailer_from(self, value: str):
+        self.field_sources[CrawlerResultFields.TRAILER] = value
+
+
+@dataclass
+class OtherInfo:
+    # 由 creat_folder 写入, move_movie 使用
+    del_file_path: bool
+    dont_move_movie: bool
+    # 用于控制 add_mark 是否添加水印, 有多个写入来源
+    fanart_marked: bool
+    poster_marked: bool
+    thumb_marked: bool
+    # 其它图片获取过程所需字段
+    fanart_path: Path | None
+    poster_path: Path | None
+    thumb_path: Path | None
+    poster_big: bool
+    poster_size: tuple[int, int]
+    thumb_size: tuple[int, int]
+
+    @classmethod
+    def empty(cls) -> "OtherInfo":
+        """
+        返回一个空的 OtherInfo 实例
+        """
+        return cls(
+            del_file_path=False,
+            dont_move_movie=False,
+            fanart_marked=True,
+            poster_marked=True,
+            thumb_marked=True,
+            fanart_path=None,
+            poster_path=None,
+            thumb_path=None,
+            poster_big=False,
+            poster_size=(0, 0),
+            thumb_size=(0, 0),
+        )
+
+
+@dataclass
+class ScrapeResult:
+    file_info: FileInfo
+    data: CrawlersResult
+    other: OtherInfo
+
+
+@dataclass
+class ShowData(ScrapeResult):
+    """
+    用于主界面显示
+    """
+
+    show_name: str
+
+    @classmethod
+    def empty(cls) -> "ShowData":
+        """
+        返回一个空的 ShowDataDataclass 实例
+        """
+        return cls(
+            file_info=FileInfo.empty(),
+            data=CrawlersResult.empty(),
+            other=OtherInfo.empty(),
+            show_name="",
+        )
