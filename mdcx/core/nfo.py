@@ -13,7 +13,6 @@ from ..config.enums import (
     KeepableFile,
     Language,
     NfoInclude,
-    NfoMergeStrategy,
     OutlineShow,
     ReadMode,
     Website,
@@ -32,6 +31,7 @@ from ..utils.language import is_japanese
 from ..utils.xml import build_cdata, escape_xml_text, normalize_xml_text
 from .mosaic import normalize_mosaic
 from .naming import NameRenderOptions, NamingTarget, render_name
+from .nfo_merger import should_merge_nfo
 from .tag_priority import prioritize_nfo_tags
 
 
@@ -117,10 +117,15 @@ async def write_nfo(
     else:
         nfo_title_template = manager.config.naming_media
 
-    # NFO 合并策略：非 prefer_scraper 时读取现有 NFO 并按策略合并。
+    # 本地NFO合并策略：勾选框开启且策略非 prefer_scraper 时读取现有 NFO 并按策略合并。
     # skip_merge=True（NFO 库表单编辑保存）时跳过合并，避免 PREFER_NFO 等策略用磁盘旧值覆盖用户表单修改。
     merge_strategy = manager.config.nfo_merge_strategy
-    if not skip_merge and merge_strategy != NfoMergeStrategy.PREFER_SCRAPER and await aiofiles.os.path.exists(nfo_file):
+    if should_merge_nfo(
+        enabled=manager.config.nfo_merge_enabled,
+        strategy=merge_strategy,
+        skip_merge=skip_merge,
+        nfo_exists=await aiofiles.os.path.exists(nfo_file),
+    ):
         try:
             existing_data, _ = await get_nfo_data(file_info.file_path, data.number)
             if existing_data is not None:

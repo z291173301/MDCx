@@ -500,6 +500,7 @@ def load_config(self: "MyMAinWindow"):
             if manager.config.nfo_merge_strategy in _strategy_items
             else 0
         )
+        self.Ui.checkBox_nfo_merge_strategy.setChecked(manager.config.nfo_merge_enabled)
 
         # 更新模式
         self.Ui.checkBox_update_a.setChecked(False)

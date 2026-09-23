@@ -370,6 +370,7 @@ def save_config(self: "MyMAinWindow"):
     manager.config.nfo_merge_strategy = (
         _strategy_items[_idx] if 0 <= _idx < len(_strategy_items) else NfoMergeStrategy.PREFER_SCRAPER
     )
+    manager.config.nfo_merge_enabled = self.Ui.checkBox_nfo_merge_strategy.isChecked()
     # update 模式设置
     if self.Ui.radioButton_update_c.isChecked():
         manager.config.update_mode = "c"

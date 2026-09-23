@@ -15,6 +15,24 @@ import copy
 from ..config.enums import NfoMergeStrategy
 from ..models.model_types import CrawlersResult
 
+
+def should_merge_nfo(
+    *,
+    enabled: bool,
+    strategy: NfoMergeStrategy,
+    skip_merge: bool = False,
+    nfo_exists: bool = True,
+) -> bool:
+    """判断本次写 NFO 是否需要对本地已有 NFO 执行合并。
+
+    - enabled=False（界面勾选框未勾选）：一律不合并，直接用新数据覆盖本地 NFO。
+    - skip_merge=True：跳过合并（例如 NFO 库表单编辑保存场景）。
+    - strategy == PREFER_SCRAPER：全新数据优先，无需读本地 NFO。
+    - nfo_exists=False：本地不存在 NFO 文件，无内容可合并。
+    """
+    return enabled and not skip_merge and strategy != NfoMergeStrategy.PREFER_SCRAPER and nfo_exists
+
+
 # 关键字段：两源都为空时也不允许空，回退到另一源。
 # 注：number 不在此集——合并循环只遍历 _SCALAR_FIELDS（不含 number），
 # 且上游 file_crawler 总会用文件番号覆盖 res.number，为其写保护回退

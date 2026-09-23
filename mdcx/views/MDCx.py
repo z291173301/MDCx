@@ -489,7 +489,7 @@ class Ui_MDCx(object):
         self.pushButton_show_hide_logs.setText("")
         icon = QtGui.QIcon()
         icon.addPixmap(
-            QtGui.QPixmap("mdcx/views/../../MDCx-py-20220407/edit.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On
+            QtGui.QPixmap("mdcx/views\\../../MDCx-py-20220407/edit.png"), QtGui.QIcon.Mode.Normal, QtGui.QIcon.State.On
         )
         self.pushButton_show_hide_logs.setIcon(icon)
         self.pushButton_show_hide_logs.setIconSize(QtCore.QSize(30, 30))
@@ -2290,10 +2290,10 @@ class Ui_MDCx(object):
         self.verticalLayout_5.addLayout(self.horizontalLayout_86)
         self.horizontalLayout_nfo_merge = QtWidgets.QHBoxLayout()
         self.horizontalLayout_nfo_merge.setObjectName("horizontalLayout_nfo_merge")
-        self.label_nfo_merge_strategy = QtWidgets.QLabel(parent=self.gridLayoutWidget_2)
-        self.label_nfo_merge_strategy.setStyleSheet("color: rgb(8, 128, 128);")
-        self.label_nfo_merge_strategy.setObjectName("label_nfo_merge_strategy")
-        self.horizontalLayout_nfo_merge.addWidget(self.label_nfo_merge_strategy)
+        self.checkBox_nfo_merge_strategy = QtWidgets.QCheckBox(parent=self.gridLayoutWidget_2)
+        self.checkBox_nfo_merge_strategy.setStyleSheet("color: rgb(0, 0, 0);")
+        self.checkBox_nfo_merge_strategy.setObjectName("checkBox_nfo_merge_strategy")
+        self.horizontalLayout_nfo_merge.addWidget(self.checkBox_nfo_merge_strategy)
         self.comboBox_nfo_merge_strategy = QtWidgets.QComboBox(parent=self.gridLayoutWidget_2)
         self.comboBox_nfo_merge_strategy.setMinimumSize(QtCore.QSize(200, 0))
         self.comboBox_nfo_merge_strategy.setObjectName("comboBox_nfo_merge_strategy")
@@ -12896,7 +12896,7 @@ class Ui_MDCx(object):
         self.checkBox_read_download_file_again.setText(_translate("MDCx", "重新下载图片等文件（nfo 需有链接）"))
         self.label_347.setText(_translate("MDCx", "将按「设置」-「下载」，更新文件"))
         self.checkBox_read_no_nfo_scrape.setText(_translate("MDCx", "本地没有nfo的文件，重新刮削（按正常模式规则）"))
-        self.label_nfo_merge_strategy.setText(_translate("MDCx", "NFO合并策略:"))
+        self.checkBox_nfo_merge_strategy.setText(_translate("MDCx", "本地NFO合并策略"))
         self.comboBox_nfo_merge_strategy.setItemText(0, _translate("MDCx", "全新数据优先"))
         self.comboBox_nfo_merge_strategy.setItemText(1, _translate("MDCx", "本地信息优先"))
         self.comboBox_nfo_merge_strategy.setItemText(2, _translate("MDCx", "合并数组去重"))
@@ -14092,7 +14092,7 @@ class Ui_MDCx(object):
                 "<li><b>视频模式</b>（整理模式）：仅联网刮削番号用于命名，然后重命名和移动视频文件，不下载图片、不生成 NFO。适合不需要海报墙、只想归类文件的用户。</li>\n"
                 "<li><b>更新模式</b>：对已有 NFO 的影片在不改动文件位置结构的前提下重新整理文件结构，按更新规则重新命名目录和文件。适合已刮过但想调整目录结构的情况。</li>\n"
                 "<li><b>读取模式</b>：通过读取本地 NFO 文件实现无需联网的查看或更新，4 个独立选项可自由组合——有 NFO 时更新（按更新规则整理）、无 NFO 时刮削（对没 NFO 的文件联网刮）、重新下载（重新下载图片）、更新 NFO（更新 NFO 内容如补演员 TMDB ID）。读取模式不受断点续刮缓存干扰，始终处理全部选中文件。</li>\n"
-                " <li><b>NFO 合并策略</b>（读取模式区域下拉框）：写入 NFO 前按策略决定如何处理已存在的 NFO——全新数据优先 / 本地信息优先 / 合并数组去重 / 保留已有字段 / 仅填补空字段，防止重刮覆盖手动整理的内容。</li>\n"
+                " <li><b>本地NFO合并策略</b>（读取模式区域勾选框 + 下拉框）：勾选后写入 NFO 前按策略决定如何处理已存在的 NFO——全新数据优先 / 本地信息优先 / 合并数组去重 / 保留已有字段 / 仅填补空字段；不勾选则直接用新数据覆盖、不合并本地 NFO，防止重刮覆盖手动整理的内容。</li>\n"
                 "<li><b>软链接</b>（设置项，非独立模式）：在任意模式下勾选「创建软链接」即可刮削后不移动原视频，而是在目标目录创建软链接（类快捷方式），便于 PT 下载既刮削又保种；需以管理员 / 有权限身份运行。注意：软链接通常只能在媒体库展示，不能直接播放。</li>\n"
                 "<li><b>调试模式</b>：在「设置→高级」的「调试模式（日志页面）」分组中勾选「显示字段内容信息」（完整排查可同时勾选「显示刮削过程信息」「显示字段来源信息」），日志页面会输出番号对应的完整元数据（封面、导演、演员、简介等）供排查。</li>\n"
                 "</ul>\n"

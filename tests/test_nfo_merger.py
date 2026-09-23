@@ -3,7 +3,13 @@
 import pytest
 
 from mdcx.config.enums import NfoMergeStrategy
-from mdcx.core.nfo_merger import _is_empty, _merge_array, _merge_scalar, merge_nfo_fields
+from mdcx.core.nfo_merger import (
+    _is_empty,
+    _merge_array,
+    _merge_scalar,
+    merge_nfo_fields,
+    should_merge_nfo,
+)
 from mdcx.models.model_types import CrawlersResult
 
 
@@ -280,3 +286,87 @@ def test_nfo_merge_strategy_enum_values():
     assert NfoMergeStrategy.MERGE_ARRAYS.value == "merge_arrays"
     assert NfoMergeStrategy.PRESERVE_EXISTING.value == "preserve_existing"
     assert NfoMergeStrategy.FILL_MISSING_ONLY.value == "fill_missing_only"
+
+
+# ---------- 本地NFO合并策略勾选框（should_merge_nfo）----------
+# 勾选框未勾选（enabled=False）时不执行下拉框选项，直接用新数据覆盖本地 NFO；
+# 勾选后按下拉框所选策略合并。以下覆盖成功 / 失败 / 回归三类场景。
+
+
+class TestShouldMergeNfo:
+    # ---- 成功：勾选 + 非 PREFER_SCRAPER 策略 + 本地有 NFO → 执行合并 ----
+    @pytest.mark.parametrize(
+        "strategy",
+        [
+            NfoMergeStrategy.PREFER_NFO,
+            NfoMergeStrategy.MERGE_ARRAYS,
+            NfoMergeStrategy.PRESERVE_EXISTING,
+            NfoMergeStrategy.FILL_MISSING_ONLY,
+        ],
+    )
+    def test_success_enabled_merges(self, strategy):
+        assert should_merge_nfo(enabled=True, strategy=strategy, nfo_exists=True) is True
+
+    # ---- 失败：勾选框未勾选 → 一律不合并，直接用新数据覆盖 ----
+    def test_failure_disabled_skips_merge(self):
+        assert should_merge_nfo(enabled=False, strategy=NfoMergeStrategy.PREFER_NFO, nfo_exists=True) is False
+
+    # ---- 失败：策略为 PREFER_SCRAPER（全新数据优先）→ 无需读本地 NFO ----
+    def test_failure_prefer_scraper_skips_merge(self):
+        assert should_merge_nfo(enabled=True, strategy=NfoMergeStrategy.PREFER_SCRAPER, nfo_exists=True) is False
+
+    # ---- 失败：本地无 NFO 文件 → 无内容可合并 ----
+    def test_failure_no_local_nfo_skips_merge(self):
+        assert should_merge_nfo(enabled=True, strategy=NfoMergeStrategy.PREFER_NFO, nfo_exists=False) is False
+
+    # ---- 失败：skip_merge（NFO 库表单编辑保存）→ 跳过合并 ----
+    def test_failure_skip_merge_flag(self):
+        assert (
+            should_merge_nfo(
+                enabled=True,
+                strategy=NfoMergeStrategy.PREFER_NFO,
+                nfo_exists=True,
+                skip_merge=True,
+            )
+            is False
+        )
+
+    # ---- 回归：勾选（enabled=True）时按下拉框策略合并，行为与改造前一致 ----
+    def test_regression_enabled_preserves_old_behavior(self):
+        assert should_merge_nfo(enabled=True, strategy=NfoMergeStrategy.PREFER_NFO, nfo_exists=True) is True
+        assert should_merge_nfo(enabled=True, strategy=NfoMergeStrategy.MERGE_ARRAYS, nfo_exists=True) is True
+
+
+class TestNfoMergeEnabledConfig:
+    """勾选框开关配置项（nfo_merge_enabled）的成功 / 失败 / 回归。"""
+
+    def test_default_disabled(self):
+        from mdcx.config.models import Config
+
+        # 默认不勾选：不执行下拉框选项，直接用新数据覆盖本地 NFO
+        config = Config()
+        assert config.nfo_merge_enabled is False
+
+    def test_set_enabled(self):
+        from mdcx.config.models import Config
+
+        config = Config()
+        config.nfo_merge_enabled = True
+        assert config.nfo_merge_enabled is True
+
+    def test_serialization_round_trip(self):
+        from mdcx.config.models import Config
+
+        config = Config()
+        config.nfo_merge_enabled = True
+        data = config.model_dump()
+        assert data["nfo_merge_enabled"] is True
+        restored = Config.model_validate(data)
+        assert restored.nfo_merge_enabled is True
+
+    def test_regression_missing_key_defaults_disabled(self):
+        from mdcx.config.models import Config
+
+        # 旧配置无 nfo_merge_enabled 字段 → 默认不勾选（不合并）
+        config = Config.model_validate({"nfo_merge_strategy": NfoMergeStrategy.PREFER_NFO})
+        assert config.nfo_merge_enabled is False
