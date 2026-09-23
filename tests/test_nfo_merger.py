@@ -70,10 +70,10 @@ class TestMergeScalar:
         assert src == "nfo"
 
     def test_both_have_value_fill_missing_only(self):
-        """fill_missing_only："仅填空字段"——新数据为主，两源都有值时取新数据。
+        """fill_missing_only："仅填补空字段"——新数据为主，两源都有值时取新数据。
 
         原实现误与 preserve_existing 同分支（取本地旧值），与 UI 名称
-        "仅填空字段"/models 描述/docstring 语义矛盾，导致两个选项行为完全重复
+        "仅填补空字段"/models 描述/docstring 语义矛盾，导致两个选项行为完全重复
         （全库审查 A3，测试原断言锁定的是 bug 行为，随修复反转）。
         """
         val, src = _merge_scalar("outline", "新简介", "本地简介", NfoMergeStrategy.FILL_MISSING_ONLY)

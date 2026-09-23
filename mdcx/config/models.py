@@ -574,7 +574,7 @@ class Config(BaseModel):
     nfo_merge_strategy: NfoMergeStrategy = Field(
         default=NfoMergeStrategy.PREFER_SCRAPER,
         title="NFO合并策略",
-        description="重新刮削时如何处理已有NFO: prefer_scraper=��数据覆盖(默认), prefer_nfo=保留本地, merge_arrays=合并去重, preserve_existing=只补新字段, fill_missing_only=仅填空字段",
+        description="重新刮削时如何处理已有NFO: prefer_scraper=全新数据优先(默认), prefer_nfo=本地信息优先, merge_arrays=合并数组去重, preserve_existing=保留已有字段, fill_missing_only=仅填补空字段",
     )
     folder_name: str = Field(default="{{ actor }}/{{ number }} {{ actor }}", title="目录名称")
     naming_file: str = Field(default="{{ number }}", title="文件命名")

@@ -194,7 +194,7 @@ class NfoMergeStrategy(Enum):
 
     @classmethod
     def names(cls):
-        return ["新数据优先（覆盖）", "本地NFO优先", "合并数组（去重）", "保留已有（只补新字段）", "仅填空字段"]
+        return ["全新数据优先", "本地信息优先", "合并数组去重", "保留已有字段", "仅填补空字段"]
 
 
 class DownloadableFile(Enum):
