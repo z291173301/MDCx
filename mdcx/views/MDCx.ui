@@ -8053,7 +8053,7 @@
                             </property>
                           </widget>
                         </item>
-                        <item row="15" column="1">
+                        <item row="15" column="1" colspan="3">
                           <widget class="QLabel" name="label_fixed_scraping_type_desc">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -8065,10 +8065,10 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>选择后跳过自动类型识别，所有番号直接使用指定类型的网站列表刮削。</string>
+                              <string>选择后跳过自动类型识别，所有番号直接使用指定类型的网站列表进行刮削。</string>
                             </property>
                             <property name="wordWrap">
-                              <bool>true</bool>
+                              <bool>false</bool>
                             </property>
                             <property name="textInteractionFlags">
                               <set>Qt::NoTextInteraction</set>
