@@ -179,6 +179,65 @@ def test_groupboxes_fit_scroll_area():
     assert not problems, "UI 滚动区溢出问题:\n" + "\n".join(problems)
 
 
+# ---------- 命名页各「命名规则」分组右边框对齐「视频命名规则」 —— 红/黄/绿回归 ----------
+
+# 命名页（scrollAreaWidgetContents_mingming）里除参考分组外的 8 个规则分组。
+_NAMING_RULE_GROUPS = (
+    "groupBox_40",  # 字段命名规则
+    "groupBox_77",  # 长度命名规则
+    "groupBox_46",  # 马赛克命名规则
+    "groupBox_38",  # 分集命名规则
+    "groupBox_37",  # 图片命名规则
+    "groupBox_62",  # 预告片命名规则
+    "groupBox_65",  # 画质命名规则
+    "groupBox_67",  # 其他说明
+)
+_NAMING_REF_GROUP = "groupBox_8"  # 视频命名规则（宽度基准）
+
+
+def _naming_page_boxes() -> dict[str, tuple[int, int, int, int]]:
+    """命名页 9 个规则分组 → {name: (x, y, w, h)}。"""
+    parents = _group_boxes_by_parent(_parse_ui())
+    return {name: (x, y, w, h) for name, x, y, w, h in parents.get("scrollAreaWidgetContents_mingming", [])}
+
+
+def test_naming_rule_groups_edges_aligned_green():
+    """绿（成功）：8 个规则分组的左缘/右缘都与「视频命名规则」对齐。
+
+    需求：右侧边框加宽到与视频命名规则同宽、左侧边框不动，最终所有分组
+    左右边框上下对齐。这里按几何断言 x 相同、x+width 相同。
+    """
+    boxes = _naming_page_boxes()
+    assert _NAMING_REF_GROUP in boxes, f"命名页缺少参考分组 {_NAMING_REF_GROUP}"
+    rx, _, rw, _ = boxes[_NAMING_REF_GROUP]
+    ref_right = rx + rw
+    missing = [name for name in _NAMING_RULE_GROUPS if name not in boxes]
+    assert not missing, f"命名页缺少分组: {missing}"
+    misaligned = {
+        name: {"left": boxes[name][0], "right": boxes[name][0] + boxes[name][2]}
+        for name in _NAMING_RULE_GROUPS
+        if boxes[name][0] != rx or boxes[name][0] + boxes[name][2] != ref_right
+    }
+    assert not misaligned, f"以下分组边框未与 {_NAMING_REF_GROUP} 对齐（左缘应={rx}、右缘应={ref_right}）: {misaligned}"
+
+
+def test_naming_rule_reference_width_not_narrowed_yellow():
+    """黄（边界）：对齐必须是「加宽其余分组」，参考分组（视频命名规则）不得被改窄。
+
+    若不锁定基准宽度，「把所有分组一起缩回 701」也能让绿色用例通过——这里补上基准值。
+    """
+    boxes = _naming_page_boxes()
+    rx, _, rw, _ = boxes[_NAMING_REF_GROUP]
+    assert (rx, rw) == (30, 765), f"{_NAMING_REF_GROUP} 基准几何被改动: x={rx}, w={rw}（应为 30 / 765）"
+
+
+def test_naming_rule_groups_old_narrow_width_removed_red():
+    """红（失败回归）：8 个规则分组不得退回历史窄宽 701（右边框未加宽）。"""
+    boxes = _naming_page_boxes()
+    reverted = [name for name in _NAMING_RULE_GROUPS if boxes.get(name, (0, 0, 0, 0))[2] == 701]
+    assert not reverted, f"以下分组退回历史窄宽 701（右边框未加宽）: {reverted}"
+
+
 def test_nav_layout_no_fixed_spacers():
     """左侧导航 verticalLayout 必须用 spacing 分隔按钮，按钮间不得出现 spacer。
 

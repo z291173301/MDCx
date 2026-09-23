@@ -5311,7 +5311,7 @@ class Ui_MDCx(object):
         self.label_name_template_preview_result.setObjectName("label_name_template_preview_result")
         self.gridLayout_8.addWidget(self.label_name_template_preview_result, 9, 1, 1, 1)
         self.groupBox_38 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
-        self.groupBox_38.setGeometry(QtCore.QRect(30, 2430, 701, 441))
+        self.groupBox_38.setGeometry(QtCore.QRect(30, 2430, 765, 441))
         self.groupBox_38.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_38.setObjectName("groupBox_38")
         self.gridLayoutWidget_22 = QtWidgets.QWidget(parent=self.groupBox_38)
@@ -5489,7 +5489,7 @@ class Ui_MDCx(object):
         self.label_430.setStyleSheet("color: rgb(8, 128, 128);")
         self.label_430.setObjectName("label_430")
         self.groupBox_77 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
-        self.groupBox_77.setGeometry(QtCore.QRect(30, 1520, 701, 351))
+        self.groupBox_77.setGeometry(QtCore.QRect(30, 1520, 765, 351))
         self.groupBox_77.setStyleSheet('font:"Courier New";')
         self.groupBox_77.setObjectName("groupBox_77")
         self.lineEdit_file_name_max = QtWidgets.QLineEdit(parent=self.groupBox_77)
@@ -5600,8 +5600,8 @@ class Ui_MDCx(object):
         )
         self.lineEdit_actor_name_max.setObjectName("lineEdit_actor_name_max")
         self.lineEdit_actor_name_more = QtWidgets.QLineEdit(parent=self.groupBox_77)
-        self.lineEdit_actor_name_more.setGeometry(QtCore.QRect(157, 302, 211, 30))
-        self.lineEdit_actor_name_more.setMinimumSize(QtCore.QSize(0, 30))
+        self.lineEdit_actor_name_more.setGeometry(QtCore.QRect(157, 302, 521, 30))
+        self.lineEdit_actor_name_more.setMinimumSize(QtCore.QSize(450, 30))
         self.lineEdit_actor_name_more.setStyleSheet(
             ' font: "Courier New";\n'
             "                          border: 1px solid rgba(0,0,0, 50);\n"
@@ -5609,72 +5609,23 @@ class Ui_MDCx(object):
             ""
         )
         self.lineEdit_actor_name_more.setObjectName("lineEdit_actor_name_more")
-        self.label_288 = QtWidgets.QLabel(parent=self.groupBox_77)
-        self.label_288.setGeometry(QtCore.QRect(21, 370, 130, 30))
+        self.label_actor_name_more = QtWidgets.QLabel(parent=self.groupBox_77)
+        self.label_actor_name_more.setGeometry(QtCore.QRect(21, 302, 130, 30))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.label_288.sizePolicy().hasHeightForWidth())
-        self.label_288.setSizePolicy(sizePolicy)
-        self.label_288.setMinimumSize(QtCore.QSize(130, 30))
-        self.label_288.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
-        self.label_288.setText("")
-        self.label_288.setAlignment(
+        sizePolicy.setHeightForWidth(self.label_actor_name_more.sizePolicy().hasHeightForWidth())
+        self.label_actor_name_more.setSizePolicy(sizePolicy)
+        self.label_actor_name_more.setMinimumSize(QtCore.QSize(130, 30))
+        self.label_actor_name_more.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
+        self.label_actor_name_more.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignRight
             | QtCore.Qt.AlignmentFlag.AlignTrailing
             | QtCore.Qt.AlignmentFlag.AlignVCenter
         )
-        self.label_288.setObjectName("label_288")
-        self.label_287 = QtWidgets.QLabel(parent=self.groupBox_77)
-        self.label_287.setGeometry(QtCore.QRect(21, 82, 130, 30))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.label_287.sizePolicy().hasHeightForWidth())
-        self.label_287.setSizePolicy(sizePolicy)
-        self.label_287.setMinimumSize(QtCore.QSize(130, 30))
-        self.label_287.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
-        self.label_287.setText("")
-        self.label_287.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignRight
-            | QtCore.Qt.AlignmentFlag.AlignTrailing
-            | QtCore.Qt.AlignmentFlag.AlignVCenter
-        )
-        self.label_287.setObjectName("label_287")
-        self.label_289 = QtWidgets.QLabel(parent=self.groupBox_77)
-        self.label_289.setGeometry(QtCore.QRect(21, 174, 130, 30))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.label_289.sizePolicy().hasHeightForWidth())
-        self.label_289.setSizePolicy(sizePolicy)
-        self.label_289.setMinimumSize(QtCore.QSize(130, 30))
-        self.label_289.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
-        self.label_289.setText("")
-        self.label_289.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignRight
-            | QtCore.Qt.AlignmentFlag.AlignTrailing
-            | QtCore.Qt.AlignmentFlag.AlignVCenter
-        )
-        self.label_289.setObjectName("label_289")
-        self.label_290 = QtWidgets.QLabel(parent=self.groupBox_77)
-        self.label_290.setGeometry(QtCore.QRect(21, 261, 130, 30))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.label_290.sizePolicy().hasHeightForWidth())
-        self.label_290.setSizePolicy(sizePolicy)
-        self.label_290.setMinimumSize(QtCore.QSize(130, 30))
-        self.label_290.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
-        self.label_290.setText("")
-        self.label_290.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignRight
-            | QtCore.Qt.AlignmentFlag.AlignTrailing
-            | QtCore.Qt.AlignmentFlag.AlignVCenter
-        )
-        self.label_290.setObjectName("label_290")
+        self.label_actor_name_more.setObjectName("label_actor_name_more")
         self.groupBox_46 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
-        self.groupBox_46.setGeometry(QtCore.QRect(30, 1890, 701, 521))
+        self.groupBox_46.setGeometry(QtCore.QRect(30, 1890, 765, 521))
         self.groupBox_46.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_46.setObjectName("groupBox_46")
         self.label_285 = QtWidgets.QLabel(parent=self.groupBox_46)
@@ -5937,7 +5888,7 @@ class Ui_MDCx(object):
         self.checkBox_filename_mosaic.setMinimumSize(QtCore.QSize(100, 30))
         self.checkBox_filename_mosaic.setObjectName("checkBox_filename_mosaic")
         self.groupBox_37 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
-        self.groupBox_37.setGeometry(QtCore.QRect(30, 2890, 701, 121))
+        self.groupBox_37.setGeometry(QtCore.QRect(30, 2890, 765, 121))
         self.groupBox_37.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_37.setObjectName("groupBox_37")
         self.gridLayoutWidget_21 = QtWidgets.QWidget(parent=self.groupBox_37)
@@ -5981,7 +5932,7 @@ class Ui_MDCx(object):
         self.label_96.setObjectName("label_96")
         self.gridLayout_21.addWidget(self.label_96, 1, 1, 1, 1)
         self.groupBox_62 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
-        self.groupBox_62.setGeometry(QtCore.QRect(30, 3030, 701, 121))
+        self.groupBox_62.setGeometry(QtCore.QRect(30, 3030, 765, 121))
         self.groupBox_62.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_62.setObjectName("groupBox_62")
         self.gridLayoutWidget_28 = QtWidgets.QWidget(parent=self.groupBox_62)
@@ -6026,7 +5977,7 @@ class Ui_MDCx(object):
         self.label_122.setObjectName("label_122")
         self.gridLayout_38.addWidget(self.label_122, 1, 1, 1, 1)
         self.groupBox_40 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
-        self.groupBox_40.setGeometry(QtCore.QRect(30, 1090, 701, 411))
+        self.groupBox_40.setGeometry(QtCore.QRect(30, 1090, 765, 411))
         self.groupBox_40.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_40.setObjectName("groupBox_40")
         self.gridLayoutWidget_26 = QtWidgets.QWidget(parent=self.groupBox_40)
@@ -6215,7 +6166,7 @@ class Ui_MDCx(object):
         self.checkBox_actor_fc2_seller.setObjectName("checkBox_actor_fc2_seller")
         self.gridLayout_26.addWidget(self.checkBox_actor_fc2_seller, 3, 1, 1, 1)
         self.groupBox_65 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
-        self.groupBox_65.setGeometry(QtCore.QRect(30, 3170, 701, 301))
+        self.groupBox_65.setGeometry(QtCore.QRect(30, 3170, 765, 301))
         self.groupBox_65.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_65.setObjectName("groupBox_65")
         self.gridLayoutWidget_35 = QtWidgets.QWidget(parent=self.groupBox_65)
@@ -6353,7 +6304,7 @@ class Ui_MDCx(object):
         self.checkBox_foldername_4k.setMinimumSize(QtCore.QSize(100, 30))
         self.checkBox_foldername_4k.setObjectName("checkBox_foldername_4k")
         self.groupBox_67 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
-        self.groupBox_67.setGeometry(QtCore.QRect(30, 3490, 701, 271))
+        self.groupBox_67.setGeometry(QtCore.QRect(30, 3490, 765, 271))
         self.groupBox_67.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_67.setObjectName("groupBox_67")
         self.label_353 = QtWidgets.QLabel(parent=self.groupBox_67)
@@ -13211,7 +13162,7 @@ class Ui_MDCx(object):
                 "                                {originaltitle}原标题，{filename}原文件名。<br>\n"
                 "                                其它字段：all_actor(全部演员)，first_actor(首位演员)，letters(番号前缀)，first_letter(番号首字符)<br>\n"
                 "                                outline(剧情简介)，director(导演)，publisher(发行商)，year(年份)，runtime(时长)，score(番号评分)<br>\n"
-                "                                mosaic(有码/无码)，wanted(想看人数)，cnword(字幕标识)，four_4K(4K/8K/UHD标识)。<br>\n"
+                "                                mosaic(有码/无码)，wanted(想看人数)，cnword(字幕标识)，definition(4K/8K/UHD标识)。<br>\n"
                 "                                注意：<br>\n"
                 "                                1，视频目录名留空时，表示不创建视频目录。<br>\n"
                 "                                2，勾选「成功后不移动文件」时，同样不会创建视频目录。<br>\n"
@@ -13224,7 +13175,7 @@ class Ui_MDCx(object):
         self.label_43.setText(_translate("MDCx", "视频目录名："))
         self.label_240.setText(_translate("MDCx", "防屏蔽字符："))
         self.label_68.setText(
-            _translate("MDCx", "指在 nfo 文件中的标题(title)格式，在 Emby 中作为视频标题显示，支持完整 Jinja2 语法")
+            _translate("MDCx", "指在nfo文件中的标题(title)格式，在Emby中作为视频标题显示，支持完整Jinja2语法")
         )
         self.label_67.setText(_translate("MDCx", "Emby视频标题："))
         self.label_61.setText(_translate("MDCx", "指本地视频文件的文件名格式，命名字段同上，推荐 {{ number }}"))
@@ -13282,6 +13233,7 @@ class Ui_MDCx(object):
             _translate("MDCx", "指有多位演员时，命名时最多显示的演员数量。超出的演员将用以下字符替代：")
         )
         self.lineEdit_folder_name_max.setAccessibleDescription(_translate("MDCx", "测试"))
+        self.label_actor_name_more.setText(_translate("MDCx", "演员名末端插入："))
         self.groupBox_46.setTitle(_translate("MDCx", "马赛克命名规则"))
         self.label_285.setText(
             _translate("MDCx", "指命名时在番号后添加版本命名字符。你也可以使用 moword 字段来调整添加位置")

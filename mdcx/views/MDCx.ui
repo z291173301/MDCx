@@ -11068,7 +11068,7 @@
                                 {originaltitle}原标题，{filename}原文件名。&lt;br&gt;
                                 其它字段：all_actor(全部演员)，first_actor(首位演员)，letters(番号前缀)，first_letter(番号首字符)&lt;br&gt;
                                 outline(剧情简介)，director(导演)，publisher(发行商)，year(年份)，runtime(时长)，score(番号评分)&lt;br&gt;
-                                mosaic(有码/无码)，wanted(想看人数)，cnword(字幕标识)，four_4K(4K/8K/UHD标识)。&lt;br&gt;
+                                mosaic(有码/无码)，wanted(想看人数)，cnword(字幕标识)，definition(4K/8K/UHD标识)。&lt;br&gt;
                                 注意：&lt;br&gt;
                                 1，视频目录名留空时，表示不创建视频目录。&lt;br&gt;
                                 2，勾选「成功后不移动文件」时，同样不会创建视频目录。&lt;br&gt;
@@ -11199,7 +11199,7 @@
                               </size>
                             </property>
                             <property name="text">
-                              <string>指在 nfo 文件中的标题(title)格式，在 Emby 中作为视频标题显示，支持完整 Jinja2 语法</string>
+                              <string>指在nfo文件中的标题(title)格式，在Emby中作为视频标题显示，支持完整Jinja2语法</string>
                             </property>
                               <property name="wordWrap">
                                 <bool>true</bool>
@@ -11368,7 +11368,7 @@
                       <rect>
                         <x>30</x>
                         <y>2430</y>
-                        <width>701</width>
+                        <width>765</width>
                         <height>441</height>
                       </rect>
                     </property>
@@ -11807,7 +11807,7 @@
                       <rect>
                         <x>30</x>
                         <y>1520</y>
-                        <width>701</width>
+                        <width>765</width>
                         <height>351</height>
                       </rect>
                     </property>
@@ -12070,13 +12070,13 @@
                         <rect>
                           <x>157</x>
                           <y>302</y>
-                          <width>211</width>
+                          <width>521</width>
                           <height>30</height>
                         </rect>
                       </property>
                       <property name="minimumSize">
                         <size>
-                          <width>0</width>
+                          <width>450</width>
                           <height>30</height>
                         </size>
                       </property>
@@ -12087,11 +12087,11 @@
 </string>
                       </property>
                     </widget>
-                    <widget class="QLabel" name="label_288">
+                    <widget class="QLabel" name="label_actor_name_more">
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>370</y>
+                          <y>302</y>
                           <width>130</width>
                           <height>30</height>
                         </rect>
@@ -12112,100 +12112,7 @@
                         <enum>Qt::RightToLeft</enum>
                       </property>
                       <property name="text">
-                        <string />
-                      </property>
-                      <property name="alignment">
-                        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                      </property>
-                    </widget>
-                    <widget class="QLabel" name="label_287">
-                      <property name="geometry">
-                        <rect>
-                          <x>21</x>
-                          <y>82</y>
-                          <width>130</width>
-                          <height>30</height>
-                        </rect>
-                      </property>
-                      <property name="sizePolicy">
-                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                          <horstretch>0</horstretch>
-                          <verstretch>0</verstretch>
-                        </sizepolicy>
-                      </property>
-                      <property name="minimumSize">
-                        <size>
-                          <width>130</width>
-                          <height>30</height>
-                        </size>
-                      </property>
-                      <property name="layoutDirection">
-                        <enum>Qt::RightToLeft</enum>
-                      </property>
-                      <property name="text">
-                        <string />
-                      </property>
-                      <property name="alignment">
-                        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                      </property>
-                    </widget>
-                    <widget class="QLabel" name="label_289">
-                      <property name="geometry">
-                        <rect>
-                          <x>21</x>
-                          <y>174</y>
-                          <width>130</width>
-                          <height>30</height>
-                        </rect>
-                      </property>
-                      <property name="sizePolicy">
-                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                          <horstretch>0</horstretch>
-                          <verstretch>0</verstretch>
-                        </sizepolicy>
-                      </property>
-                      <property name="minimumSize">
-                        <size>
-                          <width>130</width>
-                          <height>30</height>
-                        </size>
-                      </property>
-                      <property name="layoutDirection">
-                        <enum>Qt::RightToLeft</enum>
-                      </property>
-                      <property name="text">
-                        <string />
-                      </property>
-                      <property name="alignment">
-                        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                      </property>
-                    </widget>
-                    <widget class="QLabel" name="label_290">
-                      <property name="geometry">
-                        <rect>
-                          <x>21</x>
-                          <y>261</y>
-                          <width>130</width>
-                          <height>30</height>
-                        </rect>
-                      </property>
-                      <property name="sizePolicy">
-                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                          <horstretch>0</horstretch>
-                          <verstretch>0</verstretch>
-                        </sizepolicy>
-                      </property>
-                      <property name="minimumSize">
-                        <size>
-                          <width>130</width>
-                          <height>30</height>
-                        </size>
-                      </property>
-                      <property name="layoutDirection">
-                        <enum>Qt::RightToLeft</enum>
-                      </property>
-                      <property name="text">
-                        <string />
+                        <string>演员名末端插入：</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -12217,7 +12124,7 @@
                       <rect>
                         <x>30</x>
                         <y>1890</y>
-                        <width>701</width>
+                        <width>765</width>
                         <height>521</height>
                       </rect>
                     </property>
@@ -12806,7 +12713,7 @@
                       <rect>
                         <x>30</x>
                         <y>2890</y>
-                        <width>701</width>
+                        <width>765</width>
                         <height>121</height>
                       </rect>
                     </property>
@@ -12910,7 +12817,7 @@
                       <rect>
                         <x>30</x>
                         <y>3030</y>
-                        <width>701</width>
+                        <width>765</width>
                         <height>121</height>
                       </rect>
                     </property>
@@ -13017,7 +12924,7 @@
                       <rect>
                         <x>30</x>
                         <y>1090</y>
-                        <width>701</width>
+                        <width>765</width>
                         <height>411</height>
                       </rect>
                     </property>
@@ -13365,7 +13272,7 @@
                       <rect>
                         <x>30</x>
                         <y>3170</y>
-                        <width>701</width>
+                        <width>765</width>
                         <height>301</height>
                       </rect>
                     </property>
@@ -13692,7 +13599,7 @@
                       <rect>
                         <x>30</x>
                         <y>3490</y>
-                        <width>701</width>
+                        <width>765</width>
                         <height>271</height>
                       </rect>
                     </property>

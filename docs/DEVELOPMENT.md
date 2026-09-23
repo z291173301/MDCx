@@ -67,7 +67,7 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 
 命名页「视频命名规则」（`groupBox_8`）是绝对定位页内的 `QGridLayout`：说明文字 `label_66` 顶端对齐且可换行，「模板预览」多行框垂直策略为 `Expanding`。两者叠加产生两个问题：说明文字行高按更窄宽度的 `sizeHint` 计算（大于当前宽度实际换行高度）→「视频文件名」上方留白；预览框吃满网格剩余空间 → 被撑得过高。
 
-`_sync_naming_template_section()`（由 `_sync_page_layouts()` 末尾调用，并监听 `tabWidget.currentChanged` 在事件循环下一拍重算）按三步处理：
+`_sync_naming_template_section()`（由 `_sync_page_layouts()` 末尾调用，并监听 `tabWidget.currentChanged`、在 `label_66` 上装 eventFilter 捕获宽度变化，均在事件循环下一拍重算）按三步处理：
 
 1. 解除上一轮固定高度后再 `setFixedHeight(heightForWidth(width))`，让说明文字精确贴合（必须先解除，否则 `QLabel.heightForWidth` 会回落到被钉住的旧值）；
 2. 预览 `setFixedHeight(_NAMING_PREVIEW_H = 128)`，不再吸收剩余空间；

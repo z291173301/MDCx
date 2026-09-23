@@ -201,6 +201,8 @@ class MyMAinWindow(QMainWindow):
         self._did_apply_initial_size = False
         self._user_initiated_close = False  # 标记是否为用户主动关闭窗口
         self._naming_design: dict | None = None  # 命名页模板预览区：首次登记的设计几何基准
+        self._naming_resyncing = False  # 命名页模板预览区：重算中标志（防 label resize 递归触发）
+        self._naming_last_width = -1  # 命名页说明文字上次同步所用的宽度
 
         self.window_radius = 0  # 窗口四角弧度，为0时表示显示窗口标题栏
         self.window_border = 0  # 窗口描边，为0时表示显示窗口标题栏
@@ -267,6 +269,8 @@ class MyMAinWindow(QMainWindow):
         self.Ui.tabWidget.currentChanged.connect(
             lambda _index: QTimer.singleShot(0, self._sync_naming_template_section)
         )
+        # 说明文字宽度变化（滚动条占位、休眠页拉伸等）时自动补一次重算。
+        self.Ui.label_66.installEventFilter(self)
         self._bind_system_theme_refresh()
         self.cutwindow = CutWindow(self)
         self.preview_image_loader = PreviewImageLoader(self)
@@ -542,6 +546,12 @@ class MyMAinWindow(QMainWindow):
                 self.Ui.textBrowser_log_main_3.hide()
                 self.Ui.pushButton_scraper_failed_list.hide()
                 self.Ui.pushButton_save_failed_list.hide()
+        # 命名页模板预览区：说明文字宽度一变（滚动条占位、窗口拉伸、切页）就重算，
+        # 否则上次钉死的高度会残留成「视频文件名」上方的空白。
+        if a0 is getattr(self.Ui, "label_66", None) and a1.type() == QEvent.Type.Resize:
+            if not self._naming_resyncing and a0.width() != self._naming_last_width:
+                self._naming_last_width = a0.width()
+                QTimer.singleShot(0, self._sync_naming_template_section)
         return super().eventFilter(a0, a1)
 
     def showEvent(self, a0):
@@ -1056,6 +1066,8 @@ class MyMAinWindow(QMainWindow):
         grid = ui.gridLayout_8
         if lbl.width() <= 0 or box.width() <= 0:
             return
+        if self._naming_resyncing:
+            return
 
         # 首次调用登记设计几何（此后 sync_wide_children_width 只改宽不改高，
         # groupBox_8 的高由本方法接管）。
@@ -1065,44 +1077,50 @@ class MyMAinWindow(QMainWindow):
                 "groups": {name: getattr(ui, name).y() for name in self._NAMING_FOLLOW_GROUPS},
             }
 
-        # 1) 说明文字按当前宽度精确贴合。先解除上一轮的固定高度，否则
-        #    QLabel.heightForWidth 会回落到被钉住的旧值（宽度变化后不再更新）。
-        lbl.setMinimumHeight(0)
-        lbl.setMaximumHeight(16777215)
-        grid.invalidate()
-        grid.activate()
-        lbl.setFixedHeight(max(lbl.heightForWidth(lbl.width()), 1))
-        # 2) 模板预览固定高度，不再吸收网格剩余空间。
-        preview.setFixedHeight(self._NAMING_PREVIEW_H)
-        grid.invalidate()
-        grid.activate()
+        # 本方法会改 label_66 高度并触发其 Resize；用标志位抑制 eventFilter 的递归重算。
+        self._naming_resyncing = True
+        try:
+            # 1) 说明文字按当前宽度精确贴合。先解除上一轮的固定高度，否则
+            #    QLabel.heightForWidth 会回落到被钉住的旧值（宽度变化后不再更新）。
+            lbl.setMinimumHeight(0)
+            lbl.setMaximumHeight(16777215)
+            grid.invalidate()
+            grid.activate()
+            lbl.setFixedHeight(max(lbl.heightForWidth(lbl.width()), 1))
+            # 2) 模板预览固定高度，不再吸收网格剩余空间。
+            preview.setFixedHeight(self._NAMING_PREVIEW_H)
+            grid.invalidate()
+            grid.activate()
 
-        # 3) 组高按内容收缩，后续组同步上移。
-        content_h = grid.sizeHint().height()
-        new_box_h = content_h + self._NAMING_BOX_PAD
-        widget.setGeometry(widget.x(), widget.y(), widget.width(), content_h)
-        box.setGeometry(box.x(), box.y(), box.width(), new_box_h)
+            # 3) 组高按内容收缩，后续组同步上移。
+            content_h = grid.sizeHint().height()
+            new_box_h = content_h + self._NAMING_BOX_PAD
+            widget.setGeometry(widget.x(), widget.y(), widget.width(), content_h)
+            box.setGeometry(box.x(), box.y(), box.width(), new_box_h)
 
-        # 宽幅容器登记表里存的是设计几何，同步宽度时会按登记高度复位 groupBox_8 /
-        # gridLayoutWidget_8，这里把登记高度一并更新。
-        registry = getattr(ui.scrollAreaWidgetContents_mingming, "_wide_children_design", None)
-        for entry in registry or ():
-            if entry.widget is box:
-                ex, ey, ew, _eh = entry.geometry
-                entry.geometry = (ex, ey, ew, new_box_h)
-                for item in entry.inner:
-                    if item.widget is widget:
-                        ix, iy, iw, _ih = item.geometry
-                        item.geometry = (ix, iy, iw, content_h)
+            # 宽幅容器登记表里存的是设计几何，同步宽度时会按登记高度复位 groupBox_8 /
+            # gridLayoutWidget_8，这里把登记高度一并更新。
+            registry = getattr(ui.scrollAreaWidgetContents_mingming, "_wide_children_design", None)
+            for entry in registry or ():
+                if entry.widget is box:
+                    ex, ey, ew, _eh = entry.geometry
+                    entry.geometry = (ex, ey, ew, new_box_h)
+                    for item in entry.inner:
+                        if item.widget is widget:
+                            ix, iy, iw, _ih = item.geometry
+                            item.geometry = (ix, iy, iw, content_h)
 
-        delta = self._naming_design["box_h"] - new_box_h
-        for name in self._NAMING_FOLLOW_GROUPS:
-            group = getattr(ui, name)
-            group.move(group.x(), self._naming_design["groups"][name] - delta)
+            delta = self._naming_design["box_h"] - new_box_h
+            for name in self._NAMING_FOLLOW_GROUPS:
+                group = getattr(ui, name)
+                group.move(group.x(), self._naming_design["groups"][name] - delta)
 
-        scroll = getattr(ui, "scrollArea_7", None)
-        if scroll is not None:
-            scroll.sync_content_min_height()
+            scroll = getattr(ui, "scrollArea_7", None)
+            if scroll is not None:
+                scroll.sync_content_min_height()
+            self._naming_last_width = lbl.width()
+        finally:
+            self._naming_resyncing = False
 
     # 当隐藏边框时，最小化后，点击任务栏时，需要监听事件，在恢复窗口时隐藏边框
     def changeEvent(self, a0):
