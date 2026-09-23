@@ -5094,7 +5094,7 @@ class Ui_MDCx(object):
         self.tab_3 = QtWidgets.QWidget()
         self.tab_3.setObjectName("tab_3")
         self.scrollArea_7 = CustomScrollArea(parent=self.tab_3)
-        self.scrollArea_7.setGeometry(QtCore.QRect(0, 0, 796, 658))
+        self.scrollArea_7.setGeometry(QtCore.QRect(0, 0, 815, 658))
         self.scrollArea_7.setFrameShape(QtWidgets.QFrame.Shape.Box)
         self.scrollArea_7.setLineWidth(0)
         self.scrollArea_7.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
@@ -5112,11 +5112,11 @@ class Ui_MDCx(object):
         self.scrollAreaWidgetContents_mingming.setSizePolicy(sizePolicy)
         self.scrollAreaWidgetContents_mingming.setObjectName("scrollAreaWidgetContents_mingming")
         self.groupBox_8 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
-        self.groupBox_8.setGeometry(QtCore.QRect(30, 20, 701, 1051))
+        self.groupBox_8.setGeometry(QtCore.QRect(30, 20, 765, 1051))
         self.groupBox_8.setStyleSheet('font:"Courier New";')
         self.groupBox_8.setObjectName("groupBox_8")
         self.gridLayoutWidget_8 = QtWidgets.QWidget(parent=self.groupBox_8)
-        self.gridLayoutWidget_8.setGeometry(QtCore.QRect(20, 30, 661, 1001))
+        self.gridLayoutWidget_8.setGeometry(QtCore.QRect(20, 30, 725, 1001))
         self.gridLayoutWidget_8.setObjectName("gridLayoutWidget_8")
         self.gridLayout_8 = QtWidgets.QGridLayout(self.gridLayoutWidget_8)
         self.gridLayout_8.setContentsMargins(0, 0, 0, 0)
@@ -5156,7 +5156,7 @@ class Ui_MDCx(object):
             QtCore.Qt.TextInteractionFlag.TextSelectableByKeyboard | QtCore.Qt.TextInteractionFlag.TextSelectableByMouse
         )
         self.label_66.setObjectName("label_66")
-        self.gridLayout_8.addWidget(self.label_66, 1, 1, 1, 1)
+        self.gridLayout_8.addWidget(self.label_66, 1, 0, 1, 2)
         self.label_63 = QtWidgets.QLabel(parent=self.gridLayoutWidget_8)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -5267,22 +5267,6 @@ class Ui_MDCx(object):
         )
         self.lineEdit_local_name.setObjectName("lineEdit_local_name")
         self.gridLayout_8.addWidget(self.lineEdit_local_name, 2, 1, 1, 1)
-        self.label_147 = QtWidgets.QLabel(parent=self.gridLayoutWidget_8)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Minimum)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.label_147.sizePolicy().hasHeightForWidth())
-        self.label_147.setSizePolicy(sizePolicy)
-        self.label_147.setMinimumSize(QtCore.QSize(0, 0))
-        self.label_147.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
-        self.label_147.setText("")
-        self.label_147.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignRight
-            | QtCore.Qt.AlignmentFlag.AlignTrailing
-            | QtCore.Qt.AlignmentFlag.AlignVCenter
-        )
-        self.label_147.setObjectName("label_147")
-        self.gridLayout_8.addWidget(self.label_147, 1, 0, 1, 1)
         self.label_name_template_preview = QtWidgets.QLabel(parent=self.gridLayoutWidget_8)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -13219,17 +13203,20 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p\n"
-                "                                style='line-height:20px'>当刮削成功时,将为该视频创建一个视频目录,并移动该视频目录到成功输出目录。<br>\n"
-                "                                命名模板使用标准Jinja2语法,字段写作{{字段名}},条件写作{%if 字段名%}...{%endif%}。<br>\n"
-                "                                示例：{{number}}{%if studio%} [{{studio}}] {%endif%}{{originaltitle}}{{definition}}<br>\n"
-                "                                字段为空时不会自动删除模板中的符号；如果不希望保留空[]、空括号或多余分隔符,请用Jinja2的if判断包住整段。<br>\n"
-                "                                常用字段：{{number}}番号,{{title}}标题,{{originaltitle}}原标题,{{actor}}演员,{{studio}}片商,{{series}}系列,{{release}}发行日期,{{definition}}清晰度,{{filename}}原文件名。<br>\n"
-                "                                其它字段：all_actor(全部演员),first_actor(首位演员),letters(番号前缀),first_letter(番号首字符),outline(剧情简介),director(导演),publisher(发行商),year(年份),runtime(时长),mosaic(有码/无码),cnword(字幕标识),moword(版本标识),wanted(想看人数),score(评分),four_k(4K/8K/UHD 标识)。<br>\n"
+                "                                style='line-height:20px'>当刮削成功时，将为该视频创建一个视频目录，并移动该视频目录到成功输出目录。<br>\n"
+                "                                命名模板使用标准Jinja2语法，字段写作{字段名}，条件写作{%if 字段名%}...{%endif%}。<br>\n"
+                "                                示例：{number}{%if studio%} [{studio}] {%endif%}{originaltitle}-{definition}。<br>\n"
+                "                                字段为空时不会自动删除模板中的符号，如果希望保留空[]或空括号或多余分隔符，请用Jinja2的if判断包住整段<br>\n"
+                "                                常用字段：{number}番号，{title}标题，{actor}演员，{studio}片商，{series}系列，{release}(发行日期)<br>\n"
+                "                                {originaltitle}原标题，{filename}原文件名。<br>\n"
+                "                                其它字段：all_actor(全部演员)，first_actor(首位演员)，letters(番号前缀)，first_letter(番号首字符)<br>\n"
+                "                                outline(剧情简介)，director(导演)，publisher(发行商)，year(年份)，runtime(时长)，wanted(想看人数)<br>\n"
+                "                                mosaic(有码/无码)，score(番号评分)，cnword(字幕标识)，four_4K(4K/8K/UHD标识)。<br>\n"
                 "                                注意：<br>\n"
-                "                                1,视频目录名留空时,表示不创建视频目录。<br>\n"
-                "                                2,勾选「成功后不移动文件」时,同样不会创建视频目录。<br>\n"
-                "                                3,名称超长时会优先缩短简介、标题等长字段,保留番号等关键字段。<br>\n"
-                "                                4,模板中的/表示创建子目录,字段值中的/会自动转为-Jinja2只负责生成文本。</p>",
+                "                                1，视频目录名留空时，表示不创建视频目录。<br>\n"
+                "                                2，勾选「成功后不移动文件」时，同样不会创建视频目录。<br>\n"
+                "                                3，名称超长时会优先缩短简介、标题等长字段，保留番号等关键字段。<br>\n"
+                "                                4，模板中的/表示创建子目录，字段值中的/会自动转为-并且Jinja2只负责生成文本。</p>",
             )
         )
         self.label_63.setText(_translate("MDCx", "视频文件名："))
