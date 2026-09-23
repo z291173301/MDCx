@@ -4496,7 +4496,7 @@ class Ui_MDCx(object):
         self.horizontalLayout_field_priority_options.addItem(spacerItem)
         self.gridLayout_28.addWidget(self.widget_field_priority_options, 2, 1, 1, 1)
         self.pushButton_scrape_note = QtWidgets.QPushButton(parent=self.groupBox_11)
-        self.pushButton_scrape_note.setGeometry(QtCore.QRect(529, 200, 151, 26))
+        self.pushButton_scrape_note.setGeometry(QtCore.QRect(529, 210, 151, 26))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
