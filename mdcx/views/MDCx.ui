@@ -11056,7 +11056,7 @@
                               </sizepolicy>
                             </property>
                             <property name="styleSheet">
-                              <string notr="true">color: rgb(8, 128, 128); padding-left: 15px;</string>
+                              <string notr="true">color: rgb(8, 128, 128); padding-left: 20px;</string>
                             </property>
                             <property name="text">
                               <string>&lt;p
