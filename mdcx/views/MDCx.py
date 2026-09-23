@@ -13219,17 +13219,17 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p\n"
-                "                                style='line-height:20px'>当刮削成功时，将为该视频创建一个视频目录，并移动该视频目录到成功输出目录。<br>\n"
-                "                                命名模板使用标准 Jinja2 语法，字段写作 {{ 字段名 }}，条件写作 {% if 字段名 %}...{% endif %}。<br>\n"
-                "                                示例：{{ number }}{% if studio %} [{{ studio }}]{% endif %} {{ originaltitle }} {{ definition }}<br>\n"
-                "                                字段为空时不会自动删除模板中的符号；如果不希望保留空 []、空括号或多余分隔符，请用 Jinja2 的 if 判断包住整段。<br>\n"
-                "                                常用字段：{{ number }} 番号，{{ title }} 标题，{{ originaltitle }} 原标题，{{ actor }} 演员，{{ studio }} 片商，{{ series }} 系列，{{ release }} 发行日期，{{ definition }} 清晰度，{{ filename }} 原文件名。<br>\n"
-                "                                其它字段：all_actor（全部演员），first_actor（首位演员），letters（番号前缀），first_letter（番号首字符），outline（剧情简介），director（导演），publisher（发行商），year（年份），runtime（时长），mosaic（有码/无码），cnword（字幕标识），moword（版本标识），wanted（想看人数），score（评分），four_k（4K/8K/UHD 标识）。<br>\n"
+                "                                style='line-height:20px'>当刮削成功时,将为该视频创建一个视频目录,并移动该视频目录到成功输出目录。<br>\n"
+                "                                命名模板使用标准Jinja2语法,字段写作{{字段名}},条件写作{%if 字段名%}...{%endif%}。<br>\n"
+                "                                示例：{{number}}{%if studio%} [{{studio}}] {%endif%}{{originaltitle}}{{definition}}<br>\n"
+                "                                字段为空时不会自动删除模板中的符号；如果不希望保留空[]、空括号或多余分隔符,请用Jinja2的if判断包住整段。<br>\n"
+                "                                常用字段：{{number}}番号,{{title}}标题,{{originaltitle}}原标题,{{actor}}演员,{{studio}}片商,{{series}}系列,{{release}}发行日期,{{definition}}清晰度,{{filename}}原文件名。<br>\n"
+                "                                其它字段：all_actor(全部演员),first_actor(首位演员),letters(番号前缀),first_letter(番号首字符),outline(剧情简介),director(导演),publisher(发行商),year(年份),runtime(时长),mosaic(有码/无码),cnword(字幕标识),moword(版本标识),wanted(想看人数),score(评分),four_k(4K/8K/UHD 标识)。<br>\n"
                 "                                注意：<br>\n"
-                "                                1，模板中的 / 表示创建子目录，字段值中的 / 会自动转为 -；Jinja2 只负责生成文本；<br>\n"
-                "                                2，视频目录名留空时，表示不创建视频目录；<br>\n"
-                "                                3，名称超长时会优先缩短简介、标题等长字段，保留番号等关键字段；<br>\n"
-                "                                4，勾选「成功后不移动文件」时，同样不会创建视频目录。</p>",
+                "                                1,视频目录名留空时,表示不创建视频目录。<br>\n"
+                "                                2,勾选「成功后不移动文件」时,同样不会创建视频目录。<br>\n"
+                "                                3,名称超长时会优先缩短简介、标题等长字段,保留番号等关键字段。<br>\n"
+                "                                4,模板中的/表示创建子目录,字段值中的/会自动转为-Jinja2只负责生成文本。</p>",
             )
         )
         self.label_63.setText(_translate("MDCx", "视频文件名："))
