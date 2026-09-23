@@ -63,6 +63,22 @@ UI 层 (PyQt6)         → 界面展示、用户操作
   - **纵向两态同高**：统计标签 y=70、结果树/清空按钮 y=110 在最大化与还原下一致，整组始终贴住顶部分隔线下方、不随最大化下沉（否则顶部线与标签之间会留出空隙）。
 - 回归测试：`tests/test_window_state_matrix.py::test_stats_label_moves_to_success_row_when_maximized` 锁定「非最大化右锚定、最大化左对齐树左缘、纵向不下沉、双向幂等」。
 
+### 设置页「命名」模板预览区按内容收缩（案例）
+
+命名页「视频命名规则」（`groupBox_8`）是绝对定位页内的 `QGridLayout`：说明文字 `label_66` 顶端对齐且可换行，「模板预览」多行框垂直策略为 `Expanding`。两者叠加产生两个问题：说明文字行高按更窄宽度的 `sizeHint` 计算（大于当前宽度实际换行高度）→「视频文件名」上方留白；预览框吃满网格剩余空间 → 被撑得过高。
+
+`_sync_naming_template_section()`（由 `_sync_page_layouts()` 末尾调用，并监听 `tabWidget.currentChanged` 在事件循环下一拍重算）按三步处理：
+
+1. 解除上一轮固定高度后再 `setFixedHeight(heightForWidth(width))`，让说明文字精确贴合（必须先解除，否则 `QLabel.heightForWidth` 会回落到被钉住的旧值）；
+2. 预览 `setFixedHeight(_NAMING_PREVIEW_H = 128)`，不再吸收剩余空间；
+3. `groupBox_8` / `gridLayoutWidget_8` 高度按网格 `sizeHint` + `_NAMING_BOX_PAD` 重算，其后的 `groupBox_40/77/46/38/37/62/65/67` 用「设计基准 + 增量」整体平移，保持 19px 间距。
+
+**与上文的例外**：本节控件在**非最大化状态**下也会随窗口宽度变化上下平移——窗口越宽文字换行越少、组高越小，后续分组必须同步上移，否则会重新出现大片空白。这是对「非最大化保持设计位置不动」的有意例外。
+
+**登记表高度同步**：`CustomScrollArea` 的宽幅容器登记表存的是设计几何，`sync_wide_children_width()` 会按登记高度复位 `groupBox_8` / `gridLayoutWidget_8`；本方法在这两项高度变化后同步更新登记高度，再调用 `scrollArea_7.sync_content_min_height()`。
+
+回归：`test_ui_structure` / `test_ui_geometry` / `test_window_state_matrix` / `test_main_window_startup`。
+
 ## 数据模型
 
 完整数据流转链路：

@@ -200,6 +200,7 @@ class MyMAinWindow(QMainWindow):
         self._thumb_src_pixmap: QPixmap | None = None
         self._did_apply_initial_size = False
         self._user_initiated_close = False  # 标记是否为用户主动关闭窗口
+        self._naming_design: dict | None = None  # 命名页模板预览区：首次登记的设计几何基准
 
         self.window_radius = 0  # 窗口四角弧度，为0时表示显示窗口标题栏
         self.window_border = 0  # 窗口描边，为0时表示显示窗口标题栏
@@ -261,6 +262,11 @@ class MyMAinWindow(QMainWindow):
         # 切页后必须重新同步一次内部几何，否则"先改窗口尺寸再切页"时页面内容全部按陈旧尺寸布局
         self.Ui.stackedWidget.currentChanged.connect(self._sync_page_layouts)
         self.Ui.stackedWidget.currentChanged.connect(self._on_page_change_nfo_panel)
+        # 命名页在设置页 tab 内：切到该 tab 时滚动区视口宽变化（滚动条占位）会重排
+        # 内部网格，需在事件循环下一拍按最新宽度重算模板预览区（见 _sync_naming_template_section）。
+        self.Ui.tabWidget.currentChanged.connect(
+            lambda _index: QTimer.singleShot(0, self._sync_naming_template_section)
+        )
         self._bind_system_theme_refresh()
         self.cutwindow = CutWindow(self)
         self.preview_image_loader = PreviewImageLoader(self)
@@ -567,6 +573,23 @@ class MyMAinWindow(QMainWindow):
     # 宁可保留滚动条）。
     _NFO_LIB_FIELD_FULL_H = 60
     _NFO_LIB_FIELD_MIN_H = 40
+
+    # 命名页「视频命名规则」组（groupBox_8）：模板预览高度固定为原自适应高度的
+    # 约三分之一（设计网格里预览占 289px，运行时常被撑到 ~384px）。
+    _NAMING_PREVIEW_H = 128
+    # groupBox_8 内容上下留白（设计值：组高 1051 - 网格高 1001）。
+    _NAMING_BOX_PAD = 50
+    # groupBox_8 之后同页的 QGroupBox，组高收缩后需整体上移保持设计间距。
+    _NAMING_FOLLOW_GROUPS = (
+        "groupBox_40",
+        "groupBox_77",
+        "groupBox_46",
+        "groupBox_38",
+        "groupBox_37",
+        "groupBox_62",
+        "groupBox_65",
+        "groupBox_67",
+    )
 
     def _sync_nfo_lib_form_fields(self) -> None:
         """小窗时压缩信息管理页「简介/标签」高度，让保存按钮免滚动可见（议题 #117）。
@@ -1008,6 +1031,78 @@ class MyMAinWindow(QMainWindow):
 
         # ============ page_nfo_library: 简介/标签高度自适应（议题 #117）============
         self._sync_nfo_lib_form_fields()
+
+        # ============ page_setting / 命名页: 模板预览固定高度 + 说明文字贴合 ============
+        self._sync_naming_template_section()
+
+    def _sync_naming_template_section(self) -> None:
+        """命名页「视频命名规则」组（groupBox_8）按内容收缩，消除大片空白。
+
+        两个现象（用户截图）：
+        1. 「视频文件名」上方大片空白——说明文字 label_66 是 AlignTop 的可换行富
+           文本标签，QGridLayout 在宽度变化后给它的行高可能仍按更窄宽度的
+           sizeHint 计算（比实际换行后的文字高），文字贴顶、下方留白。
+        2. 「模板预览」占满网格剩余空间被撑得过高。
+
+        做法：预览钉到设计三分之一高度；说明文字按当前宽度 heightForWidth 精确
+        贴合；整个网格的组高按内容收缩，其后的 QGroupBox 按同一增量上移保持设计
+        间距（下移/上移都用「设计基准 + 增量」，幂等无累积漂移，见 MEMORY 军规③）。
+        """
+        ui = self.Ui
+        box = ui.groupBox_8
+        widget = ui.gridLayoutWidget_8
+        lbl = ui.label_66
+        preview = ui.plainTextEdit_name_template_preview
+        grid = ui.gridLayout_8
+        if lbl.width() <= 0 or box.width() <= 0:
+            return
+
+        # 首次调用登记设计几何（此后 sync_wide_children_width 只改宽不改高，
+        # groupBox_8 的高由本方法接管）。
+        if self._naming_design is None:
+            self._naming_design = {
+                "box_h": box.height(),
+                "groups": {name: getattr(ui, name).y() for name in self._NAMING_FOLLOW_GROUPS},
+            }
+
+        # 1) 说明文字按当前宽度精确贴合。先解除上一轮的固定高度，否则
+        #    QLabel.heightForWidth 会回落到被钉住的旧值（宽度变化后不再更新）。
+        lbl.setMinimumHeight(0)
+        lbl.setMaximumHeight(16777215)
+        grid.invalidate()
+        grid.activate()
+        lbl.setFixedHeight(max(lbl.heightForWidth(lbl.width()), 1))
+        # 2) 模板预览固定高度，不再吸收网格剩余空间。
+        preview.setFixedHeight(self._NAMING_PREVIEW_H)
+        grid.invalidate()
+        grid.activate()
+
+        # 3) 组高按内容收缩，后续组同步上移。
+        content_h = grid.sizeHint().height()
+        new_box_h = content_h + self._NAMING_BOX_PAD
+        widget.setGeometry(widget.x(), widget.y(), widget.width(), content_h)
+        box.setGeometry(box.x(), box.y(), box.width(), new_box_h)
+
+        # 宽幅容器登记表里存的是设计几何，同步宽度时会按登记高度复位 groupBox_8 /
+        # gridLayoutWidget_8，这里把登记高度一并更新。
+        registry = getattr(ui.scrollAreaWidgetContents_mingming, "_wide_children_design", None)
+        for entry in registry or ():
+            if entry.widget is box:
+                ex, ey, ew, _eh = entry.geometry
+                entry.geometry = (ex, ey, ew, new_box_h)
+                for item in entry.inner:
+                    if item.widget is widget:
+                        ix, iy, iw, _ih = item.geometry
+                        item.geometry = (ix, iy, iw, content_h)
+
+        delta = self._naming_design["box_h"] - new_box_h
+        for name in self._NAMING_FOLLOW_GROUPS:
+            group = getattr(ui, name)
+            group.move(group.x(), self._naming_design["groups"][name] - delta)
+
+        scroll = getattr(ui, "scrollArea_7", None)
+        if scroll is not None:
+            scroll.sync_content_min_height()
 
     # 当隐藏边框时，最小化后，点击任务栏时，需要监听事件，在恢复窗口时隐藏边框
     def changeEvent(self, a0):
