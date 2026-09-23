@@ -1973,7 +1973,7 @@
                     </rect>
                   </property>
                   <property name="text">
-                    <string>排除目录：</string>
+                    <string>刮削排除目录：</string>
                   </property>
                   <property name="alignment">
                     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -3441,7 +3441,7 @@
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>排除目录：</string>
+                              <string>刮削排除目录：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -5033,7 +5033,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>不刮削，读取本地信息并显示，适合检查媒体库或媒体库重新整理分类</string>
+                                  <string>不刮削，读取本地信息并显示，适合检查媒体库或媒体库文件重新整理和分类</string>
                                 </property>
                                 <property name="wordWrap">
                                   <bool>true</bool>
@@ -5152,7 +5152,7 @@
                                       </size>
                                     </property>
                                     <property name="text">
-                                      <string>本地已刮削成功的文件，重新整理分类（按更新模式规则）</string>
+                                      <string>本地已刮削成功的文件，按更新模式规则重新整理分类</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -5168,7 +5168,7 @@
                                       <string notr="true">color: rgb(8, 128, 128);</string>
                                     </property>
                                     <property name="text">
-                                      <string>无需联网</string>
+                                      <string>无需联网重新整理</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -5225,7 +5225,7 @@
                                                   </size>
                                                 </property>
                                                 <property name="text">
-                                                  <string>允许更新 nfo 文件</string>
+                                                  <string>允许更新nfo文件</string>
                                                 </property>
                                               </widget>
                                             </item>
@@ -5241,7 +5241,7 @@
                                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                                 </property>
                                                 <property name="text">
-                                                  <string>&lt;p&gt;将按 下方「Emby视频标题」、「设置」-「翻译」、&lt;br&gt;「设置」-「NFO」等的设置项，利用本地 nfo 更新 nfo 信息&lt;/p&gt;</string>
+                                                  <string>&lt;p&gt;按Emby标题、设置-翻译、NFO等设置利用本地nfo更新nfo信息&lt;/p&gt;</string>
                                                 </property>
                                               </widget>
                                             </item>
@@ -5258,7 +5258,7 @@
                                                   </sizepolicy>
                                                 </property>
                                                 <property name="text">
-                                                  <string>重新下载图片等文件（nfo 需有链接）</string>
+                                                  <string>本地nfo内有链接，重新下载图片等文件</string>
                                                 </property>
                                               </widget>
                                             </item>
@@ -5274,7 +5274,7 @@
                                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                                 </property>
                                                 <property name="text">
-                                                  <string>将按「设置」-「下载」，更新文件</string>
+                                                  <string>将按「设置」-「下载」更新</string>
                                                 </property>
                                               </widget>
                                             </item>
@@ -5303,7 +5303,7 @@
                                       </size>
                                     </property>
                                     <property name="text">
-                                      <string>本地没有nfo的文件，重新刮削（按正常模式规则）</string>
+                                      <string>本地没有nfo的文件，按正常模式规则重新刮削</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -5317,7 +5317,7 @@
                                       <string notr="true">color: rgb(0, 0, 0);</string>
                                     </property>
                                     <property name="text">
-                                      <string>本地NFO合并策略</string>
+                                      <string>本地nfo合并策略</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -5374,7 +5374,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>流程同正常模式，但命名按照更新模式规则执行（在下方设置），适合二次刮削</string>
+                                  <string>流程同正常模式，但命名按照更新模式规则执行，在下方设置，适合二次刮削</string>
                                 </property>
                                 <property name="wordWrap">
                                   <bool>true</bool>
@@ -5593,7 +5593,7 @@
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>删除本地已下载的图片和 nfo 文件</string>
+                                  <string>删除本地已下载的图片和nfo文件</string>
                                 </property>
                               </widget>
                             </item>
@@ -5609,7 +5609,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>不勾选，则不删除</string>
+                                  <string>不勾选，则不删除已下载的图片nfo文件</string>
                                 </property>
                               </widget>
                             </item>
@@ -5657,7 +5657,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>执行：刮削-&gt;下载封面-&gt;重命名-&gt;水印等全部操作，适合要海报墙的情况</string>
+                                  <string>执行：刮削-&gt;下载封面-&gt;重命名-&gt;打水印等全部操作，适合需要海报墙的情况</string>
                                 </property>
                                 <property name="wordWrap">
                                   <bool>true</bool>
@@ -6546,7 +6546,7 @@
                       <property name="text">
                         <string>&lt;p style='line-height:20px'&gt;⚠️ 保留文件：请到 设置 &gt; 下载 &gt; 保留旧文件 或
                           下载，设置要保留或更新的文件内容&lt;br&gt;
-                          ⚠️ 跳过文件：在视频目录新建一个名为 skip 的空文件，即可自动跳过该目录及子目录（所有模式均有效）&lt;br&gt;
+                          ⚠️ 跳过文件：在视频目录新建一个名为skip的空文件，即可自动跳过该目录及子目录（所有模式均有效）&lt;br&gt;
                           ⚠️ 移动文件：失败时不移动文件，成功时按更新模式规则移动&lt;br&gt;
                           ⚠️ 重命名文件：在「成功后重命名文件」中设置是否重命名，命名规则同「命名」-「视频文件名」&lt;/p&gt;</string>
                       </property>
@@ -8861,7 +8861,7 @@
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>剧照：</string>
+                              <string>剧照图：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -9899,7 +9899,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string> 有时图片已被源网站删除，此时会下载失败</string>
+                                  <string> 有时图片已被源网站删除，此时下载图片大概率失败</string>
                                 </property>
                               </widget>
                             </item>
@@ -9938,7 +9938,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string> 有码封面可以裁剪，如果不想裁剪可以勾选</string>
+                                  <string> 有码番号缩略图可以裁剪，如果不想被裁剪可以勾选</string>
                                 </property>
                               </widget>
                             </item>
@@ -9977,7 +9977,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string> 有且仅限有码类型：直下/搜图/右裁剪选优</string>
+                                  <string> 有且仅限有码类型的番号，直下/搜图/右裁剪会选优</string>
                                 </property>
                               </widget>
                             </item>
@@ -10218,9 +10218,9 @@
                                 视图选择封面图时，列表页会使用 poster（竖图）显示；&lt;br&gt;
                                 缩略图：thumb，当 Emby 视图选择缩略图时，列表页会使用 Thumb（横图）显示；&lt;br&gt;
                                 背景图：fanart，在 Emby 详情页作为背景图显示（复制缩略图得到背景图）；&lt;br&gt;
-                                剧照：extrafanart，在 Emby 详情页作为背景轮播显示（停留约 50s 后进入轮播状态）；&lt;br&gt;
+                                剧照图：extrafanart，在 Emby 详情页作为背景轮播显示（停留约 50s 后进入轮播状态）；&lt;br&gt;
                                 预告片：trailer，在 Emby 详情页可以播放预告片；&lt;br&gt;
-                                nfo：包含标题、简介、标签等信息，在 Emby 详情页展示。&lt;/p&gt;</string>
+                                信息流：包含标题、简介、标签等信息，在 Emby 详情页展示。&lt;/p&gt;</string>
                             </property>
                             <property name="scaledContents">
                               <bool>false</bool>
@@ -10981,7 +10981,7 @@
                       <x>0</x>
                       <y>0</y>
                       <width>860</width>
-                      <height>3860</height>
+                      <height>3840</height>
                     </rect>
                   </property>
                   <property name="sizePolicy">
@@ -10993,9 +10993,9 @@
                   <widget class="QGroupBox" name="groupBox_8">
                     <property name="geometry">
                       <rect>
-                        <x>47</x>
+                        <x>30</x>
                         <y>20</y>
-                        <width>765</width>
+                        <width>720</width>
                         <height>1051</height>
                       </rect>
                     </property>
@@ -11010,7 +11010,7 @@
                         <rect>
                           <x>20</x>
                           <y>30</y>
-                          <width>725</width>
+                          <width>680</width>
                           <height>1001</height>
                         </rect>
                       </property>
@@ -11056,19 +11056,19 @@
                               </sizepolicy>
                             </property>
                             <property name="styleSheet">
-                              <string notr="true">color: rgb(8, 128, 128); padding-left: 22px;</string>
+                              <string notr="true">color: rgb(8, 128, 128); padding-left: 29px;</string>
                             </property>
                             <property name="text">
                               <string>&lt;p
-                                style='line-height:20px'&gt;当刮削成功时，将为该视频创建一个视频目录，并移动该视频目录到成功输出目录。&lt;br&gt;
-                                命名模板使用标准Jinja2语法，字段写作{字段名}，条件写作{%if 字段名%}...{%endif%}。&lt;br&gt;
+                                style='line-height:20px'&gt;命名模板使用标准Jinja2语法，字段写作{字段名}，条件写作{%if 字段名%}...{%endif%}。&lt;br&gt;
                                 示例：{number}{%if studio%} [{studio}] {%endif%}{originaltitle}-{definition}。&lt;br&gt;
-                                字段为空时不会自动删除模板中的符号，如果希望保留空[]或空括号或多余分隔符，请用Jinja2的if判断包住整段&lt;br&gt;
-                                常用字段：{number}番号，{title}标题，{actor}演员，{studio}片商，{series}系列，{release}(发行日期)&lt;br&gt;
-                                {originaltitle}原标题，{filename}原文件名。&lt;br&gt;
-                                其它字段：all_actor(全部演员)，first_actor(首位演员)，letters(番号前缀)，first_letter(番号首字符)&lt;br&gt;
-                                outline(剧情简介)，director(导演)，publisher(发行商)，year(年份)，runtime(时长)，score(番号评分)&lt;br&gt;
-                                mosaic(有码/无码)，wanted(想看人数)，cnword(字幕标识)，definition(4K/8K/UHD标识)。&lt;br&gt;
+                                当视频刮削成功时，本软件将为该视频创建一个视频目录，并移动该视频文件到成功输出目录。&lt;br&gt;
+                                字段为空时不会自动删除模板中的符号，希望保留空[]或空括号或多余分隔符用Jinja2的if判断包住整段&lt;br&gt;
+                                字段：{number}番号，{title}标题，{actor}演员，{studio}片商，{series}系列，score(番号评分)&lt;br&gt;
+                                {release}(发行日期)，{originaltitle}原标题，{filename}原文件名，first_letter(番号首字符)&lt;br&gt;
+                                outline(剧情简介)，first_actor(首位演员)，letters(番号前缀)，wanted(想看人数)，year(年份)&lt;br&gt;
+                                publisher(发行商)，director(导演)，cnword(字幕标识)，runtime(时长)，mosaic(有码/无码标识)&lt;br&gt;
+                                all_actor(全部演员)，definition(4K/8K/UHD)。&lt;br&gt;
                                 注意：&lt;br&gt;
                                 1，视频目录名留空时，表示不创建视频目录。&lt;br&gt;
                                 2，勾选「成功后不移动文件」时，同样不会创建视频目录。&lt;br&gt;
@@ -11366,9 +11366,9 @@
                   <widget class="QGroupBox" name="groupBox_38">
                     <property name="geometry">
                       <rect>
-                        <x>47</x>
-                        <y>2430</y>
-                        <width>765</width>
+                        <x>30</x>
+                        <y>2410</y>
+                        <width>720</width>
                         <height>441</height>
                       </rect>
                     </property>
@@ -11805,9 +11805,9 @@
                   <widget class="QGroupBox" name="groupBox_77">
                     <property name="geometry">
                       <rect>
-                        <x>47</x>
+                        <x>30</x>
                         <y>1520</y>
-                        <width>765</width>
+                        <width>720</width>
                         <height>351</height>
                       </rect>
                     </property>
@@ -12122,10 +12122,10 @@
                   <widget class="QGroupBox" name="groupBox_46">
                     <property name="geometry">
                       <rect>
-                        <x>47</x>
+                        <x>30</x>
                         <y>1890</y>
-                        <width>765</width>
-                        <height>521</height>
+                        <width>720</width>
+                        <height>501</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -12141,7 +12141,7 @@
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>479</y>
+                          <y>459</y>
                           <width>511</width>
                           <height>16</height>
                         </rect>
@@ -12172,7 +12172,7 @@
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>352</y>
+                          <y>332</y>
                           <width>450</width>
                           <height>30</height>
                         </rect>
@@ -12273,7 +12273,7 @@
                       <property name="text">
                         <string>
                           &lt;p
-                          style='line-height:20px'&gt;指无码流出版本，当视频文件路径中含有「流出」、「LEAKED」字样时，该文件识别为无码流出版本。在重命名文件名及目录名时，在番号后显示该字符表示为无码流出版本&lt;/p&gt;</string>
+                          style='line-height:20px'&gt;指无码流出版本，当文件路径中含有流出、LEAKED字样时，该文件识别为无码流出版本。在重命名文件名及目录名时，在番号后显示该字符表示为无码流出版本。&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -12395,7 +12395,7 @@
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>401</y>
+                          <y>381</y>
                           <width>130</width>
                           <height>16</height>
                         </rect>
@@ -12426,7 +12426,7 @@
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>359</y>
+                          <y>339</y>
                           <width>130</width>
                           <height>16</height>
                         </rect>
@@ -12458,8 +12458,8 @@
                         <rect>
                           <x>157</x>
                           <y>281</y>
-                          <width>523</width>
-                          <height>60</height>
+                          <width>546</width>
+                          <height>40</height>
                         </rect>
                       </property>
                       <property name="sizePolicy">
@@ -12474,7 +12474,7 @@
                       <property name="text">
                         <string>
                           &lt;p
-                          style='line-height:20px'&gt;指无码版本，当视频文件路径中含有「无码」、「無碼」、「無修正」、「uncensored」字样时，该文件识别为无码版本。&lt;br&gt;在重命名文件名及目录名时，在番号后显示该字符表示为无码版本&lt;/p&gt;</string>
+                          style='line-height:20px'&gt;指无码版本，当文件路径中含有无码、無碼、無修正、uncensored字样时，该文件&lt;br&gt;识别为无码版本。在重命名文件及目录名时在番号后显示该字符表示为无码版本。&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -12506,8 +12506,7 @@
                       </property>
                       <property name="text">
                         <string>&lt;p
-                          style='line-height:20px'&gt;指马赛克有损去除版本，当视频文件路径中含有「-uncensored.」、「.restored」、「CRACKED」、「破解」、「克破」、「UMR.」等字样时，该文件识别为无码破解版本。&lt;br&gt;
-                          在重命名文件名及目录名时，在番号后显示该字符表示为无码破解版本&lt;/p&gt;</string>
+                          style='line-height:20px'&gt;无码破解指马赛克有损去除版本，当视频文件名路径中含有例如cracked、破解、克破、-UMR.、-Uncensored.、.Restored字样时，该文件识别为无码破解版本。在重命名文件名及目录名时，在番号后显示该字符表示为无码破解版本。&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -12607,9 +12606,9 @@
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>393</y>
-                          <width>511</width>
-                          <height>32</height>
+                          <y>373</y>
+                          <width>523</width>
+                          <height>40</height>
                         </rect>
                       </property>
                       <property name="sizePolicy">
@@ -12622,15 +12621,24 @@
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p&gt;指有码版本，当视频文件路径中含有「有码」、「有碼」字样时，该文件识别为
-                          有码版本，重命名文件名及目录名时，在番号后显示该字符表示为有码版本&lt;/p&gt;</string>
+                        <string>&lt;p
+                          style='line-height:20px'&gt;指有码版本，当视频文件路径中含有码、有碼字样时，该文件识别为有码版本，重命名文件名及目录名时，在番号后显示该字符表示为有码版本。&lt;/p&gt;</string>
+                      </property>
+                      <property name="alignment">
+                        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+                      </property>
+                      <property name="wordWrap">
+                        <bool>true</bool>
+                      </property>
+                      <property name="textInteractionFlags">
+                        <set>Qt::NoTextInteraction</set>
                       </property>
                     </widget>
                     <widget class="QLabel" name="label_286">
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>437</y>
+                          <y>417</y>
                           <width>130</width>
                           <height>30</height>
                         </rect>
@@ -12661,7 +12669,7 @@
                       <property name="geometry">
                         <rect>
                           <x>160</x>
-                          <y>440</y>
+                          <y>420</y>
                           <width>100</width>
                           <height>30</height>
                         </rect>
@@ -12686,7 +12694,7 @@
                       <property name="geometry">
                         <rect>
                           <x>410</x>
-                          <y>440</y>
+                          <y>420</y>
                           <width>206</width>
                           <height>30</height>
                         </rect>
@@ -12711,9 +12719,9 @@
                   <widget class="QGroupBox" name="groupBox_37">
                     <property name="geometry">
                       <rect>
-                        <x>47</x>
-                        <y>2890</y>
-                        <width>765</width>
+                        <x>30</x>
+                        <y>2870</y>
+                        <width>720</width>
                         <height>121</height>
                       </rect>
                     </property>
@@ -12815,9 +12823,9 @@
                   <widget class="QGroupBox" name="groupBox_62">
                     <property name="geometry">
                       <rect>
-                        <x>47</x>
-                        <y>3030</y>
-                        <width>765</width>
+                        <x>30</x>
+                        <y>3010</y>
+                        <width>720</width>
                         <height>121</height>
                       </rect>
                     </property>
@@ -12909,7 +12917,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>在视频目录创建「trailers」文件夹，多分集共用一个「trailer.mp4」</string>
+                              <string>在视频目录下创建trailers文件夹，多分集共用一个trailer.mp4</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -12919,12 +12927,15 @@
                       </layout>
                     </widget>
                   </widget>
+                  <!-- 命名页 9 个规则分组（含 groupBox_8 视频命名规则）宽度 720 = 下载/翻译页分组宽 701 + 19：
+                       本页 scrollArea_7 设计宽 815，比其它页的 796 宽 19，运行时按「设计宽+extra」拉伸后恰好
+                       使右缘与下载页「保留旧文件/下载高清图」、翻译页「翻译引擎」等对齐（左缘同为 30）。 -->
                   <widget class="QGroupBox" name="groupBox_40">
                     <property name="geometry">
                       <rect>
-                        <x>47</x>
+                        <x>30</x>
                         <y>1090</y>
-                        <width>765</width>
+                        <width>720</width>
                         <height>411</height>
                       </rect>
                     </property>
@@ -13270,9 +13281,9 @@
                   <widget class="QGroupBox" name="groupBox_65">
                     <property name="geometry">
                       <rect>
-                        <x>47</x>
-                        <y>3170</y>
-                        <width>765</width>
+                        <x>30</x>
+                        <y>3150</y>
+                        <width>720</width>
                         <height>301</height>
                       </rect>
                     </property>
@@ -13597,9 +13608,9 @@
                   <widget class="QGroupBox" name="groupBox_67">
                     <property name="geometry">
                       <rect>
-                        <x>47</x>
-                        <y>3490</y>
-                        <width>765</width>
+                        <x>30</x>
+                        <y>3470</y>
+                        <width>720</width>
                         <height>271</height>
                       </rect>
                     </property>
@@ -13835,7 +13846,7 @@
                               <bool>true</bool>
                             </property>
                             <property name="text">
-                              <string>DeepL 与 DeepLX 为独立选项；填写 DeepL API / DeepLX URL / 百度 API 凭据后才会生效，未填写时会自动跳过。</string>
+                              <string>DeepL与DeepLX为独立选项，填写DeepL API/DeepLX URL/百度API凭据后才会生效，未填写时将会自动跳过。</string>
                             </property>
                           </widget>
                         </item>
@@ -14964,19 +14975,14 @@
                             </property>
                             <property name="text">
                               <string>&lt;p style='line-height:20px'&gt;
-                                素人和 FC2 番号演员可能是「素人」之类假名字，勾选「使用AV-wiki获取演员真实名字」，可以请求 AV-wiki
-                                获取演员真实日文名，之后可使用映射表翻译为中文！&lt;br&gt;
-                                演员名比较复杂，不能简单使用翻译引擎翻译。主要的问题：演员名翻译不准确、演员有多个名字、同一演员不同番号演员名不统一、各网站使用的演员名不统一等。&lt;br&gt;
-                                不过，通过演员名映射翻译表可以解决这些问题，使刮削后的演员名整齐统一。&lt;br&gt;
-                                实现逻辑：刮削网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词。
-                                &lt;br&gt;
-                                演员名映射翻译表文件名为：actor_database.xlsx&lt;br&gt;
-                                ·
-                                Windows位置：\配置文件目录\userdata\actor_database.xlsx（配置文件目录在「设置」-「高级」中设置）&lt;br&gt;
-                                · Mac位置：/配置文件目录/userdata/actor_database.xlsx&lt;br&gt;
-                                你可使用文件编辑工具打开该文件自定义修改添加。映射表中的字段含义如下：&lt;br&gt;
-                                1、keyword：匹配词（每个名字前后都要有逗号）。刮削网站获取演员名后，会在 keyword 的名字中进行匹配。&lt;br&gt;
-                                2、zh_cn/zh_tw/jp：输出词。当 keyword 匹配到演员名时，可输出对应语言的名字。&lt;/p&gt;</string>
+                                素人和 FC2 番号演员可能是「素人」之类假名字，勾选「使用AV-wiki获取演员真实名字」，可以请求AV-Wiki获取演员真实日文名，之后可使用演员映射表翻译为中文！&lt;br&gt;
+                                演员名比较复杂，不能简单使用翻译引擎翻译。主要的问题：演员名翻译不准确、演员有多个名字、同一演员不同番号演员名不统一、各网站使用的演员名不统一等。不过通过演员名映射翻译表可以解决这些问题，使刮削后的演员名整齐统一。&lt;br&gt;
+                                实现逻辑：刮削网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译表文件名为：actor_database.xlsx。&lt;br&gt;
+                                Windows：\配置文件目录\userdata\actor_database.xlsx，配置文件目录可以在「设置」-「高级」中设置。&lt;br&gt;
+                                MAC系统：/配置文件目录/userdata/actor_database.xlsx。&lt;br&gt;
+                                你可使用文件编辑工具打开该文件后自定义修改添加，演员映射表中的字段含义如下：&lt;br&gt;
+                                1、keyword：匹配词，每个名字前后都要有逗号，刮削网站获取演员名后，会在keyword的名字中进行匹配。&lt;br&gt;
+                                2、zh_cn/zh_tw/jp：输出词，当keyword匹配到演员名时，可输出对应语言的名字。&lt;/p&gt;</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -15106,7 +15112,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表文件名：info_database.xlsx。作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15272,7 +15278,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表文件名：info_database.xlsx。作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15416,7 +15422,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表文件名：info_database.xlsx。作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15560,7 +15566,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表文件名：info_database.xlsx。作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15704,7 +15710,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表文件名：info_database.xlsx。作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15910,7 +15916,7 @@
                             <property name="text">
                               <string>&lt;p
                                 style='line-height:20px'&gt;指视频文件路径中含有以上字符时，视为该文件有中文字幕，多个以逗号分割&lt;br&gt;
-                                此外，还会查找同目录是否存在同名字幕文件、nfo 的标签是否有中文字幕字样&lt;/p&gt;</string>
+                                此外，还会查找同目录是否存在同名字幕文件、nfo标签是否有中文字幕字样。&lt;/p&gt;</string>
                             </property>
                             <property name="textInteractionFlags">
                               <set>Qt::NoTextInteraction</set>
@@ -16305,11 +16311,11 @@
                       </property>
                       <property name="text">
                         <string>&lt;p
-                          style='line-height:20px'&gt;当字幕文件目录为空时，将只检查并统计无字幕的视频列表&lt;br&gt;
-                          当视频已识别为有字幕状态时（已有字幕或包含中文字幕字符等），不会重复添加字幕&lt;br&gt;
+                          style='line-height:20px'&gt;当视频字幕文件目录为空时，将只检查并且统计没有字幕的视频文件列表&lt;br&gt;
+                          当视频已识别为有字幕状态，将保留原有字幕文件不会重复添加新的字幕&lt;br&gt;
                           当视频添加新的外挂字幕后，如勾选重新刮削，将在添加结束后自动刮削&lt;br&gt;
                           当视频之前添加了外挂字幕，但是还没有重新刮削时，这时也会自动刮削&lt;br&gt;
-                          当勾选添加.chs后缀时，字幕文件会被统一命名为：视频文件名.chs.srt&lt;/p&gt;</string>
+                          当勾选添加.chs字符后缀时，字幕文件会被统一命名为：文件名.chs.srt&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -16449,7 +16455,7 @@
                       <property name="text">
                         <string>&lt;p
                           style='line-height:20px'&gt;1、下载水印图片包并解压（也可以使用自己的图片），水印图片的保存路径为：&lt;br&gt;
-                          · Windows位置：（配置文件目录在「设置」-「高级」中设置）&lt;br&gt;
+                          Windows：（配置文件目录可以在「设置」-「高级」中设置）&lt;br&gt;
                           字幕水印：\配置文件目录\userdata\watermark\sub.png&lt;br&gt;
                           有码水印：\配置文件目录\userdata\watermark\youma.png&lt;br&gt;
                           破解水印：\配置文件目录\userdata\watermark\umr.png&lt;br&gt;
@@ -16457,7 +16463,7 @@
                           无码水印：\配置文件目录\userdata\watermark\wuma.png&lt;br&gt;
                           4K水印：\配置文件目录\userdata\watermark\4k.png&lt;br&gt;
                           8K水印：\配置文件目录\userdata\watermark\8k.png&lt;br&gt;
-                          · Mac位置：（配置文件目录在「设置」-「高级」中设置）&lt;br&gt;
+                          MAC系统：（配置文件目录可以在「设置」-「高级」中设置）&lt;br&gt;
                           字幕水印：/配置文件目录/userdata/watermark/sub.png&lt;br&gt;
                           有码水印：/配置文件目录/userdata/watermark/youma.png&lt;br&gt;
                           破解水印：/配置文件目录/userdata/watermark/umr.png&lt;br&gt;
@@ -16623,9 +16629,9 @@
                                 马赛克水印有四个：有码、破解、流出、无码，将按优先级显示其中一种状态&lt;br&gt;
                                 马赛克水印优先级：有码 &gt; 破解 &gt; 流出 &gt; 无码&lt;br&gt;
                                 举例：如果视频是流出版本&lt;br&gt;
-                                ·当流出和无码都勾选时，会显示流出水印&lt;br&gt;
+                                ·当流出和无码都勾选时，图片上会显示流出水印&lt;br&gt;
                                 ·当流出未勾选，无码已勾选时，会显示无码水印&lt;br&gt;
-                                ·当流出和无码都不勾选时，则不显示水印客&lt;/p&gt;</string>
+                                ·当流出和无码都不勾选时，图片则不会显示水印&lt;/p&gt;</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -16841,10 +16847,10 @@
                             </property>
                             <property name="text">
                               <string>&lt;p
-                                style='line-height:20px'&gt;不固定位置：将从首个水印位置开始，顺时针方向依次添加其他水印&lt;br&gt;
-                                固定一个位置：水印在指定位置依次横向显示&lt;br&gt;
-                                固定多个位置：可单独设置 4K/8K 水印、字幕水印和马赛克水印的位置&lt;br&gt;
-                                注意：不固定位置时，4K/8K 水印会使用固定位置方式，并自动挤开其他水印&lt;/p&gt;</string>
+                                style='line-height:20px'&gt;不固定位置：将从首个水印位置开始，将会按照顺时针方向依次添加其他水印&lt;br&gt;
+                                固定一个位置：水印在指定位置依次横向显示，从第一个位置开始顺时针旋转&lt;br&gt;
+                                固定多个位置：可以单独设置4K/8K水印、字幕水印以及马赛克水印等的位置&lt;br&gt;
+                                注意：不固定位置时，4K/8K水印会使用固定位置方式，并自动挤开其他水印&lt;/p&gt;</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>

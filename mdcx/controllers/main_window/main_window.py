@@ -600,8 +600,6 @@ class MyMAinWindow(QMainWindow):
         "groupBox_65",
         "groupBox_67",
     )
-    # 命名页全部 9 个规则分组（参考分组 + 跟随分组），用于水平居中。
-    _NAMING_GROUPS = ("groupBox_8", *_NAMING_FOLLOW_GROUPS)
 
     def _sync_nfo_lib_form_fields(self) -> None:
         """小窗时压缩信息管理页「简介/标签」高度，让保存按钮免滚动可见（议题 #117）。
@@ -1119,16 +1117,6 @@ class MyMAinWindow(QMainWindow):
 
             scroll = getattr(ui, "scrollArea_7", None)
             if scroll is not None:
-                # 先按当前视口刷新宽幅分组宽度（sync_wide_children_width 幂等），再居中；
-                # 否则可能读到上一轮未更新的宽度，算出偏离中心的 x。
-                scroll.sync_wide_children_width()
-                viewport_w = scroll.viewport().width()
-                if viewport_w > 0:
-                    for name in self._NAMING_GROUPS:
-                        group = getattr(ui, name)
-                        gx = max((viewport_w - group.width()) // 2, 0)
-                        if group.x() != gx:
-                            group.move(gx, group.y())
                 scroll.sync_content_min_height()
             self._naming_last_width = lbl.width()
         finally:

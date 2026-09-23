@@ -179,85 +179,6 @@ def test_groupboxes_fit_scroll_area():
     assert not problems, "UI 滚动区溢出问题:\n" + "\n".join(problems)
 
 
-# ---------- 命名页各「命名规则」分组：右边框对齐 + 水平居中 —— 红/黄/绿回归 ----------
-
-# 命名页（scrollAreaWidgetContents_mingming）里除参考分组外的 8 个规则分组。
-_NAMING_RULE_GROUPS = (
-    "groupBox_40",  # 字段命名规则
-    "groupBox_77",  # 长度命名规则
-    "groupBox_46",  # 马赛克命名规则
-    "groupBox_38",  # 分集命名规则
-    "groupBox_37",  # 图片命名规则
-    "groupBox_62",  # 预告片命名规则
-    "groupBox_65",  # 画质命名规则
-    "groupBox_67",  # 其他说明
-)
-_NAMING_REF_GROUP = "groupBox_8"  # 视频命名规则（宽度/位置基准）
-_NAMING_CONTENT = "scrollAreaWidgetContents_mingming"  # 命名页滚动内容容器
-
-
-def _naming_page_boxes() -> dict[str, tuple[int, int, int, int]]:
-    """命名页 9 个规则分组 → {name: (x, y, w, h)}。"""
-    parents = _group_boxes_by_parent(_parse_ui())
-    return {name: (x, y, w, h) for name, x, y, w, h in parents.get(_NAMING_CONTENT, [])}
-
-
-def _naming_content_width() -> int:
-    """滚动内容容器的设计宽（运行时容器宽 = 视口宽，设计宽仅作静态居中判据）。"""
-    content = _find_widget_by_name(_parse_ui(), _NAMING_CONTENT)
-    assert content is not None, f"缺少 {_NAMING_CONTENT}"
-    rect = content.find("property[@name='geometry']/rect")
-    assert rect is not None and rect.find("width") is not None
-    return int(rect.find("width").text)
-
-
-def test_naming_rule_groups_edges_aligned_and_centered_green():
-    """绿（成功）：8 个规则分组的左右边框与「视频命名规则」对齐，且整组水平居中。
-
-    需求：右侧边框加宽到与视频命名规则同宽、左侧边框不动 → 所有分组左右边框
-    上下对齐；随后整组在页面里居中显示。这里按几何断言 x 相同、x+width 相同，
-    并断言左右留白相等（容器设计宽内，容差 1px）。
-    """
-    boxes = _naming_page_boxes()
-    assert _NAMING_REF_GROUP in boxes, f"命名页缺少参考分组 {_NAMING_REF_GROUP}"
-    rx, _, rw, _ = boxes[_NAMING_REF_GROUP]
-    ref_right = rx + rw
-    missing = [name for name in _NAMING_RULE_GROUPS if name not in boxes]
-    assert not missing, f"命名页缺少分组: {missing}"
-    misaligned = {
-        name: {"left": boxes[name][0], "right": boxes[name][0] + boxes[name][2]}
-        for name in _NAMING_RULE_GROUPS
-        if boxes[name][0] != rx or boxes[name][0] + boxes[name][2] != ref_right
-    }
-    assert not misaligned, f"以下分组边框未与 {_NAMING_REF_GROUP} 对齐（左缘应={rx}、右缘应={ref_right}）: {misaligned}"
-
-    content_w = _naming_content_width()
-    off_center = {
-        name: {"left": boxes[name][0], "right": content_w - (boxes[name][0] + boxes[name][2])}
-        for name in (_NAMING_REF_GROUP, *_NAMING_RULE_GROUPS)
-        if abs(boxes[name][0] - (content_w - (boxes[name][0] + boxes[name][2]))) > 1
-    }
-    assert not off_center, f"以下分组未水平居中（左右留白应相等，容器宽 {content_w}）: {off_center}"
-
-
-def test_naming_rule_reference_geometry_not_narrowed_yellow():
-    """黄（边界）：对齐/居中的基准是参考分组（视频命名规则），其几何不得被改窄或左移。
-
-    若不锁定基准，「把所有分组一起缩回 701」也能让绿色用例通过——这里补上基准值。
-    基准为居中态：容器设计宽 860、分组宽 765 → x=(860-765)//2=47。
-    """
-    boxes = _naming_page_boxes()
-    rx, _, rw, _ = boxes[_NAMING_REF_GROUP]
-    assert (rx, rw) == (47, 765), f"{_NAMING_REF_GROUP} 基准几何被改动: x={rx}, w={rw}（应为 47 / 765）"
-
-
-def test_naming_rule_groups_old_narrow_width_removed_red():
-    """红（失败回归）：8 个规则分组不得退回历史窄宽 701（右边框未加宽）。"""
-    boxes = _naming_page_boxes()
-    reverted = [name for name in _NAMING_RULE_GROUPS if boxes.get(name, (0, 0, 0, 0))[2] == 701]
-    assert not reverted, f"以下分组退回历史窄宽 701（右边框未加宽）: {reverted}"
-
-
 def test_nav_layout_no_fixed_spacers():
     """左侧导航 verticalLayout 必须用 spacing 分隔按钮，按钮间不得出现 spacer。
 
@@ -408,3 +329,72 @@ def test_amazon_skip_hint_red_no_duplicate_text():
     assert _find_widget_by_name(root, "label_92") is None, "label_92 应已删除"
     ui_text = UI_PATH.read_text(encoding="utf-8")
     assert ui_text.count("将从日亚官网搜索高清封面图") == 1, "合并文案不应再被拆成两条"
+
+
+# ---------- 命名/读取模式关键文案回归锁 ----------
+
+# 读取模式区 + 排除目录标签：改回旧措辞（NFO/nfo 大小写、空格、语序）即失败。
+_READ_MODE_UI_TEXTS = {
+    "label_41": "刮削排除目录：",
+    "label_48": "刮削排除目录：",
+    "checkBox_read_has_nfo_update": "本地已刮削成功的文件，按更新模式规则重新整理分类",
+    "checkBox_read_update_nfo": "允许更新nfo文件",
+    "label_37": "<p>按Emby标题、设置-翻译、NFO等设置利用本地nfo更新nfo信息</p>",
+    "checkBox_read_download_file_again": "本地nfo内有链接，重新下载图片等文件",
+    "label_347": "将按「设置」-「下载」更新",
+    "checkBox_read_no_nfo_scrape": "本地没有nfo的文件，按正常模式规则重新刮削",
+    "checkBox_nfo_merge_strategy": "本地nfo合并策略",
+    "checkBox_sortmode_delpic": "删除本地已下载的图片和nfo文件",
+}
+
+# 马赛克命名规则四条说明（忽略 XML 缩进换行空白差异）。
+_MOSAIC_HINT_TEXTS = {
+    "label_116": (
+        "<p style='line-height:20px'>无码破解指马赛克有损去除版本，当视频文件名路径中含有例如cracked、破解、克破、"
+        "-UMR.、-Uncensored.、.Restored字样时，该文件识别为无码破解版本。"
+        "在重命名文件名及目录名时，在番号后显示该字符表示为无码破解版本。</p>"
+    ),
+    "label_117": (
+        "<p style='line-height:20px'>指无码流出版本，当文件路径中含有流出、LEAKED字样时，该文件识别为无码流出版本。"
+        "在重命名文件名及目录名时，在番号后显示该字符表示为无码流出版本。</p>"
+    ),
+    "label_137": (
+        "<p style='line-height:20px'>指无码版本，当文件路径中含有无码、無碼、無修正、uncensored字样时，该文件<br>"
+        "识别为无码版本。在重命名文件及目录名时在番号后显示该字符表示为无码版本。</p>"
+    ),
+    "label_145": (
+        "<p style='line-height:20px'>指有码版本，当视频文件路径中含有码、有碼字样时，该文件识别为有码版本，"
+        "重命名文件名及目录名时，在番号后显示该字符表示为有码版本。</p>"
+    ),
+}
+
+
+def _norm_text(text):
+    """折叠 XML 缩进/换行等空白，便于比较长富文本。"""
+    import re
+
+    return re.sub(r"\s+", " ", text or "").strip()
+
+
+def test_read_mode_ui_texts_regression():
+    """读取模式区/排除目录关键文案回归锁：改回旧措辞即失败。"""
+    root = _parse_ui()
+    mismatches = {}
+    for name, expected in _READ_MODE_UI_TEXTS.items():
+        widget = _find_widget_by_name(root, name)
+        actual = None if widget is None else _widget_string_prop(widget, "text")
+        if actual != expected:
+            mismatches[name] = actual
+    assert not mismatches, f"读取模式区/排除目录文案与预期不符: {mismatches}"
+
+
+def test_mosaic_rule_hint_texts_regression():
+    """马赛克命名规则四条说明文案回归锁（忽略 XML 缩进空白差异）。"""
+    root = _parse_ui()
+    mismatches = {}
+    for name, expected in _MOSAIC_HINT_TEXTS.items():
+        widget = _find_widget_by_name(root, name)
+        actual = _norm_text(None if widget is None else _widget_string_prop(widget, "text"))
+        if actual != expected:
+            mismatches[name] = actual
+    assert not mismatches, f"马赛克命名规则说明与预期不符: {mismatches}"
