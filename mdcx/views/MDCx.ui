@@ -10656,34 +10656,6 @@
                     <property name="title">
                       <string>下载高清图</string>
                     </property>
-                    <widget class="QLabel" name="label_92">
-                      <property name="geometry">
-                        <rect>
-                          <x>60</x>
-                          <y>125</y>
-                          <width>641</width>
-                          <height>41</height>
-                        </rect>
-                      </property>
-                      <property name="sizePolicy">
-                        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                          <horstretch>0</horstretch>
-                          <verstretch>0</verstretch>
-                        </sizepolicy>
-                      </property>
-                      <property name="styleSheet">
-                        <string notr="true">color: rgb(8, 128, 128);</string>
-                      </property>
-                        <property name="text">
-                          <string>将从日亚官网搜索高清封面图；已收录番号直接使用本地 ASIN 库验证结果，新发现需通过图片相似度校验后入库。</string>
-                        </property>
-                      <property name="alignment">
-                        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
-                      </property>
-                        <property name="wordWrap">
-                          <bool>true</bool>
-                        </property>
-                      </widget>
                     <widget class="QWidget" name="horizontalLayoutWidget_24">
                       <property name="geometry">
                         <rect>
@@ -10731,7 +10703,7 @@
                           <x>100</x>
                           <y>60</y>
                           <width>581</width>
-                          <height>31</height>
+                          <height>64</height>
                         </rect>
                       </property>
                       <layout class="QHBoxLayout" name="horizontalLayout_158">
@@ -10750,7 +10722,7 @@
                         <property name="bottomMargin">
                           <number>0</number>
                         </property>
-                        <item>
+                        <item alignment="Qt::AlignTop">
                           <widget class="QCheckBox" name="checkBox_amazon_skip_poster_size_precheck">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -10763,7 +10735,7 @@
                             </property>
                           </widget>
                         </item>
-                        <item>
+                        <item alignment="Qt::AlignTop">
                           <widget class="QLabel" name="label_amazon_skip_poster_size_precheck">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -10775,7 +10747,10 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>不因当前 Poster 已达标跳过 Amazon（DMM &gt;=700px / &gt;=400KB / 不小于右裁剪）</string>
+                              <string>不因当前Poster已达标跳过Amazon(DMM&gt;=700px/&gt;=400KB/不小于右裁剪)将从日亚官网搜索高清封面图；已收录番号直接使用本地ASIN库验证结果，新发现需通过图片相似度校验后入库</string>
+                            </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
                             </property>
                           </widget>
                         </item>
@@ -10785,7 +10760,7 @@
                       <property name="geometry">
                         <rect>
                           <x>60</x>
-                          <y>170</y>
+                          <y>132</y>
                           <width>621</width>
                           <height>31</height>
                         </rect>
@@ -10829,7 +10804,7 @@
                       <property name="geometry">
                         <rect>
                           <x>60</x>
-                          <y>205</y>
+                          <y>167</y>
                           <width>621</width>
                           <height>48</height>
                         </rect>

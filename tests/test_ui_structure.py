@@ -273,3 +273,59 @@ def test_mdcx_py_in_sync_with_ui():
         )
     finally:
         tmp_path.unlink(missing_ok=True)
+
+
+# ---------- 「跳过前置 Poster 大小校验」提示文案合并 —— 红/黄/绿回归 ----------
+
+
+def _find_widget_by_name(root, name):
+    for w in root.iter("widget"):
+        if w.get("name") == name:
+            return w
+    return None
+
+
+def _widget_string_prop(w, name):
+    p = w.find(f"property[@name='{name}']")
+    if p is None:
+        return None
+    s = p.find("string")
+    return s.text if s is not None else None
+
+
+def _widget_bool_prop(w, name):
+    p = w.find(f"property[@name='{name}']")
+    if p is None:
+        return None
+    b = p.find("bool")
+    return b.text == "true" if b is not None else None
+
+
+def test_amazon_skip_hint_green_merged_text_and_wrap():
+    """绿（成功）：提示文案已合并为一段、且开启自动换行。"""
+    root = _parse_ui()
+    lbl = _find_widget_by_name(root, "label_amazon_skip_poster_size_precheck")
+    assert lbl is not None, "label_amazon_skip_poster_size_precheck 不存在"
+    assert _widget_string_prop(lbl, "text") == (
+        "不因当前Poster已达标跳过Amazon(DMM>=700px/>=400KB/不小于右裁剪)"
+        "将从日亚官网搜索高清封面图；已收录番号直接使用本地ASIN库验证结果，新发现需通过图片相似度校验后入库"
+    )
+    assert _widget_bool_prop(lbl, "wordWrap") is True, "wordWrap 应为 true（长文本需可正常换行）"
+
+
+def test_amazon_skip_hint_yellow_inline_after_checkbox():
+    """黄（边界）：提示与勾选框同行，排在勾选框之后（在布局内，无独立 geometry）。"""
+    root = _parse_ui()
+    lbl = _find_widget_by_name(root, "label_amazon_skip_poster_size_precheck")
+    assert lbl is not None
+    # 放进布局的控件不再有 geometry（由 HBox 排在勾选框之后、顶部对齐）；
+    # 若又变回独立定位（geometry）则说明提示被挪到了下一行，属回归。
+    assert lbl.find("property[@name='geometry']") is None, "提示应内联在勾选框布局中，而非独立定位"
+
+
+def test_amazon_skip_hint_red_no_duplicate_text():
+    """红（失败回归）：旧的独立 label_92 已删除，合并文案不再重复出现。"""
+    root = _parse_ui()
+    assert _find_widget_by_name(root, "label_92") is None, "label_92 应已删除"
+    ui_text = UI_PATH.read_text(encoding="utf-8")
+    assert ui_text.count("将从日亚官网搜索高清封面图") == 1, "合并文案不应再被拆成两条"

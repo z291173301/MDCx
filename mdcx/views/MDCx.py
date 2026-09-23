@@ -4955,19 +4955,6 @@ class Ui_MDCx(object):
         self.groupBox_52.setGeometry(QtCore.QRect(30, 670, 701, 277))
         self.groupBox_52.setMinimumSize(QtCore.QSize(500, 0))
         self.groupBox_52.setObjectName("groupBox_52")
-        self.label_92 = QtWidgets.QLabel(parent=self.groupBox_52)
-        self.label_92.setGeometry(QtCore.QRect(60, 125, 641, 41))
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.label_92.sizePolicy().hasHeightForWidth())
-        self.label_92.setSizePolicy(sizePolicy)
-        self.label_92.setStyleSheet("color: rgb(8, 128, 128);")
-        self.label_92.setAlignment(
-            QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop
-        )
-        self.label_92.setWordWrap(True)
-        self.label_92.setObjectName("label_92")
         self.horizontalLayoutWidget_24 = QtWidgets.QWidget(parent=self.groupBox_52)
         self.horizontalLayoutWidget_24.setGeometry(QtCore.QRect(80, 30, 601, 31))
         self.horizontalLayoutWidget_24.setObjectName("horizontalLayoutWidget_24")
@@ -4992,7 +4979,7 @@ class Ui_MDCx(object):
         self.label_397.setObjectName("label_397")
         self.horizontalLayout_38.addWidget(self.label_397)
         self.horizontalLayoutWidget_70 = QtWidgets.QWidget(parent=self.groupBox_52)
-        self.horizontalLayoutWidget_70.setGeometry(QtCore.QRect(100, 60, 581, 31))
+        self.horizontalLayoutWidget_70.setGeometry(QtCore.QRect(100, 60, 581, 64))
         self.horizontalLayoutWidget_70.setObjectName("horizontalLayoutWidget_70")
         self.horizontalLayout_158 = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget_70)
         self.horizontalLayout_158.setContentsMargins(0, 0, 0, 0)
@@ -5005,7 +4992,9 @@ class Ui_MDCx(object):
         sizePolicy.setHeightForWidth(self.checkBox_amazon_skip_poster_size_precheck.sizePolicy().hasHeightForWidth())
         self.checkBox_amazon_skip_poster_size_precheck.setSizePolicy(sizePolicy)
         self.checkBox_amazon_skip_poster_size_precheck.setObjectName("checkBox_amazon_skip_poster_size_precheck")
-        self.horizontalLayout_158.addWidget(self.checkBox_amazon_skip_poster_size_precheck)
+        self.horizontalLayout_158.addWidget(
+            self.checkBox_amazon_skip_poster_size_precheck, 0, QtCore.Qt.AlignmentFlag.AlignTop
+        )
         self.label_amazon_skip_poster_size_precheck = QtWidgets.QLabel(parent=self.horizontalLayoutWidget_70)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -5013,10 +5002,13 @@ class Ui_MDCx(object):
         sizePolicy.setHeightForWidth(self.label_amazon_skip_poster_size_precheck.sizePolicy().hasHeightForWidth())
         self.label_amazon_skip_poster_size_precheck.setSizePolicy(sizePolicy)
         self.label_amazon_skip_poster_size_precheck.setStyleSheet("color: rgb(8, 128, 128);")
+        self.label_amazon_skip_poster_size_precheck.setWordWrap(True)
         self.label_amazon_skip_poster_size_precheck.setObjectName("label_amazon_skip_poster_size_precheck")
-        self.horizontalLayout_158.addWidget(self.label_amazon_skip_poster_size_precheck)
+        self.horizontalLayout_158.addWidget(
+            self.label_amazon_skip_poster_size_precheck, 0, QtCore.Qt.AlignmentFlag.AlignTop
+        )
         self.horizontalLayoutWidget_dmm_fallback = QtWidgets.QWidget(parent=self.groupBox_52)
-        self.horizontalLayoutWidget_dmm_fallback.setGeometry(QtCore.QRect(60, 170, 621, 31))
+        self.horizontalLayoutWidget_dmm_fallback.setGeometry(QtCore.QRect(60, 132, 621, 31))
         self.horizontalLayoutWidget_dmm_fallback.setObjectName("horizontalLayoutWidget_dmm_fallback")
         self.horizontalLayout_dmm_fallback = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget_dmm_fallback)
         self.horizontalLayout_dmm_fallback.setContentsMargins(0, 0, 0, 0)
@@ -5040,7 +5032,7 @@ class Ui_MDCx(object):
         self.label_dmm_fallback.setObjectName("label_dmm_fallback")
         self.horizontalLayout_dmm_fallback.addWidget(self.label_dmm_fallback)
         self.horizontalLayoutWidget_sr = QtWidgets.QWidget(parent=self.groupBox_52)
-        self.horizontalLayoutWidget_sr.setGeometry(QtCore.QRect(60, 205, 621, 48))
+        self.horizontalLayoutWidget_sr.setGeometry(QtCore.QRect(60, 167, 621, 48))
         self.horizontalLayoutWidget_sr.setObjectName("horizontalLayoutWidget_sr")
         self.horizontalLayout_sr = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget_sr)
         self.horizontalLayout_sr.setContentsMargins(0, 0, 0, 0)
@@ -13181,17 +13173,14 @@ class Ui_MDCx(object):
         self.pushButton_add_all_extrafanart_copy.setText(_translate("MDCx", "添加所有剧照副本"))
         self.pushButton_del_all_extrafanart_copy.setText(_translate("MDCx", "删除所有剧照副本"))
         self.groupBox_52.setTitle(_translate("MDCx", "下载高清图"))
-        self.label_92.setText(
-            _translate(
-                "MDCx",
-                "将从日亚官网搜索高清封面图；已收录番号直接使用本地 ASIN 库验证结果，新发现需通过图片相似度校验后入库。",
-            )
-        )
         self.checkBox_amazon_big_pic.setText(_translate("MDCx", "启用 Amazon 查找高清封面图"))
         self.label_397.setText(_translate("MDCx", "仅影响 Amazon 高清封面图搜索，不影响普通图片下载"))
         self.checkBox_amazon_skip_poster_size_precheck.setText(_translate("MDCx", "跳过前置 Poster 大小校验"))
         self.label_amazon_skip_poster_size_precheck.setText(
-            _translate("MDCx", "不因当前 Poster 已达标跳过 Amazon（DMM >=700px / >=400KB / 不小于右裁剪）")
+            _translate(
+                "MDCx",
+                "不因当前Poster已达标跳过Amazon(DMM>=700px/>=400KB/不小于右裁剪)将从日亚官网搜索高清封面图；已收录番号直接使用本地ASIN库验证结果，新发现需通过图片相似度校验后入库",
+            )
         )
         self.checkBox_dmm_fallback.setText(_translate("MDCx", "官方图源兜底（DMM / MGStage）"))
         self.label_dmm_fallback.setText(
