@@ -13020,7 +13020,7 @@ class Ui_MDCx(object):
         self.label_154.setText(_translate("MDCx", "比如：MIDE-111，以及不符合以下类型的番号"))
         self.label_152.setText(_translate("MDCx", "素人番号："))
         self.label_153.setText(_translate("MDCx", "有码番号："))
-        self.label_148.setText(_translate("MDCx", "FC2番号："))
+        self.label_148.setText(_translate("MDCx", "个人番号："))
         self.label_217.setText(_translate("MDCx", "国产番号："))
         self.comboBox_fixed_scraping_type.setToolTip(
             _translate(

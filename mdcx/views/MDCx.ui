@@ -7914,7 +7914,7 @@
                               <enum>Qt::LeftToRight</enum>
                             </property>
                             <property name="text">
-                              <string>FC2番号：</string>
+                              <string>个人番号：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
