@@ -13020,7 +13020,7 @@ class Ui_MDCx(object):
         self.label_154.setText(_translate("MDCx", "比如：MIDE-111，以及不符合以下类型的番号"))
         self.label_152.setText(_translate("MDCx", "素人番号："))
         self.label_153.setText(_translate("MDCx", "有码番号："))
-        self.label_148.setText(_translate("MDCx", "个人番号："))
+        self.label_148.setText(_translate("MDCx", "个摄番号："))
         self.label_217.setText(_translate("MDCx", "国产番号："))
         self.comboBox_fixed_scraping_type.setToolTip(
             _translate(
@@ -13110,19 +13110,19 @@ class Ui_MDCx(object):
         self.checkBox_ignore_pic_fail.setText(_translate("MDCx", "图片下载失败时，不视为刮削失败"))
         self.label_275.setText(_translate("MDCx", " 有时图片已被源网站删除，此时会下载失败"))
         self.checkBox_ignore_youma.setText(_translate("MDCx", "有码封面不裁剪，直接复制缩略图"))
-        self.label_326.setText(_translate("MDCx", " 有码封面可以裁剪，如不想裁剪可以勾选"))
-        self.checkBox_poster_auto_best.setText(_translate("MDCx", "有码 Poster 竖图按大小自动选优"))
-        self.label_poster_auto_best.setText(_translate("MDCx", " 仅有码：直下/搜图/右裁剪选优"))
+        self.label_326.setText(_translate("MDCx", " 有码封面可以裁剪，如果不想裁剪可以勾选"))
+        self.checkBox_poster_auto_best.setText(_translate("MDCx", "有码封面图竖图，按大小自动选优"))
+        self.label_poster_auto_best.setText(_translate("MDCx", " 有且仅限有码类型：直下/搜图/右裁剪选优"))
         self.checkBox_ignore_wuma.setText(_translate("MDCx", "无码封面不裁剪，直接复制缩略图"))
         self.label_273.setText(_translate("MDCx", " 无码封面人脸位置不固定，建议手动裁剪或直接复制"))
         self.checkBox_ignore_oumei.setText(_translate("MDCx", "欧美封面不裁剪，直接复制缩略图"))
         self.label_ignore_oumei.setText(_translate("MDCx", " 欧美封面人脸位置不固定，建议手动裁剪或直接复制"))
-        self.checkBox_ignore_fc2.setText(_translate("MDCx", "FC2 封面不裁剪，直接复制缩略图"))
-        self.label_292.setText(_translate("MDCx", " FC2 封面人脸位置不固定，建议手动裁剪或直接复制"))
+        self.checkBox_ignore_fc2.setText(_translate("MDCx", "个摄封面不裁剪，直接复制缩略图"))
+        self.label_292.setText(_translate("MDCx", " 个摄封面人脸位置不固定，建议手动裁剪或直接复制"))
         self.checkBox_ignore_guochan.setText(_translate("MDCx", "国产封面不裁剪，直接复制缩略图"))
         self.label_305.setText(_translate("MDCx", " 国产封面人脸位置不固定，建议手动裁剪或直接复制"))
-        self.checkBox_ignore_size.setText(_translate("MDCx", "预告片下载时，不校验文件大小"))
-        self.label_272.setText(_translate("MDCx", " 有时网络返回值不对，校验会导致预告片下载失败"))
+        self.checkBox_ignore_size.setText(_translate("MDCx", "预告片下载完成，不校验文件大小"))
+        self.label_272.setText(_translate("MDCx", " 有时网络返回值不正确，校验会导致预告片下载失败"))
         self.label_85.setText(
             _translate(
                 "MDCx",

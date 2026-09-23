@@ -7914,7 +7914,7 @@
                               <enum>Qt::LeftToRight</enum>
                             </property>
                             <property name="text">
-                              <string>个人番号：</string>
+                              <string>个摄番号：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -9938,7 +9938,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string> 有码封面可以裁剪，如不想裁剪可以勾选</string>
+                                  <string> 有码封面可以裁剪，如果不想裁剪可以勾选</string>
                                 </property>
                               </widget>
                             </item>
@@ -9961,7 +9961,7 @@
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>有码 Poster 竖图按大小自动选优</string>
+                                  <string>有码封面图竖图，按大小自动选优</string>
                                 </property>
                               </widget>
                             </item>
@@ -9977,7 +9977,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string> 仅有码：直下/搜图/右裁剪选优</string>
+                                  <string> 有且仅限有码类型：直下/搜图/右裁剪选优</string>
                                 </property>
                               </widget>
                             </item>
@@ -10078,7 +10078,7 @@
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>FC2 封面不裁剪，直接复制缩略图</string>
+                                  <string>个摄封面不裁剪，直接复制缩略图</string>
                                 </property>
                               </widget>
                             </item>
@@ -10094,7 +10094,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string> FC2 封面人脸位置不固定，建议手动裁剪或直接复制</string>
+                                  <string> 个摄封面人脸位置不固定，建议手动裁剪或直接复制</string>
                                 </property>
                               </widget>
                             </item>
@@ -10156,7 +10156,7 @@
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>预告片下载时，不校验文件大小</string>
+                                  <string>预告片下载完成，不校验文件大小</string>
                                 </property>
                               </widget>
                             </item>
@@ -10172,7 +10172,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string> 有时网络返回值不对，校验会导致预告片下载失败</string>
+                                  <string> 有时网络返回值不正确，校验会导致预告片下载失败</string>
                                 </property>
                               </widget>
                             </item>
