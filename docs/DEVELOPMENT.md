@@ -71,7 +71,8 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 
 1. 解除上一轮固定高度后再 `setFixedHeight(heightForWidth(width))`，让说明文字精确贴合（必须先解除，否则 `QLabel.heightForWidth` 会回落到被钉住的旧值）；
 2. 预览 `setFixedHeight(_NAMING_PREVIEW_H = 128)`，不再吸收剩余空间；
-3. `groupBox_8` / `gridLayoutWidget_8` 高度按网格 `sizeHint` + `_NAMING_BOX_PAD` 重算，其后的 `groupBox_40/77/46/38/37/62/65/67` 用「设计基准 + 增量」整体平移，保持 19px 间距。
+3. `groupBox_8` / `gridLayoutWidget_8` 高度按网格 `sizeHint` + `_NAMING_BOX_PAD` 重算，其后的 `groupBox_40/77/46/38/37/62/65/67` 用「设计基准 + 增量」整体平移，保持 19px 间距；
+4. 9 个规则分组按视口宽水平居中（`x = (viewport宽 - 分组宽) // 2`）：分组内子控件随分组整体平移，相对位置不变。
 
 **与上文的例外**：本节控件在**非最大化状态**下也会随窗口宽度变化上下平移——窗口越宽文字换行越少、组高越小，后续分组必须同步上移，否则会重新出现大片空白。这是对「非最大化保持设计位置不动」的有意例外。
 

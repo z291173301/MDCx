@@ -179,7 +179,7 @@ def test_groupboxes_fit_scroll_area():
     assert not problems, "UI 滚动区溢出问题:\n" + "\n".join(problems)
 
 
-# ---------- 命名页各「命名规则」分组右边框对齐「视频命名规则」 —— 红/黄/绿回归 ----------
+# ---------- 命名页各「命名规则」分组：右边框对齐 + 水平居中 —— 红/黄/绿回归 ----------
 
 # 命名页（scrollAreaWidgetContents_mingming）里除参考分组外的 8 个规则分组。
 _NAMING_RULE_GROUPS = (
@@ -192,20 +192,31 @@ _NAMING_RULE_GROUPS = (
     "groupBox_65",  # 画质命名规则
     "groupBox_67",  # 其他说明
 )
-_NAMING_REF_GROUP = "groupBox_8"  # 视频命名规则（宽度基准）
+_NAMING_REF_GROUP = "groupBox_8"  # 视频命名规则（宽度/位置基准）
+_NAMING_CONTENT = "scrollAreaWidgetContents_mingming"  # 命名页滚动内容容器
 
 
 def _naming_page_boxes() -> dict[str, tuple[int, int, int, int]]:
     """命名页 9 个规则分组 → {name: (x, y, w, h)}。"""
     parents = _group_boxes_by_parent(_parse_ui())
-    return {name: (x, y, w, h) for name, x, y, w, h in parents.get("scrollAreaWidgetContents_mingming", [])}
+    return {name: (x, y, w, h) for name, x, y, w, h in parents.get(_NAMING_CONTENT, [])}
 
 
-def test_naming_rule_groups_edges_aligned_green():
-    """绿（成功）：8 个规则分组的左缘/右缘都与「视频命名规则」对齐。
+def _naming_content_width() -> int:
+    """滚动内容容器的设计宽（运行时容器宽 = 视口宽，设计宽仅作静态居中判据）。"""
+    content = _find_widget_by_name(_parse_ui(), _NAMING_CONTENT)
+    assert content is not None, f"缺少 {_NAMING_CONTENT}"
+    rect = content.find("property[@name='geometry']/rect")
+    assert rect is not None and rect.find("width") is not None
+    return int(rect.find("width").text)
 
-    需求：右侧边框加宽到与视频命名规则同宽、左侧边框不动，最终所有分组
-    左右边框上下对齐。这里按几何断言 x 相同、x+width 相同。
+
+def test_naming_rule_groups_edges_aligned_and_centered_green():
+    """绿（成功）：8 个规则分组的左右边框与「视频命名规则」对齐，且整组水平居中。
+
+    需求：右侧边框加宽到与视频命名规则同宽、左侧边框不动 → 所有分组左右边框
+    上下对齐；随后整组在页面里居中显示。这里按几何断言 x 相同、x+width 相同，
+    并断言左右留白相等（容器设计宽内，容差 1px）。
     """
     boxes = _naming_page_boxes()
     assert _NAMING_REF_GROUP in boxes, f"命名页缺少参考分组 {_NAMING_REF_GROUP}"
@@ -220,15 +231,24 @@ def test_naming_rule_groups_edges_aligned_green():
     }
     assert not misaligned, f"以下分组边框未与 {_NAMING_REF_GROUP} 对齐（左缘应={rx}、右缘应={ref_right}）: {misaligned}"
 
+    content_w = _naming_content_width()
+    off_center = {
+        name: {"left": boxes[name][0], "right": content_w - (boxes[name][0] + boxes[name][2])}
+        for name in (_NAMING_REF_GROUP, *_NAMING_RULE_GROUPS)
+        if abs(boxes[name][0] - (content_w - (boxes[name][0] + boxes[name][2]))) > 1
+    }
+    assert not off_center, f"以下分组未水平居中（左右留白应相等，容器宽 {content_w}）: {off_center}"
 
-def test_naming_rule_reference_width_not_narrowed_yellow():
-    """黄（边界）：对齐必须是「加宽其余分组」，参考分组（视频命名规则）不得被改窄。
 
-    若不锁定基准宽度，「把所有分组一起缩回 701」也能让绿色用例通过——这里补上基准值。
+def test_naming_rule_reference_geometry_not_narrowed_yellow():
+    """黄（边界）：对齐/居中的基准是参考分组（视频命名规则），其几何不得被改窄或左移。
+
+    若不锁定基准，「把所有分组一起缩回 701」也能让绿色用例通过——这里补上基准值。
+    基准为居中态：容器设计宽 860、分组宽 765 → x=(860-765)//2=47。
     """
     boxes = _naming_page_boxes()
     rx, _, rw, _ = boxes[_NAMING_REF_GROUP]
-    assert (rx, rw) == (30, 765), f"{_NAMING_REF_GROUP} 基准几何被改动: x={rx}, w={rw}（应为 30 / 765）"
+    assert (rx, rw) == (47, 765), f"{_NAMING_REF_GROUP} 基准几何被改动: x={rx}, w={rw}（应为 47 / 765）"
 
 
 def test_naming_rule_groups_old_narrow_width_removed_red():

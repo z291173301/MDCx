@@ -388,3 +388,52 @@ def test_page_main_info_fields_cleared_of_cover_boxes() -> None:
         w = getattr(ui, nm)
         assert w.y() == 430 + info_delta, f"#135 回归：{nm} 未按封面增高下移（y={w.y()}）"
         assert w.y() >= cover_bottom, f"#135 回归：{nm} 仍在封面框内（y={w.y()} < {cover_bottom}）"
+
+
+_NAMING_GROUPS_FOR_CENTER_TEST = (
+    "groupBox_8",
+    "groupBox_40",
+    "groupBox_77",
+    "groupBox_46",
+    "groupBox_38",
+    "groupBox_37",
+    "groupBox_62",
+    "groupBox_65",
+    "groupBox_67",
+)
+
+
+def test_naming_rule_groups_centered_at_runtime() -> None:
+    """命名页 9 个规则分组在运行期水平居中（左右留白相等）。
+
+    需求：这些分组居中显示、内部内容相对位置不变。
+    ``_sync_naming_template_section`` 每次布局同步后按「内容宽 − 分组宽」二等分居中；
+    本测试走真实 controller + ``_sync_page_layouts``，在多个窗口尺寸下断言左右留白相差 ≤1px。
+    """
+    from mdcx.controllers.main_window import main_window as mw_mod
+
+    _app = QApplication.instance() or QApplication([])
+    win = mw_mod.MyMAinWindow()
+    win._app = _app  # 挂上 app 引用防 GC
+    win.resize(1280, 860)
+    _app.processEvents()
+    ui = win.Ui
+    ui.stackedWidget.setCurrentIndex(4)
+    ui.tabWidget.setCurrentIndex(4)
+    _app.processEvents()
+
+    failures: list[str] = []
+    for width, height in ((1280, 860), (1030, 700), (1600, 900)):
+        win.resize(width, height)
+        _app.processEvents()
+        win._sync_page_layouts()
+        _app.processEvents()
+        content = ui.scrollAreaWidgetContents_mingming
+        cw = ui.scrollArea_7.viewport().width()
+        for name in _NAMING_GROUPS_FOR_CENTER_TEST:
+            g = getattr(ui, name)
+            left = g.x()
+            right = cw - (g.x() + g.width())
+            if abs(left - right) > 1:
+                failures.append(f"win={width} {name}: left={left} right={right} (视口宽 {cw})")
+    assert not failures, "命名页分组未水平居中（左右留白应相等）:\n" + "\n".join(failures)
