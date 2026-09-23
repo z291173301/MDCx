@@ -5147,7 +5147,7 @@ class Ui_MDCx(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label_66.sizePolicy().hasHeightForWidth())
         self.label_66.setSizePolicy(sizePolicy)
-        self.label_66.setStyleSheet("color: rgb(8, 128, 128);")
+        self.label_66.setStyleSheet("color: rgb(8, 128, 128); padding-left: 15px;")
         self.label_66.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop
         )
