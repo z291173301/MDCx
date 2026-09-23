@@ -5147,7 +5147,7 @@ class Ui_MDCx(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label_66.sizePolicy().hasHeightForWidth())
         self.label_66.setSizePolicy(sizePolicy)
-        self.label_66.setStyleSheet("color: rgb(8, 128, 128); padding-left: 20px;")
+        self.label_66.setStyleSheet("color: rgb(8, 128, 128); padding-left: 22px;")
         self.label_66.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop
         )
@@ -13210,8 +13210,8 @@ class Ui_MDCx(object):
                 "                                常用字段：{number}番号，{title}标题，{actor}演员，{studio}片商，{series}系列，{release}(发行日期)<br>\n"
                 "                                {originaltitle}原标题，{filename}原文件名。<br>\n"
                 "                                其它字段：all_actor(全部演员)，first_actor(首位演员)，letters(番号前缀)，first_letter(番号首字符)<br>\n"
-                "                                outline(剧情简介)，director(导演)，publisher(发行商)，year(年份)，runtime(时长)，wanted(想看人数)<br>\n"
-                "                                mosaic(有码/无码)，score(番号评分)，cnword(字幕标识)，four_4K(4K/8K/UHD标识)。<br>\n"
+                "                                outline(剧情简介)，director(导演)，publisher(发行商)，year(年份)，runtime(时长)，score(番号评分)<br>\n"
+                "                                mosaic(有码/无码)，wanted(想看人数)，cnword(字幕标识)，four_4K(4K/8K/UHD标识)。<br>\n"
                 "                                注意：<br>\n"
                 "                                1，视频目录名留空时，表示不创建视频目录。<br>\n"
                 "                                2，勾选「成功后不移动文件」时，同样不会创建视频目录。<br>\n"
