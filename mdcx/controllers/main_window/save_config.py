@@ -31,7 +31,7 @@ from mdcx.config.enums import (
 )
 from mdcx.config.extend import get_movie_path_setting
 from mdcx.config.manager import manager
-from mdcx.config.models import SiteConfig, str_to_list
+from mdcx.config.models import SiteConfig, normalize_site_list, str_to_list
 from mdcx.consts import LOCAL_VERSION, SYSTEM_INFO, VERSION_NAME
 from mdcx.gen.field_enums import CrawlerResultFields
 from mdcx.models.flags import Flags
@@ -662,12 +662,17 @@ def save_config(self: "MyMAinWindow"):
         self.Ui.lineEdit_cf_bypass_trusted_hosts.text().strip()
     )  # Bypass 落地域名白名单
     manager.config.verify_ssl = self.Ui.checkBox_verify_ssl.isChecked()  # HTTPS 证书校验
-    manager.config.proxy_sites = self.Ui.lineEdit_no_proxy_sites.text().strip()  # 使用代理的网站
-    manager.config.direct_sites = (
-        self.Ui.lineEdit_direct_sites.text().strip()
+    manager.config.proxy_sites = normalize_site_list(
+        self.Ui.lineEdit_no_proxy_sites.text()
+    )  # 使用代理的网站：去 scheme/尾斜杠，中文逗号转英文
+    self.Ui.lineEdit_no_proxy_sites.setText(manager.config.proxy_sites)
+    manager.config.direct_sites = normalize_site_list(
+        self.Ui.lineEdit_direct_sites.text()
         if hasattr(self.Ui, "lineEdit_direct_sites") and self.Ui.lineEdit_direct_sites is not None
         else ""
-    )  # 直连白名单（优先级高于 proxy_sites）
+    )  # 直连白名单（优先级高于 proxy_sites）：同上归一化
+    if hasattr(self.Ui, "lineEdit_direct_sites") and self.Ui.lineEdit_direct_sites is not None:
+        self.Ui.lineEdit_direct_sites.setText(manager.config.direct_sites)
     manager.config.proxy_route_all = self.Ui.checkBox_proxy_route_all.isChecked()  # 全部流量走代理
     manager.config.timeout = self.Ui.horizontalSlider_timeout.value()  # 超时时间
     manager.config.retry = self.Ui.horizontalSlider_retry.value()  # 重试次数

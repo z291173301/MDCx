@@ -47,9 +47,8 @@ def test_direct_sites_default_empty():
 
 def test_direct_sites_parses_comma_separated():
     cfg = Config(direct_sites=" google.com , github.com ")
-    assert (
-        cfg.direct_sites == " google.com , github.com "
-    )  # 原始值保持原样，解析在 proxy_hosts_list/direct_sites_list 里做
+    # 名单在模型层即归一化（去空格；scheme/中文逗号同样被洗掉），解析侧直接 split 即可
+    assert cfg.direct_sites == "google.com,github.com"
     # proxy_hosts_list 仍解析 proxy_sites（不是 direct_sites）
     assert "amazon.co.jp" in cfg.proxy_hosts_list()
     # direct_sites 解析后包含 google.com

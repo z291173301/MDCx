@@ -388,10 +388,14 @@ class MissavCrawler(BaseCrawler):
             return url
 
         path_parts = cls._extract_detail_path_parts(url)
+        # 站点规范形式是语言码在前（/cn/{番号}、/dm79/cn/{番号}），拼在末尾
+        # （/{番号}/cn）虽能打开但非规范。先去掉已有的语言段（兼容末尾式与
+        # 规范式输入，保证幂等），再把 cn 插到 slug（最后一段）之前。
+        path_parts = [p for p in path_parts if p.lower() not in cls.URL_LANG_SUFFIXES]
         if not path_parts:
             return url
 
-        path = "/" + "/".join(path_parts + ["cn"])
+        path = "/" + "/".join([*path_parts[:-1], "cn", path_parts[-1]])
         return parsed._replace(path=path, params="", query="", fragment="").geturl()
 
     @staticmethod

@@ -55,6 +55,33 @@ def str_to_list(v: str | list[Any] | None, sep: Literal[",", "|"] = ",", unique:
     return []
 
 
+_SITE_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*://")
+
+
+def normalize_site_list(value: str | None) -> str:
+    """归一化站点名单（「使用代理网站」/「直连白名单」存盘与加载共用）。
+
+    - 中文逗号（，/、）转英文逗号分隔；
+    - 去 scheme（`https://missav.ws/` → `missav.ws`）：路由匹配只认裸 host，
+      带 scheme 的条目永远命中不了，属静默误配置；
+    - 去路径/查询/片段与尾斜杠，只保留 host（可带端口）；
+    - 去空、去重、保序。站点值（如 `javdb`）与 `*` 原样保留。
+    """
+    if not value or not isinstance(value, str):
+        return ""
+    seen: dict[str, None] = {}
+    for raw in re.split(r"[,，、]", value):
+        item = raw.strip()
+        if not item:
+            continue
+        item = _SITE_SCHEME_RE.sub("", item)
+        item = re.split(r"[/?#]", item, maxsplit=1)[0].strip()
+        if not item or item in seen:
+            continue
+        seen[item] = None
+    return ",".join(seen)
+
+
 class TranslateConfig(BaseModel):
     translate_by: list[Translator] = Field(
         default_factory=lambda: [
@@ -727,6 +754,16 @@ class Config(BaseModel):
         description="开启后所有请求都发往上方代理地址，由代理软件（如 Clash）按规则分流；"
         '关闭时按上方"使用代理网站"列表分流。默认关闭。注意：开启后会显著增加代理流量消耗（高清图为大流量来源）。',
     )
+
+    @field_validator("proxy_sites", "direct_sites", mode="before")
+    @classmethod
+    def normalize_site_lists(cls, v):
+        # 存盘赋值走 save_config 显式归一化；此处覆盖配置文件加载（含手改 actor.json），
+        # 带 scheme/中文逗号的条目同样被拉回有效形态。
+        if v is None or isinstance(v, str):
+            return normalize_site_list(v)
+        return v
+
     cf_bypass_url: str = Field(default="", title="Cloudflare Bypass地址")
     cf_bypass_proxy: str = Field(default="", title="Cloudflare Bypass代理地址")
     cf_bypass_trawl_url: str = Field(

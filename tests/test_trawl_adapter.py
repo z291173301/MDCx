@@ -140,7 +140,8 @@ async def test_mirror_endpoint_rebuilds_target_url_and_forwards_method(monkeypat
         )
     assert resp.status_code == 200
     assert trawl_requests[0]["url"] == "https://javbus.example/api/data?id=1"
-    assert trawl_requests[0]["method"] == "GET"
+    # TRAWL 原生 /scrape 没有 method 字段（以前带的 method 会被服务端剥离），不再发送
+    assert "method" not in trawl_requests[0]
     assert resp.text == "<html>mirror</html>"
     set_cookie = resp.headers.get("set-cookie", "")
     assert "cf_clearance=abc" in set_cookie
@@ -176,6 +177,33 @@ async def test_mirror_requires_x_hostname(monkeypatch):
     async with _client(app) as client:
         resp = await client.get("/api/data")
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_mirror_post_rejected_for_trawl_backend(monkeypatch):
+    """TRAWL 原生 /scrape 没有 method 字段：POST 不能静默降级成 GET，必须明确失败。"""
+    trawl_requests: list[dict] = []
+    app = _make_app(monkeypatch, trawl_requests, lambda p: _scrape_response(p))
+    async with _client(app) as client:
+        resp = await client.post(
+            "/api/data?id=1",
+            headers={"x-hostname": "javbus.example"},
+            content=b'{"key": "value"}',
+        )
+    assert resp.status_code == 502
+    assert "仅支持 GET" in resp.json()["error"]
+    assert trawl_requests == []
+
+
+@pytest.mark.asyncio
+async def test_handler_exception_becomes_structured_502(monkeypatch):
+    """TRAWL 返回非 dict JSON（如数组）时，适配层返回结构化 502 而不是连接重置。"""
+    trawl_requests: list[dict] = []
+    app = _make_app(monkeypatch, trawl_requests, lambda p: httpx.Response(200, json=["not", "a", "dict"]))
+    async with _client(app) as client:
+        resp = await client.get("/cookies?url=https://example.com/x")
+    assert resp.status_code == 502
+    assert "适配层处理失败" in resp.json()["error"]
 
 
 @pytest.mark.asyncio

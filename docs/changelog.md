@@ -4,9 +4,17 @@
 
 ### 修复
 
-- **missav 默认地址由 missav.ai 改为 missav.ws，镜像抽样改为 missav.live**：missav.ai 已不可访问（浏览器打开空白 / 被 SmartScreen 拦截），missav.ws 与 missav.live 实测正常。`_MISSAV_DOMAINS` 顺序调整为 ws → live → ai：默认地址、镜像轮换起点、网络检测主项跟随 ws，检测镜像抽样项跟随 live（此前抽到已死的 ai 而误报），ai 沉底仅作最后备用。`FEATURES.md` 站点表同步
+- **missav 默认地址由 missav.ai 改为 missav.ws，镜像抽样改为 missav.live**：missav.ai 已不可访问（浏览器打开空白 / 被 SmartScreen 拦截），missav.ws 与 missav.live 实测正常。`_MISSAV_DOMAINS` 顺序调整为 ws → live → ai：默认地址、镜像轮换起点、网络检测主项跟随 ws，检测镜像抽样项跟随 live（此前抽到已死的 ai 而误报），ai 沉底仅作最后备用。`FEATURES.md` 站点表同步；**详情页 URL 改用站点规范式（`/cn/SSNI-647`、`/dm79/cn/SSNI-647`）**：`_ensure_cn_detail_url` 原把语言码拼在末尾（`/{番号}/cn`，能打开但非规范），现插到 slug 之前，末尾式/规范式输入均归一且幂等（主站与镜像项同走该函数，一并生效）。`tests/crawlers/test_missav.py` 补 6 组用例
+
+- **检测整轮持有 computed 租约（"网络客户端已关闭"修复）**：检测此前裸用共享网络客户端（无租约），检测期间点"保存"替换配置时旧客户端在连接池空闲瞬间即被关闭，排队/重试中的项全报"网络客户端已关闭"（串行 bypass 排队者零占用、死得最先；13 分钟长轮尾部 avsex/javlibrary/xcity/missav 实证）。现整轮 `acquire_computed()` 持有租约、结束归还（取消路径同样释放），旧客户端等本轮结束再关。`tests/test_network_check.py` 补租约回归（取/用/还顺序 + 用租约客户端 + 串行锁已摘）
 
 - **镜像轮询 404 误判修复（番号含 404 时跳过存活镜像）**：`_get_text_with_rotate` 与演员库 javbus 轮询用裸 `"404" in error` 判断页面不存在，但 `request` 的最终 error 永远内嵌请求 URL（`"{method} {url} 失败: ..."`）——番号/ID 含 404（如 FC2-PPV-404xxxx）在首个镜像遇传输失败（RST/超时）时会被误判为真 404，直接放弃其余存活镜像。现改为精确匹配 `HTTP 404` 状态前缀（真 404 必带该前缀，传输错误不可能带），行为其余不变。`tests/crawlers/test_compat.py` 补 2 项回归（URL 含 404 仍轮询 / 真 HTTP 404 首个镜像即停）
+
+- **站点名单存盘归一化（使用代理网站 / 直连白名单）**：此前两名单无归一化，填了带 `http(s)://` 前缀或路径的条目会静默失效（路由只认裸 host）。现存盘与加载统一归一化：去 scheme、去路径/查询/尾斜杠只留 host（可带端口），中文逗号（，/、）转英文逗号，去空去重保序；站点值（如 `javdb`）与 `*` 原样保留。设置页保存后输入框即回显归一化结果。`tests/test_site_list_normalize.py` 4 项回归
+
+- **检测页 bypass 串行化（TRAWL 浏览器池已饱和）**：检测组内并发跑项，直连失败站同时触发 bypass 兜底占浏览器，池满后集体 502。现单 run 在 run 客户端上挂一把 `_bypass_serial_lock`，所有 bypass（显式兜底 + 探测内部挑战/传输兜底）必经 `_try_bypass_cloudflare` 包装器串行，同一时刻只占一个浏览器；run 结束摘锁，正常刮削不设锁、走快路径零变化。代价：直连失败站的检测耗时由并发改为串行累加。`tests/test_bypass_serial.py` 3 项回归（并发互斥 max_active=1 / 快路径透传 / run 挂载+摘除）
+
+- **Trawl 后端四处修复（对照 TRAWL 官方原生 `/scrape` schema）**：① `_call_trawl` 以前每次都带 `method`/`body` 字段，但原生 `ScrapeRequest` 里根本没有这两个字段（只有 url/maxTimeout/skipHttp/maxTier/sessionId/headers/proxy 等）——服务端默认剥离未知字段，导致 POST 这类非 GET 请求被**静默降级成 GET**，返回错误内容却报成功。现非 GET/HEAD 直接返回明确错误（POST 请用 flaresolverr 后端走 `/v1 request.post`），payload 不再带 schema 外字段；② 适配层 ASGI 分发是 `try...finally` 缺 `except`，handler 内任何异常（TRAWL 返回非 dict JSON、异常 statusCode、非 latin-1 响应头）都会直接抛给 uvicorn，调用方看到连接重置而不是结构化错误，现包一层 `except` 返回 502 JSON；③ 检测页「外部 CF 服务」项：TRAWL 预热期 `GET /health` 返回 503 是正常现象（浏览器池初始化中），以前按「站点服务异常 HTTP 503」报 FAILED 红灯误导改配置，现报 WARNING「正在启动，稍候重测」；④ `_call_trawl` 非 200 错误里带上 TRAWL 服务端回的 `error`/`message` 文本，方便定位（如代理格式不对）。`tests/test_trawl_adapter.py` 补 2 项（POST 明确拒绝且不发往 TRAWL / 非 dict 响应转结构化 502，既有 `method == GET` 断言改为 `method 不在 payload`），`tests/test_network_check.py` 补 1 项（外部 CF 服务 503 → WARNING）。另确认无 bug：`GET /health` 是 TRAWL 真实端点（`GET /` 是 FlareSolverr 风格就绪信息，检测页按后端二选一正确）；原生 `proxy` 就是 string 形式，现状直传正确（与 flaresolverr 要对象不同）；原生响应本就没有 `responseHeaders`/`body` 字段，`headers={}` + `html` 回退路径正确；`_call_bypass_mirror` 回环请求硬 `proxy=None`，检测页传 `use_proxy=True` 也不会把 127.0.0.1 送进代理
 
 ## v2.1.3 (2026-09-24)
 

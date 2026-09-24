@@ -5,6 +5,24 @@ from mdcx.crawlers.missav import MissavCrawler
 
 
 @pytest.mark.parametrize(
+    ("raw_url", "expected"),
+    [
+        # 无语言段：语言码插到 slug 之前
+        ("https://missav.ws/SSNI-647", "https://missav.ws/cn/SSNI-647"),
+        ("https://missav.ws/dm79/SSNI-647", "https://missav.ws/dm79/cn/SSNI-647"),
+        # 旧末尾式：纠正为规范式
+        ("https://missav.ws/SSNI-647/cn", "https://missav.ws/cn/SSNI-647"),
+        ("https://missav.ws/dm79/SSNI-647/cn", "https://missav.ws/dm79/cn/SSNI-647"),
+        # 已是规范式：幂等不变
+        ("https://missav.ws/cn/SSNI-647", "https://missav.ws/cn/SSNI-647"),
+        ("https://missav.ws/dm79/cn/SSNI-647", "https://missav.ws/dm79/cn/SSNI-647"),
+    ],
+)
+def test_ensure_cn_detail_url_uses_canonical_lang_prefix(raw_url: str, expected: str):
+    assert MissavCrawler._ensure_cn_detail_url(raw_url) == expected
+
+
+@pytest.mark.parametrize(
     ("number", "expected"),
     [
         ("MIDV-999-U", "midv-999"),

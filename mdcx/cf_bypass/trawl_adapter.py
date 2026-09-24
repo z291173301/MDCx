@@ -144,6 +144,19 @@ async def _call_backend(
     )
 
 
+def _trawl_error_detail(resp: httpx.Response) -> str:
+    """从 TRAWL 非 200 响应里抠出服务端给的原因（原生 400/503 是 {"error": ...}）。"""
+    try:
+        err_body = resp.json()
+    except Exception:
+        return ""
+    if isinstance(err_body, dict):
+        detail = str(err_body.get("error") or err_body.get("message") or "")[:200]
+        if detail:
+            return f": {detail}"
+    return ""
+
+
 async def _call_trawl(
     client: httpx.AsyncClient,
     *,
@@ -157,14 +170,24 @@ async def _call_trawl(
     max_timeout_ms: int,
     timeout: float,
 ) -> dict:
-    """调用 TRAWL 原生 /scrape API（比 /v1 多返回 statusCode/responseHeaders/body）。"""
-    payload: dict = {"url": url, "maxTimeout": max_timeout_ms, "method": method or "GET"}
+    """调用 TRAWL 原生 /scrape API。
+
+    注意 TRAWL 原生 ScrapeRequest 的字段是 url/maxTimeout/skipHttp/maxTier/
+    sessionId/headers/proxy（string）等——没有 method，也没有 body：
+    Elysia 默认剥离未知字段，所以以前这里带的 method/body 会被静默丢弃，
+    非 GET 请求会被降级成 GET，返回错误内容却报成功（静默 corruption）。
+    因此非 GET/HEAD 直接失败（POST 请用 flaresolverr 后端走 /v1 request.post），
+    payload 里不再带 schema 之外的字段。
+    """
+    method_name = str(method or "GET").upper()
+    if method_name not in ("GET", "HEAD"):
+        return {"error": f"TRAWL /scrape 仅支持 GET（不支持 {method_name}），该请求无法经 TRAWL 绕过"}
+    payload: dict = {"url": url, "maxTimeout": max_timeout_ms}
     if headers:
         payload["headers"] = headers
     if proxy:
+        # TRAWL 原生 proxy 就是 string（per-request 覆盖），不要套对象
         payload["proxy"] = proxy
-    if body:
-        payload["body"] = body
     if skip_http:
         payload["skipHttp"] = True
     try:
@@ -176,7 +199,7 @@ async def _call_trawl(
     if resp.status_code == 429:
         return {"error": "TRAWL 浏览器池已饱和，请稍后重试"}
     if resp.status_code != 200:
-        return {"error": f"TRAWL 返回 HTTP {resp.status_code}"}
+        return {"error": f"TRAWL 返回 HTTP {resp.status_code}{_trawl_error_detail(resp)}"}
     try:
         data = resp.json()
     except Exception as exc:
@@ -185,6 +208,9 @@ async def _call_trawl(
         return {"error": f"TRAWL 错误: {data['error']}"}
 
     body_bytes: bytes | None = None
+    # 原生 ScrapeResult 没有 body/responseHeaders 字段（只有 html/cookies/
+    # userAgent/statusCode/url 等）：下面两段是防御性兼容——万一某版本带了就用，
+    # 没有则走 html 回退，不要删。
     raw_body = data.get("body")
     if isinstance(raw_body, list) and raw_body and isinstance(raw_body[0], int):
         body_bytes = bytes(raw_body)
@@ -363,6 +389,14 @@ def create_trawl_adapter_app(trawl_url: str, backend: str = BACKEND_TRAWL):
                 await _handle_html(client, trawl_url, backend, qs, headers, send)
             else:
                 await _handle_mirror(client, trawl_url, backend, scope, path, query_string, headers, receive, send)
+        except Exception as exc:
+            # handler 内异常（如 TRAWL 返回非 dict JSON、异常 statusCode、
+            # 非 latin-1 响应头）不能直接抛给 uvicorn，否则调用方看到的是
+            # 连接重置而不是结构化错误，bypass 会误判为传输失败。
+            try:
+                await _send_json(send, 502, {"error": f"适配层处理失败: {exc}"})
+            except Exception:
+                pass
         finally:
             await client.aclose()
 

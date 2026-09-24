@@ -308,6 +308,15 @@ def test_classify_403_plain_block():
     assert "CF Bypass" not in message
 
 
+def test_classify_external_cf_service_503_warming_up():
+    """TRAWL 预热期 GET /health 返回 503：报 WARNING（正在启动）而不是 FAILED，避免误导改配置。"""
+    spec = NetworkCheckSpec(name="外部 CF 服务", group="辅助服务", url="http://127.0.0.1:8191/health")
+    status, message = _classify_http_result(spec, 503, '{"status": "starting"}')
+
+    assert status == NetworkCheckStatus.WARNING
+    assert "正在启动" in message
+
+
 def test_format_summary_groups_failure_causes():
     """失败/警告项按成因分组显示在总结里（议题 #77）。"""
     from mdcx.core.network_check import NetworkCheckResult, format_summary
@@ -1534,3 +1543,54 @@ async def test_getchu_spec_enables_cf_bypass(monkeypatch: pytest.MonkeyPatch):
     specs = await build_network_check_specs()
     spec = next(s for s in specs if s.site == Website.GETCHU)
     assert spec.enable_cf_bypass is True
+
+
+@pytest.mark.anyio
+async def test_run_network_check_holds_computed_lease(monkeypatch: pytest.MonkeyPatch):
+    """整轮检测持有 computed 租约：检测期间点"保存"替换 computed 时，
+    旧客户端因租约未归零不会被关闭，排队/重试中的项不再报"网络客户端已关闭"。
+
+    实证：检测裸用共享客户端（无租约），13 分钟长轮尾部 avsex/javlibrary/
+    xcity/missav 全报"网络客户端已关闭"——旧客户端在连接池空闲瞬间被
+    close_when_idle 关闭，串行 bypass 排队者零占用、死得最先。"""
+
+    class LeaseManager:
+        def __init__(self):
+            self.config = FakeConfig()
+            self.events: list[str] = []
+            self.client = FakeClient()
+            self.computed = SimpleNamespace(async_client=self.client)
+
+        def acquire_computed(self):
+            mgr = self
+
+            class Lease:
+                async def __aenter__(self):
+                    mgr.events.append("enter")
+                    return mgr.computed
+
+                async def __aexit__(self, *exc):
+                    mgr.events.append("exit")
+                    return False
+
+            self.events.append("acquire")
+            return Lease()
+
+    mgr = LeaseManager()
+    monkeypatch.setattr("mdcx.core.network_check._manager", lambda: mgr)
+
+    results = await run_network_check(
+        specs=[NetworkCheckSpec(name="good", group="基础连通性", url="https://good.example")],
+        progress=lambda line: None,
+        emit_header=False,
+    )
+
+    # 租约：取、用、还，顺序正确
+    assert mgr.events == ["acquire", "enter", "exit"]
+    # 跑的就是租约里的客户端
+    assert mgr.client.calls, "run 未使用租约客户端请求"
+    assert all("good.example" in c["url"] for c in mgr.client.calls)
+    assert len(results) == 1
+    assert results[0].status == NetworkCheckStatus.OK
+    # 串行锁已摘，不残留
+    assert getattr(mgr.client, "_bypass_serial_lock", None) is None

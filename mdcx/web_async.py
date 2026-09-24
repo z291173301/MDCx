@@ -1613,6 +1613,55 @@ class AsyncWebClient:
         allow_redirects: bool,
         use_proxy: bool,
     ) -> tuple[Response | None, str]:
+        """Bypass 统一入口：检测页串行化在此收敛。
+
+        正常刮削不设 `_bypass_serial_lock`，直接走 impl，行为零变化。
+        检测页并发跑项时会在 run 客户端上挂一把 `_bypass_serial_lock`
+        （单 run 一把），把同一时刻的浏览器占用压到 1，避免 TRAWL/
+        FlareSolverr 浏览器池被并发兜底挤满而集体 502。
+        """
+        serial_lock = getattr(self, "_bypass_serial_lock", None)
+        if serial_lock is None:
+            return await self._try_bypass_cloudflare_impl(
+                host=host,
+                method=method,
+                target_url=target_url,
+                headers=headers,
+                cookies=cookies,
+                data=data,
+                json_data=json_data,
+                timeout=timeout,
+                allow_redirects=allow_redirects,
+                use_proxy=use_proxy,
+            )
+        async with serial_lock:
+            return await self._try_bypass_cloudflare_impl(
+                host=host,
+                method=method,
+                target_url=target_url,
+                headers=headers,
+                cookies=cookies,
+                data=data,
+                json_data=json_data,
+                timeout=timeout,
+                allow_redirects=allow_redirects,
+                use_proxy=use_proxy,
+            )
+
+    async def _try_bypass_cloudflare_impl(
+        self,
+        *,
+        host: str,
+        method: HttpMethod,
+        target_url: str,
+        headers: dict[str, str] | None,
+        cookies: dict[str, str] | None,
+        data: dict[str, str] | list[tuple] | str | BytesIO | bytes | None,
+        json_data: dict[str, Any] | None,
+        timeout: float | httpx.Timeout | None,
+        allow_redirects: bool,
+        use_proxy: bool,
+    ) -> tuple[Response | None, str]:
         lock = await self._get_cf_host_lock(host)
         async with lock:
             while True:
@@ -1781,7 +1830,7 @@ class AsyncWebClient:
             req_headers: dict = {}
             req_cookies = None
             # 整轮重试是否拿到过 HTTP 响应：一次都没拿到说明是传输层失败
-            #（RST/超时），挑战判定永不触发，bypass 从未被咨询（见下方兜底）。
+            # （RST/超时），挑战判定永不触发，bypass 从未被咨询（见下方兜底）。
             got_any_response = False
             allow_lifetime_rotation = purpose != "download"
 
@@ -1867,18 +1916,18 @@ class AsyncWebClient:
                     # 仅在真正遇到挑战页时才阻塞启动适配层：普通请求不应为此等待。
                     # 此前无条件启动会导致首个普通请求被适配层最长 60s 启动阻塞，
                     # 且外部服务短暂不可用时会直接永久禁用，后续真挑战也无法 bypass。
-                    if is_cf_challenge and enable_cf_bypass and self._trawl_adapter_enabled and not self._cf_bypass_enabled:
+                    if (
+                        is_cf_challenge
+                        and enable_cf_bypass
+                        and self._trawl_adapter_enabled
+                        and not self._cf_bypass_enabled
+                    ):
                         self._log_cf("触发 TRAWL 适配层启动", host)
                         started = await self._ensure_local_bypass()
                         if not started:
                             self._log_cf("TRAWL 适配层启动失败，跳过 bypass", host)
 
-                    if (
-                        enable_cf_bypass
-                        and self._cf_bypass_enabled
-                        and host
-                        and is_cf_challenge
-                    ):
+                    if enable_cf_bypass and self._cf_bypass_enabled and host and is_cf_challenge:
                         self._log_cf(f"🛑 检测到 Cloudflare 挑战页: {method} {url}", host)
                         self._cf_host_challenge_hits[host] = self._cf_host_challenge_hits.get(host, 0) + 1
                         if bypass_round >= self._cf_request_bypass_rounds:

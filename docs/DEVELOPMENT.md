@@ -231,7 +231,7 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 外部 CF 服务（TRAWL、FlareSolverr）与 mdcx 所需的 cf_bypasser 协议（`/cookies` `/html` `/mirror`）不兼容，适配层负责翻译：
 
 - **协议转换**：暴露 cf_bypasser 三端点，内部按后端调用外部服务并归一化为统一结构。
-  - `trawl` 后端：走 TRAWL 原生 `/scrape` API（返回 statusCode/responseHeaders/body，信息完整）。
+  - `trawl` 后端：走 TRAWL 原生 `/scrape` API（返回 url/html/cookies/userAgent/statusCode 等；注意原生响应没有 `responseHeaders`/`body` 字段，适配层走 `html` 回退）。
   - `flaresolverr` 后端：走 POST `/v1`（`cmd=request.get/post`），从 `solution.headers` 还原响应头。
 - **启用**：配置 `cf_bypass_trawl_url` + `cf_bypass_trawl_backend`（默认 trawl），`AsyncWebClient` 自动在本地拉起 `TrawlAdapterServer`（随机端口 + uvicorn 子进程）。回环地址的 `https` 会经 `normalize_trawl_url` 降回 `http`（FlareSolverr/TRAWL 本地实例只 serving 纯 HTTP，否则适配层 60s 探活失败并永久禁用）。
 - **代理路由**：`is_proxy_host` 域名条目会反查站点归属——名单写主域（如 `javlibrary.com`）时，同站点的动态镜像/备用域（如 f101w/c97k、GitHub 学习到的新域）自动跟随走代理；直连白名单仍优先。

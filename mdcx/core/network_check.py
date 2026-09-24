@@ -3,6 +3,7 @@ import re
 import threading
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
@@ -258,6 +259,13 @@ def _classify_http_result(spec: NetworkCheckSpec, status_code: int, text: str) -
         return NetworkCheckStatus.WARNING, "HTTP 403 请求被拒绝：当前节点出口 IP 可能被站点封禁，请更换节点"
     if status_code == 429:
         return NetworkCheckStatus.WARNING, "HTTP 429 请求被限流：请稍等几分钟再重试，或在设置中降低并发数"
+    if spec.name == "外部 CF 服务" and status_code == 503:
+        # TRAWL 的 GET /health 在浏览器池预热期返回 503（刚启动时常见），不是服务坏了：
+        # 报 WARNING 而不是 FAILED，避免用户刚起服务就看到红灯去乱改配置。
+        return (
+            NetworkCheckStatus.WARNING,
+            "外部 CF 服务正在启动（浏览器池初始化中），请稍候重新检测；若持续 503 请检查服务日志",
+        )
     if 200 <= status_code < 400:
         return NetworkCheckStatus.OK, "连接正常"
     if 500 <= status_code:
@@ -1219,79 +1227,120 @@ async def run_network_check(
     total = sum(1 for s in check_specs if s.group != "基础环境")
     grouped_specs = {group: [spec for spec in check_specs if spec.group == group] for group in GROUP_ORDER}
     semaphore = asyncio.Semaphore(max(int(concurrency), 1))
+    # Bypass 串行锁（单 run 一把）：检测组内并发跑项，直连失败站会同时触发
+    # bypass 兜底占浏览器，TRAWL/FlareSolverr 浏览器池满后集体 502
+    # （浏览器池已饱和）。锁只在 run 期间挂载到 run 客户端，平时不设、零开销。
+    bypass_lock = asyncio.Lock()
+    # 本 run 的 bypass 串行锁，直接挂到 run 客户端：检测组内并发跑项，
+    # 直连失败站会同时触发 bypass 兜底占浏览器，TRAWL/FlareSolverr 浏览器池
+    # 满后集体 502（浏览器池已饱和）。所有 bypass 必经
+    # AsyncWebClient._try_bypass_cloudflare（显式兜底 + 探测内部挑战/传输
+    # 兜底），包装器在此收敛串行；锁只在 run 期间存在，平时零开销。
+    # run 客户端与各 item 解析到的 request_client 是同一对象
+    # （注入 client 直接透传；computed 缓存稳定），此处预挂即全覆盖。
+    # 检测整轮持有 computed 租约：检测期间点"保存"会替换 computed 并请求关闭旧
+    # 客户端；此前检测裸用共享客户端（无租约），旧客户端在连接池空闲瞬间即被关闭，
+    # 排队/重试中的项全报"网络客户端已关闭"。租约让旧客户端等本轮结束再关。
+    # 外部注入 client（测试/专用）时不碰租约，生命周期归调用方。
+    _lease: Any = None
+    run_client = client
+    if run_client is None:
+        _lease = _manager().acquire_computed()
+        # 显式走异步协议：整轮 run 的 try/finally 已存在，lease 在 finally 释放，
+        # 比整个函数体套 async with 少一层缩进。
+        run_client = (await _lease.__aenter__()).async_client
+
+    _locked_clients: list[Any] = []
+    if run_client is not None:
+        with suppress(Exception):
+            run_client._bypass_serial_lock = bypass_lock
+            _locked_clients.append(run_client)
 
     async def run_one(spec: NetworkCheckSpec) -> NetworkCheckResult:
         async with semaphore:
-            return await run_network_check_item(spec, cancel_event=cancel_event, client=client, progress=progress)
+            return await run_network_check_item(spec, cancel_event=cancel_event, client=run_client, progress=progress)
 
     start_time = time.perf_counter()
     proxy_down = False
-    for group in GROUP_ORDER:
-        group_specs = grouped_specs.get(group, [])
-        if not group_specs or group == "基础环境":
-            continue
-        progress(group)
-        # task → spec 映射：单项逃逸异常时定位所属站点（议题 #73）
-        tasks = {asyncio.create_task(run_one(spec)): spec for spec in group_specs}
-        pending = set(tasks)
-        while pending:
-            if cancel_event and cancel_event.is_set():
-                for task in pending:
-                    task.cancel()
-                await asyncio.gather(*pending, return_exceptions=True)
-                elapsed = time.perf_counter() - start_time
-                for line in format_summary(results, elapsed, cancelled=True, proxy_unavailable=proxy_down):
-                    progress(line)
-                return results
-            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-            for task in done:
-                try:
-                    result = task.result()
-                except asyncio.CancelledError:
-                    # 单项任务内部协程被取消（底层连接清理/wait_for 子协程残留等），
-                    # 只影响该项，不应炸掉整轮——议题 #73/#74 实证 CancelledError
-                    # 从 future.result() 逃逸导致整轮停止。整轮取消由 cancel_event
-                    # 分支统一处理，这里把单项记为 CANCELLED 继续跑。
-                    result = NetworkCheckResult(
-                        spec=tasks[task],
-                        status=NetworkCheckStatus.CANCELLED,
-                        message="已取消",
-                        error="CancelledError",
-                    )
-                except Exception as exc:
-                    # 单项任务逃逸了 run_network_check_item 的兜底（探测链深层异常等）。
-                    # 绝不允许一项异常中断整轮检测——转 FAILED 记名续跑。
-                    # 空消息异常（裸 TimeoutError 等）必须带类型名，否则用户只见空行。
-                    result = NetworkCheckResult(
-                        spec=tasks[task],
-                        status=NetworkCheckStatus.FAILED,
-                        message="检测任务异常",
-                        error=f"{type(exc).__name__}: {exc}",
-                    )
-                results.append(result)
-                if on_item_done is not None:
-                    on_item_done(len(results), total)
-                if result.spec.group == "基础连通性":
-                    if result.status == NetworkCheckStatus.FAILED and _is_proxy_error(result.error):
-                        proxy_down = True
-                elif proxy_down and result.status == NetworkCheckStatus.FAILED and _is_proxy_error(result.error):
-                    # 全局代理不可用时，站点失败多为代理导致，简化提示避免误导用户以为站点全挂
-                    result = replace(result, message="代理不可用（详见下方检测结果汇总区的提示）", error="")
-                progress(format_result_line(result))
+    try:
+        for group in GROUP_ORDER:
+            group_specs = grouped_specs.get(group, [])
+            if not group_specs or group == "基础环境":
+                continue
+            progress(group)
+            # task → spec 映射：单项逃逸异常时定位所属站点（议题 #73）
+            tasks = {asyncio.create_task(run_one(spec)): spec for spec in group_specs}
+            pending = set(tasks)
+            while pending:
+                if cancel_event and cancel_event.is_set():
+                    for task in pending:
+                        task.cancel()
+                    await asyncio.gather(*pending, return_exceptions=True)
+                    elapsed = time.perf_counter() - start_time
+                    for line in format_summary(results, elapsed, cancelled=True, proxy_unavailable=proxy_down):
+                        progress(line)
+                    return results
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                for task in done:
+                    try:
+                        result = task.result()
+                    except asyncio.CancelledError:
+                        # 单项任务内部协程被取消（底层连接清理/wait_for 子协程残留等），
+                        # 只影响该项，不应炸掉整轮——议题 #73/#74 实证 CancelledError
+                        # 从 future.result() 逃逸导致整轮停止。整轮取消由 cancel_event
+                        # 分支统一处理，这里把单项记为 CANCELLED 继续跑。
+                        result = NetworkCheckResult(
+                            spec=tasks[task],
+                            status=NetworkCheckStatus.CANCELLED,
+                            message="已取消",
+                            error="CancelledError",
+                        )
+                    except Exception as exc:
+                        # 单项任务逃逸了 run_network_check_item 的兜底（探测链深层异常等）。
+                        # 绝不允许一项异常中断整轮检测——转 FAILED 记名续跑。
+                        # 空消息异常（裸 TimeoutError 等）必须带类型名，否则用户只见空行。
+                        result = NetworkCheckResult(
+                            spec=tasks[task],
+                            status=NetworkCheckStatus.FAILED,
+                            message="检测任务异常",
+                            error=f"{type(exc).__name__}: {exc}",
+                        )
+                    results.append(result)
+                    if on_item_done is not None:
+                        on_item_done(len(results), total)
+                    if result.spec.group == "基础连通性":
+                        if result.status == NetworkCheckStatus.FAILED and _is_proxy_error(result.error):
+                            proxy_down = True
+                    elif proxy_down and result.status == NetworkCheckStatus.FAILED and _is_proxy_error(result.error):
+                        # 全局代理不可用时，站点失败多为代理导致，简化提示避免误导用户以为站点全挂
+                        result = replace(result, message="代理不可用（详见下方检测结果汇总区的提示）", error="")
+                    progress(format_result_line(result))
 
-    elapsed = time.perf_counter() - start_time
-    for line in format_summary(
-        results, elapsed, cancelled=bool(cancel_event and cancel_event.is_set()), proxy_unavailable=proxy_down
-    ):
-        progress(line)
-    return sorted(
-        results,
-        key=lambda result: (
-            GROUP_ORDER.index(result.spec.group) if result.spec.group in GROUP_ORDER else len(GROUP_ORDER),
-            STATUS_ORDER[result.status],
-            result.spec.name,
-        ),
-    )
+        elapsed = time.perf_counter() - start_time
+        for line in format_summary(
+            results, elapsed, cancelled=bool(cancel_event and cancel_event.is_set()), proxy_unavailable=proxy_down
+        ):
+            progress(line)
+        return sorted(
+            results,
+            key=lambda result: (
+                GROUP_ORDER.index(result.spec.group) if result.spec.group in GROUP_ORDER else len(GROUP_ORDER),
+                STATUS_ORDER[result.status],
+                result.spec.name,
+            ),
+        )
+    finally:
+        # run 结束摘掉串行锁：stale 锁本身无害（无竞争时跨 loop acquire 安全，
+        # 下轮 run 也会覆盖），但正常刮削不应背着检测期的锁 attribute。
+        # 只摘本轮挂上去的那把锁，不碰他人。取消路径的早期 return 同样经过这里。
+        for _client in _locked_clients:
+            with suppress(Exception):
+                if getattr(_client, "_bypass_serial_lock", None) is bypass_lock:
+                    delattr(_client, "_bypass_serial_lock")
+        # 归还整轮租约（shield 释放，取消路径同样执行）：旧客户端在租约归零后才允许关闭。
+        if _lease is not None:
+            with suppress(Exception):
+                await _lease.__aexit__(None, None, None)
 
 
 # ===== 站点检测结果缓存（持久化到 userdata，供站点选择列表回显） =====
