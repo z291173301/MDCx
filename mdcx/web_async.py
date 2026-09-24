@@ -640,6 +640,8 @@ class AsyncWebClient:
             return True
 
         async with self._trawl_start_lock:
+            if not self._trawl_adapter_enabled:
+                return False
             if self._cf_bypass_enabled:
                 return True
             if self._trawl_adapter_server and self._trawl_adapter_server.is_running:
@@ -1802,23 +1804,32 @@ class AsyncWebClient:
                                 allow_redirects=allow_redirects,
                             )
 
-                    if enable_cf_bypass and self._trawl_adapter_enabled and not self._cf_bypass_enabled:
+                    # 检测到 Cloudflare 挑战页：无论是否启用 bypass，都强制轮换该池指纹，
+                    # 让重试有机会换新指纹（含 safari17_2_ios）绕过（missav 等站点有效）
+                    # 注：resp 为 None 说明直连传输层已失败（超时/连接错误），此时跳过挑战判定，
+                    # 直接走下方重试逻辑；否则 _is_cf_challenge_response(None) 会抛 AttributeError
+                    # 把原始传输错误误报成“curl-cffi 异常”。
+                    is_cf_challenge = False
+                    if host and resp is not None:
+                        is_cf_challenge = await self._is_cf_challenge_response(resp)
+                    if is_cf_challenge:
+                        self._log_cf(f"🛑 Cloudflare 挑战页，轮换指纹重试: {method} {url}", host)
+                        self._force_rotate_fingerprint(pool_base_key, fingerprint)
+
+                    # 仅在真正遇到挑战页时才阻塞启动适配层：普通请求不应为此等待。
+                    # 此前无条件启动会导致首个普通请求被适配层最长 60s 启动阻塞，
+                    # 且外部服务短暂不可用时会直接永久禁用，后续真挑战也无法 bypass。
+                    if is_cf_challenge and enable_cf_bypass and self._trawl_adapter_enabled and not self._cf_bypass_enabled:
                         self._log_cf("触发 TRAWL 适配层启动", host)
                         started = await self._ensure_local_bypass()
                         if not started:
                             self._log_cf("TRAWL 适配层启动失败，跳过 bypass", host)
 
-                    # 检测到 Cloudflare 挑战页：无论是否启用 bypass，都强制轮换该池指纹，
-                    # 让重试有机会换新指纹（含 safari17_2_ios）绕过（missav 等站点有效）
-                    if host and await self._is_cf_challenge_response(resp):
-                        self._log_cf(f"🛑 Cloudflare 挑战页，轮换指纹重试: {method} {url}", host)
-                        self._force_rotate_fingerprint(pool_base_key, fingerprint)
-
                     if (
                         enable_cf_bypass
                         and self._cf_bypass_enabled
                         and host
-                        and await self._is_cf_challenge_response(resp)
+                        and is_cf_challenge
                     ):
                         self._log_cf(f"🛑 检测到 Cloudflare 挑战页: {method} {url}", host)
                         self._cf_host_challenge_hits[host] = self._cf_host_challenge_hits.get(host, 0) + 1
@@ -1881,7 +1892,10 @@ class AsyncWebClient:
                                     retry = attempt < retry_count - 1 and bypass_round < self._cf_request_bypass_rounds
                                     self._log_cf(f"⚠️ bypass 失败: {bypass_error}", host)
 
-                    # 检查响应状态
+                    # 检查响应状态（resp 为 None 即直连传输层失败，保留内层 except 已设置的
+                    # error_msg/retry，直接落到下方重试逻辑，不在此误报状态码）
+                    elif resp is None:
+                        retry = True
                     elif resp.status_code >= 300 and not (resp.status_code == 302 and resp.headers.get("Location")):
                         error_msg = f"HTTP {resp.status_code}"
                         # 4xx/5xx 响应体常含服务器具体错误（如 Emby 400 的字段校验 JSON）。
