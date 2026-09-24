@@ -9,6 +9,7 @@ from typing import override
 from lxml import etree
 
 from ..config.enums import Website
+from ..config.manager import manager
 from . import getchu_dl
 from .base import BaseCrawler, Context, CrawlerData, CrawlerException, get_year
 from .base.base_types import split_csv
@@ -143,7 +144,7 @@ class GetchuCrawler(BaseCrawler):
     @classmethod
     @override
     def base_url_(cls) -> str:
-        return "http://www.getchu.com"
+        return manager.config.get_site_url(Website.GETCHU, "http://www.getchu.com")
 
     @override
     async def _run(self, ctx: Context):

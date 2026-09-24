@@ -8,7 +8,7 @@ import threading
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse, urlsplit
 
 import httpx
 
@@ -40,6 +40,27 @@ def _normalize_backend(backend: str | None) -> str:
     if backend not in VALID_BACKENDS:
         backend = BACKEND_TRAWL
     return backend
+
+
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def normalize_trawl_url(url: str | None) -> str:
+    """归一化外部 CF 服务地址：回环地址的 https 降回 http。
+
+    FlareSolverr / TRAWL 本地实例只 serving 纯 HTTP；配成 https://127.0.0.1:8191
+    会导致适配层 POST /v1 TLS 握手失败（_wait_ready 探活永不等到 200，60s 后
+    start() 失败并永久禁用），检测页 GET / 也超时红灯。非回环地址原样保留。
+    """
+    cleaned = (url or "").strip().rstrip("/")
+    if cleaned.lower().startswith("https://"):
+        try:
+            host = (urlparse(cleaned).hostname or "").lower()
+        except Exception:
+            host = ""
+        if host in _LOOPBACK_HOSTS:
+            cleaned = "http://" + cleaned[len("https://") :]
+    return cleaned
 
 
 def _find_free_port() -> int:
@@ -180,6 +201,38 @@ async def _call_trawl(
     }
 
 
+def _flaresolverr_proxy_object(proxy: str | dict | None) -> dict | None:
+    """把 MDCx 的代理地址字符串转成 FlareSolverr /v1 要求的 proxy 对象。
+
+    FlareSolverr 只接受 {"url", "username"?, "password"?} 对象形式，
+    直接透传 "http://host:port" 字符串会被拒绝/忽略，导致配了 Bypass
+    独立代理反而整单失败。
+    """
+    if not proxy:
+        return None
+    if isinstance(proxy, dict):
+        return proxy
+    text = str(proxy).strip()
+    if not text:
+        return None
+    try:
+        parts = urlsplit(text if "://" in text else f"http://{text}")
+    except Exception:
+        return {"url": text}
+    host = parts.hostname or ""
+    if not host:
+        return {"url": text}
+    netloc = host
+    if parts.port:
+        netloc += f":{parts.port}"
+    obj: dict = {"url": f"{parts.scheme or 'http'}://{netloc}"}
+    if parts.username:
+        obj["username"] = unquote(parts.username)
+    if parts.password:
+        obj["password"] = unquote(parts.password)
+    return obj
+
+
 async def _call_flaresolverr(
     client: httpx.AsyncClient,
     *,
@@ -201,8 +254,9 @@ async def _call_flaresolverr(
     payload: dict = {"cmd": cmd, "url": url, "maxTimeout": max_timeout_ms}
     if headers:
         payload["headers"] = headers
-    if proxy:
-        payload["proxy"] = proxy
+    proxy_object = _flaresolverr_proxy_object(proxy)
+    if proxy_object:
+        payload["proxy"] = proxy_object
     if body and cmd == "request.post":
         payload["postData"] = body
     try:
@@ -295,6 +349,14 @@ def create_trawl_adapter_app(trawl_url: str, backend: str = BACKEND_TRAWL):
             return
 
         try:
+            if path == "/healthz":
+                # 轻量探活：只证明适配层进程本身已就绪，不触碰外部后端。
+                # 注意：此前探针打的是 /cookies?url=http://example.com，每次都会
+                # 触发一次真实 FlareSolverr 会话（冷启动常需 5 秒以上），而探针
+                # 超时只有 5 秒 + 0.5 秒轮询，重叠请求把 FlareSolverr 单浏览器
+                # 队列越压越慢，60 秒永远等不到 200（表现为 ReadTimeout 刷屏）。
+                await _send_json(send, 200, {"status": "ok"})
+                return
             if path == "/cookies":
                 await _handle_cookies(client, trawl_url, backend, qs, send)
             elif path == "/html":
@@ -437,7 +499,7 @@ class TrawlAdapterServer:
         backend: str = BACKEND_TRAWL,
         log_fn: Callable[[str], None] | None = None,
     ):
-        self._trawl_url = (trawl_url or "").strip().rstrip("/")
+        self._trawl_url = normalize_trawl_url(trawl_url)
         self._backend = _normalize_backend(backend)
         self._process: asyncio.subprocess.Process | None = None
         self._thread: threading.Thread | None = None
@@ -584,11 +646,14 @@ class TrawlAdapterServer:
                 return False, f"适配层进程异常退出 (code={self._process.returncode})"
             try:
                 async with httpx.AsyncClient() as probe:
-                    resp = await probe.get(f"{self._url}/cookies?url=http://example.com", timeout=5)
+                    resp = await probe.get(f"{self._url}/healthz", timeout=5)
                     if resp.status_code == 200:
                         return True, ""
+                    last_error = f"HTTP {resp.status_code}: {resp.text[:200]}"
             except (httpx.ConnectError, httpx.TimeoutException, httpx.RemoteProtocolError) as e:
-                last_error = str(e)
+                # 带上异常类型：ReadTimeout 等 str(e) 为空，裸字符串会留下
+                # "启动超时 (60s): " 这种无信息尾巴。
+                last_error = f"{type(e).__name__}: {e}" if str(e) else type(e).__name__
             await asyncio.sleep(HEALTH_CHECK_INTERVAL)
         return False, f"外部 CF 适配层启动超时 ({SERVER_START_TIMEOUT}s): {last_error}"
 

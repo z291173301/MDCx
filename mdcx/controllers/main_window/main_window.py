@@ -4311,7 +4311,7 @@ class MyMAinWindow(QMainWindow):
             cancel_event = threading.Event()
             self.network_check_cancel_event = cancel_event
             self._net_check_lines = []
-            # 议题 #118：探测超时递进已移进单轮内部（30s/45s/60s 最多三次），
+            # 议题 #118：探测超时递进已移进单轮内部（30s/45s 最多两次），
             # 「重试失败项」回归纯重测——价值在于用户改完代理/CF 配置后再给一次机会
             signal_qt.show_net_info(f"⏱ 单站刮削探测自动递进重试，超时阶梯 {scrape_probe_ladder_text()}")
 

@@ -838,7 +838,7 @@
   "cf_bypass_url": "",
   "cf_bypass_proxy": "",
   "verify_ssl": true,
-  "timeout": 10,
+  "timeout": 45,
   "retry": 3,
   "theporndb_api_token": "",
   "javdb": "",

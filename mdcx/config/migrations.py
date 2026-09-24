@@ -230,6 +230,14 @@ def migrate_config_data(data: dict[str, Any]) -> list[str]:
         r = r.strip().rstrip("/")
         if r and all(schema not in r for schema in ["http://", "https://"]):
             r = "http://" + r
+        # 回环 https 降回 http：FlareSolverr/TRAWL 本地实例只 serving 纯 HTTP，
+        # 保留 https 会导致适配层与检测全部 TLS 超时（normalize_trawl_url）。
+        try:
+            from ..cf_bypass.trawl_adapter import normalize_trawl_url
+
+            r = normalize_trawl_url(r)
+        except Exception:
+            pass
         data["cf_bypass_trawl_url"] = r
     if isinstance(r := data.get("cf_bypass_trawl_backend"), str):
         r = r.strip().lower()

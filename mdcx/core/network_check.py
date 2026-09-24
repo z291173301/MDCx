@@ -55,12 +55,12 @@ class NetworkCheckResult:
 
 # 连通性检测通过后，用该番号实际探测爬虫搜索能力，避免"能连≠能刮"误导用户
 SCRAPE_PROBE_NUMBER = "SSNI-647"
-# 单站刮削探测的轮内超时阶梯（议题 #115/#118）：首探 30s，超时立即第 2 次 45s、
-# 再超时第 3 次 60s，三次都没过才判定该站探测无效。慢站/走代理/过 CF 的站响应偏慢
-# （实测 8s（#109）、15s（#115）都不够），把收敛窗口放在轮内自动递进，
+# 单站刮削探测的轮内超时阶梯：首探 30s，超时立即第 2 次 45s，
+# 两次都没过即判定该站探测无效。慢站/走代理/过 CF 的站响应偏慢
+# （实测 8s、15s 都不够），把收敛窗口放在轮内自动递进，
 # 用户不必靠手动点「重试失败项」碰运气。探测按分组串行、组内并发 10，
-# 单站最坏 135s，只有真正超时的站才付这个代价。
-SCRAPE_PROBE_ATTEMPT_TIMEOUTS = (30.0, 45.0, 60.0)
+# 单站最坏 75s，只有真正超时的站才付这个代价。
+SCRAPE_PROBE_ATTEMPT_TIMEOUTS = (30.0, 45.0)
 # 首轮首探超时（阶梯第一档），保留常量名供展示与默认值引用
 SCRAPE_PROBE_TIMEOUT = SCRAPE_PROBE_ATTEMPT_TIMEOUTS[0]
 
@@ -73,7 +73,7 @@ def scrape_probe_attempt_timeout(attempt_index: int) -> float:
 
 
 def scrape_probe_ladder_text() -> str:
-    """探测阶梯的展示文本，如 ``30s/45s/60s``。"""
+    """探测阶梯的展示文本，如 ``30s/45s``。"""
     return "/".join(f"{timeout:.0f}s" for timeout in SCRAPE_PROBE_ATTEMPT_TIMEOUTS)
 
 
@@ -443,7 +443,7 @@ async def _probe_crawler_capability_with_retry(
     progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
 ) -> tuple[NetworkCheckStatus | None, str]:
-    """单站刮削探测：轮内按 30s → 45s → 60s 自动递进重试（议题 #118）。
+    """单站刮削探测：轮内按 30s → 45s 自动递进重试（议题 #118，两档）。
 
     任一次成功立即定论；只有瞬时性结果才继续下一档，确定性结果首次即定论。
     阶梯全部走完仍未通过时给出终局说明（「判定该站刮削探测无效」），
@@ -772,6 +772,7 @@ async def _build_site_specs() -> list[NetworkCheckSpec]:
                     site=site,
                     use_proxy=use_proxy,
                     encoding="euc-jp",
+                    enable_cf_bypass=True,
                 )
             )
             continue
@@ -891,6 +892,12 @@ def _build_static_specs() -> list[NetworkCheckSpec]:
 
     trawl_url = manager.config.cf_bypass_trawl_url.strip()
     if trawl_url:
+        try:
+            from ..cf_bypass.trawl_adapter import normalize_trawl_url
+
+            trawl_url = normalize_trawl_url(trawl_url)
+        except Exception:
+            pass
         backend = (manager.config.cf_bypass_trawl_backend or "trawl").strip().lower()
         health_path = "/health" if backend == "trawl" else "/"
         specs.append(
@@ -975,6 +982,22 @@ async def run_network_check_item(
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
         if cancel_event and cancel_event.is_set():
             return NetworkCheckResult(spec=spec, status=NetworkCheckStatus.CANCELLED, message="已取消")
+        fallback_bypass_mode = ""
+        if response is None:
+            if spec.enable_cf_bypass and _bypass_available(_manager().config):
+                # 直连传输层失败（RST/超时）：无 HTTP 响应，挑战判定永不触发。
+                # 配了 bypass（外部 CF 服务/手动地址）时给它一次兜底机会——真浏览器
+                # 指纹可能通过 curl 指纹被 RST 的链路。失败则保留原始传输错误。
+                bypass_response, bypass_error = await _try_bypass_for_check(request_client, spec)
+                elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+                if bypass_response is not None:
+                    response = bypass_response
+                    try:
+                        fallback_bypass_mode = bypass_response.headers.get("x-mdcx-bypass-mode", "") or ""
+                    except Exception:
+                        fallback_bypass_mode = ""
+                else:
+                    error = f"{error}（bypass 兜底亦失败: {_clean_error(bypass_error)})"
         if response is None:
             clean_error = _clean_error(error)
             message = _message_for_error(clean_error)
@@ -1031,6 +1054,18 @@ async def run_network_check_item(
                     final_url=str(getattr(response, "url", "") or ""),
                     used_proxy=used_proxy,
                 )
+            if _is_cloudflare_challenge(text):
+                # bypass 跑过且返回了响应，但内容仍是挑战页（FlareSolverr 未能解开）：
+                # 不要再提示“去配置外部 CF 服务”（它已配置且已运行），直接点名失败。
+                return NetworkCheckResult(
+                    spec=spec,
+                    status=NetworkCheckStatus.WARNING,
+                    message="已尝试 CF Bypass，但返回仍是 Cloudflare 挑战页（FlareSolverr 未能解开该站验证）",
+                    status_code=int(response.status_code),
+                    elapsed_ms=elapsed_ms,
+                    final_url=str(getattr(response, "url", "") or ""),
+                    used_proxy=used_proxy,
+                )
             if not _is_cloudflare_challenge(text):
                 bypass_mode = ""
                 try:
@@ -1062,6 +1097,9 @@ async def run_network_check_item(
             status, message = _classify_missav_api(int(response.status_code), text)
         elif spec.name == "CF Bypass" and status == NetworkCheckStatus.OK:
             message = "服务可用"
+        if status == NetworkCheckStatus.OK and fallback_bypass_mode:
+            mode_text = f"（{fallback_bypass_mode}）"
+            message = f"连接正常，已通过 CF Bypass{mode_text}"
 
         if (
             status == NetworkCheckStatus.OK
@@ -1158,7 +1196,7 @@ async def run_network_check(
 
     specs: 指定检测子集（用于"重试失败项"只重测失败/警告项）；None 表示全量构建检测项。
     on_item_done: 每完成一项回调 (done, total) 结构化进度（"基础环境"组不参与计数）；供 UI 显示百分比。
-    单站刮削探测的超时递进（30s/45s/60s 最多三次）在探测环节内部完成（议题 #118）。
+    单站刮削探测的超时递进（30s/45s 最多两次）在探测环节内部完成（议题 #118）。
     """
     progress = progress or (lambda line: None)
     if emit_header:

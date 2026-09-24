@@ -310,3 +310,58 @@ async def test_aventertainments_dvd_real_search():
     assert result.data.actors
     assert result.data.outline
     assert result.data.mosaic == "无码"
+
+
+@pytest.mark.asyncio
+async def test_aventertainments_parse_search_page_bot_wall():
+    """人机验证墙必须点名，不能报"搜索页未解析到结果"误导"""
+    from mdcx.crawlers.base import CrawlerException
+    from mdcx.web_async import AsyncWebClient
+
+    html = """
+    <html><body>
+    <h2>我不是机器人。</h2>
+    <div class="g-recaptcha">私はロボットではありません</div>
+    <form action="/cart/verifybot?lang=2"></form>
+    </body></html>
+    """
+
+    client = AsyncWebClient(timeout=30)
+    crawler = AventertainmentsCrawler(client=client, browser=None)
+
+    inp = CrawlerInput.empty()
+    inp.number = "082226_001"
+    ctx = crawler.new_context(inp)
+    ctx.is_ppv = True
+
+    with pytest.raises(CrawlerException, match="人机验证"):
+        await crawler._parse_search_page(ctx, Selector(text=html), "test_url")
+
+    await client.close()
+
+
+@pytest.mark.asyncio
+async def test_aventertainments_parse_search_page_404():
+    """404 下架页必须点名，不能报"搜索页未解析到结果"误导"""
+    from mdcx.crawlers.base import CrawlerException
+    from mdcx.web_async import AsyncWebClient
+
+    html = """
+    <html><body>
+    <h1>OOPS! 404 PAGE NOT FOUND</h1>
+    <p>ご指定のページは存在しません！！</p>
+    </body></html>
+    """
+
+    client = AsyncWebClient(timeout=30)
+    crawler = AventertainmentsCrawler(client=client, browser=None)
+
+    inp = CrawlerInput.empty()
+    inp.number = "082226_001"
+    ctx = crawler.new_context(inp)
+    ctx.is_ppv = True
+
+    with pytest.raises(CrawlerException, match="404"):
+        await crawler._parse_search_page(ctx, Selector(text=html), "test_url")
+
+    await client.close()

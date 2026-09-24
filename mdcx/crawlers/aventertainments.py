@@ -16,7 +16,7 @@ from parsel import Selector
 
 from ..config.models import Website
 from ..models.model_types import CrawlerInput
-from .base import BaseCrawler, Context, CrawlerData
+from .base import BaseCrawler, Context, CrawlerData, CrawlerException
 from .base.parser import get_year
 
 
@@ -30,7 +30,7 @@ class AventertainmentsContext(Context):
 
 class AventertainmentsCrawler(BaseCrawler[AventertainmentsContext]):
     description = "AVENTERTAINMENTS 无码（DVD+PPV）"
-    probe_number = "082226_001"
+    probe_number = "TRG-095"
 
     @classmethod
     @override
@@ -70,8 +70,26 @@ class AventertainmentsCrawler(BaseCrawler[AventertainmentsContext]):
     async def _parse_search_page(
         self, ctx: AventertainmentsContext, html: Selector, search_url: str
     ) -> list[str] | str | None:
+        page_text = html.get()
+        lower_text = page_text.lower()
+        # 两类"假 200"页面必须点名，不能一律报"搜索页未解析到结果"误导：
+        # ① 站点 verifybot 人机验证墙（reCAPTCHA，手工都难过去，自动化无解）；
+        # ② 404 下架页（探测番号不存在或已移除）。
+        if (
+            "verifybot" in lower_text
+            or "recaptcha" in lower_text
+            or "我不是机器人" in page_text
+            or "私はロボットではありません" in page_text
+        ):
+            raise CrawlerException("搜索页被站点人机验证拦截（verifybot/reCAPTCHA，需手工过验证），自动跳过")
+        if (
+            "page not found" in lower_text
+            or "pagenotfound" in lower_text
+            or "ご指定のページは存在しません" in page_text
+        ):
+            raise CrawlerException("搜索页返回 404（探测番号可能已下架或未收录）")
         # 提取所有 pro= ID
-        pro_ids = re.findall(r"pro=(\d+)", html.get())
+        pro_ids = re.findall(r"pro=(\d+)", page_text)
         if not pro_ids:
             ctx.debug("搜索页未找到 pro ID")
             return None

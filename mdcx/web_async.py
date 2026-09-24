@@ -57,6 +57,7 @@ _CHUNK_DOWNLOAD_CONCURRENCY = 6  # 分块下载并发数（可调，权衡速度
 # test_stream_close_aborts 锁定的 1.0s "立即中止" 阈值。
 _STREAM_TASK_JOIN_TIMEOUT = 0.5
 _WEB_DIC_DOMAINS_BY_VALUE: dict[str, frozenset[str]] | None = None
+_PROXY_DOMAIN_TO_SITE_VALUES: dict[str, frozenset[str]] | None = None
 
 
 def _web_dic_domains_by_value() -> dict[str, frozenset[str]]:
@@ -91,6 +92,23 @@ def _web_dic_domains_by_value() -> dict[str, frozenset[str]]:
             pass
         _WEB_DIC_DOMAINS_BY_VALUE = {k: frozenset(v) for k, v in mapping.items()}
     return _WEB_DIC_DOMAINS_BY_VALUE
+
+
+def _proxy_domain_to_site_values() -> dict[str, frozenset[str]]:
+    """域名 → 站点值集合反查表（_web_dic_domains_by_value 反转）。
+
+    支撑 is_proxy_host 分支 3b：默认名单写主域（如 javlibrary.com）时，
+    同站点的动态镜像/备用域（如 f101w.com、GitHub 学习到的 e100k.com）
+    自动跟随走代理，无需把每个镜像逐个写进名单。
+    """
+    global _PROXY_DOMAIN_TO_SITE_VALUES
+    if _PROXY_DOMAIN_TO_SITE_VALUES is None:
+        reverse: dict[str, set[str]] = {}
+        for site_value, domains in _web_dic_domains_by_value().items():
+            for domain in domains:
+                reverse.setdefault(domain, set()).add(site_value)
+        _PROXY_DOMAIN_TO_SITE_VALUES = {k: frozenset(v) for k, v in reverse.items()}
+    return _PROXY_DOMAIN_TO_SITE_VALUES
 
 
 def is_proxy_host(
@@ -165,6 +183,23 @@ def is_proxy_host(
             for base in known:
                 if host.endswith("." + base):
                     return True
+
+        # 3b. 域名条目反查站点归属：名单写主域（如 javlibrary.com）时，
+        # 同站点的动态镜像/备用域（如 f101w.com、GitHub 学习到的 e100k.com）
+        # 自动跟随走代理。直连白名单（分支 1）仍优先，不受此影响。
+        site_values = _proxy_domain_to_site_values().get(proxy_site)
+        if site_values is None and proxy_site.startswith("www."):
+            site_values = _proxy_domain_to_site_values().get(proxy_site[4:])
+        if site_values:
+            for site_value in site_values:
+                site_known = domains_by_value.get(site_value)
+                if not site_known:
+                    continue
+                if host in site_known:
+                    return True
+                for base in site_known:
+                    if host.endswith("." + base):
+                        return True
 
         # 5. 通用 TLD 兜底（libredmm / avwikidb / minnano 等未进 WEB_DIC 的站点）
         for tld in _PROXY_TLDS:
@@ -1547,6 +1582,11 @@ class AsyncWebClient:
         if not response.content:
             return None, "bypass 返回空 HTML"
 
+        if await self._is_cf_challenge_response(response):
+            # /html 回了 2xx 但内容仍是挑战页：当失败处理，让上游继续重试/
+            # 回退，而不是把挑战页当成功返回（mirror 路已有同等检查）。
+            return None, "/html 返回 Cloudflare 挑战页"
+
         response_headers = {str(k): str(v) for k, v in response.headers.items()}
         final_url = (
             self._extract_header_case_insensitive(response_headers, "x-cf-bypasser-final-url").strip() or target_url
@@ -1737,6 +1777,12 @@ class AsyncWebClient:
             retry_count = max(int(self.retry if retry_count is None else retry_count), 1)
             error_msg = ""
             bypass_round = 0
+            # 兜底分支用到的末轮请求上下文：先给初值，防首轮极早抛异常导致未绑定。
+            req_headers: dict = {}
+            req_cookies = None
+            # 整轮重试是否拿到过 HTTP 响应：一次都没拿到说明是传输层失败
+            #（RST/超时），挑战判定永不触发，bypass 从未被咨询（见下方兜底）。
+            got_any_response = False
             allow_lifetime_rotation = purpose != "download"
 
             for attempt in range(retry_count):
@@ -1809,6 +1855,8 @@ class AsyncWebClient:
                     # 注：resp 为 None 说明直连传输层已失败（超时/连接错误），此时跳过挑战判定，
                     # 直接走下方重试逻辑；否则 _is_cf_challenge_response(None) 会抛 AttributeError
                     # 把原始传输错误误报成“curl-cffi 异常”。
+                    if resp is not None:
+                        got_any_response = True
                     is_cf_challenge = False
                     if host and resp is not None:
                         is_cf_challenge = await self._is_cf_challenge_response(resp)
@@ -1949,6 +1997,60 @@ class AsyncWebClient:
                 if should_sleep_before_retry and attempt < retry_count - 1:
                     sleep_seconds = self._calc_retry_sleep_seconds(attempt, after_cf_bypass=sleep_after_cf_bypass)
                     await asyncio.sleep(sleep_seconds)
+            # 传输失败兜底：整轮重试一次 HTTP 响应都没拿到（直连 RST/超时），挑战判定
+            # 永不触发。若配了 bypass（外部 CF 服务 / 手动地址），给 bypass 一次机会——
+            # 外部服务是真浏览器指纹，可能通过 curl 指纹被 RST 的链路（如强制直连站点）。
+            # 仅彻底失败后触发一次：正常通过的请求走不到这里，行为不变。
+            if (
+                not got_any_response
+                and enable_cf_bypass
+                and host
+                and method.upper() in ("GET", "HEAD")
+                and not stream
+                and bypass_round < self._cf_request_bypass_rounds
+                and (self._trawl_adapter_enabled or self._cf_bypass_enabled)
+            ):
+                self._log_cf(f"⚠️ 直连传输失败且无响应，尝试 bypass 兜底: {method} {url}", host)
+                if self._trawl_adapter_enabled and not self._cf_bypass_enabled:
+                    started = await self._ensure_local_bypass()
+                    if not started:
+                        self._log_cf("TRAWL 适配层启动失败，跳过 bypass", host)
+                if self._cf_bypass_enabled:
+                    target_url = self._merge_url_params(url, params)
+                    bypass_response, bypass_error = await self._try_bypass_cloudflare(
+                        host=host,
+                        method=method,
+                        target_url=target_url,
+                        headers=req_headers,
+                        cookies=req_cookies,
+                        data=data,
+                        json_data=json_data,
+                        timeout=timeout,
+                        allow_redirects=allow_redirects,
+                        use_proxy=bool((self.cf_bypass_proxy or "").strip()),
+                    )
+                    bypass_headers = (
+                        {str(k): str(v) for k, v in bypass_response.headers.items()}
+                        if bypass_response is not None
+                        else {}
+                    )
+                    if bypass_response is not None and (
+                        bypass_response.status_code < 300
+                        or (
+                            bypass_response.status_code == 302
+                            and self._extract_header_case_insensitive(bypass_headers, "location")
+                        )
+                    ):
+                        bypass_mode = self._extract_header_case_insensitive(bypass_headers, "x-mdcx-bypass-mode")
+                        self._log_cf(
+                            f"✅ bypass 兜底成功（模式: {bypass_mode or 'unknown'}），直接使用 bypass 响应",
+                            host,
+                        )
+                        return bypass_response, ""
+                    self._log_cf(
+                        f"⚠️ bypass 兜底失败: {bypass_error}，保留原始传输错误",
+                        host,
+                    )
             return None, f"{method} {url} 失败: {error_msg}"
         except Exception as e:
             error_msg = f"{method} {url} 未知错误:  {e!s}"

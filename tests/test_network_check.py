@@ -255,7 +255,7 @@ async def test_mirror_sample_spec_skips_scrape_probe(monkeypatch: pytest.MonkeyP
 
 @pytest.mark.anyio
 async def test_run_network_check_item_retries_probe_within_first_round(monkeypatch: pytest.MonkeyPatch):
-    """议题 #118：首轮检测内部就自动递进重试（30s/45s/60s），用户不必手动点「重试失败项」。"""
+    """议题 #118：首轮检测内部就自动递进重试（30s/45s），用户不必手动点「重试失败项」。"""
     seen: list[float | None] = []
 
     async def fake(client, spec, probe_timeout=None):
@@ -268,10 +268,10 @@ async def test_run_network_check_item_retries_probe_within_first_round(monkeypat
 
     result = await run_network_check_item(spec, client=FakeClient(), progress=lines.append)
 
-    assert seen == [30.0, 45.0, 60.0], "单项检测必须走满轮内阶梯"
+    assert seen == [30.0, 45.0], "单项检测必须走满轮内阶梯"
     assert result.status == NetworkCheckStatus.WARNING
-    assert "3 次均超时" in result.message
-    assert any("avbase 第 2/3 次刮削探测" in line for line in lines), lines
+    assert "2 次均超时" in result.message
+    assert any("avbase 第 2/2 次刮削探测" in line for line in lines), lines
 
 
 def test_message_for_error_tls_handshake():
@@ -323,7 +323,7 @@ def test_format_summary_groups_failure_causes():
         r("missav", NetworkCheckStatus.WARNING, "站点可达但搜索页被 Cloudflare 拦截"),
         r("getchu", NetworkCheckStatus.FAILED, "HTTP 403 请求被拒绝：当前节点出口 IP 可能被站点封禁"),
         r("javdb_api", NetworkCheckStatus.FAILED, "TLS 握手中断"),
-        r("avbase", NetworkCheckStatus.WARNING, "站点可达但刮削探测 3 次均超时（30s/45s/60s），判定该站刮削探测无效"),
+        r("avbase", NetworkCheckStatus.WARNING, "站点可达但刮削探测 2 次均超时（30s/45s），判定该站刮削探测无效"),
         r("ok", NetworkCheckStatus.OK, "连接正常"),
     ]
     lines = format_summary(results, elapsed=5.0, cancelled=False)
@@ -334,7 +334,7 @@ def test_format_summary_groups_failure_causes():
     assert "节点" in text
     # 议题 #118：轮内重试仍超时的站点要单独成组，不能混进「其他异常」或「未收录」
     assert "刮削探测多次超时 ×1" in text
-    assert "30s/45s/60s" in text
+    assert "30s/45s" in text
 
 
 @pytest.mark.anyio
@@ -695,6 +695,44 @@ async def test_run_network_check_item_reports_cf_bypass_failure(monkeypatch: pyt
     assert result.error == "bypass failed"
 
 
+@pytest.mark.anyio
+async def test_run_network_check_item_names_unsolved_challenge_after_bypass(monkeypatch: pytest.MonkeyPatch):
+    """bypass 跑过但返回仍是挑战页（FlareSolverr 未能解开）时，不得再提示
+    “去配置外部 CF 服务”（它已配置且已运行），必须直接点名失败。"""
+
+    class BypassConfig(FakeConfig):
+        cf_bypass_url = "http://0.0.0.0:8000"
+
+    class BypassManager:
+        config = BypassConfig()
+        computed = None
+
+    class StillChallengeBypassClient(FakeBypassClient):
+        async def _try_bypass_cloudflare(self, **kwargs):
+            self.bypass_calls.append(kwargs)
+            response = FakeResponse(
+                text="<html><title>Just a moment...</title><script src='/cdn-cgi/challenge-platform/x'></script>Cloudflare</html>",
+                url=kwargs["target_url"],
+            )
+            response.headers["x-mdcx-bypass-mode"] = "html"
+            return response, ""
+
+    monkeypatch.setattr("mdcx.core.network_check._manager", lambda: BypassManager())
+    spec = NetworkCheckSpec(
+        name="cf-site",
+        group="刮削站点",
+        url="https://cf.example",
+        enable_cf_bypass=True,
+    )
+
+    result = await run_network_check_item(spec, client=StillChallengeBypassClient())
+
+    assert result.status == NetworkCheckStatus.WARNING
+    assert "已尝试 CF Bypass" in result.message
+    assert "仍是 Cloudflare 挑战页" in result.message
+    assert "配置「外部 CF 服务」" not in result.message
+
+
 class ProbeCrawler:
     def __init__(self, client, base_url="", browser=None):
         self.client = client
@@ -736,15 +774,14 @@ class ProbeFakeClient:
 
 
 def test_scrape_probe_attempt_timeout_ladder():
-    """议题 #118：单站探测阶梯 30s → 45s → 60s，超出档数取最后一档。"""
+    """议题 #118：单站探测阶梯 30s → 45s，超出档数取最后一档。"""
     assert nc.SCRAPE_PROBE_TIMEOUT == 30.0
-    assert nc.SCRAPE_PROBE_ATTEMPT_TIMEOUTS == (30.0, 45.0, 60.0)
+    assert nc.SCRAPE_PROBE_ATTEMPT_TIMEOUTS == (30.0, 45.0)
     assert nc.scrape_probe_attempt_timeout(0) == 30.0
     assert nc.scrape_probe_attempt_timeout(1) == 45.0
-    assert nc.scrape_probe_attempt_timeout(2) == 60.0
-    assert nc.scrape_probe_attempt_timeout(3) == 60.0
+    assert nc.scrape_probe_attempt_timeout(2) == 45.0
     assert nc.scrape_probe_attempt_timeout(-1) == 30.0
-    assert nc.scrape_probe_ladder_text() == "30s/45s/60s"
+    assert nc.scrape_probe_ladder_text() == "30s/45s"
 
 
 def test_transient_probe_result_classification():
@@ -828,7 +865,7 @@ _PROBE_SPEC = NetworkCheckSpec(name="avbase", group="刮削站点", url="https:/
 
 @pytest.mark.anyio
 async def test_probe_retry_stops_when_a_later_attempt_passes(monkeypatch: pytest.MonkeyPatch):
-    """议题 #118：首探超时后自动第 2 次并放宽到 45s，成功即定论，不再跑第 3 次。"""
+    """议题 #118：首探超时后自动第 2 次并放宽到 45s，成功即定论，不再重试。"""
     _stub_probe_attempts(
         monkeypatch,
         [
@@ -847,22 +884,22 @@ async def test_probe_retry_stops_when_a_later_attempt_passes(monkeypatch: pytest
 
 
 @pytest.mark.anyio
-async def test_probe_retry_three_timeouts_declares_probe_invalid(monkeypatch: pytest.MonkeyPatch):
-    """三次都超时 → 给出「判定该站刮削探测无效」终局说明，并列出实际用过的阶梯。"""
+async def test_probe_retry_two_timeouts_declares_probe_invalid(monkeypatch: pytest.MonkeyPatch):
+    """两次都超时 → 给出「判定该站刮削探测无效」终局说明，并列出实际用过的阶梯。"""
     seen = _stub_probe_attempts(monkeypatch, [(NetworkCheckStatus.WARNING, "站点可达但刮削探测超时")])
 
     status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
-    assert seen == [30.0, 45.0, 60.0]
+    assert seen == [30.0, 45.0]
     assert status == NetworkCheckStatus.WARNING
-    assert "3 次均超时" in message
-    assert "30s/45s/60s" in message
+    assert "2 次均超时" in message
+    assert "30s/45s" in message
     assert "判定该站刮削探测无效" in message
 
 
 @pytest.mark.anyio
 async def test_probe_retry_skips_deterministic_result(monkeypatch: pytest.MonkeyPatch):
-    """「测试番号未被收录」是确定性结论：只探一次，不白等 45+60s。"""
+    """「测试番号未被收录」是确定性结论：只探一次，不白等 45s。"""
     seen = _stub_probe_attempts(
         monkeypatch,
         [(NetworkCheckStatus.WARNING, "站点可达，但测试番号 SSNI-647 未被该站点收录（属正常情况）")],
@@ -883,9 +920,8 @@ async def test_probe_retry_emits_attempt_progress_lines(monkeypatch: pytest.Monk
 
     await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC, progress=lines.append)
 
-    assert any("avbase 第 2/3 次刮削探测" in line and "45s" in line for line in lines), lines
-    assert any("avbase 第 3/3 次刮削探测" in line and "60s" in line for line in lines), lines
-    assert not any("第 1/3 次" in line for line in lines), "首探无需额外提示"
+    assert any("avbase 第 2/2 次刮削探测" in line and "45s" in line for line in lines), lines
+    assert not any("第 1/2 次" in line for line in lines), "首探无需额外提示"
 
 
 @pytest.mark.anyio
@@ -917,7 +953,6 @@ async def test_probe_retry_mixed_transient_keeps_last_reason(monkeypatch: pytest
         monkeypatch,
         [
             (NetworkCheckStatus.WARNING, "站点可达但搜索页请求失败: conn reset"),
-            (NetworkCheckStatus.WARNING, "站点可达但刮削探测异常: boom"),
             (NetworkCheckStatus.WARNING, "站点可达但刮削探测失败: 500"),
         ],
     )
@@ -925,7 +960,7 @@ async def test_probe_retry_mixed_transient_keeps_last_reason(monkeypatch: pytest
     status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
     assert status == NetworkCheckStatus.WARNING
-    assert "3 次均未通过" in message
+    assert "2 次均未通过" in message
     assert "最后一次" in message
     assert "500" in message
 
@@ -1466,3 +1501,28 @@ async def test_thejavdb_api_spec_has_site_for_badge(monkeypatch: pytest.MonkeyPa
     assert spec.group == "账号/API"
     assert spec.validator == "thejavdb_api"
     assert spec.url.endswith("/movies?q=ssni-200")
+
+
+@pytest.mark.anyio
+async def test_getchu_spec_enables_cf_bypass(monkeypatch: pytest.MonkeyPatch):
+    """GETCHU 曾被 special-case 漏掉 enable_cf_bypass：直连 RST（curl 56）时
+    请求层与检测层两处传输兜底都进不去，检测直接红且无 bypass 标注。"""
+
+    class GetchuCrawlerStub:
+        @classmethod
+        def base_url_(cls):
+            return "http://www.getchu.com"
+
+        @classmethod
+        async def check_urls(cls):
+            return ["http://www.getchu.com"]
+
+    fake_crawlers = SimpleNamespace(
+        get_registered_crawler_sites=lambda include_hidden=False: [Website.GETCHU],
+        get_crawler=lambda site: GetchuCrawlerStub,
+    )
+    monkeypatch.setitem(sys.modules, "mdcx.crawlers", fake_crawlers)
+
+    specs = await build_network_check_specs()
+    spec = next(s for s in specs if s.site == Website.GETCHU)
+    assert spec.enable_cf_bypass is True

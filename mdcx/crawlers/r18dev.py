@@ -184,7 +184,7 @@ async def _upgrade_dmm_cover(ctx, data: CrawlerData) -> None:
 
 
 class R18devCrawler(BaseCrawler):
-    description = "R18.dev JSON API 直连（仅能有码，免 CF）"
+    description = "R18.dev JSON API（仅能有码，免 CF）"
     _last_request_at: float = 0.0
 
     @classmethod
@@ -342,10 +342,11 @@ class R18devCrawler(BaseCrawler):
 
     @override
     async def _fetch_search(self, ctx, url: str, use_browser: bool | None = False) -> tuple[str | None, str]:
+        # 代理路由交由 AsyncWebClient.request 按 proxy_sites/direct_sites 判定：
+        # r18.dev 已在默认走代理名单内，墙内直连会被 RST；此处不再写死直连。
         data, error = await self.async_client.get_json(
             url,
             headers=self._get_headers(ctx),
-            use_proxy=False,
         )
         if data is None:
             return None, error or "R18dev: 搜索请求失败"
@@ -356,7 +357,6 @@ class R18devCrawler(BaseCrawler):
         data, error = await self.async_client.get_json(
             url,
             headers=self._get_headers(ctx),
-            use_proxy=False,
         )
         if data is None:
             return None, error or "R18dev: 详情请求失败"

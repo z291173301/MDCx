@@ -224,7 +224,7 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 - **浏览器指纹**：curl-cffi 模拟浏览器 TLS 指纹，默认池 7 种画像（Chrome 124/131/136 Win、Chrome 136 Mac、Firefox 133/135 Win、Safari 17.2 iOS）按请求轮换；Amazon 刮削用纯桌面池 6 种（不含 Safari iOS，避免偶发返回移动版页面）
 - **限流**：并发数与全局线程延时控制请求节奏；Amazon 等高风控源使用自适应退避（`AdaptiveRequestThrottle`，命中 429 自动降速冷却），失败指数退避重试
 - **Cloudflare Bypass**：通过 `trawl_adapter.py` 把请求翻译给外部 CF 服务（TRAWL `/scrape` 或 FlareSolverr `/v1`），自动绕过 CF 防护页；JavLibrary 额外支持 Selenium+Edge headless fallback（`selenium_adapter.py`，cf_selenium_bypass 默认开启）
-- **代理**：HTTP/HTTPS/SOCKS5，按"走代理网站"域名路由（默认含 amazon.co.jp, m.media-amazon.com, xcity.jp, minnano-av.com, avbase.net, javbus.com, javdb.com, javlibrary.com, r18.dev, mgstage.com, prestige-av.com, seesaawiki.jp, avsox.click, avsox.com, avmoo.shop, avmoo.com, avheat.shop, avheat.com, heyzo.com, caribbeancom.com, 1pondo.tv, pacopacomama.com, 10musume.com, mywife.cc, github.com, raw.githubusercontent.com, google.com, missav.ws, missav.ai, missav.live, aventertainments.com, javfree.me, 7mmtv.sx, 7tv022.com 共 34 域）
+- **代理**：HTTP/HTTPS/SOCKS5，按"走代理网站"域名路由（默认含 amazon.co.jp, m.media-amazon.com, xcity.jp, minnano-av.com, avbase.net, javbus.com, javdb.com, javlibrary.com, r18.dev, mgstage.com, prestige-av.com, seesaawiki.jp, avsox.click, avsox.com, avmoo.shop, avmoo.com, avheat.shop, avheat.com, heyzo.com, caribbeancom.com, 1pondo.tv, pacopacomama.com, 10musume.com, mywife.cc, github.com, raw.githubusercontent.com, google.com, missav.ws, missav.ai, missav.live, aventertainments.com, javfree.me, 7mmtv.sx, 7tv022.com, avsex.cc, getchu.com, dl.getchu.com 共 37 域）
 
 ### TRAWL / FlareSolverr 适配层（mdcx/cf_bypass/trawl_adapter.py）
 
@@ -233,7 +233,8 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 - **协议转换**：暴露 cf_bypasser 三端点，内部按后端调用外部服务并归一化为统一结构。
   - `trawl` 后端：走 TRAWL 原生 `/scrape` API（返回 statusCode/responseHeaders/body，信息完整）。
   - `flaresolverr` 后端：走 POST `/v1`（`cmd=request.get/post`），从 `solution.headers` 还原响应头。
-- **启用**：配置 `cf_bypass_trawl_url` + `cf_bypass_trawl_backend`（默认 trawl），`AsyncWebClient` 自动在本地拉起 `TrawlAdapterServer`（随机端口 + uvicorn 子进程）。
+- **启用**：配置 `cf_bypass_trawl_url` + `cf_bypass_trawl_backend`（默认 trawl），`AsyncWebClient` 自动在本地拉起 `TrawlAdapterServer`（随机端口 + uvicorn 子进程）。回环地址的 `https` 会经 `normalize_trawl_url` 降回 `http`（FlareSolverr/TRAWL 本地实例只 serving 纯 HTTP，否则适配层 60s 探活失败并永久禁用）。
+- **代理路由**：`is_proxy_host` 域名条目会反查站点归属——名单写主域（如 `javlibrary.com`）时，同站点的动态镜像/备用域（如 f101w/c97k、GitHub 学习到的新域）自动跟随走代理；直连白名单仍优先。
 - **架构**：web_async 的 `_try_bypass_cloudflare` 只通过 `cf_bypass_url` 调本地 ASGI 服务端点，不区分内置/外部——`_ensure_local_bypass` 统一拉起适配层后设置 `cf_bypass_url`。
 - 内置 CF Bypass（cloakbrowser + cf_bypasser）已移除（v2.0.6），过 CF 统一走外部服务。
 

@@ -215,6 +215,68 @@ async def test_call_bypass_html_appends_bypass_cache_param_when_forced():
 
 
 @pytest.mark.asyncio
+async def test_call_bypass_html_rejects_challenge_content():
+    """/html 回 200 但内容仍是挑战页时必须当失败（与 mirror 路对齐），
+    不能把挑战页当成功返回——否则上游误判 bypass 成功（javlibrary 误报根因）。"""
+    client = AsyncWebClient(timeout=1, cf_bypass_url="http://127.0.0.1:8000")
+
+    async def fake_request(method, url, **kwargs):
+        return (
+            _fake_response(
+                status_code=200,
+                headers={"Content-Type": "text/html", "server": "cloudflare", "cf-ray": "abc"},
+                content=(
+                    b"<html><title>Just a moment...</title>"
+                    b"<script src='/cdn-cgi/challenge-platform/h/b/orchestrate/jsd/v1/x.js'></script></html>"
+                ),
+            ),
+            "",
+        )
+
+    client.request = fake_request  # type: ignore[method-assign]
+
+    response, error = await client._call_bypass_html("https://e100k.com/cn/?v=javme2j2tu", use_proxy=False)
+
+    assert response is None
+    assert error == "/html 返回 Cloudflare 挑战页"
+
+
+@pytest.mark.asyncio
+async def test_try_bypass_cloudflare_does_not_report_success_on_unsolved_challenge():
+    """mirror 失败 + /html 回未解开的挑战页时，整轮 bypass 必须判失败并保留原因，
+    不得返回挑战页冒充成功。"""
+    client = AsyncWebClient(timeout=1, cf_bypass_url="http://127.0.0.1:8000")
+
+    async def fake_call_bypass_mirror(**kwargs):
+        return None, "mirror 返回 Cloudflare 挑战页"
+
+    async def fake_request(method, url, **kwargs):
+        return (
+            _fake_response(
+                status_code=200,
+                headers={"Content-Type": "text/html"},
+                content=(
+                    b"<html><title>Just a moment...</title>"
+                    b"<script src='/cdn-cgi/challenge-platform/h/b/orchestrate/jsd/v1/x.js'></script></html>"
+                ),
+            ),
+            "",
+        )
+
+    client._call_bypass_mirror = fake_call_bypass_mirror  # type: ignore[method-assign]
+    client.request = fake_request  # type: ignore[method-assign]
+
+    response, error = await client._try_bypass_cloudflare(
+        host="e100k.com",
+        target_url="https://e100k.com/cn/?v=javme2j2tu",
+        **_default_try_kwargs(),
+    )
+
+    assert response is None
+    assert "/html 返回 Cloudflare 挑战页" in error
+
+
+@pytest.mark.asyncio
 async def test_call_bypass_mirror_returns_error_on_http_status():
     client = AsyncWebClient(timeout=1, cf_bypass_url="http://127.0.0.1:8000")
 

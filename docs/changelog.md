@@ -4,6 +4,10 @@
 
 ### 修复
 
+- **Bypass `/html` 路未解开的挑战页不再冒充成功（修 javlibrary"配了外部 CF 却没救回来"）**：`_call_bypass_mirror` 早有"返回仍是挑战页则判失败"的检查，`_call_bypass_html` 却缺了——FlareSolverr 没解开挑战时，200 + 挑战页 HTML 被当成功返回，上游直接拿去分类，报出自相矛盾的"请去配置外部 CF 服务"（明明已配置且已运行）。现两路对齐：未解开的挑战页一律判失败、走重试/回退；检测侧 bypass 跑过但仍是挑战页时，报错改为"已尝试 CF Bypass，但返回仍是 Cloudflare 挑战页（FlareSolverr 未能解开该站验证）"，不再甩锅给配置。新增 3 项回归（html 拒收挑战页 / 整轮不冒充成功 / 检测点名准确），相关套件全过
+
+- **aventertainments 搜索页两类"假 200"点名报错**：该站把人机验证墙（`/cart/verifybot` + reCAPTCHA"我不是机器人"，手工都难过去）与 404 下架页都按 HTTP 200 返回，旧解析一律报"搜索页未解析到结果"误导用户去查番号。现 `_parse_search_page` 先检出这两类页面并抛明因异常（验证墙→"被站点人机验证拦截，需手工过验证"；404→"探测番号可能已下架或未收录"），诊断报告直接显示真因。注意：Google reCAPTCHA 复选框 FlareSolverr 也解不了，该站自动化刮削在站点撤墙前处于不可用状态，非配置问题。新增两项回归（验证墙/404 各一），既有解析用例全过
+
 - **「跳过前置 Poster 大小校验」提示文案合并为一段**：把「不因当前 Poster 已达标跳过 Amazon（…）」与「将从日亚官网搜索高清封面图；…」两条独立提示合并为一条，紧跟勾选框之后、按需自动换行；删除冗余的 `label_92`，并上移「官方图源兜底」「海报超分」消除空档。UI 结构测试补「红/黄/绿」三回归用例（合并文案 + 自动换行 / 内联于勾选框后 / 删除冗余 label 且文案不重复）
 
 - **#182 演员设置页 Gfriends 本地仓库「选择目录」按钮与本地头像库样式不一致**：两按钮在 `MDCx.ui` / `MDCx.py` 定义已完全一致（Fixed、110x40、「选择目录」、无本地样式覆盖），差异在 `style.py` 全局药丸按钮选择器只含 `pushButton_select_actor_photo_folder`、漏了 `pushButton_select_gfriends_local`，Gfriends 按钮回退为默认方块样式。现浅色/深色主题 normal/hover/pressed 六处选择器一并补上，`.ui` / `.py` 无需改动。UI 结构测试补「红/黄/绿」三回归用例（全局样式六处全含 / 两按钮 ui+py 定义一致且无本地覆盖 / 修复前缺席形态不再出现）
@@ -11,6 +15,20 @@
 - **#181 命名页 / 读取模式等界面文案与布局整理**：命名页「视频命名规则」模板预览高度固定为约原来的 1/3，说明文字按当前宽度精确贴合，「视频文件名」上方的大片空白消除，组高随内容收缩、后续分组同步上移（保持 19px 间距）；命名页各「命名规则」分组右边框与「下载」「翻译」页对齐（左缘不变、缩放时保持对齐）；「演员名加入字符」改为「演员名末端插入」并给「等演员」输入框补上左侧标签、拉到与同类输入框等长；马赛克命名规则四条说明（无码破解 / 无码流出 / 无码 / 有码）文案更新，修复「有码」「无码流出」说明显示不全、无码说明压到两行；字段说明里 `four_4K` 更正为 `definition`；下载页「有时图片已被源网站删除，此时下载图片大概率失败」「有且仅限有码类型的番号，直下/搜图/右裁剪会选优」「有码番号缩略图可以裁剪，如果不想被裁剪可以勾选」及「剧照图：」等文案调整；读取模式区勾选项与说明文案重排（「本地已刮削成功的文件，按更新模式规则重新整理分类」「本地没有nfo的文件，按正常模式规则重新刮削」「允许更新nfo文件」「本地nfo内有链接，重新下载图片等文件」「本地nfo合并策略」「删除本地已下载的图片和nfo文件」，说明段去掉冗余换行与空格）；「排除目录」改为「刮削排除目录」。新增文案回归测试（`tests/test_ui_structure.py`：读取模式 / 排除目录精确文案 + 马赛克命名规则四条说明），改回旧措辞即报红
 
 - **CF Bypass 自动适配层三处逻辑修复**：复核设置页文案「CF Bypass 地址留空、配了下方外部 CF 服务则自动启动适配层，两者均空则关闭」——主链路已实现（`AsyncWebClient` 按 `cf_bypass_url` / `cf_bypass_trawl_url` 推导 `_cf_bypass_enabled` / `_trawl_adapter_enabled`，前者优先、后者懒启动）。本次修复：① `mdcx/cmd/crawl.py` 两处新建 `AsyncWebClient` 漏传 `cf_bypass_trawl_url` / `cf_bypass_trawl_backend`，命令行调试爬虫走不到自动适配，现补齐；② `request` 原来每次请求无条件等待 `_ensure_local_bypass`（最长约 60s，失败还永久禁用适配层），现仅在命中 CF 挑战页时才阻塞拉起并复用单次判定结果，普通请求不再被拖慢；③ 传输层失败（`resp is None`）时仍取 `resp.status_code` 做挑战判定导致误报，现加空守卫、传输失败直接走重试；④ `_ensure_local_bypass` 锁内补查适配开关，防并发竞态下已禁用仍拉起。回归测试 `test_web_async_cf_bypass` / `test_trawl_adapter` / `test_network_check` / `test_web_async_limiter` 全过
+
+- **missav / avsex / getchu / javlibrary / r18dev 代理路由与外部 CF 回环地址修复**：诊断里这几站直连即被 RST（curl 35/56，无 HTTP 响应——bypass 只能救挑战页，救不了传输层失败），根因在代理路由而非 bypass：① 默认走代理名单漏了 `avsex.cc` / `getchu.com` / `dl.getchu.com`（默认 34 域 → 37 域）；② 名单写主域 `javlibrary.com` 时动态镜像（f101w/c97k、GitHub 学习到的新域）既不相等也非子域、全部逃逸直连，现 `is_proxy_host` 加域名反查站点归属分支、同站镜像自动跟随（直连白名单仍优先）；③ `r18dev` 搜索/详情硬编码 `use_proxy=False`，路由表写了也白写，现交由请求层按配置判定；④ `getchu` 的 `base_url_` 改走 `get_site_url`，支持站点自定义 URL；⑤ 外部 CF 服务填 `https://127.0.0.1:8191` 这类回环 https 时 FlareSolverr（纯 HTTP）TLS 握手失败、适配层 60s 探活失败永久禁用且检测红灯，现 `normalize_trawl_url` 在适配层/配置迁移/检测三处统一降回 `http`，非回环 https 不动。新增 `tests/test_cf_proxy_routing.py`（27 项：归一化 + 默认路由 + 白名单优先 + r18dev/getchu 哨兵），既有 `test_r18dev` / `test_getchu` / `test_network_check` / cf bypass 相关用例全过
+
+- **直连传输失败（RST/超时、无响应）时 bypass 兜底一次**：强制直连站点在墙内直连即被 RST 时（curl 35/56，无 HTTP 响应），挑战判定永不触发、bypass 从未被咨询，外部 CF 服务等于摆设。现 `request()` 在整轮重试一次响应都没拿到、且配了 bypass（外部 CF 服务/手动地址）时，给 bypass 一次兜底机会（真浏览器指纹可能通过 curl 指纹被 RST 的链路）；仅彻底失败后触发一次，正常通过的请求走不到这里。限制：仅 GET/HEAD、非流式、`enable_cf_bypass` 开启且未超 bypass 轮次预算；兜底失败保留原始传输错误为主错误。检测链路同步：`run_network_check_item` 在 `response is None` 时同样试一次 bypass，成功则标注「连接正常，已通过 CF Bypass（mirror）」。新增 `tests/test_cf_transport_fallback.py`（7 项：兜底成功/失败保原始错误/开关关闭不兜底/有响应不兜底/POST 不兜底/检测侧成功与失败）
+
+- **FlareSolverr /v1 proxy 参数改传对象形式**：适配层此前把「Bypass 独立代理」字符串（如 `http://127.0.0.1:7897`）原样塞进 `/v1` 的 `proxy` 字段，而 FlareSolverr 只接受 `{"url", "username"?, "password"?}` 对象——配了独立代理反而整单失败/被忽略。现 `_flaresolverr_proxy_object` 自动转换（含 `user:pass@` 拆分），无代理时不带该字段。`tests/test_trawl_adapter.py` 补 7 项（格式转换 + /v1 实发断言）
+
+- **外部 CF 适配层启动探针改查 /healthz（修"适配层启动失败"）**：此前 `_wait_ready` 用 `GET /cookies?url=http://example.com` 做就绪探针，每次都会触发一次真实 FlareSolverr 会话（冷启动常需 5 秒以上），而探针超时只有 5 秒 + 0.5 秒轮询——重叠请求把 FlareSolverr 单浏览器队列越压越慢，60 秒永远等不到 200（日志里全是 `ReadTimeout`，且 `str(e)` 为空导致报错尾巴无信息）。现适配层新增不碰后端的 `/healthz` 轻量探活，启动探针只查它（本机实测 0.6 秒就绪，原来 60 秒超时）；探针失败信息带上异常类型。另补 `GETCHU` 检测项漏掉的 `enable_cf_bypass=True`（此前 getchu 直连 RST 时两处兜底都进不去）。新增 `test_healthz_returns_ok_without_touching_backend` 与 `test_getchu_spec_enables_cf_bypass` 回归；lulubar 的 403 CF 挑战页走既有挑战 bypass 链路，适配层能启动后即由 FlareSolverr 真浏览器解（重跑检测验证）
+
+- **刮削探测改两轮、重试次数语义写明**：网络检测的刮削探测由 30s → 45s → 60s 三轮改为 30s → 45s 两轮（单站最坏等待由 135s 降到 75s；`SCRAPE_PROBE_ATTEMPT_TIMEOUTS` 元组派生全部文案与测试）；同时把「请求超时 × 重试次数 + 递增退避」的语义写进 `CONFIGURATION.md`——每次尝试最多等满超时秒（如直连被 RST，每次都要等满 30s），重试之间按 2s / 5s / 8s… 递增等待；超时 30s × 重试 3 次单个请求最坏约 97s，5 次则约 176s
+
+- **重试次数 3 → 4（连接质量优先）**：`actor.json` 的 `retry` 由 3 改为 4（当时 `timeout` 为 30，现已改为 45，见下条；`retry` 代码默认仍为 3）。超时 30s × 4 次单个请求最坏约 135s，多花时间换连接质量；`CONFIGURATION.md` 重试语义已同步更新；重试滑杆上限 5 → 4（`.ui` 与生成的 `MDCx.py` 同改）
+
+- **请求超时 30 → 45（重试次数保持 4，连接质量优先）**：`actor.json` 的 `timeout` 由 30 改为 45；代码默认同步上调（`models.py` 的 `timeout` 默认 10 → 45，`default_config.json` 同步），新配置开箱即用该值。超时滑杆上限 30 → 45（否则设置页存盘会把 45 钳回 30，`.ui` 与生成的 `MDCx.py` 同改）。超时 45s × 重试 4 次单个请求最坏约 195s（此前 30s × 4 次约 135s）；`CONFIGURATION.md` 超时/重试两行已同步更新
 
 ## v2.1.2 (2026-09-22)
 

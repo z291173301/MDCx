@@ -7,6 +7,7 @@ import mdcx.cf_bypass.trawl_adapter as ta
 from mdcx.cf_bypass.trawl_adapter import (
     _build_target_url,
     _cookie_to_set_cookie,
+    _flaresolverr_proxy_object,
     create_trawl_adapter_app,
 )
 
@@ -187,6 +188,21 @@ async def test_trawl_connection_error_becomes_502(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_healthz_returns_ok_without_touching_backend(monkeypatch):
+    """探活端点不得触发真实后端调用：此前启动探针打的是
+    /cookies?url=http://example.com，每次都会开一个 FlareSolverr 会话
+    （冷启动常需 5 秒以上），而探针超时只有 5 秒 + 0.5 秒轮询——重叠
+    请求把单浏览器队列越压越慢，60 秒永远等不到 200（全是 ReadTimeout）。"""
+    trawl_requests: list[dict] = []
+    app = _make_app(monkeypatch, trawl_requests, lambda p: _scrape_response(p))
+    async with _client(app) as client:
+        resp = await client.get("/healthz")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+    assert trawl_requests == []
+
+
+@pytest.mark.asyncio
 async def test_flaresolverr_cookies_endpoint_uses_v1(monkeypatch):
     trawl_requests: list[dict] = []
     app = _make_app(monkeypatch, trawl_requests, lambda p: _flaresolverr_response(p), backend="flaresolverr")
@@ -274,3 +290,42 @@ def test_cookie_to_set_cookie():
     assert "Domain=.example.com" in header
     assert "HttpOnly" in header
     assert "Secure" in header
+
+
+@pytest.mark.parametrize(
+    ("proxy", "expected"),
+    [
+        ("http://127.0.0.1:7897", {"url": "http://127.0.0.1:7897"}),
+        ("socks5h://127.0.0.1:1080", {"url": "socks5h://127.0.0.1:1080"}),
+        (
+            "http://user:pass@127.0.0.1:7897",
+            {"url": "http://127.0.0.1:7897", "username": "user", "password": "pass"},
+        ),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_flaresolverr_proxy_object_format(proxy, expected):
+    """FlareSolverr /v1 只接受 proxy 对象，裸字符串会被拒绝/忽略。"""
+    assert _flaresolverr_proxy_object(proxy) == expected
+
+
+@pytest.mark.asyncio
+async def test_flaresolverr_html_forwards_proxy_as_object(monkeypatch):
+    """x-proxy 进适配层后，发往 /v1 的必须是 proxy 对象而非字符串。"""
+    trawl_requests: list[dict] = []
+    app = _make_app(monkeypatch, trawl_requests, lambda p: _flaresolverr_response(p), backend="flaresolverr")
+    async with _client(app) as client:
+        resp = await client.get("/html?url=https://example.com/p&proxy=http://127.0.0.1:7897")
+    assert resp.status_code == 200
+    assert trawl_requests[0]["proxy"] == {"url": "http://127.0.0.1:7897"}
+
+
+@pytest.mark.asyncio
+async def test_flaresolverr_html_without_proxy_omits_field(monkeypatch):
+    trawl_requests: list[dict] = []
+    app = _make_app(monkeypatch, trawl_requests, lambda p: _flaresolverr_response(p), backend="flaresolverr")
+    async with _client(app) as client:
+        resp = await client.get("/html?url=https://example.com/p")
+    assert resp.status_code == 200
+    assert "proxy" not in trawl_requests[0]
