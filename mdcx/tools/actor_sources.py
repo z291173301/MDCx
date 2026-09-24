@@ -71,8 +71,9 @@ class _JavbusRotator:
                 html, error = await computed.async_client.get_text(url, headers=_HEADERS)
             if html is not None:
                 return html
-            # 404 是业务级错误（演员不存在），不轮询
-            if "404" in str(error):
+            # 404 是业务级错误（演员不存在），不轮询。必须匹配 "HTTP 404" 状态
+            # 前缀：error 内嵌请求 URL，裸 "404" 子串会把 URL 含 404 的传输失败误判。
+            if re.search(r"HTTP 404(?!\d)", str(error)):
                 return None
             # 连接级失败：切镜像
             self._rotator.rotate()

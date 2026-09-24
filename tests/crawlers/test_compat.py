@@ -106,3 +106,52 @@ async def test_rotate_switches_mirror_on_failure():
     assert html == "<html>ok</html>"
     assert err == ""
     assert len(client.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_rotate_not_fooled_by_404_inside_url():
+    """URL/番号含 404（如 FC2-PPV-404xxxx）遇传输失败时不得误判为真 404，必须继续轮询其余镜像。"""
+
+    class _Number404Client:
+        def __init__(self):
+            self.calls: list[str] = []
+
+        async def get_text(self, url, **kwargs):
+            self.calls.append(url)
+            if "m1.test" in url:
+                # 传输层失败，但 error 内嵌的 URL 含 404 子串
+                return None, "GET https://m1.test/dm285/FC2-PPV-4041234 失败: 连接错误: Recv failure"
+            return "<html>ok</html>", ""
+
+    client = _Number404Client()
+    crawler = _RotatingCrawler(client=client)
+    ctx = Context(input=None)
+
+    html, err = await crawler._get_text_with_rotate(ctx, "https://m1.test/dm285/FC2-PPV-4041234")
+
+    assert html == "<html>ok</html>"
+    assert err == ""
+    assert len(client.calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_rotate_stops_on_real_http_404():
+    """真 HTTP 404 仍视为页面不存在，首个镜像即停、不轮询。"""
+
+    class _Http404Client:
+        def __init__(self):
+            self.calls: list[str] = []
+
+        async def get_text(self, url, **kwargs):
+            self.calls.append(url)
+            return None, f"GET {url} 失败: HTTP 404 body=<html>not found</html>"
+
+    client = _Http404Client()
+    crawler = _RotatingCrawler(client=client)
+    ctx = Context(input=None)
+
+    html, err = await crawler._get_text_with_rotate(ctx, "https://m1.test/dm285/SSNI-647")
+
+    assert html is None
+    assert "HTTP 404" in err
+    assert len(client.calls) == 1

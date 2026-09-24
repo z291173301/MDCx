@@ -29,7 +29,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QUICKSTART.md](Q
 | javdb_app | JavDB 移动端 API | APK 逆向签名直连（综合：有码+无码；封面/海报/剧照走 App CDN 无水印原图，签名失效自动诊断，详见 docs/JAVDB_APP_SIGNATURE.md） |
 | javbus | javbus.com | 有码/无码分类搜索（综合：有码+无码） |
 | javlibrary | javlibrary.com | 老牌信息站（仅能有码） |
-| missav | missav.ai | 综合搜索（综合：有码+无码） |
+| missav | missav.ws | 综合搜索（综合：有码+无码） |
 | missav_api | Recombee API | 免 CF 直连，演员字段留空（综合：有码+无码） |
 | mgstage | mgstage.com | 有码/素人官网（仅能有码+素人） |
 | prestige | prestige-av.com | Prestige 官网 JSON API（仅能有码+素人） |

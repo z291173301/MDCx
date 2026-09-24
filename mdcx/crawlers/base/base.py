@@ -1,3 +1,4 @@
+import re
 import time
 import traceback
 from abc import ABC, abstractmethod
@@ -119,7 +120,11 @@ class GenericBaseCrawler[T: Context = Context](ABC):
             htmlcode, error = await self.async_client.get_text(url, headers=headers, cookies=cookies, retry_count=1)
             if htmlcode is not None:
                 return htmlcode, ""
-            if "404" in str(error):
+            # 真 404（HTTP 状态）才视为"页面不存在"停止轮询：request 的最终
+            # error 永远内嵌请求 URL（"{method} {url} 失败: ..."），裸 "404"
+            # 子串会把番号/ID 含 404（如 FC2-PPV-404xxxx）遇传输失败时误判，
+            # 跳过其余存活镜像。真 404 必带 "HTTP 404" 状态前缀。
+            if re.search(r"HTTP 404(?!\d)", str(error)):
                 return None, error
             if rotator.current_is_custom():
                 return None, error

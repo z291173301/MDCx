@@ -4,6 +4,14 @@
 
 ### 修复
 
+- **missav 默认地址由 missav.ai 改为 missav.ws，镜像抽样改为 missav.live**：missav.ai 已不可访问（浏览器打开空白 / 被 SmartScreen 拦截），missav.ws 与 missav.live 实测正常。`_MISSAV_DOMAINS` 顺序调整为 ws → live → ai：默认地址、镜像轮换起点、网络检测主项跟随 ws，检测镜像抽样项跟随 live（此前抽到已死的 ai 而误报），ai 沉底仅作最后备用。`FEATURES.md` 站点表同步
+
+- **镜像轮询 404 误判修复（番号含 404 时跳过存活镜像）**：`_get_text_with_rotate` 与演员库 javbus 轮询用裸 `"404" in error` 判断页面不存在，但 `request` 的最终 error 永远内嵌请求 URL（`"{method} {url} 失败: ..."`）——番号/ID 含 404（如 FC2-PPV-404xxxx）在首个镜像遇传输失败（RST/超时）时会被误判为真 404，直接放弃其余存活镜像。现改为精确匹配 `HTTP 404` 状态前缀（真 404 必带该前缀，传输错误不可能带），行为其余不变。`tests/crawlers/test_compat.py` 补 2 项回归（URL 含 404 仍轮询 / 真 HTTP 404 首个镜像即停）
+
+## v2.1.3 (2026-09-24)
+
+### 修复
+
 - **Bypass `/html` 路未解开的挑战页不再冒充成功（修 javlibrary"配了外部 CF 却没救回来"）**：`_call_bypass_mirror` 早有"返回仍是挑战页则判失败"的检查，`_call_bypass_html` 却缺了——FlareSolverr 没解开挑战时，200 + 挑战页 HTML 被当成功返回，上游直接拿去分类，报出自相矛盾的"请去配置外部 CF 服务"（明明已配置且已运行）。现两路对齐：未解开的挑战页一律判失败、走重试/回退；检测侧 bypass 跑过但仍是挑战页时，报错改为"已尝试 CF Bypass，但返回仍是 Cloudflare 挑战页（FlareSolverr 未能解开该站验证）"，不再甩锅给配置。新增 3 项回归（html 拒收挑战页 / 整轮不冒充成功 / 检测点名准确），相关套件全过
 
 - **aventertainments 搜索页两类"假 200"点名报错**：该站把人机验证墙（`/cart/verifybot` + reCAPTCHA"我不是机器人"，手工都难过去）与 404 下架页都按 HTTP 200 返回，旧解析一律报"搜索页未解析到结果"误导用户去查番号。现 `_parse_search_page` 先检出这两类页面并抛明因异常（验证墙→"被站点人机验证拦截，需手工过验证"；404→"探测番号可能已下架或未收录"），诊断报告直接显示真因。注意：Google reCAPTCHA 复选框 FlareSolverr 也解不了，该站自动化刮削在站点撤墙前处于不可用状态，非配置问题。新增两项回归（验证墙/404 各一），既有解析用例全过
