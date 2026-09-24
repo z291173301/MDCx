@@ -321,6 +321,11 @@ def test_format_summary_groups_failure_causes():
 
     results = [
         r("missav", NetworkCheckStatus.WARNING, "站点可达但搜索页被 Cloudflare 拦截"),
+        r(
+            "javlibrary",
+            NetworkCheckStatus.FAILED,
+            "GET https://e100k.com 失败: 连接错误（bypass 兜底亦失败: mirror 返回 Cloudflare 挑战页）",
+        ),
         r("getchu", NetworkCheckStatus.FAILED, "HTTP 403 请求被拒绝：当前节点出口 IP 可能被站点封禁"),
         r("javdb_api", NetworkCheckStatus.FAILED, "TLS 握手中断"),
         r("avbase", NetworkCheckStatus.WARNING, "站点可达但刮削探测 2 次均超时（30s/45s），判定该站刮削探测无效"),
@@ -331,6 +336,9 @@ def test_format_summary_groups_failure_causes():
     text = "\n".join(lines)
     assert "根因分组" in text
     assert "Cloudflare" in text
+    assert "Cloudflare 拦截 ×1" in text
+    # bypass 已尝试但未解开：不再让人去配服务，单独成组
+    assert "CF Bypass 已尝试但未解开 ×1" in text
     assert "节点" in text
     # 议题 #118：轮内重试仍超时的站点要单独成组，不能混进「其他异常」或「未收录」
     assert "刮削探测多次超时 ×1" in text

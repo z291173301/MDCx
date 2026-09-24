@@ -193,7 +193,18 @@ class AvsexCrawler(BaseCrawler[AvsexContext]):
 
     @override
     async def _parse_search_page(self, ctx: AvsexContext, html: Selector, search_url: str) -> list[str] | str | None:
-        search_page = etree.fromstring(html.get(), AvsexCrawler.UTF8_PARSER)
+        page_text = html.get()
+        lower_text = page_text.lower()
+        # CF 挑战页也是 200，不能一律报"搜索页未解析到结果"误导（挑战页里没有 ul 结果列表，
+        # 与"真无收录"是两回事；点名后诊断按 Cloudflare 分组，不再混进"未收录"）。
+        if (
+            "just a moment" in lower_text
+            or "cf-chl" in lower_text
+            or "challenge-platform" in lower_text
+            or "/cdn-cgi/challenge" in lower_text
+        ):
+            raise CrawlerException("搜索页为 Cloudflare 挑战页（未能解开验证），自动跳过")
+        search_page = etree.fromstring(page_text, AvsexCrawler.UTF8_PARSER)
         detail_url, poster_url = get_real_url(search_page, ctx.number)
         if not detail_url:
             ctx.debug("avsex 搜索页没有匹配结果")

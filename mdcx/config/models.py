@@ -753,7 +753,7 @@ class Config(BaseModel):
         "需要 Windows 10/11 + Edge 浏览器，首次使用自动安装 selenium。",
     )
     verify_ssl: bool = Field(default=True, title="HTTPS证书校验（关闭仅用于自签名代理/MITM调试）")
-    timeout: int = Field(default=45, title="超时")
+    timeout: int = Field(default=30, title="超时")
     retry: int = Field(default=3, title="重试")
     theporndb_api_token: str = Field(default="", title="Theporndb API令牌")
     tmdb_api_base: str = Field(default="api.tmdb.org", title="TMDB API地址")

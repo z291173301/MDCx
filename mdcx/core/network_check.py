@@ -596,6 +596,7 @@ def format_summary(
     # 失败/警告按根因分组计数，让用户一次看清「该做什么」（议题 #77 实测）
     cause_counts: dict[str, int] = {
         "cf": 0,
+        "cf_unsolved": 0,
         "node_blocked": 0,
         "probe_timeout": 0,
         "unreachable": 0,
@@ -606,7 +607,11 @@ def format_summary(
         if result.status not in (NetworkCheckStatus.FAILED, NetworkCheckStatus.WARNING):
             continue
         message = result.message or ""
-        if "Cloudflare" in message:
+        if "Cloudflare" in message and ("兜底亦失败" in message or "已尝试 CF Bypass" in message):
+            # 外部 CF 服务已配置且实际尝试过（bypass 返回仍是挑战页），与"没配服务"是两回事，
+            # 不能再让人去配一遍服务
+            cause_counts["cf_unsolved"] += 1
+        elif "Cloudflare" in message:
             cause_counts["cf"] += 1
         elif "节点" in message and ("封禁" in message or "出口" in message):
             cause_counts["node_blocked"] += 1
@@ -625,6 +630,12 @@ def format_summary(
         if cause_counts["cf"]:
             lines.append(
                 f"  • Cloudflare 拦截 ×{cause_counts['cf']}：请配置「外部 CF 服务」（flaresolverr/trawl），程序会自动走 bypass"
+            )
+        if cause_counts["cf_unsolved"]:
+            lines.append(
+                f"  • CF Bypass 已尝试但未解开 ×{cause_counts['cf_unsolved']}：外部 CF 服务已配置并实际尝试过"
+                f"（FlareSolverr 返回仍是挑战页），多为出口 IP 被封或站点验证升级；可关闭代理用干净直连重测，"
+                f"或更换代理节点，无需重复配置外部 CF 服务"
             )
         if cause_counts["node_blocked"]:
             lines.append(f"  • 节点/IP 被封 ×{cause_counts['node_blocked']}：请更换代理节点或改用其他出口重试")

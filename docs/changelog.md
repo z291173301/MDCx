@@ -30,6 +30,10 @@
 
 - **请求超时 30 → 45（重试次数保持 4，连接质量优先）**：`actor.json` 的 `timeout` 由 30 改为 45；代码默认同步上调（`models.py` 的 `timeout` 默认 10 → 45，`default_config.json` 同步），新配置开箱即用该值。超时滑杆上限 30 → 45（否则设置页存盘会把 45 钳回 30，`.ui` 与生成的 `MDCx.py` 同改）。超时 45s × 重试 4 次单个请求最坏约 195s（此前 30s × 4 次约 135s）；`CONFIGURATION.md` 超时/重试两行已同步更新
 
+- **检测报告根因分组新增「CF Bypass 已尝试但未解开」**：此前 bypass 兜底失败（返回仍是挑战页）的站点会被计入「Cloudflare 拦截」，建议语却是"请配置外部 CF 服务"——服务明明已配好并实际尝试过，白让人配一遍。现按文案中的"兜底亦失败 / 已尝试 CF Bypass"单独成组，建议改为关代理干净直连重测或换节点。同时 `avsex` 搜索页加 CF 挑战页点名（`just a moment` / `cf-chl` / `challenge-platform`），挑战页不再混进"搜索页未解析到结果"。测试：`test_avsex.py` 新建 4 项（注册/挑战点名/正常解析/真无结果），`test_format_summary_groups_failure_causes` 加未解开用例
+
+- **超时 45s → 30s、重试 4 次 → 3 次（检测提速）**：javlibrary/missav 类直连站点每次尝试都要等满超时，45s×4 最坏约 195s，整轮检测被拖慢。改回 30s×3（单请求最坏约 97s）。同步：`actor.json`（timeout/retry）、`models.py` 默认超时 30、`default_config.json`、设置页两拉动条上限（超时 45→30、重试上限改为 3，即 2 / 3 二档可选）、`CONFIGURATION.md` 超时/重试两行重算
+
 ## v2.1.2 (2026-09-22)
 
 ### 修复

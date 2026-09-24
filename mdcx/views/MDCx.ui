@@ -21553,7 +21553,7 @@
                                   <number>3</number>
                                 </property>
                                 <property name="maximum">
-                                  <number>45</number>
+                                  <number>30</number>
                                 </property>
                                 <property name="pageStep">
                                   <number>1</number>
@@ -21634,7 +21634,7 @@
                                   <number>2</number>
                                 </property>
                                 <property name="maximum">
-                                  <number>4</number>
+                                  <number>3</number>
                                 </property>
                                 <property name="pageStep">
                                   <number>1</number>
