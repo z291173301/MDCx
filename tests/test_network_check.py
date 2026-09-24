@@ -617,6 +617,20 @@ def test_is_cloudflare_challenge_detects_orchestrate_challenge_page():
     assert _is_cloudflare_challenge(challenge_page) is True
 
 
+def test_is_cloudflare_challenge_detects_verify_human_checkbox_page():
+    """freejavbt 式复选框挑战页：无 just a moment/h/b 路径，仅验证文案 + cloudflare 字样命中。"""
+    challenge_page = (
+        "<html><head><title>freejavbt.com</title></head><body>"
+        "<h1>Verify you are human. This may take a few seconds.</h1>"
+        "<p>正在验证您是否是真人。这可能需要几秒钟时间。</p>"
+        "<div>Ray ID: a4032cfd8ef257a7</div>"
+        "<div>由 Cloudflare 提供性能和安全服务</div>"
+        "</body></html>"
+    )
+
+    assert _is_cloudflare_challenge(challenge_page) is True
+
+
 @pytest.mark.anyio
 async def test_run_network_check_item_actively_uses_cf_bypass_on_challenge(monkeypatch: pytest.MonkeyPatch):
     class BypassConfig(FakeConfig):

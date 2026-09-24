@@ -1058,6 +1058,39 @@ async def test_is_cf_challenge_response_detects_orchestrate_challenge_page():
 
 
 @pytest.mark.asyncio
+async def test_is_cf_challenge_response_detects_verify_human_checkbox_page():
+    """freejavbt 式"Verify you are human"复选框挑战页：无 just a moment/h/b 路径，
+    仅靠验证文案 + CF 头命中规则 1（此前 marker 表无对应文案会漏检，bypass 永不触发）。"""
+    client = AsyncWebClient(timeout=1)
+    response = _fake_response(
+        status_code=403,
+        headers={"server": "cloudflare", "cf-ray": "abc123"},
+        content=(
+            "<html><head><title>freejavbt.com</title></head><body>"
+            "<h1>Verify you are human. This may take a few seconds.</h1>"
+            "<p>正在验证您是否是真人。这可能需要几秒钟时间。</p>"
+            "<div>Ray ID: a4032cfd8ef257a7</div>"
+            "</body></html>"
+        ).encode(),
+    )
+
+    assert await client._is_cf_challenge_response(response) is True
+
+
+@pytest.mark.asyncio
+async def test_is_cf_challenge_response_does_not_misjudge_plain_403():
+    """普通 403（无 CF 头、无挑战文案）不得误判，marker 新增不得扩大误伤面。"""
+    client = AsyncWebClient(timeout=1)
+    response = _fake_response(
+        status_code=403,
+        headers={"server": "nginx"},
+        content=b"<html><body><h1>403 Forbidden</h1></body></html>",
+    )
+
+    assert await client._is_cf_challenge_response(response) is False
+
+
+@pytest.mark.asyncio
 async def test_is_cf_challenge_response_reads_stream_response_body():
     """流式响应 content 初始为 b""，判定必须经 acontent() 读体（全库审查 B1）。
 

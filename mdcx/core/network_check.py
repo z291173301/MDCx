@@ -2,6 +2,7 @@ import asyncio
 import re
 import threading
 import time
+import unicodedata
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field, replace
@@ -131,6 +132,50 @@ def _status_code_text(status_code: int | None) -> str:
     return "-" if status_code is None else str(status_code)
 
 
+# 诊断表格按"显示宽度"对齐：f-string 的宽度按字符数，中日韩字符与 emoji 在
+# 等宽字体下占 2 列，直接用 <18/>8 会对不齐（如 madouqu·镜像会把后序列挤偏）。
+# 这里 W/F 算 2 列、结合符（VS16 等）算 0 列、其余（含状态图标 emoji）按实际占宽算。
+_WIDE_ICONS = frozenset("✅⚠❌ℹ⛔")
+
+
+def _disp_width(text: str) -> int:
+    total = 0
+    for ch in str(text):
+        o = ord(ch)
+        if 0xFE00 <= o <= 0xFE0F or 0xE0100 <= o <= 0xE01EF:
+            continue
+        if unicodedata.east_asian_width(ch) in ("W", "F") or ch in _WIDE_ICONS:
+            total += 2
+        else:
+            total += 1
+    return total
+
+
+def _pad_left(text: str, width: int) -> str:
+    """右对齐到显示宽度（状态码/耗时列）。"""
+    text = str(text)
+    return " " * max(width - _disp_width(text), 0) + text
+
+
+def _pad_right(text: str, width: int) -> str:
+    """左对齐到显示宽度（状态/站点/路由列）。"""
+    text = str(text)
+    return text + " " * max(width - _disp_width(text), 0)
+
+
+def _fit_right(text: str, width: int) -> str:
+    """超长按显示宽度截断再左对齐（站点名列，最长 official·caribbeancom 恰 21 列，列宽 22）。"""
+    text = str(text)
+    if _disp_width(text) <= width:
+        return _pad_right(text, width)
+    kept = ""
+    for ch in text:
+        if _disp_width(kept + ch) > width:
+            break
+        kept += ch
+    return kept
+
+
 def _join_url(base_url: str, path: str) -> str:
     if not path:
         return base_url
@@ -162,6 +207,8 @@ def _is_cloudflare_challenge(text: str) -> bool:
     weak_markers = (
         "cf-browser-verification",
         "just a moment",
+        "verify you are human",
+        "正在验证",
         "attention required",
         "enable javascript and cookies",
         "checking your browser before accessing",
@@ -552,33 +599,52 @@ def _format_header() -> list[str]:
     trawl_url = manager.config.cf_bypass_trawl_url.strip()
     lines = [time.strftime("%Y-%m-%d %H:%M:%S").center(88, "=")]
     lines.append("基础环境")
-    lines.append(f"  {'代理状态':<16}{'已启用' if use_proxy else '未启用'}")
+    lines.append(f"  {_pad_right('代理状态', 16)}{'已启用' if use_proxy else '未启用'}")
     if use_proxy:
-        lines.append(f"  {'代理地址':<16}{mask_proxy_url(manager.config.proxy)}")
-    lines.append(f"  {'CF Bypass':<16}{'已配置' if cf_bypass_url else '未配置'}")
-    lines.append(f"  {'CF Bypass代理':<16}{'已配置' if cf_bypass_proxy else '未配置'}")
-    lines.append(f"  {'外部CF服务':<16}{'已配置' if trawl_url else '未配置'}")
-    lines.append(f"  {'诊断超时':<16}{_diagnostic_timeout():.1f}s")
-    lines.append(f"  {'刮削探测':<16}单站最多 {len(SCRAPE_PROBE_ATTEMPT_TIMEOUTS)} 次（{scrape_probe_ladder_text()}）")
-    lines.append("  " + "-" * 84)
-    lines.append(f"  {'状态':<4} {'站点':<18} {'状态码':>4}  {'耗时':>8}  {'路由':<4} 信息")
+        lines.append(f"  {_pad_right('代理地址', 16)}{mask_proxy_url(manager.config.proxy)}")
+    lines.append(f"  {_pad_right('CF Bypass', 16)}{'已配置' if cf_bypass_url else '未配置'}")
+    lines.append(f"  {_pad_right('CF Bypass代理', 16)}{'已配置' if cf_bypass_proxy else '未配置'}")
+    lines.append(f"  {_pad_right('外部CF服务', 16)}{'已配置' if trawl_url else '未配置'}")
+    lines.append(f"  {_pad_right('诊断超时', 16)}{_diagnostic_timeout():.1f}s")
+    lines.append(
+        f"  {_pad_right('刮削探测', 16)}单站最多 {len(SCRAPE_PROBE_ATTEMPT_TIMEOUTS)} 次（{scrape_probe_ladder_text()}）"
+    )
+    lines.append("=" * 88)
+    lines.append(
+        "  "
+        + _pad_right("状态", 4)
+        + "   "
+        # 各表头按截图相对数据列微调（数据列位置见 format_result_line）：
+        # 站点表头 +1（@10，数据名字 @9 不动）、状态码表头 -1（@36，数据数字右缘 40 不动，
+        # 状态码前后间隔由 6+6 重分为 5+7）、耗时右对齐（右缘 53 与数据耗时右缘对齐，不动）、
+        # 路由表头 -1（@62，数据代理 @61 不动）、信息表头 -1（@71，数据信息 @70 不动）。
+        # 数据行不动。
+        + " "
+        + _pad_right("站点", 21)
+        + "     "
+        + "状态码"
+        + "       耗时"
+        + "         "
+        + "路由"
+        + "     "
+        + "信息"
+    )
     lines.append("=" * 88)
     return lines
 
 
 def format_result_line(result: NetworkCheckResult) -> str:
     icon = _status_icon(result.status)
-    name = result.spec.name[:18]
-    status_code = _status_code_text(result.status_code)
-    elapsed = _elapsed_text(result.elapsed_ms)
+    name = _fit_right(result.spec.name, 22)
+    status_code = _pad_left(_status_code_text(result.status_code), 6)
+    elapsed = _pad_left(_elapsed_text(result.elapsed_ms), 10)
     used_proxy = result.used_proxy if result.used_proxy is not None else result.spec.use_proxy
-    proxy = "代理" if used_proxy else "直连"
-    proxy = f"{proxy:<4}"
+    proxy = _pad_right("代理" if used_proxy else "直连", 4)
     message = result.message
     if result.error and result.status == NetworkCheckStatus.FAILED:
         if result.error not in message:
             message = f"{message}: {result.error}"
-    return f"  {icon} {name:<18} {status_code:>4}  {elapsed:>8}  {proxy} {message}"
+    return f"  {_pad_right(icon, 4)}   {name}   {status_code}   {elapsed}        {proxy}     {message}"
 
 
 def format_summary(
