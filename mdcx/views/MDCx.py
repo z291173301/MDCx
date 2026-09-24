@@ -9224,7 +9224,7 @@ class Ui_MDCx(object):
         self.groupBox_43.setStyleSheet('font:"Courier New";')
         self.groupBox_43.setObjectName("groupBox_43")
         self.gridLayoutWidget_25 = QtWidgets.QWidget(parent=self.groupBox_43)
-        self.gridLayoutWidget_25.setGeometry(QtCore.QRect(20, 30, 661, 292))
+        self.gridLayoutWidget_25.setGeometry(QtCore.QRect(20, 24, 661, 292))
         self.gridLayoutWidget_25.setObjectName("gridLayoutWidget_25")
         self.gridLayout_25 = QtWidgets.QGridLayout(self.gridLayoutWidget_25)
         self.gridLayout_25.setContentsMargins(0, 0, 0, 0)
@@ -9274,7 +9274,7 @@ class Ui_MDCx(object):
         self.horizontalLayout_19 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_19.setObjectName("horizontalLayout_19")
         self.comboBox_pic_actor = QtWidgets.QComboBox(parent=self.gridLayoutWidget_25)
-        self.comboBox_pic_actor.setMinimumSize(QtCore.QSize(0, 40))
+        self.comboBox_pic_actor.setMinimumSize(QtCore.QSize(0, 30))
         self.comboBox_pic_actor.setMaxVisibleItems(30)
         self.comboBox_pic_actor.setObjectName("comboBox_pic_actor")
         self.comboBox_pic_actor.addItem("")
@@ -9294,7 +9294,6 @@ class Ui_MDCx(object):
         sizePolicy.setHeightForWidth(self.pushButton_show_pic_actor.sizePolicy().hasHeightForWidth())
         self.pushButton_show_pic_actor.setSizePolicy(sizePolicy)
         self.pushButton_show_pic_actor.setMinimumSize(QtCore.QSize(110, 40))
-        self.pushButton_show_pic_actor.setStyleSheet("")
         self.pushButton_show_pic_actor.setObjectName("pushButton_show_pic_actor")
         self.horizontalLayout_19.addWidget(self.pushButton_show_pic_actor)
         self.gridLayout_25.addLayout(self.horizontalLayout_19, 8, 1, 1, 1)
@@ -9718,7 +9717,7 @@ class Ui_MDCx(object):
         self.label_gfriends_update_time.setMinimumSize(QtCore.QSize(200, 30))
         self.label_gfriends_update_time.setObjectName("label_gfriends_update_time")
         self.horizontalLayout_gfriends_sync.addWidget(self.label_gfriends_update_time)
-        self.gridLayout.addLayout(self.horizontalLayout_gfriends_sync, 6, 1, 1, 1)
+        self.gridLayout.addLayout(self.horizontalLayout_gfriends_sync, 7, 1, 1, 1)
         self.pushButton_add_actor_pic.raise_()
         self.label_297.raise_()
         self.checkBox_actor_photo_auto.raise_()
@@ -9949,7 +9948,7 @@ class Ui_MDCx(object):
         self.groupBox_68.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_68.setObjectName("groupBox_68")
         self.pushButton_add_actor_pic_kodi = QtWidgets.QPushButton(parent=self.groupBox_68)
-        self.pushButton_add_actor_pic_kodi.setGeometry(QtCore.QRect(160, 130, 161, 40))
+        self.pushButton_add_actor_pic_kodi.setGeometry(QtCore.QRect(160, 130, 130, 40))
         self.pushButton_add_actor_pic_kodi.setObjectName("pushButton_add_actor_pic_kodi")
         self.label_414 = QtWidgets.QLabel(parent=self.groupBox_68)
         self.label_414.setGeometry(QtCore.QRect(50, 20, 631, 41))
@@ -10001,7 +10000,7 @@ class Ui_MDCx(object):
         self.pushButton_del_actor_folder.setGeometry(QtCore.QRect(490, 130, 171, 40))
         self.pushButton_del_actor_folder.setObjectName("pushButton_del_actor_folder")
         self.checkBox_actor_photo_kodi = QtWidgets.QCheckBox(parent=self.groupBox_68)
-        self.checkBox_actor_photo_kodi.setGeometry(QtCore.QRect(340, 130, 141, 40))
+        self.checkBox_actor_photo_kodi.setGeometry(QtCore.QRect(300, 130, 141, 40))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Maximum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -13753,7 +13752,7 @@ class Ui_MDCx(object):
         self.label_123.setText(
             _translate(
                 "MDCx",
-                "<p>支持优先使用 Graphis.ne.jp 的图片作为演员头像和演员背景；<br>Graphis.ne.jp 提供了演员不同时期的图片，默认请求早期的图片。</p>",
+                "<p>支持优先使用 Graphis.ne.jp 的图片作为演员头像和演员背景；<br>Graphis.ne.jp提供了演员不同时期的图片，默认请求早期的图片。</p>",
             )
         )
         self.label_gfriends_local.setText(_translate("MDCx", "Gfriends 本地仓库："))

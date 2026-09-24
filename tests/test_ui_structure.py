@@ -398,3 +398,59 @@ def test_mosaic_rule_hint_texts_regression():
         if actual != expected:
             mismatches[name] = actual
     assert not mismatches, f"马赛克命名规则说明与预期不符: {mismatches}"
+
+
+# ---------- #182 Gfriends「选择目录」按钮样式 —— 红/黄/绿回归 ----------
+
+# 全局药丸按钮三态选择器（浅色/深色主题各一处，共 6 处）：
+# Gfriends 选择目录按钮必须与本地头像库按钮相邻出现。
+_STYLE_PATH = REPO / "mdcx" / "controllers" / "main_window" / "style.py"
+_GFRIENDS_STYLE_FIXED = (
+    "#pushButton_select_actor_photo_folder,#pushButton_select_gfriends_local,#pushButton_select_actor_info_db",
+    ":hover#pushButton_select_actor_photo_folder,:hover#pushButton_select_gfriends_local,:hover#pushButton_select_actor_info_db",
+    ":pressed#pushButton_select_actor_photo_folder,:pressed#pushButton_select_gfriends_local,:pressed#pushButton_select_actor_info_db",
+)
+# 修复前（缺席）形态：两按钮选择器直接相邻、中间没有 Gfriends。
+_GFRIENDS_STYLE_BROKEN = (
+    "#pushButton_select_actor_photo_folder,#pushButton_select_actor_info_db",
+    ":hover#pushButton_select_actor_photo_folder,:hover#pushButton_select_actor_info_db",
+    ":pressed#pushButton_select_actor_photo_folder,:pressed#pushButton_select_actor_info_db",
+)
+
+
+def test_gfriends_select_button_green_in_global_style():
+    """绿（成功）：Gfriends 选择目录按钮在全局药丸样式三态选择器中（浅色+深色共6处）。"""
+    style_text = _STYLE_PATH.read_text(encoding="utf-8")
+    missing = [p for p in _GFRIENDS_STYLE_FIXED if style_text.count(p) != 2]
+    assert not missing, f"全局样式缺 Gfriends 选择目录按钮: {missing}"
+
+
+def test_gfriends_select_button_yellow_matches_local_library_button():
+    """黄（边界）：两选择目录按钮在 .ui/.py 定义一致、无本地样式覆盖（只走全局样式）。"""
+    import re
+
+    root = _parse_ui()
+    names = ("pushButton_select_gfriends_local", "pushButton_select_actor_photo_folder")
+    for name in names:
+        w = _find_widget_by_name(root, name)
+        assert w is not None, f"{name} 不存在"
+        size = w.find("property[@name='minimumSize']/size")
+        assert size is not None, f"{name} 缺 minimumSize"
+        assert (size.find("width").text, size.find("height").text) == ("110", "40"), (
+            f"{name} 应为 110x40"
+        )
+        assert _widget_string_prop(w, "text") == "选择目录", f"{name} 文案应为「选择目录」"
+        assert w.find("property[@name='styleSheet']") is None, f"{name} 不应有本地 styleSheet 覆盖"
+    py_text = PY_PATH.read_text(encoding="utf-8")
+    for name in names:
+        m = re.search(rf"self\.{name} = .*?addWidget\(self\.{name}\)", py_text, re.S)
+        assert m is not None, f"MDCx.py 缺 {name} 定义"
+        assert "setMinimumSize(QtCore.QSize(110, 40))" in m.group(0), f"MDCx.py 中 {name} 应为 110x40"
+        assert "setStyleSheet" not in m.group(0), f"MDCx.py 中 {name} 不应有本地 setStyleSheet"
+
+
+def test_gfriends_select_button_red_broken_shape_gone():
+    """红（失败回归）：修复前缺席形态不再出现（出现即回到截图中的默认方块按钮）。"""
+    style_text = _STYLE_PATH.read_text(encoding="utf-8")
+    present = [p for p in _GFRIENDS_STYLE_BROKEN if p in style_text]
+    assert not present, f"全局样式回到修复前缺席形态: {present}"
