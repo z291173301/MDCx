@@ -23,11 +23,11 @@ def _find_caller_line() -> str:
 
 @pytest.mark.asyncio
 async def test_db_cache_hit_skips_soft_verify(monkeypatch):
-    """ASIN 库缓存命中（reason=cache/tenhow）→ 不触发软校验"""
+    """ASIN 库缓存命中（reason=cache）→ 不触发软校验"""
     called = []
     monkeypatch.setattr(core_web, "_verify_soft_amazon_poster", lambda *a, **k: called.append(1) or True)
     result = _FakeResult()
-    # 库命中: is_hard 被 get_big_pic_by_amazon 设为 True (reason=cache/tenhow)
+    # 库命中: is_hard 被 get_big_pic_by_amazon 设为 True (reason=cache)
     result.amazon_match_is_hard = True
     # 模拟 web.py 749 的判定式（新形态: should_verify = not hard）
     should_verify = not core_web.is_amazon_hard_match(result)
@@ -46,10 +46,10 @@ async def test_new_discovery_still_verifies(monkeypatch):
 
 
 def test_amazon_match_state_reason_carries_cache_origin():
-    """库命中的 match state 携带 cache/tenhow 来源（web.py 读路径判定依据）"""
+    """库命中的 match state 携带 cache 来源（web.py 读路径判定依据）"""
     from mdcx.core.amazon import _set_amazon_match_state
 
     result = _FakeResult()
-    _set_amazon_match_state(result, is_hard=True, reason="tenhow", url="https://www.amazon.co.jp/dp/X")
+    _set_amazon_match_state(result, is_hard=True, reason="cache", url="https://www.amazon.co.jp/dp/X")
     assert core_web.is_amazon_hard_match(result) is True
-    assert result.amazon_match_reason == "tenhow"
+    assert result.amazon_match_reason == "cache"

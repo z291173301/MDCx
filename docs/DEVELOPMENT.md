@@ -170,6 +170,8 @@ FileInfo → CrawlerInput → CrawlTask
 
 从 Amazon 搜索高清封面，EAN-13 条码检测 → ASIN 映射。三层搜索策略：条码快路径 → 标题搜索 → 演员兜底。
 
+- **封面下载尺寸规范**：统一请求 SL2560 原图变体。`_convert_to_target_size` 默认 `target_size="SL2560"`，输出 Amazon 官方下划线式 `https://m.media-amazon.com/images/I/{image_id}._SL2560_.jpg`（旧逻辑的点号式 `.SL1500.` 非官方格式，只拿到 1500 档）。`_normalize_amazon_image_url` 处理四种输入形态——标准下划线式（`._AC_UL320_.jpg`）、旧点号式（`.SL1500.jpg`，库内历史存量即此格式）、无后缀原图、已是目标尺寸（直接返回，点号式顺手规范为下划线式）；非 `m.media-amazon.com/images/I/` 链接原样返回。实测同图对照（SNOS-447，`81WvzlDdZOL`）：`._SL1500_.jpg` → 1055×1500/147KB，`._SL2560_.jpg` → 1778×2529/340KB。库内旧后缀行在下次缓存命中时经该函数自动升级，无需重新搜索。
+
 ### 人脸裁剪（mdcx/core/face_crop.py）
 
 基于 OpenCV YuNet ONNX 模型，自动检测人脸并裁剪为 2:3 海报。

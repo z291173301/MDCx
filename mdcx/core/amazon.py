@@ -36,30 +36,29 @@ from .media_resource import MediaResourceContext
 
 def _convert_to_target_size(url: str) -> str:
     """
-    将亚马逊图片 URL 转换为目标尺寸 (SL1500)。
+    将亚马逊图片 URL 转换为目标尺寸 (SL2560，即原图分辨率)。
 
-    Args:
-        url: 原始图片 URL
-
-    Returns:
-        转换后 1500px 尺寸的图片 URL
+    对齐 mdcx-diy-main 的实际下载效果：同是 SNOS-447 这张图，
+    SL1500 变体只返回 1055*1500/147KB，SL2560 变体返回原图
+    1778*2529/340KB（已实测验证）。
     """
-    return _normalize_amazon_image_url(url, target_size="SL1500")
+    return _normalize_amazon_image_url(url, target_size="SL2560")
 
 
-def _normalize_amazon_image_url(pic_url: str, *, target_size: str = "SL1500") -> str:
+def _normalize_amazon_image_url(pic_url: str, *, target_size: str = "SL2560") -> str:
     """
-    将亚马逊图片 URL 转换为指定尺寸。
+    将亚马逊图片 URL 转换为指定尺寸（Amazon 官方 `._XXX_.jpg` 变体格式）。
 
-    亚马逊图片 URL 格式：https://m.media-amazon.com/images/I/{image_id}.{suffix}.jpg
-    常见后缀：_AC_UL320_, _AC_SX679_, _SY879_, _SL1500_ 等
+    亚马逊图片 URL 格式：https://m.media-amazon.com/images/I/{image_id}[._XXX_.].jpg
+    常见后缀：._AC_UL320_、._AC_SX679_、._SY879_ 等；库内历史数据还可能存有
+    旧逻辑生成的点号式后缀（如 `.SL1500.`），这里一并兼容剥离后重加。
 
     Args:
         pic_url: 原始图片 URL
-        target_size: 目标尺寸标识，如 "SL1500"、"SL1000" 等
+        target_size: 目标尺寸标识，如 "SL2560"、"SL1500" 等
 
     Returns:
-        转换后的图片 URL
+        转换后的图片 URL（`{image_id}._SL2560_.jpg` 形式）
     """
     pic_url = str(pic_url or "").strip()
     if not pic_url:
@@ -68,20 +67,44 @@ def _normalize_amazon_image_url(pic_url: str, *, target_size: str = "SL1500") ->
     if "m.media-amazon.com/images/I/" not in pic_url:
         return pic_url
 
-    # 如果已经是目标尺寸，直接返回
-    if f".{target_size}" in pic_url:
+    # 已经是目标尺寸：点号式旧后缀规范为官方下划线式后返回
+    if f"_{target_size}_" in pic_url:
         return pic_url
+    if re.search(rf"\.{re.escape(target_size)}\.(?:jpe?g)$", pic_url, flags=re.IGNORECASE):
+        return re.sub(
+            rf"\.{re.escape(target_size)}\.(jpe?g)$",
+            rf"._{target_size}_.\1",
+            pic_url,
+            flags=re.IGNORECASE,
+        )
 
-    if re.search(r"\._[A-Z0-9_]+_\.", pic_url, flags=re.IGNORECASE):
-        return re.sub(r"\._[A-Z0-9_]+\.", f".{target_size}.", pic_url, flags=re.IGNORECASE)
+    # 标准下划线式变体：`._AC_UL320_.jpg` → `._SL2560_.jpg`
+    if re.search(r"\._[A-Za-z0-9]+_\.(?:jpe?g)$", pic_url, flags=re.IGNORECASE):
+        return re.sub(
+            r"\._[A-Za-z0-9]+_\.(jpe?g)$",
+            rf"._{target_size}_.\1",
+            pic_url,
+            flags=re.IGNORECASE,
+        )
 
-    if not pic_url.lower().endswith(".jpg"):
-        return pic_url
+    # 旧逻辑点号式变体：`.SL1500.jpg` → 剥离后重加
+    if re.search(r"\.[A-Za-z0-9_]+\.(?:jpe?g)$", pic_url, flags=re.IGNORECASE):
+        return re.sub(
+            r"\.[A-Za-z0-9_]+\.(jpe?g)$",
+            rf"._{target_size}_.\1",
+            pic_url,
+            flags=re.IGNORECASE,
+        )
 
-    if re.search(r"\._[A-Z0-9]+\.jpg$", pic_url, flags=re.IGNORECASE):
-        return re.sub(r"\._[A-Z0-9]+\.jpg$", f".{target_size}.jpg", pic_url, flags=re.IGNORECASE)
-
-    return f"{pic_url[:-4]}.{target_size}.jpg"
+    # 无后缀原图：直接追加变体
+    if re.search(r"\.(?:jpe?g)$", pic_url, flags=re.IGNORECASE):
+        return re.sub(
+            r"\.(jpe?g)$",
+            rf"._{target_size}_.\1",
+            pic_url,
+            flags=re.IGNORECASE,
+        )
+    return pic_url
 
 
 def _set_amazon_match_state(
@@ -177,35 +200,6 @@ async def _save_asin_record(
         LogBuffer.web().write("\n 🟡 Amazon ASIN 数据库：未安装 openpyxl，跳过记录（pip install openpyxl）")
     except Exception as e:
         LogBuffer.web().write(f"\n 🟡 Amazon ASIN 数据库保存失败：{e}")
-
-
-# tenhow.net 图床：免代理直连，按 ASIN 提供高清封面图
-TENHOW_IMAGE_URL_TEMPLATE = "https://tenhow.net/images/{asin}.jpg"
-# tenhow 封面实测约 1050x1500，低于该分辨率认为质量不足，回退日亚搜索
-TENHOW_IMAGE_MIN_WIDTH = 600
-TENHOW_IMAGE_MIN_HEIGHT = 800
-
-
-async def _probe_tenhow_image(asin: str) -> tuple[str, tuple[int, int]]:
-    """
-    探测 tenhow 图床是否有该 ASIN 对应的高清封面
-
-    Args:
-        asin: Amazon ASIN
-
-    Returns:
-        (可用的图片 URL, (宽, 高))；不可用返回 ("", (0, 0))
-    """
-    if not re.match(r"^[A-Z0-9]{10}$", asin or ""):
-        return "", (0, 0)
-    url = TENHOW_IMAGE_URL_TEMPLATE.format(asin=asin)
-    try:
-        width, height = await get_imgsize(url)
-    except Exception:
-        return "", (0, 0)
-    if width >= TENHOW_IMAGE_MIN_WIDTH and height >= TENHOW_IMAGE_MIN_HEIGHT:
-        return url, (width, height)
-    return "", (width, height)
 
 
 async def _check_asin_cache(number: str) -> dict | None:
@@ -791,28 +785,14 @@ async def get_big_pic_by_amazon(
     """
     _set_amazon_match_state(result, is_hard=False, reason="", url="")
 
-    # 改进 2：缓存查询 - 先检查数据库中是否已有 ASIN
+    # 改进 2：缓存查询 - 先检查数据库中是否已有 ASIN（与 mdcx-diy-main 一致：直接使用缓存的封面 URL）
     cache_hit = await _check_asin_cache(result.number)
     if cache_hit:
         LogBuffer.web().write(f"\n 📚 Amazon ASIN 缓存：命中 {result.number} → {cache_hit['asin']}")
 
-        # 优先尝试 tenhow 图床直连（免代理，且图片与日亚 SL1500 同源同分辨率）
-        tenhow_url, tenhow_size = await _probe_tenhow_image(cache_hit["asin"])
-        if tenhow_url:
-            LogBuffer.web().write(f"  命中 tenhow 图床高清封面 ({tenhow_size[0]}x{tenhow_size[1]})")
-            # 读零校验：ASIN 库交付时已全量验证（番号↔ASIN↔图），库命中即信任
-            _set_amazon_match_state(
-                result,
-                is_hard=True,
-                reason="tenhow",
-                url=f"https://www.amazon.co.jp/dp/{cache_hit['asin']}",
-            )
-            # 注意：tenhow 地址不写入数据库，保持 poster_url 列为纯日亚来源语义
-            return tenhow_url
-
         poster_url = cache_hit.get("poster_url", "")
         if poster_url:
-            LogBuffer.web().write("  tenhow 图床不可用，使用缓存的封面 URL")
+            LogBuffer.web().write("  使用缓存的封面 URL")
             _set_amazon_match_state(
                 result,
                 is_hard=True,
@@ -821,10 +801,7 @@ async def get_big_pic_by_amazon(
             )
             return _convert_to_target_size(poster_url)
 
-        if tenhow_size != (0, 0):
-            LogBuffer.web().write(f"  tenhow 图床图片过小 ({tenhow_size[0]}x{tenhow_size[1]})，回退搜索获取")
-        else:
-            LogBuffer.web().write("  tenhow 图床无此封面，回退搜索获取")
+        LogBuffer.web().write("  缓存无封面 URL，回退搜索获取")
 
     if not originaltitle_amazon and not originaltitle_amazon_raw:
         return ""
