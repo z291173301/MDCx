@@ -4488,6 +4488,7 @@ class Ui_MDCx(object):
         self.horizontalLayout_field_priority_options.addWidget(self.checkBox_field_priority_try_all_images)
         self.label_field_priority_try_all_images = QtWidgets.QLabel(parent=self.widget_field_priority_options)
         self.label_field_priority_try_all_images.setStyleSheet("color: rgb(8, 128, 128);")
+        self.label_field_priority_try_all_images.setIndent(4)
         self.label_field_priority_try_all_images.setObjectName("label_field_priority_try_all_images")
         self.horizontalLayout_field_priority_options.addWidget(self.label_field_priority_try_all_images)
         spacerItem = QtWidgets.QSpacerItem(
@@ -4956,7 +4957,7 @@ class Ui_MDCx(object):
         self.groupBox_52.setMinimumSize(QtCore.QSize(500, 0))
         self.groupBox_52.setObjectName("groupBox_52")
         self.horizontalLayoutWidget_24 = QtWidgets.QWidget(parent=self.groupBox_52)
-        self.horizontalLayoutWidget_24.setGeometry(QtCore.QRect(80, 30, 601, 31))
+        self.horizontalLayoutWidget_24.setGeometry(QtCore.QRect(86, 30, 601, 31))
         self.horizontalLayoutWidget_24.setObjectName("horizontalLayoutWidget_24")
         self.horizontalLayout_38 = QtWidgets.QHBoxLayout(self.horizontalLayoutWidget_24)
         self.horizontalLayout_38.setContentsMargins(0, 0, 0, 0)
@@ -12922,7 +12923,7 @@ class Ui_MDCx(object):
         self.groupBox_80.setTitle(_translate("MDCx", "类型刮削网站"))
         self.label_151.setText(_translate("MDCx", "无码番号："))
         self.label_316.setText(_translate("MDCx", "动漫里番："))
-        self.label_322.setText(_translate("MDCx", "Mywife："))
+        self.label_322.setText(_translate("MDCx", "MyWife："))
         self.label_232.setText(
             _translate(
                 "MDCx",
@@ -12963,9 +12964,9 @@ class Ui_MDCx(object):
         self.comboBox_fixed_scraping_type.setItemText(4, _translate("MDCx", "FC2"))
         self.comboBox_fixed_scraping_type.setItemText(5, _translate("MDCx", "欧美"))
         self.comboBox_fixed_scraping_type.setItemText(6, _translate("MDCx", "国产"))
-        self.label_fixed_scraping_type.setText(_translate("MDCx", "锁定刮削类型："))
+        self.label_fixed_scraping_type.setText(_translate("MDCx", "锁定类型："))
         self.label_fixed_scraping_type_desc.setText(
-            _translate("MDCx", "选择后跳过自动类型识别，所有番号直接使用指定类型的网站列表进行刮削。")
+            _translate("MDCx", "选择后将跳过自动类型识别，所有番号将直接使用指定类型的网站列表进行刮削和整理")
         )
         self.pushButton_edit_website_youma.setText(_translate("MDCx", "编辑网站"))
         self.pushButton_priority_website_youma.setText(_translate("MDCx", "字段优先级"))
@@ -13111,19 +13112,19 @@ class Ui_MDCx(object):
         self.pushButton_del_all_extrafanart_copy.setText(_translate("MDCx", "删除所有剧照副本"))
         self.groupBox_52.setTitle(_translate("MDCx", "下载高清图"))
         self.checkBox_amazon_big_pic.setText(_translate("MDCx", "启用 Amazon 查找高清封面图"))
-        self.label_397.setText(_translate("MDCx", "仅影响 Amazon 高清封面图搜索，不影响普通图片下载"))
+        self.label_397.setText(_translate("MDCx", "仅影响Amazon高清封面图搜索，不影响普通图片的下载和保存"))
         self.checkBox_amazon_skip_poster_size_precheck.setText(_translate("MDCx", "跳过前置 Poster 大小校验"))
         self.label_amazon_skip_poster_size_precheck.setText(
             _translate(
                 "MDCx",
-                "不因当前Poster已达标跳过Amazon(DMM>=700px/>=400KB/不小于右裁剪)将从日亚官网搜索高清封面图；已收录番号直接使用本地ASIN库验证结果，新发现需通过图片相似度校验后入库",
+                "不因当前Poster已达标跳过Amazon(DMM>=700px/>=400KB/不小于右裁剪)将从日亚官网搜索高清封面图，已收录番号直接使用本地ASIN库验证结果，新发现需通过图片相似度校验后入库",
             )
         )
         self.checkBox_dmm_fallback.setText(_translate("MDCx", "官方图源兜底（DMM / MGStage）"))
         self.label_dmm_fallback.setText(
             _translate(
                 "MDCx",
-                "站点图源全部失败时，按番号直构官方 CDN 高清图：DMM 高清封面（自动学习厂牌前缀）与 MGStage 素人高清海报",
+                "站点图源全部失败时，程序将按番号直构官方CDN高清图：DMM高清封面图，并将自动学习厂牌前缀，下载MGStages素人高清海报",
             )
         )
         self.checkBox_super_resolution_poster.setToolTip(
@@ -13136,7 +13137,7 @@ class Ui_MDCx(object):
         self.label_super_resolution_poster.setText(
             _translate(
                 "MDCx",
-                "最长边低于 800px 时 AI 放大补清；Win/Linux 已内置，macOS/源码首次下载约 30-60MB；无 Vulkan 或失败保持原图",
+                "最长边低于800px时AI放大补清；Windows/Linux已内置MacOS/源码首次下载约30-60MB，无Vulkan或失败保持原图",
             )
         )
         self.groupBox_66.setTitle(_translate("MDCx", "显示剧照"))

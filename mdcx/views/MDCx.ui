@@ -7576,7 +7576,7 @@
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>Mywife：</string>
+                              <string>MyWife：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -8044,7 +8044,7 @@
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>锁定刮削类型：</string>
+                              <string>锁定类型：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -8063,7 +8063,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>选择后跳过自动类型识别，所有番号直接使用指定类型的网站列表进行刮削。</string>
+                              <string>选择后将跳过自动类型识别，所有番号将直接使用指定类型的网站列表进行刮削和整理</string>
                             </property>
                             <property name="wordWrap">
                               <bool>false</bool>
@@ -9611,6 +9611,9 @@
                                   <property name="styleSheet">
                                     <string notr="true">color: rgb(8, 128, 128);</string>
                                   </property>
+                                  <property name="indent">
+                                    <number>4</number>
+                                  </property>
                                   <property name="text">
                                     <string>字段优先模式图片下载失败时，继续尝试其它图片</string>
                                   </property>
@@ -10657,7 +10660,7 @@
                     <widget class="QWidget" name="horizontalLayoutWidget_24">
                       <property name="geometry">
                         <rect>
-                          <x>80</x>
+                          <x>86</x>
                           <y>30</y>
                           <width>601</width>
                           <height>31</height>
@@ -10689,7 +10692,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>仅影响 Amazon 高清封面图搜索，不影响普通图片下载</string>
+                              <string>仅影响Amazon高清封面图搜索，不影响普通图片的下载和保存</string>
                             </property>
                           </widget>
                         </item>
@@ -10745,7 +10748,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>不因当前Poster已达标跳过Amazon(DMM&gt;=700px/&gt;=400KB/不小于右裁剪)将从日亚官网搜索高清封面图；已收录番号直接使用本地ASIN库验证结果，新发现需通过图片相似度校验后入库</string>
+                              <string>不因当前Poster已达标跳过Amazon(DMM&gt;=700px/&gt;=400KB/不小于右裁剪)将从日亚官网搜索高清封面图，已收录番号直接使用本地ASIN库验证结果，新发现需通过图片相似度校验后入库</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -10789,7 +10792,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>站点图源全部失败时，按番号直构官方 CDN 高清图：DMM 高清封面（自动学习厂牌前缀）与 MGStage 素人高清海报</string>
+                              <string>站点图源全部失败时，程序将按番号直构官方CDN高清图：DMM高清封面图，并将自动学习厂牌前缀，下载MGStages素人高清海报</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -10836,7 +10839,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>最长边低于 800px 时 AI 放大补清；Win/Linux 已内置，macOS/源码首次下载约 30-60MB；无 Vulkan 或失败保持原图</string>
+                              <string>最长边低于800px时AI放大补清；Windows/Linux已内置MacOS/源码首次下载约30-60MB，无Vulkan或失败保持原图</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
