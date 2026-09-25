@@ -63,6 +63,12 @@ UI 层 (PyQt6)         → 界面展示、用户操作
   - **纵向两态同高**：统计标签 y=70、结果树/清空按钮 y=110 在最大化与还原下一致，整组始终贴住顶部分隔线下方、不随最大化下沉（否则顶部线与标签之间会留出空隙）。
 - 回归测试：`tests/test_window_state_matrix.py::test_stats_label_moves_to_success_row_when_maximized` 锁定「非最大化右锚定、最大化左对齐树左缘、纵向不下沉、双向幂等」。
 
+**设置-NFO 右列 thirds 对齐**（用户最大化截图：影评/导演/TMDB/标签被推到自定义分级/想看人数右侧两百多 px）
+
+- 根因：`gridLayout_66` 的 `columnstretch=(1,0)` 让 C0 吃掉全部横向 surplus，C1.x 以斜率 1 右移；而 country/mpaa/customrating、year/runtime/wanted 两行 HBox 无弹簧、三项均分 surplus，thirds.x 以斜率 2/3 右移。两者只在默认宽度附近相交，窗口加宽后持续发散；纯拉伸配比定不住常数项（hints 差约 48px）。
+- 修复：`_sync_nfo_right_column_align()`（`_sync_page_layouts` 末尾调用，另接 `tabWidget.currentChanged` 下一拍——切 tab 时滚动区 showEvent 会重做宽幅拉伸使 C1 重新发散）。自适应钳制：先清 C1 列最小宽→重排→量自然位置，仅当 `critic.x > custom.x`（发散态）时设 C1 列最小宽把左缘精确钉到 thirds（导演/TMDB/标签同属 C1，一并归位）；窄态保持清零、原样不动。各控件同属 `layoutWidget_10`，`.x()` 同坐标系可比；只碰列宽，不碰 y 与其它行。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_right_column_aligns_to_thirds_when_wide` 锁定「宽态四者与 thirds 严格对齐、二次同步幂等、窄态钳制清零且自然位置保留」（复现用户场景：show + 切到 NFO 页后断言）。
+
 ### 设置页「命名」模板预览区按内容收缩（案例）
 
 命名页「视频命名规则」（`groupBox_8`）是绝对定位页内的 `QGridLayout`：说明文字 `label_66` 顶端对齐且可换行，「模板预览」多行框垂直策略为 `Expanding`。两者叠加产生两个问题：说明文字行高按更窄宽度的 `sizeHint` 计算（大于当前宽度实际换行高度）→「视频文件名」上方留白；预览框吃满网格剩余空间 → 被撑得过高。

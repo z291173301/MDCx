@@ -268,6 +268,9 @@ class MyMAinWindow(QMainWindow):
         self.Ui.tabWidget.currentChanged.connect(
             lambda _index: QTimer.singleShot(0, self._sync_naming_template_section)
         )
+        # NFO 页同样在设置页 tab 内：切到该 tab 时滚动区 showEvent 会重做宽幅拉伸，
+        # gridLayout_66 的 C1 随之重新发散，需在下一拍按最新视口宽重钉 thirds。
+        self.Ui.tabWidget.currentChanged.connect(lambda _index: QTimer.singleShot(0, self._sync_nfo_right_column_align))
         # 说明文字宽度变化（滚动条占位、休眠页拉伸等）时自动补一次重算。
         self.Ui.label_66.installEventFilter(self)
         self._bind_system_theme_refresh()
@@ -1043,6 +1046,40 @@ class MyMAinWindow(QMainWindow):
 
         # ============ page_setting / 命名页: 模板预览固定高度 + 说明文字贴合 ============
         self._sync_naming_template_section()
+
+        # ============ page_setting / NFO页: 宽视口下右列左对齐到 thirds ============
+        self._sync_nfo_right_column_align()
+
+    def _sync_nfo_right_column_align(self) -> None:
+        """设置-NFO：宽视口下右列（影评/导演/TMDB/标签）左对齐到自定义分级/想看人数。
+
+        用户截图：最大化后影评人评分（criticrating）/导演（director）/演员写入
+        TMDB ID/标签（tag）被推到自定义分级（customrating）/想看人数（votes）
+        右侧两百多 px，要求四者左移与 thirds 严格上下对齐、其余不动、窄态不变。
+        根因：gridLayout_66 的 columnstretch=(1,0) 让 C0 吃掉全部横向 surplus，
+        C1.x 以斜率 1 随列宽右移；而 country/mpaa/customrating、year/runtime/wanted
+        两行 HBox 无弹簧、三项均分 surplus，thirds.x 以斜率 2/3 右移。两者只在
+        默认宽度附近相交（约 787px），窗口加宽后 C1 持续超越 thirds；纯拉伸配比
+        定不住常数项（hints 差约 48px），故用列最小宽做自适应钳制。
+        做法（纯函数、双向幂等）：先清 C1 列最小宽→重排→量自然位置；仅当
+        critic.x > custom.x（发散态）时设 C1 列最小宽 = 列宽 - custom.x + score.x，
+        把 C1 左缘精确钉到 thirds（导演/TMDB/标签同属 C1，一并归位）；窄态自然
+        critic.x <= custom.x，保持清零、布局原样不动。各控件同属 layoutWidget_10，
+        .x() 同一坐标系直接可比；只碰列宽，不碰 y 与其它行。
+        """
+        ui = self.Ui
+        grid = ui.gridLayout_66
+        score = ui.checkBox_nfo_score
+        critic = ui.checkBox_nfo_criticrating
+        custom = ui.checkBox_nfo_customrating
+        grid.setColumnMinimumWidth(1, 0)
+        grid.invalidate()
+        grid.activate()
+        if critic.x() > custom.x():
+            col_w = grid.geometry().width()
+            grid.setColumnMinimumWidth(1, max(col_w - custom.x() + score.x(), 0))
+            grid.invalidate()
+            grid.activate()
 
     def _sync_naming_template_section(self) -> None:
         """命名页「视频命名规则」组（groupBox_8）按内容收缩，消除大片空白。

@@ -308,7 +308,7 @@ def test_amazon_skip_hint_green_merged_text_and_wrap():
     assert lbl is not None, "label_amazon_skip_poster_size_precheck 不存在"
     assert _widget_string_prop(lbl, "text") == (
         "不因当前Poster已达标跳过Amazon(DMM>=700px/>=400KB/不小于右裁剪)"
-        "将从日亚官网搜索高清封面图；已收录番号直接使用本地ASIN库验证结果，新发现需通过图片相似度校验后入库"
+        "将从日亚官网搜索高清封面图，已收录番号直接使用本地ASIN库验证结果，新发现需通过图片相似度校验后入库"
     )
     assert _widget_bool_prop(lbl, "wordWrap") is True, "wordWrap 应为 true（长文本需可正常换行）"
 

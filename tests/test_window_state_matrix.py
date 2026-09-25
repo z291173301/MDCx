@@ -1124,3 +1124,58 @@ def test_nfo_lib_info_page_no_right_blank_when_maximized(win, app):
     form_content = win.Ui.scrollAreaWidgetContents_nfo_lib
     right_gap = form_scroll.viewport().width() - form_content.width()
     assert right_gap <= 20, f"信息管理页右侧仍残留空白 {right_gap}px（应 ≤20）"
+
+
+def test_nfo_right_column_aligns_to_thirds_when_wide(win, app):
+    """设置-NFO：宽窗口下右列左对齐到自定义分级/想看人数 thirds，窄态保持原样。
+
+    用户截图（最大化）：影评人评分/导演/演员写入TMDB ID/标签被推到自定义分级/
+    想看人数右侧两百多 px。根因：gridLayout_66 columnstretch=(1,0) 使 C1.x 以
+    斜率 1 右移，而两行三项 HBox 以斜率 2/3 右移，宽视口下持续发散。
+    _sync_nfo_right_column_align 自适应钳制 C1 列最小宽：发散态钉到 thirds，
+    窄态（critic.x <= custom.x）保持清零不动。本测试故意不切 NFO 页，
+    同步锁定休眠页同样生效；其它行（左列 x、y）不得移动。
+    """
+    ui = win.Ui
+    score = ui.checkBox_nfo_score
+    critic = ui.checkBox_nfo_criticrating
+    director = ui.checkBox_nfo_director
+    tmdb = ui.checkBox_nfo_actor_tmdbid
+    tag = ui.checkBox_nfo_tag
+    custom = ui.checkBox_nfo_customrating
+    wanted = ui.checkBox_nfo_wanted
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(score), "checkBox_nfo_score") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    # 宽态（用户截图场景：最大化后打开 NFO 页）：右列四者与 thirds 严格上下对齐
+    win.resize(1900, 1050)
+    win.show()
+    goto_nfo_tab()
+    app.processEvents()
+    assert critic.x() == custom.x() == wanted.x(), (
+        f"宽态右列未对齐 thirds: critic={critic.x()} custom={custom.x()} wanted={wanted.x()}"
+    )
+    assert director.x() == custom.x(), f"导演未对齐: {director.x()} vs {custom.x()}"
+    assert tmdb.x() == custom.x(), f"TMDB 未对齐: {tmdb.x()} vs {custom.x()}"
+    assert tag.x() == custom.x(), f"标签未对齐: {tag.x()} vs {custom.x()}"
+    assert ui.gridLayout_66.columnMinimumWidth(1) > 0, "宽态应设置 C1 列最小宽钳制"
+    # 左列保持在右列左侧（其余不动）
+    assert score.x() < critic.x(), "左列应保持在右列左侧"
+
+    # 幂等：再同步一次位置不变
+    win._sync_page_layouts()
+    app.processEvents()
+    assert critic.x() == custom.x() == wanted.x(), "二次同步后对齐漂移"
+
+    # 窄态：钳制清零、自然位置原样保留
+    win.resize(900, 700)
+    goto_nfo_tab()
+    app.processEvents()
+    assert ui.gridLayout_66.columnMinimumWidth(1) == 0, "窄态 C1 列最小宽应清零"
+    assert critic.x() <= custom.x(), f"窄态右列应保持自然位置: critic={critic.x()} custom={custom.x()}"
