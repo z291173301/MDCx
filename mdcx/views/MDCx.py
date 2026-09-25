@@ -8992,7 +8992,7 @@ class Ui_MDCx(object):
         self.checkBox_nfo_wanted = QtWidgets.QCheckBox(parent=self.layoutWidget_10)
         self.checkBox_nfo_wanted.setObjectName("checkBox_nfo_wanted")
         self.horizontalLayout_40.addWidget(self.checkBox_nfo_wanted)
-        self.gridLayout_40.addLayout(self.horizontalLayout_40, 8, 1, 1, 1)
+        self.gridLayout_40.addLayout(self.horizontalLayout_40, 9, 1, 1, 1)
         self.label_403 = QtWidgets.QLabel(parent=self.layoutWidget_10)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
