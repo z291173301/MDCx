@@ -17767,44 +17767,147 @@
                         </rect>
                       </property>
                       <layout class="QGridLayout" name="gridLayout_40">
-                        <item row="12" column="1">
-                          <layout class="QHBoxLayout" name="horizontalLayout_146">
-                            <item>
-                              <widget class="QLabel" name="label_402">
+                        <item row="10" column="1" rowspan="4">
+                          <layout class="QGridLayout" name="gridLayout_66" columnstretch="1,0">
+                            <item row="0" column="0">
+                              <widget class="QCheckBox" name="checkBox_nfo_score">
                                 <property name="sizePolicy">
-                                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="text">
+                                  <string>公众评分（score）</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item row="0" column="1">
+                              <widget class="QCheckBox" name="checkBox_nfo_criticrating">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="text">
+                                  <string>影评人评分（criticrating）</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item row="1" column="0" colspan="2">
+                              <spacer name="verticalSpacer_nfo_actor_gap">
+                                <property name="orientation">
+                                  <enum>Qt::Vertical</enum>
+                                </property>
+                                <property name="sizeType">
+                                  <enum>QSizePolicy::Fixed</enum>
+                                </property>
+                                <property name="sizeHint" stdset="0">
+                                  <size>
+                                    <width>20</width>
+                                    <height>8</height>
+                                  </size>
+                                </property>
+                              </spacer>
+                            </item>
+                            <item row="2" column="0">
+                              <widget class="QCheckBox" name="checkBox_nfo_actor">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="text">
+                                  <string>演员（actor）</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item row="2" column="1">
+                              <widget class="QCheckBox" name="checkBox_nfo_director">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="text">
+                                  <string>导演（director）</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item row="3" column="0">
+                              <widget class="QCheckBox" name="checkBox_nfo_all_actor">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="text">
+                                  <string>写入男女演员，不勾选仅女演员</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item row="3" column="1">
+                              <widget class="QCheckBox" name="checkBox_nfo_actor_tmdbid">
+                                <property name="text">
+                                  <string>演员写入TMDB ID需配置TMDB API</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item row="4" column="0" colspan="2">
+                              <spacer name="verticalSpacer_nfo_tag_gap">
+                                <property name="orientation">
+                                  <enum>Qt::Vertical</enum>
+                                </property>
+                                <property name="sizeType">
+                                  <enum>QSizePolicy::Fixed</enum>
+                                </property>
+                                <property name="sizeHint" stdset="0">
+                                  <size>
+                                    <width>20</width>
+                                    <height>19</height>
+                                  </size>
+                                </property>
+                              </spacer>
+                            </item>
+                            <item row="5" column="0">
+                              <widget class="QCheckBox" name="checkBox_nfo_series">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                                     <horstretch>0</horstretch>
                                     <verstretch>0</verstretch>
                                   </sizepolicy>
                                 </property>
                                 <property name="minimumSize">
                                   <size>
-                                    <width>20</width>
+                                    <width>150</width>
                                     <height>0</height>
                                   </size>
                                 </property>
-                                <property name="layoutDirection">
-                                  <enum>Qt::LeftToRight</enum>
-                                </property>
                                 <property name="text">
-                                  <string />
-                                </property>
-                                <property name="alignment">
-                                  <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                                  <string>系列（series）</string>
                                 </property>
                               </widget>
                             </item>
-                            <item>
-                              <widget class="QCheckBox" name="checkBox_nfo_all_actor">
-                                <property name="text">
-                                  <string>写入男女演员（不勾选，则仅写入女演员）</string>
+                            <item row="5" column="1">
+                              <widget class="QCheckBox" name="checkBox_nfo_tag">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
                                 </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QCheckBox" name="checkBox_nfo_actor_tmdbid">
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>150</width>
+                                    <height>0</height>
+                                  </size>
+                                </property>
                                 <property name="text">
-                                  <string>为演员写入 TMDB ID（需配置 TMDB API）</string>
+                                  <string>标签（tag）</string>
                                 </property>
                               </widget>
                             </item>
@@ -17828,7 +17931,7 @@
                               <enum>Qt::LeftToRight</enum>
                             </property>
                             <property name="text">
-                              <string>年份/时长/想看人数：</string>
+                              <string>年份/时长/想看：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -18415,36 +18518,6 @@
                             </property>
                           </widget>
                         </item>
-                        <item row="10" column="1">
-                          <layout class="QHBoxLayout" name="horizontalLayout_139">
-                            <item>
-                              <widget class="QCheckBox" name="checkBox_nfo_score">
-                                <property name="sizePolicy">
-                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                                    <horstretch>0</horstretch>
-                                    <verstretch>0</verstretch>
-                                  </sizepolicy>
-                                </property>
-                                <property name="text">
-                                  <string>公众评分（score）</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QCheckBox" name="checkBox_nfo_criticrating">
-                                <property name="sizePolicy">
-                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                                    <horstretch>0</horstretch>
-                                    <verstretch>0</verstretch>
-                                  </sizepolicy>
-                                </property>
-                                <property name="text">
-                                  <string>影评人评分（criticrating）</string>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
                         <item row="25" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_138">
                             <item>
@@ -18578,48 +18651,6 @@
                               <widget class="QCheckBox" name="checkBox_tag_publisher">
                                 <property name="text">
                                   <string>发行商</string>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
-                        </item>
-                        <item row="13" column="1">
-                          <layout class="QHBoxLayout" name="horizontalLayout_140">
-                            <item>
-                              <widget class="QCheckBox" name="checkBox_nfo_series">
-                                <property name="sizePolicy">
-                                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-                                    <horstretch>0</horstretch>
-                                    <verstretch>0</verstretch>
-                                  </sizepolicy>
-                                </property>
-                                <property name="minimumSize">
-                                  <size>
-                                    <width>150</width>
-                                    <height>0</height>
-                                  </size>
-                                </property>
-                                <property name="text">
-                                  <string>系列（series）</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QCheckBox" name="checkBox_nfo_tag">
-                                <property name="sizePolicy">
-                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                                    <horstretch>0</horstretch>
-                                    <verstretch>0</verstretch>
-                                  </sizepolicy>
-                                </property>
-                                <property name="minimumSize">
-                                  <size>
-                                    <width>150</width>
-                                    <height>0</height>
-                                  </size>
-                                </property>
-                                <property name="text">
-                                  <string>标签（tag）</string>
                                 </property>
                               </widget>
                             </item>
@@ -19028,36 +19059,6 @@
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                             </property>
                           </widget>
-                        </item>
-                        <item row="11" column="1">
-                          <layout class="QHBoxLayout" name="horizontalLayout_34">
-                            <item>
-                              <widget class="QCheckBox" name="checkBox_nfo_actor">
-                                <property name="sizePolicy">
-                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                                    <horstretch>0</horstretch>
-                                    <verstretch>0</verstretch>
-                                  </sizepolicy>
-                                </property>
-                                <property name="text">
-                                  <string>演员（actor）</string>
-                                </property>
-                              </widget>
-                            </item>
-                            <item>
-                              <widget class="QCheckBox" name="checkBox_nfo_director">
-                                <property name="sizePolicy">
-                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                                    <horstretch>0</horstretch>
-                                    <verstretch>0</verstretch>
-                                  </sizepolicy>
-                                </property>
-                                <property name="text">
-                                  <string>导演（director）</string>
-                                </property>
-                              </widget>
-                            </item>
-                          </layout>
                         </item>
                         <item row="14" column="1">
                           <widget class="QLabel" name="label_395">
