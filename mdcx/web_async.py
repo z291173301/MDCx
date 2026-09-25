@@ -1275,8 +1275,7 @@ class AsyncWebClient:
             self._log(f"🟡 写入 response.headers 失败（curl-cffi 可能改了 API）: {_e!s}")
 
     def _resolve_cf_bypass_proxy(self, *, use_proxy: bool) -> str:
-        if not use_proxy:
-            return ""
+        # CF Bypass 代理独立于常规代理设置，仅当配置了 cf_bypass_proxy 时使用
         return (self.cf_bypass_proxy or "").strip()
 
     def _prepare_mirror_headers(

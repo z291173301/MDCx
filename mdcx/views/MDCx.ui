@@ -3208,7 +3208,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>指不想要刮削的目录，可以填写多个目录，以逗号分开（中英文逗号都可以）</string>
+                              <string>指不想要刮削的视频文件目录，可以填写多个目录，以逗号分开，中英文逗号都可以</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -3315,8 +3315,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>可填一个或多个视频目录，多个目录用英文 ; 或中文 ；分隔。
-刮削各目录（含子目录）中的视频元数据。</string>
+                              <string>可填一个或多个目录，多个目录用; 或；分隔，刮削各目录含子目录中的视频元数据</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -3460,7 +3459,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>指刮削失败时，视频将移动到这个文件夹。输出目录可以不在待刮削视频目录下</string>
+                              <string>指刮削失败时，视频文件将移动到这个文件夹。输出目录可以不在待刮削视频目录下</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -3619,7 +3618,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>指刮削成功时，视频将移动到这个文件夹。输出目录可以不在待刮削视频目录下</string>
+                              <string>指刮削成功时，视频文件将移动到这个文件夹。输出目录可以不在待刮削视频目录下</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -3638,7 +3637,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>&lt;p&gt;如果创建软链接时要复制图片和NFO，请到「工具」-「软链接助手」勾选即可&lt;/p&gt;&lt;p&gt;1，软链接路径支持命名字段：&lt;/p&gt;&lt;p&gt;end_folder_name （指待刮削目录上最后的文件夹名）&lt;/p&gt;&lt;p&gt;2，成功/失败输出目录支持命名字段：&lt;/p&gt;&lt;p&gt;end_folder_name，first_folder_name （指待刮削目录下第一层子文件夹名）&lt;/p&gt;</string>
+                              <string>&lt;p&gt;如果创建软链接时想要复制图片和nfo等，请到「工具」-「软链接助手」勾选上即可&lt;/p&gt;&lt;p&gt;1、软链接路径支持命名字段：&lt;/p&gt;&lt;p&gt;end_folder_name，指待刮削目录上最后的文件夹名&lt;/p&gt;&lt;p&gt;2、成功/失败输出目录支持命名字段：&lt;/p&gt;&lt;p&gt;end_folder_name，first_folder_name，指待刮削视频目录下的第一层子文件夹名&lt;/p&gt;</string>
                             </property>
                           </widget>
                         </item>
@@ -3710,7 +3709,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>勾选后将检查软链接文件指向的目标文件是否存在，若不存在则会删除该软链接</string>
+                              <string>在勾选后将检查软链接文件指向的目标文件是否存在，如果不存在则会删除该软链接</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -3729,7 +3728,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>支持记录和跳过已刮削成功的文件，避免新增视频时重复刮削之前成功的文件</string>
+                              <string>支持记录和跳过已经刮削成功的文件，避免新增视频时重复刮削之前成功刮削的文件</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -3898,7 +3897,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>识别番号时，将先过滤多余字符再进行识别。（填写时以逗号分割，不用区分大小写）</string>
+                              <string>识别番号时，将优先过滤多余字符再进行识别，填写时以逗号分割，不用区分大小写</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -3959,7 +3958,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>用于过滤本地的一些广告视频，此处填写文件大小，小于该大小的视频将跳过刮削</string>
+                              <string>用于过滤掉本地的一些广告视频，此处填写文件大小，小于该大小的视频将跳过刮削</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -4330,7 +4329,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>以下已启用的规则中有任一命中时，文件将被清理。（多个内容以｜分割，区分大小写）</string>
+                              <string>以下已启用的规则中有任一命中时，文件将被清理，多个内容以｜分割，区分大小写</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -4518,7 +4517,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>以下已启用的规则中有任一命中时，文件将不被清理。（会优先处理不清理文件规则）</string>
+                              <string>以下已经启用的规则中有任一命中时，文件将不被清理，会优先处理不清理文件规则</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -7733,7 +7732,7 @@
                             </property>
                           </widget>
                         </item>
-                        <item row="3" column="1">
+                        <item row="3" column="1" colspan="3">
                           <widget class="QLabel" name="label_155">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -7748,7 +7747,7 @@
                               <string>比如：111111-111，111111_111，n1111，HEYZO-1111，SMD-111</string>
                             </property>
                             <property name="wordWrap">
-                              <bool>true</bool>
+                              <bool>false</bool>
                             </property>
                           </widget>
                         </item>
@@ -9383,7 +9382,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>按各个字段设置的刮削网站进行刮削，字段来自多个网站。字段全一些。</string>
+                              <string>按各个字段设置的刮削网站进行刮削，字段来自于多个网站，刮削字段更加全面</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -9458,7 +9457,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>按番号类型设置的刮削网站进行刮削，字段来自单个网站。速度快一些。</string>
+                              <string>按番号类型设置的刮削网站进行刮削，字段来自于单个网站，刮削速度更加快速</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -9614,7 +9613,7 @@
                                     <string notr="true">color: rgb(8, 128, 128);</string>
                                   </property>
                                   <property name="text">
-                                    <string>字段优先图片下载失败时，继续尝试其它图片候选</string>
+                                    <string>字段优先模式图片下载失败时，继续尝试其它图片</string>
                                   </property>
                                 </widget>
                               </item>
@@ -20231,7 +20230,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>&lt;p&gt;支持优先使用 Graphis.ne.jp 的图片作为演员头像和演员背景；&lt;br&gt;Graphis.ne.jp提供了演员不同时期的图片，默认请求早期的图片。&lt;/p&gt;</string>
+                              <string>&lt;p&gt;支持优先使用Graphis.ne.jp的图片作为演员头像和演员背景图；&lt;br&gt;Graphis.ne.jp提供了演员不同时期的图片，默认请求早期图片。&lt;/p&gt;</string>
                             </property>
                           </widget>
                         </item>
@@ -20705,7 +20704,7 @@
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>使用minnano-av和维基百科补全Emby/Jellyfin演员信息，包括:生日、身高、三围、出道时间和作品等。</string>
+                        <string>使用Minnano-av和维基百科补全Emby/Jellyfin演员信息，包括:生日、身高、三围、出道时间和作品等</string>
                       </property>
                         <property name="wordWrap">
                           <bool>true</bool>
@@ -21503,7 +21502,7 @@
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
                             </property>
                             <property name="text">
-                              <string>&lt;p style='line-height:20px'&gt;支持 http(s), socks5(h) 代理. 示例: http://127.0.0.1:7897&lt;br&gt;需要用户名和密码时格式为: schema://username:password@host:port&lt;br&gt;Cloudflare Bypass 地址留空时，若配置了下方"外部 CF 服务"则自动启动适配层；两者均留空时关闭 CF Bypass 功能&lt;br&gt;"使用代理"仅控制常规网络请求代理开关，不控制 CF Bypass 代理&lt;br&gt;"CF Bypass代理"仅作用于 bypass 服务请求（mirror/html）&lt;br&gt;勾选"全部走代理"后，"使用代理"列表不再生效，分流交给代理软件裁决&lt;/p&gt;</string>
+                              <string>&lt;p style='line-height:20px'&gt;支持http、https、socks5代理，示例：http://127.0.0.1:7897&lt;br&gt;用户名和密码格式为: schema://username:password@host:port&lt;br&gt;"使用代理"仅控制常规网络请求代理开关，不控制CF Bypass代理&lt;br&gt;"CF Bypass代理"选项仅作用于Bypass的服务请求(mirror/html)&lt;br&gt;勾选"全部走代理"后"使用代理"列表不再生效，分流交给代理软件&lt;br&gt;Cloudflare Bypass地址留空时，配置了"外部CF服务"自动启动适配层，两者均留空时关闭CF Bypass功能&lt;/p&gt;</string>
                             </property>
                           </widget>
                         </item>
@@ -21512,7 +21511,7 @@
                             <item>
                               <widget class="QCheckBox" name="checkBox_use_proxy">
                                 <property name="toolTip">
-                                  <string>仅控制常规网络请求代理开关，不控制 CF Bypass 代理</string>
+                                  <string>仅控制常规网络请求代理开关，不控制CF Bypass代理</string>
                                 </property>
                                 <property name="text">
                                   <string>使用代理</string>
@@ -21937,7 +21936,7 @@
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>CF Bypass代理：</string>
+                              <string>Bypass代理：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -21987,7 +21986,7 @@
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>外部 CF 服务：</string>
+                              <string>外部CF服务：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -22117,7 +22116,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>用途：校验 Bypass 服务落地/重定向后的最终域名，防止第三方服务被劫持时把恶意页面当数据。支持 *.example.com 子域通配，逗号分隔；留空表示不校验（默认）。一般无需配置。</string>
+                              <string>用途：校验Bypass服务落地/重定向后的最终域名，防止第三方服务被劫持时把恶意页面当数据，支持*.example.com子域通配，逗号分隔留空表示不校验，一般不需要配置</string>
                             </property>
                               <property name="wordWrap">
                                 <bool>true</bool>
@@ -24346,7 +24345,7 @@ p, li { white-space: pre-wrap; }
 &lt;ul&gt;
 &lt;li&gt;&lt;b&gt;使用代理&lt;/b&gt;：开启后填写 HTTP / HTTPS 或 SOCKS5 代理地址（如 http://127.0.0.1:7890）。&lt;/li&gt;
 &lt;li&gt;&lt;b&gt;走代理网站&lt;/b&gt;：仅指定域名走代理，其余直连。默认包含 amazon.co.jp、m.media-amazon.com、xcity.jp、minnano-av.com、avbase.net、javbus.com、javdb.com、javlibrary.com、r18.dev、mgstage.com、prestige-av.com、seesaawiki.jp、avsox.click、avsox.com、avmoo.shop、avmoo.com、avheat.shop、avheat.com、caribbeancom.com、heyzo.com、1pondo.tv、pacopacomama.com、10musume.com、mywife.cc、github.com、raw.githubusercontent.com、google.com、missav.ws、missav.ai、missav.live、aventertainments.com、javfree.me、7mmtv.sx、7tv022.com。可按需增删（也可直接填数据源名，如 missav、javdb，站点及其镜像域名将整体走代理）。&lt;/li&gt;
-&lt;li&gt;&lt;b&gt;CF Bypass 代理&lt;/b&gt;：为绕过 Cloudflare 的请求单独设置代理。&lt;/li&gt;
+&lt;li&gt;&lt;b&gt;Bypass代理&lt;/b&gt;：为绕过 Cloudflare 的请求单独设置代理。&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;如持续提示网络 / 代理错误，请检查地址与端口、确认代理软件处于全局模式，或尝试重启代理与网卡。&lt;/p&gt;
 

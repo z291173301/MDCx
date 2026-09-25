@@ -400,6 +400,35 @@ def test_mosaic_rule_hint_texts_regression():
     assert not mismatches, f"马赛克命名规则说明与预期不符: {mismatches}"
 
 
+# ---------- 「使用代理」开关 / Bypass 代理文案回归锁 ----------
+
+# 勾选框只控制常规网络请求代理开关，不联动 CF Bypass 代理（曾写作 "不控制 CF Bypass 代理"）。
+_PROXY_TOGGLE_HINT = "仅控制常规网络请求代理开关，不控制CF Bypass代理"
+
+
+def test_proxy_toggle_ui_texts_regression():
+    """代理开关文案回归锁：开关只管常规代理、不联动 Bypass；标签与帮助文本统一。"""
+    root = _parse_ui()
+
+    def prop_of(name: str, prop: str):
+        widget = _find_widget_by_name(root, name)
+        assert widget is not None, f"{name} 不存在"
+        return _widget_string_prop(widget, prop)
+
+    # 「使用代理」勾选框 tooltip 明确只管常规代理。
+    assert prop_of("checkBox_use_proxy", "toolTip") == _PROXY_TOGGLE_HINT
+    # 网络页标签去掉 "CF" 前缀、去掉多余空格。
+    assert prop_of("label_cf_bypass_proxy", "text") == "Bypass代理："
+    assert prop_of("label_cf_bypass_trawl", "text") == "外部CF服务："
+    # 代理说明段同样带这句提示。
+    proxy_hint = prop_of("label_103", "text") or ""
+    assert _PROXY_TOGGLE_HINT in proxy_hint
+    # 帮助文档正文（关于页）条目统一为「Bypass代理」，且不再出现「CF Bypass 代理」。
+    about_html = prop_of("textBrowser_about", "html") or ""
+    assert "<b>Bypass代理</b>：为绕过 Cloudflare 的请求单独设置代理。" in about_html
+    assert "CF Bypass 代理" not in about_html
+
+
 # ---------- #182 Gfriends「选择目录」按钮样式 —— 红/黄/绿回归 ----------
 
 # 全局药丸按钮三态选择器（浅色/深色主题各一处，共 6 处）：

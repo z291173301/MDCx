@@ -3474,9 +3474,9 @@ class Ui_MDCx(object):
         sizePolicy.setHeightForWidth(self.label_155.sizePolicy().hasHeightForWidth())
         self.label_155.setSizePolicy(sizePolicy)
         self.label_155.setStyleSheet("color: rgb(8, 128, 128);")
-        self.label_155.setWordWrap(True)
+        self.label_155.setWordWrap(False)
         self.label_155.setObjectName("label_155")
-        self.gridLayout_36.addWidget(self.label_155, 3, 1, 1, 1)
+        self.gridLayout_36.addWidget(self.label_155, 3, 1, 1, 3)
         self.label_318 = QtWidgets.QLabel(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -12723,14 +12723,14 @@ class Ui_MDCx(object):
         self.groupBox_16.setTitle(_translate("MDCx", "刮削目录"))
         self.pushButton_select_softlink_folder.setText(_translate("MDCx", "选择目录"))
         self.label_58.setText(
-            _translate("MDCx", "指不想要刮削的目录，可以填写多个目录，以逗号分开（中英文逗号都可以）")
+            _translate("MDCx", "指不想要刮削的视频文件目录，可以填写多个目录，以逗号分开，中英文逗号都可以")
         )
         self.label_49.setText(_translate("MDCx", "待刮削视频目录："))
         self.checkBox_no_escape_dir.setText(_translate("MDCx", "不排除"))
         self.label_56.setText(
             _translate(
                 "MDCx",
-                "可填一个或多个视频目录，多个目录用英文 ; 或中文 ；分隔。\n刮削各目录（含子目录）中的视频元数据。",
+                "可填一个或多个目录，多个目录用; 或；分隔，刮削各目录含子目录中的视频元数据",
             )
         )
         self.checkBox_scrape_softlink_path.setText(
@@ -12740,27 +12740,27 @@ class Ui_MDCx(object):
         self.pushButton_select_media_folder_setting_page.setText(_translate("MDCx", "选择目录"))
         self.label_48.setText(_translate("MDCx", "刮削排除目录："))
         self.label_57.setText(
-            _translate("MDCx", "指刮削失败时，视频将移动到这个文件夹。输出目录可以不在待刮削视频目录下")
+            _translate("MDCx", "指刮削失败时，视频文件将移动到这个文件夹。输出目录可以不在待刮削视频目录下")
         )
         self.pushButton_select_failed_folder.setText(_translate("MDCx", "选择目录"))
         self.label_46.setText(_translate("MDCx", "失败输出目录："))
         self.pushButton_select_sucess_folder.setText(_translate("MDCx", "选择目录"))
         self.label_29.setText(
-            _translate("MDCx", "指刮削成功时，视频将移动到这个文件夹。输出目录可以不在待刮削视频目录下")
+            _translate("MDCx", "指刮削成功时，视频文件将移动到这个文件夹。输出目录可以不在待刮削视频目录下")
         )
         self.label_383.setText(
             _translate(
                 "MDCx",
-                "<p>如果创建软链接时要复制图片和NFO，请到「工具」-「软链接助手」勾选即可</p><p>1，软链接路径支持命名字段：</p><p>end_folder_name （指待刮削目录上最后的文件夹名）</p><p>2，成功/失败输出目录支持命名字段：</p><p>end_folder_name，first_folder_name （指待刮削目录下第一层子文件夹名）</p>",
+                "<p>如果创建软链接时想要复制图片和nfo等，请到「工具」-「软链接助手」勾选上即可</p><p>1、软链接路径支持命名字段：</p><p>end_folder_name，指待刮削目录上最后的文件夹名</p><p>2、成功/失败输出目录支持命名字段：</p><p>end_folder_name，first_folder_name，指待刮削视频目录下的第一层子文件夹名</p>",
             )
         )
         self.groupBox_32.setTitle(_translate("MDCx", "文件扫描设置"))
         self.label_336.setText(_translate("MDCx", "检查软链接："))
         self.label_337.setText(
-            _translate("MDCx", "勾选后将检查软链接文件指向的目标文件是否存在，若不存在则会删除该软链接")
+            _translate("MDCx", "在勾选后将检查软链接文件指向的目标文件是否存在，如果不存在则会删除该软链接")
         )
         self.label_348.setText(
-            _translate("MDCx", "支持记录和跳过已刮削成功的文件，避免新增视频时重复刮削之前成功的文件")
+            _translate("MDCx", "支持记录和跳过已经刮削成功的文件，避免新增视频时重复刮削之前成功刮削的文件")
         )
         self.checkBox_skip_success_file.setText(_translate("MDCx", "跳过之前已刮削成功的文件"))
         self.checkBox_record_success_file.setText(_translate("MDCx", "记录刮削成功的文件列表"))
@@ -12768,12 +12768,12 @@ class Ui_MDCx(object):
         self.checkBox_no_escape_file.setText(_translate("MDCx", "不跳过"))
         self.label_346.setText(_translate("MDCx", "跳过已刮削文件："))
         self.label_88.setText(
-            _translate("MDCx", "识别番号时，将先过滤多余字符再进行识别。（填写时以逗号分割，不用区分大小写）")
+            _translate("MDCx", "识别番号时，将优先过滤多余字符再进行识别，填写时以逗号分割，不用区分大小写")
         )
         self.checkBox_check_symlink.setText(_translate("MDCx", "检查并清理失效的软链接"))
         self.checkBox_check_symlink_definition.setText(_translate("MDCx", "获取软链接指向的原文件的分辨率"))
         self.label_94.setText(
-            _translate("MDCx", "用于过滤本地的一些广告视频，此处填写文件大小，小于该大小的视频将跳过刮削")
+            _translate("MDCx", "用于过滤掉本地的一些广告视频，此处填写文件大小，小于该大小的视频将跳过刮削")
         )
         self.label_83.setText(_translate("MDCx", "过滤文件名多余字符："))
         self.label_93.setText(_translate("MDCx", "跳过小文件(MB) <："))
@@ -12786,7 +12786,7 @@ class Ui_MDCx(object):
         self.label_262.setText(_translate("MDCx", "⚠️ 清理文件规则"))
         self.checkBox_clean_file_contains.setText(_translate("MDCx", "启用"))
         self.label_199.setText(
-            _translate("MDCx", "以下已启用的规则中有任一命中时，文件将被清理。（多个内容以｜分割，区分大小写）")
+            _translate("MDCx", "以下已启用的规则中有任一命中时，文件将被清理，多个内容以｜分割，区分大小写")
         )
         self.label_261.setText(_translate("MDCx", "文件名包含："))
         self.label_270.setText(_translate("MDCx", "⚠️ 不清理文件规则"))
@@ -12794,7 +12794,7 @@ class Ui_MDCx(object):
         self.label_202.setText(_translate("MDCx", "扩展名等于："))
         self.label_263.setText(_translate("MDCx", "文件大小(KB)<=："))
         self.label_162.setText(
-            _translate("MDCx", "以下已启用的规则中有任一命中时，文件将不被清理。（会优先处理不清理文件规则）")
+            _translate("MDCx", "以下已经启用的规则中有任一命中时，文件将不被清理，会优先处理不清理文件规则")
         )
         self.checkBox_clean_file_size.setText(_translate("MDCx", "启用"))
         self.checkBox_clean_file_name.setText(_translate("MDCx", "启用"))
@@ -13008,17 +13008,17 @@ class Ui_MDCx(object):
         )
         self.groupBox_11.setTitle(_translate("MDCx", "网站偏好"))
         self.radioButton_scrape_single.setText(_translate("MDCx", "指定网站"))
-        self.label_32.setText(_translate("MDCx", "按各个字段设置的刮削网站进行刮削，字段来自多个网站。字段全一些。"))
+        self.label_32.setText(_translate("MDCx", "按各个字段设置的刮削网站进行刮削，字段来自于多个网站，刮削字段更加全面"))
         self.label_317.setText(_translate("MDCx", "当指定网站时，所有番号将只使用该网站刮削！"))
         self.radioButton_scrape_info.setText(_translate("MDCx", "字段优先"))
-        self.label_28.setText(_translate("MDCx", "按番号类型设置的刮削网站进行刮削，字段来自单个网站。速度快一些。"))
+        self.label_28.setText(_translate("MDCx", "按番号类型设置的刮削网站进行刮削，字段来自于单个网站，刮削速度更加快速"))
         self.radioButton_scrape_speed.setText(_translate("MDCx", "速度优先"))
         self.label_315.setText(
             _translate("MDCx", "⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」信息不全！")
         )
         self.checkBox_field_priority_try_all_images.setText(_translate("MDCx", "是否尝试所有图片"))
         self.label_field_priority_try_all_images.setText(
-            _translate("MDCx", "字段优先图片下载失败时，继续尝试其它图片候选")
+            _translate("MDCx", "字段优先模式图片下载失败时，继续尝试其它图片")
         )
         self.pushButton_scrape_note.setText(_translate("MDCx", "刮削不到？看这里！"))
         self.label_300.setText(_translate("MDCx", "⚠️ 注意！！！选择「字段优先」时，以下设置才有效！！！"))
@@ -13752,7 +13752,7 @@ class Ui_MDCx(object):
         self.label_123.setText(
             _translate(
                 "MDCx",
-                "<p>支持优先使用 Graphis.ne.jp 的图片作为演员头像和演员背景；<br>Graphis.ne.jp提供了演员不同时期的图片，默认请求早期的图片。</p>",
+                "<p>支持优先使用Graphis.ne.jp的图片作为演员头像和演员背景图；<br>Graphis.ne.jp提供了演员不同时期的图片，默认请求早期图片。</p>",
             )
         )
         self.label_gfriends_local.setText(_translate("MDCx", "Gfriends 本地仓库："))
@@ -13773,7 +13773,7 @@ class Ui_MDCx(object):
         self.pushButton_add_actor_info.setText(_translate("MDCx", "开始补全"))
         self.label_295.setText(
             _translate(
-                "MDCx", "使用minnano-av和维基百科补全Emby/Jellyfin演员信息，包括:生日、身高、三围、出道时间和作品等。"
+                "MDCx", "使用Minnano-av和维基百科补全Emby/Jellyfin演员信息，包括:生日、身高、三围、出道时间和作品等"
             )
         )
         self.radioButton_actor_info_all.setText(_translate("MDCx", "所有演员"))
@@ -13828,10 +13828,10 @@ class Ui_MDCx(object):
         self.label_103.setText(
             _translate(
                 "MDCx",
-                '<p style=\'line-height:20px\'>支持 http(s), socks5(h) 代理. 示例: http://127.0.0.1:7897<br>需要用户名和密码时格式为: schema://username:password@host:port<br>Cloudflare Bypass 地址留空时，若配置了下方"外部 CF 服务"则自动启动适配层；两者均留空时关闭 CF Bypass 功能<br>"使用代理"仅控制常规网络请求代理开关，不控制 CF Bypass 代理<br>"CF Bypass代理"仅作用于 bypass 服务请求（mirror/html）<br>勾选"全部走代理"后，"使用代理"列表不再生效，分流交给代理软件裁决</p>',
+                '<p style=\'line-height:20px\'>支持http、https、socks5代理，示例：http://127.0.0.1:7897<br>用户名和密码格式为: schema://username:password@host:port<br>"使用代理"仅控制常规网络请求代理开关，不控制CF Bypass代理<br>"CF Bypass代理"选项仅作用于Bypass的服务请求(mirror/html)<br>勾选"全部走代理"后"使用代理"列表不再生效，分流交给代理软件<br>Cloudflare Bypass地址留空时，配置了"外部CF服务"自动启动适配层，两者均留空时关闭CF Bypass功能</p>',
             )
         )
-        self.checkBox_use_proxy.setToolTip(_translate("MDCx", "仅控制常规网络请求代理开关，不控制 CF Bypass 代理"))
+        self.checkBox_use_proxy.setToolTip(_translate("MDCx", "仅控制常规网络请求代理开关，不控制CF Bypass代理"))
         self.checkBox_use_proxy.setText(_translate("MDCx", "使用代理"))
         self.label_73.setText(_translate("MDCx", "超时时间："))
         self.label_no_proxy_sites.setText(_translate("MDCx", "使用代理："))
@@ -13850,9 +13850,9 @@ class Ui_MDCx(object):
         self.lineEdit_cf_bypass_url.setPlaceholderText(
             _translate("MDCx", "留空则由外部 CF 服务自动启动（高级：手动指定 cf_bypasser 协议服务地址）")
         )
-        self.label_cf_bypass_proxy.setText(_translate("MDCx", "CF Bypass代理："))
+        self.label_cf_bypass_proxy.setText(_translate("MDCx", "Bypass代理："))
         self.lineEdit_cf_bypass_proxy.setPlaceholderText(_translate("MDCx", "例如: http://127.0.0.1:7890（可选）"))
-        self.label_cf_bypass_trawl.setText(_translate("MDCx", "外部 CF 服务："))
+        self.label_cf_bypass_trawl.setText(_translate("MDCx", "外部CF服务："))
         self.lineEdit_cf_bypass_trawl_url.setPlaceholderText(_translate("MDCx", "例如: http://127.0.0.1:8191"))
         self.comboBox_cf_bypass_backend.setToolTip(
             _translate("MDCx", "TRAWL：走 /scrape 原生 API；FlareSolverr：走 /v1 兼容 API")
@@ -13872,7 +13872,7 @@ class Ui_MDCx(object):
         self.label_cf_bypass_trusted_hosts_desc.setText(
             _translate(
                 "MDCx",
-                "用途：校验 Bypass 服务落地/重定向后的最终域名，防止第三方服务被劫持时把恶意页面当数据。支持 *.example.com 子域通配，逗号分隔；留空表示不校验（默认）。一般无需配置。",
+                "用途：校验Bypass服务落地/重定向后的最终域名，防止第三方服务被劫持时把恶意页面当数据，支持*.example.com子域通配，逗号分隔留空表示不校验，一般不需要配置",
             )
         )
         self.label_65.setText(_translate("MDCx", "重试次数："))
@@ -14059,7 +14059,7 @@ class Ui_MDCx(object):
                 "<ul>\n"
                 "<li><b>使用代理</b>：开启后填写 HTTP / HTTPS 或 SOCKS5 代理地址（如 http://127.0.0.1:7890）。</li>\n"
                 "<li><b>走代理网站</b>：仅指定域名走代理，其余直连。默认包含 amazon.co.jp、m.media-amazon.com、xcity.jp、minnano-av.com、avbase.net、javbus.com、javdb.com、javlibrary.com、r18.dev、mgstage.com、prestige-av.com、seesaawiki.jp、avsox.click、avsox.com、avmoo.shop、avmoo.com、avheat.shop、avheat.com、caribbeancom.com、heyzo.com、1pondo.tv、pacopacomama.com、10musume.com、mywife.cc、github.com、raw.githubusercontent.com、google.com、missav.ws、missav.ai、missav.live、aventertainments.com、javfree.me、7mmtv.sx、7tv022.com。可按需增删（也可直接填数据源名，如 missav、javdb，站点及其镜像域名将整体走代理）。</li>\n"
-                "<li><b>CF Bypass 代理</b>：为绕过 Cloudflare 的请求单独设置代理。</li>\n"
+                "<li><b>Bypass代理</b>：为绕过 Cloudflare 的请求单独设置代理。</li>\n"
                 "</ul>\n"
                 "<p>如持续提示网络 / 代理错误，请检查地址与端口、确认代理软件处于全局模式，或尝试重启代理与网卡。</p>\n"
                 "\n"
