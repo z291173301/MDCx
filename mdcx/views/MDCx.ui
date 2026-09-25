@@ -6013,7 +6013,7 @@
                         <x>30</x>
                         <y>700</y>
                         <width>701</width>
-                        <height>461</height>
+                        <height>441</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -6029,7 +6029,7 @@
                       <property name="geometry">
                         <rect>
                           <x>50</x>
-                          <y>60</y>
+                          <y>30</y>
                           <width>631</width>
                           <height>310</height>
                         </rect>
@@ -6506,7 +6506,7 @@
                       <property name="geometry">
                         <rect>
                           <x>145</x>
-                          <y>30</y>
+                          <y>0</y>
                           <width>506</width>
                           <height>20</height>
                         </rect>
@@ -6528,7 +6528,7 @@
                       <property name="geometry">
                         <rect>
                           <x>50</x>
-                          <y>370</y>
+                          <y>340</y>
                           <width>631</width>
                           <height>81</height>
                         </rect>
@@ -7377,7 +7377,7 @@
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>注：软硬链接不会移动和重命名原文件，仅移动和重命名链接文件</string>
+                        <string>软硬链接不移动和重命名原文件，仅移动重命名链接文件</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -7601,7 +7601,7 @@
                               </size>
                             </property>
                             <property name="text">
-                              <string>&lt;span&gt;「网站偏好」-「指定网站」指定 madouqu、madou_club，或文件路径含有「国产」、「麻豆」时，将自动使用以上网站刮削国产番号&lt;/span&gt;</string>
+                              <string>&lt;span&gt;「网站偏好」-「指定网站」指定madouqu、madou_club或文件路径含有「国产」、「麻豆」时，将自动使用以上网站刮削国产番号&lt;/span&gt;</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -7768,7 +7768,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>&lt;p&gt;「网站偏好」-「指定网站」指定 getchu、dmm，或文件路径含有「里番」、「动漫」时，将自动使用 getchu 刮削&lt;/p&gt;</string>
+                              <string>&lt;p&gt;「网站偏好」-「指定网站」指定getchu、dmm等站点或文件路径包含有「里番」、「动漫」时，程序将会自动使用getchu进行刮削&lt;/p&gt;</string>
                             </property>
                               <property name="wordWrap">
                                 <bool>true</bool>
@@ -7793,7 +7793,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>&lt;p&gt;「网站偏好」-「指定网站」指定 mywife，或文件路径含有 mywife时，将自动使用 mywife 刮削（Mywife 番号规则： Mywife No.1230）&lt;/p&gt;</string>
+                              <string>&lt;p&gt;「网站偏好」-「指定网站」指定Mywife或文件路径含有Mywife时，将自动使用Mywife刮削，Mywife番号规则：Mywife No.1230&lt;/p&gt;</string>
                             </property>
                               <property name="wordWrap">
                                 <bool>true</bool>

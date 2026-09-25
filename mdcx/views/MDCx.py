@@ -2609,11 +2609,11 @@ class Ui_MDCx(object):
         self.radioButton_del_empty_folder_off.setObjectName("radioButton_del_empty_folder_off")
         self.gridLayout_23.addWidget(self.radioButton_del_empty_folder_off, 1, 0, 1, 1)
         self.groupBox_5 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_guaxiaomoshi)
-        self.groupBox_5.setGeometry(QtCore.QRect(30, 700, 701, 461))
+        self.groupBox_5.setGeometry(QtCore.QRect(30, 700, 701, 441))
         self.groupBox_5.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_5.setObjectName("groupBox_5")
         self.gridLayoutWidget_5 = QtWidgets.QWidget(parent=self.groupBox_5)
-        self.gridLayoutWidget_5.setGeometry(QtCore.QRect(50, 60, 631, 310))
+        self.gridLayoutWidget_5.setGeometry(QtCore.QRect(50, 30, 631, 310))
         self.gridLayoutWidget_5.setObjectName("gridLayoutWidget_5")
         self.gridLayout_5 = QtWidgets.QGridLayout(self.gridLayoutWidget_5)
         self.gridLayout_5.setContentsMargins(0, 0, 0, 0)
@@ -2892,7 +2892,7 @@ class Ui_MDCx(object):
         self.horizontalLayout_157.addWidget(self.lineEdit_update_titletemplate)
         self.gridLayout_5.addLayout(self.horizontalLayout_157, 8, 1, 1, 1)
         self.label_12 = QtWidgets.QLabel(parent=self.groupBox_5)
-        self.label_12.setGeometry(QtCore.QRect(145, 30, 506, 20))
+        self.label_12.setGeometry(QtCore.QRect(145, 0, 506, 20))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -2901,7 +2901,7 @@ class Ui_MDCx(object):
         self.label_12.setStyleSheet("color: rgb(8, 128, 128);")
         self.label_12.setObjectName("label_12")
         self.label_21 = QtWidgets.QLabel(parent=self.groupBox_5)
-        self.label_21.setGeometry(QtCore.QRect(50, 370, 631, 81))
+        self.label_21.setGeometry(QtCore.QRect(50, 340, 631, 81))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -12917,7 +12917,7 @@ class Ui_MDCx(object):
                 "<span>适合PT用户，资料同盘单独存放，不影响分享<br>注意：MacOS用户，请选择创建软连接，输出目录同盘即可，硬链接有权限问题</span>",
             )
         )
-        self.label_342.setText(_translate("MDCx", "注：软硬链接不会移动和重命名原文件，仅移动和重命名链接文件"))
+        self.label_342.setText(_translate("MDCx", "软硬链接不移动和重命名原文件，仅移动重命名链接文件"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab1), _translate("MDCx", " 刮削模式 "))
         self.groupBox_80.setTitle(_translate("MDCx", "类型刮削网站"))
         self.label_151.setText(_translate("MDCx", "无码番号："))
@@ -12926,7 +12926,7 @@ class Ui_MDCx(object):
         self.label_232.setText(
             _translate(
                 "MDCx",
-                "<span>「网站偏好」-「指定网站」指定 madouqu、madou_club，或文件路径含有「国产」、「麻豆」时，将自动使用以上网站刮削国产番号</span>",
+                "<span>「网站偏好」-「指定网站」指定madouqu、madou_club或文件路径含有「国产」、「麻豆」时，将自动使用以上网站刮削国产番号</span>",
             )
         )
         self.label_156.setText(_translate("MDCx", "比如：259LUXU-1111"))
@@ -12937,13 +12937,13 @@ class Ui_MDCx(object):
         self.label_318.setText(
             _translate(
                 "MDCx",
-                "<p>「网站偏好」-「指定网站」指定 getchu、dmm，或文件路径含有「里番」、「动漫」时，将自动使用 getchu 刮削</p>",
+                "<p>「网站偏好」-「指定网站」指定getchu、dmm等站点或文件路径包含有「里番」、「动漫」时，程序将会自动使用getchu进行刮削</p>",
             )
         )
         self.label_323.setText(
             _translate(
                 "MDCx",
-                "<p>「网站偏好」-「指定网站」指定 mywife，或文件路径含有 mywife时，将自动使用 mywife 刮削（Mywife 番号规则： Mywife No.1230）</p>",
+                "<p>「网站偏好」-「指定网站」指定Mywife或文件路径含有Mywife时，将自动使用Mywife刮削，Mywife番号规则：Mywife No.1230</p>",
             )
         )
         self.label_154.setText(_translate("MDCx", "比如：MIDE-111，以及不符合以下类型的番号"))
