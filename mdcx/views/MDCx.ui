@@ -5777,7 +5777,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>刮削成功时，移动文件到成功输出目录</string>
+                              <string>刮削成功时，移动刮削文件到成功输出目录</string>
                             </property>
                           </widget>
                         </item>
@@ -5793,7 +5793,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>刮削成功时，不移动文件位置，仍在原目录（适合已整理好文件夹或二次刮削场景）</string>
+                              <string>刮削成功时，不移动文件位置，仍在原目录，适合已整理好目录或二次刮削场景</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -5869,7 +5869,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>刮削失败后，移动文件到失败输出目录</string>
+                              <string>刮削失败后，移动刮削文件到失败输出目录</string>
                             </property>
                           </widget>
                         </item>
@@ -5958,7 +5958,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>刮削结束后，删除刮削目录中的所有空文件夹</string>
+                              <string>刮削结束后，删除已刮削目录中的空文件夹</string>
                             </property>
                           </widget>
                         </item>
@@ -5974,7 +5974,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>刮削结束后，不删除空文件夹</string>
+                              <string>刮削结束后，不删除空文件夹，只操作文件</string>
                             </property>
                           </widget>
                         </item>
@@ -6148,7 +6148,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>在视频所在目录下为视频创建D目录，并更新C内容，即：../A/B/D/C[NEW].mp4</string>
+                              <string>在视频所在文件夹下为视频创建D文件夹，并且更新C内容，即：.../A/B/D/C[NEW].mp4</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -6505,9 +6505,9 @@
                     <widget class="QLabel" name="label_12">
                       <property name="geometry">
                         <rect>
-                          <x>50</x>
+                          <x>145</x>
                           <y>30</y>
-                          <width>601</width>
+                          <width>506</width>
                           <height>20</height>
                         </rect>
                       </property>
@@ -6543,11 +6543,10 @@
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p style='line-height:20px'&gt;⚠️ 保留文件：请到 设置 &gt; 下载 &gt; 保留旧文件 或
-                          下载，设置要保留或更新的文件内容&lt;br&gt;
-                          ⚠️ 跳过文件：在视频目录新建一个名为skip的空文件，即可自动跳过该目录及子目录（所有模式均有效）&lt;br&gt;
-                          ⚠️ 移动文件：失败时不移动文件，成功时按更新模式规则移动&lt;br&gt;
-                          ⚠️ 重命名文件：在「成功后重命名文件」中设置是否重命名，命名规则同「命名」-「视频文件名」&lt;/p&gt;</string>
+                        <string>&lt;p style='line-height:20px'&gt;⚠️ 保留文件：请到设置&gt;下载&gt;保留旧文件或下载，设置要保留或更新的文件内容&lt;br&gt;
+                          ⚠️ 跳过文件：在视频目录新建一个名为skip的空文件，即可自动跳过该目录及子目录，所有模式均有效&lt;br&gt;
+                          ⚠️ 移动文件：失败时不移动文件，文件刮削成功后按更新模式规则移动视频文件&lt;br&gt;
+                          ⚠️ 重命名文件：在「成功后重命名文件」中设置是否重命名，命名规则同「命名」-「视频文件名」相同&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -6631,7 +6630,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>刮削成功时，按「命名」-「视频命名规则」-「视频文件名」重命名文件</string>
+                              <string>刮削成功时，按照「命名」-「视频命名规则」-「视频文件名」对文件重新命名</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -6650,7 +6649,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>刮削成功时，继续使用原来文件名</string>
+                              <string>刮削成功时，文件名称继续使用原有文件名</string>
                             </property>
                           </widget>
                         </item>
@@ -7126,7 +7125,7 @@
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>&lt;span&gt;适合 NAS 和硬盘用户。本地党可随心所欲整理文件。&lt;br&gt;注意：选择此项，下面的「成功后移动文件」「失败后移动文件」才会生效&lt;/span&gt;</string>
+                              <string>&lt;span&gt;适合NAS硬盘用户，本地党可以随心所欲整理&lt;br&gt;注意：选择此项，下面的「成功后移动文件」以及「失败后移动文件」才会生效&lt;/span&gt;</string>
                             </property>
                           </widget>
                         </item>
@@ -7178,7 +7177,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>&lt;span&gt;适合网盘用户。刮削资料存本地，Emby 加载快，网盘读写少。&lt;br&gt;注意：Windows 用户，成功后的输出目录必须选择本地磁盘（系统限制）&lt;/span&gt;</string>
+                                  <string>&lt;span&gt;适合网盘用户，资料存本地加载快网盘读写少&lt;br&gt;注意Windows用户，因为系统限制原因刮削成功后的输出目录必须选择本地磁盘&lt;/span&gt;</string>
                                 </property>
                                 <property name="wordWrap">
                                   <bool>false</bool>
@@ -7282,7 +7281,7 @@
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>&lt;span&gt;适合 PT 用户。刮削资料同盘单独存放，不影响分享率。&lt;br&gt;注意：Mac 用户，请选择创建软连接，输出目录同盘即可（硬链接有权限问题）&lt;/span&gt;</string>
+                                  <string>&lt;span&gt;适合PT用户，资料同盘单独存放，不影响分享&lt;br&gt;注意：MacOS用户，请选择创建软连接，输出目录同盘即可，硬链接有权限问题&lt;/span&gt;</string>
                                 </property>
                                 <property name="wordWrap">
                                   <bool>false</bool>
@@ -7378,7 +7377,7 @@
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>注：软硬链接不会移动和重命名原视频文件，仅移动和重命名链接文件</string>
+                        <string>注：软硬链接不会移动和重命名原文件，仅移动和重命名链接文件</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>

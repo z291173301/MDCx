@@ -2892,7 +2892,7 @@ class Ui_MDCx(object):
         self.horizontalLayout_157.addWidget(self.lineEdit_update_titletemplate)
         self.gridLayout_5.addLayout(self.horizontalLayout_157, 8, 1, 1, 1)
         self.label_12 = QtWidgets.QLabel(parent=self.groupBox_5)
-        self.label_12.setGeometry(QtCore.QRect(50, 30, 601, 20))
+        self.label_12.setGeometry(QtCore.QRect(145, 30, 506, 20))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -12845,27 +12845,27 @@ class Ui_MDCx(object):
         )
         self.groupBox_27.setTitle(_translate("MDCx", "刮削成功后移动文件"))
         self.gridLayoutWidget_6.setStyleSheet(_translate("MDCx", "color: rgb(80, 80, 80);"))
-        self.label_54.setText(_translate("MDCx", "刮削成功时，移动文件到成功输出目录"))
+        self.label_54.setText(_translate("MDCx", "刮削成功时，移动刮削文件到成功输出目录"))
         self.label_55.setText(
-            _translate("MDCx", "刮削成功时，不移动文件位置，仍在原目录（适合已整理好文件夹或二次刮削场景）")
+            _translate("MDCx", "刮削成功时，不移动文件位置，仍在原目录，适合已整理好目录或二次刮削场景")
         )
         self.radioButton_succ_move_on.setText(_translate("MDCx", "开"))
         self.radioButton_succ_move_off.setText(_translate("MDCx", "关"))
         self.groupBox_15.setTitle(_translate("MDCx", "刮削失败时移动文件"))
-        self.label_34.setText(_translate("MDCx", "刮削失败后，移动文件到失败输出目录"))
+        self.label_34.setText(_translate("MDCx", "刮削失败后，移动刮削文件到失败输出目录"))
         self.label_35.setText(_translate("MDCx", "刮削失败后，不移动文件位置，仍在原目录"))
         self.radioButton_fail_move_on.setText(_translate("MDCx", "开"))
         self.radioButton_fail_move_off.setText(_translate("MDCx", "关"))
         self.groupBox_30.setTitle(_translate("MDCx", "刮削结束后删除空文件夹"))
-        self.label_44.setText(_translate("MDCx", "刮削结束后，删除刮削目录中的所有空文件夹"))
-        self.label_51.setText(_translate("MDCx", "刮削结束后，不删除空文件夹"))
+        self.label_44.setText(_translate("MDCx", "刮削结束后，删除已刮削目录中的空文件夹"))
+        self.label_51.setText(_translate("MDCx", "刮削结束后，不删除空文件夹，只操作文件"))
         self.radioButton_del_empty_folder_on.setText(_translate("MDCx", "开"))
         self.radioButton_del_empty_folder_off.setText(_translate("MDCx", "关"))
         self.groupBox_5.setTitle(_translate("MDCx", "更新模式规则"))
         self.label_218.setText(_translate("MDCx", "D目录命名规则 "))
         self.label_14.setText(_translate("MDCx", "更新视频同级目录下的内容，即：../A/B/C[NEW].mp4"))
         self.label_20.setText(
-            _translate("MDCx", "在视频所在目录下为视频创建D目录，并更新C内容，即：../A/B/D/C[NEW].mp4")
+            _translate("MDCx", "在视频所在文件夹下为视频创建D文件夹，并且更新C内容，即：.../A/B/D/C[NEW].mp4")
         )
         self.label_278.setText(_translate("MDCx", "C文件命名规则 "))
         self.label_210.setText(_translate("MDCx", "B目录命名规则 "))
@@ -12879,16 +12879,15 @@ class Ui_MDCx(object):
         self.label_21.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>⚠️ 保留文件：请到 设置 > 下载 > 保留旧文件 或\n"
-                "                          下载，设置要保留或更新的文件内容<br>\n"
-                "                          ⚠️ 跳过文件：在视频目录新建一个名为skip的空文件，即可自动跳过该目录及子目录（所有模式均有效）<br>\n"
-                "                          ⚠️ 移动文件：失败时不移动文件，成功时按更新模式规则移动<br>\n"
-                "                          ⚠️ 重命名文件：在「成功后重命名文件」中设置是否重命名，命名规则同「命名」-「视频文件名」</p>",
+                "<p style='line-height:20px'>⚠️ 保留文件：请到设置>下载>保留旧文件或下载，设置要保留或更新的文件内容<br>\n"
+                "                          ⚠️ 跳过文件：在视频目录新建一个名为skip的空文件，即可自动跳过该目录及子目录，所有模式均有效<br>\n"
+                "                          ⚠️ 移动文件：失败时不移动文件，文件刮削成功后按更新模式规则移动视频文件<br>\n"
+                "                          ⚠️ 重命名文件：在「成功后重命名文件」中设置是否重命名，命名规则同「命名」-「视频文件名」相同</p>",
             )
         )
         self.groupBox_18.setTitle(_translate("MDCx", "刮削成功后重命名文件"))
-        self.label_38.setText(_translate("MDCx", "刮削成功时，按「命名」-「视频命名规则」-「视频文件名」重命名文件"))
-        self.label_39.setText(_translate("MDCx", "刮削成功时，继续使用原来文件名"))
+        self.label_38.setText(_translate("MDCx", "刮削成功时，按照「命名」-「视频命名规则」-「视频文件名」对文件重新命名"))
+        self.label_39.setText(_translate("MDCx", "刮削成功时，文件名称继续使用原有文件名"))
         self.radioButton_succ_rename_on.setText(_translate("MDCx", "开"))
         self.radioButton_succ_rename_off.setText(_translate("MDCx", "关"))
         self.groupBox_53.setTitle(_translate("MDCx", "多线程刮削"))
@@ -12902,23 +12901,23 @@ class Ui_MDCx(object):
         self.label_link_off.setText(
             _translate(
                 "MDCx",
-                "<span>适合 NAS 和硬盘用户。本地党可随心所欲整理文件。<br>注意：选择此项，下面的「成功后移动文件」「失败后移动文件」才会生效</span>",
+                "<span>适合NAS硬盘用户，本地党可以随心所欲整理<br>注意：选择此项，下面的「成功后移动文件」以及「失败后移动文件」才会生效</span>",
             )
         )
         self.radioButton_hard_on.setText(_translate("MDCx", "创建硬链接"))
         self.label_softlink.setText(
             _translate(
                 "MDCx",
-                "<span>适合网盘用户。刮削资料存本地，Emby 加载快，网盘读写少。<br>注意：Windows 用户，成功后的输出目录必须选择本地磁盘（系统限制）</span>",
+                "<span>适合网盘用户，资料存本地加载快网盘读写少<br>注意Windows用户，因为系统限制原因刮削成功后的输出目录必须选择本地磁盘</span>",
             )
         )
         self.label_hardlink.setText(
             _translate(
                 "MDCx",
-                "<span>适合 PT 用户。刮削资料同盘单独存放，不影响分享率。<br>注意：Mac 用户，请选择创建软连接，输出目录同盘即可（硬链接有权限问题）</span>",
+                "<span>适合PT用户，资料同盘单独存放，不影响分享<br>注意：MacOS用户，请选择创建软连接，输出目录同盘即可，硬链接有权限问题</span>",
             )
         )
-        self.label_342.setText(_translate("MDCx", "注：软硬链接不会移动和重命名原视频文件，仅移动和重命名链接文件"))
+        self.label_342.setText(_translate("MDCx", "注：软硬链接不会移动和重命名原文件，仅移动和重命名链接文件"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab1), _translate("MDCx", " 刮削模式 "))
         self.groupBox_80.setTitle(_translate("MDCx", "类型刮削网站"))
         self.label_151.setText(_translate("MDCx", "无码番号："))
