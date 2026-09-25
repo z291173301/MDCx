@@ -108,7 +108,6 @@ if TYPE_CHECKING:
 
 
 LINK_DIR_INVALID_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]+')
-SCRAPE_INFO_EMOJI_RE = re.compile(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]\ufe0f?")
 WINDOWS_RESERVED_DIR_NAMES = {
     "CON",
     "PRN",
@@ -179,7 +178,7 @@ class MyMAinWindow(QMainWindow):
         # region 初始化需要的变量
         self.localversion = LOCAL_VERSION  # 当前版本号(数值, 用于版本比较)
         self.version_display = f"{VERSION_NAME} ({LOCAL_VERSION})"  # 展示用: v2.0.0 (220260712)
-        self.new_version = "\n点击检查最新版本"  # 有版本更新时在左下角显示的新版本信息
+        self.new_version = "\n🔍 点击检查最新版本"  # 有版本更新时在左下角显示的新版本信息
         self.show_data: ShowData | None = None  # 当前树状图选中文件的数据
         self.img_path = None  # 当前树状图选中文件的图片地址
         self.m_drag = False  # 允许鼠标拖动的标识
@@ -1403,7 +1402,7 @@ class MyMAinWindow(QMainWindow):
         if latest_version:
             if int(self.localversion) < int(latest_version):
                 has_new_version = True
-                self.new_version = f"\n有新版本了！（{latest_version}）"
+                self.new_version = f"\n🍉 有新版本了！（{latest_version}）"
                 signal_qt.show_scrape_info()
                 version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="red" >最新版本是: {latest_version}，请及时更新！🚀 </font>）'
                 download_link = f' ⬇️ <a href="{GITHUB_RELEASES_URL}">下载新版本</a>'
@@ -3018,19 +3017,19 @@ class MyMAinWindow(QMainWindow):
     # 主界面左下角显示信息
     def show_scrape_info(self, before_info=""):
         try:
-            before_info = SCRAPE_INFO_EMOJI_RE.sub("", before_info).strip()
+            before_info = before_info.strip()
             if Flags.file_mode == FileMode.Single:
                 website_label = self.Ui.comboBox_website_all.currentData() or self.Ui.comboBox_website_all.currentText()
-                scrape_info = f"单文件刮削\n{Flags.main_mode_text} · {website_label}"
+                scrape_info = f"💡 单文件刮削\n💠 {Flags.main_mode_text} · {website_label}"
             else:
-                scrape_info = f"{Flags.main_mode_text} · {Flags.scrape_like_text}"
+                scrape_info = f"💠 {Flags.main_mode_text} · {Flags.scrape_like_text}"
                 if manager.config.scrape_like == "single":
-                    scrape_info = f"{manager.config.website_single} 刮削\n" + scrape_info
+                    scrape_info = f"💡 {manager.config.website_single} 刮削\n" + scrape_info
             if manager.config.soft_link == 1:
-                scrape_info = "软链接 · 开\n" + scrape_info
+                scrape_info = "🍯 软链接 · 开\n" + scrape_info
             elif manager.config.soft_link == 2:
-                scrape_info = "硬链接 · 开\n" + scrape_info
-            after_info = f"\n{scrape_info}\n{manager.file}\nMDCx {self.localversion}"
+                scrape_info = "🍯 硬链接 · 开\n" + scrape_info
+            after_info = f"\n{scrape_info}\n🛠 {manager.file}\n🐰 MDCx {self.localversion}"
             self.label_show_version.emit(before_info + after_info + self.new_version)
         except Exception:
             signal_qt.show_traceback_log(traceback.format_exc())

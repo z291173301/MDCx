@@ -79,6 +79,49 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 
 回归：`test_ui_structure` / `test_ui_geometry` / `test_window_state_matrix` / `test_main_window_startup`。
 
+### 左下角状态区图标规范
+
+主界面左下角状态区（`label_show_version`，`show_scrape_info` 组装文本后经
+`label_show_version` 信号 `setText`）每行行首带一个 emoji 图标，图标种类与
+位置与 `mdcx-diy-main` 完全对齐。修改任一图标前先通读本节，改完跑
+`tests/test_left_status_icons.py`。
+
+**图标对照表**（实现：`mdcx/controllers/main_window/main_window.py`）
+
+| 位置 | 图标 | 文本 | 源码锚点 |
+|---|---|---|---|
+| 单文件模式首行 | 💡 | `单文件刮削` | `show_scrape_info` |
+| 刮削模式行 | 💠 | `{main_mode} · {站点/字段}` | `show_scrape_info` |
+| 单站刮削首行 | 💡 | `{website_single} 刮削` | `show_scrape_info` |
+| 软/硬链接行 | 🍯 | `软链接 · 开` / `硬链接 · 开` | `show_scrape_info` |
+| 配置文件行 | 🛠 | `{manager.file}` | `show_scrape_info` |
+| 版本行 | 🐰 | `MDCx {localversion}` | `show_scrape_info` |
+| 默认末行 | 🔍 | `点击检查最新版本` | `__init__` 的 `new_version` 初值 |
+| 有新版本末行 | 🍉 | `有新版本了！（{latest}）` | `_show_version_thread` |
+
+**四条硬规则**
+
+1. `before_info` 只做 `strip()`，**不得过滤 emoji**：调用方传的
+   `💡/🔎/🎉/⛔/✅`（刮削中/完成/停止/提示）是首行图标，过滤即丢失。
+   已删除的 `SCRAPE_INFO_EMOJI_RE` 不得加回来。
+2. 仓库地址不硬编码：版本检查跳转（`label_version_clicked`）、日志下载链接、
+   `check_version` 的 API、`GITHUB_ISSUES_URL` 全部由 `mdcx/consts.py` 的
+   `GITHUB_REPO`（当前 `z291173301/MDCx`）派生；使用说明页
+   （`MDCx.ui` / `MDCx.py`「十二、获取帮助」）硬编码同一仓库地址。
+   改 UI 一律先改 `MDCx.ui` 再用 pyuic 重编译 + `ruff format`，不要手工改 `MDCx.py`。
+3. **每行必须图标 + 文字同时存在**：不允许光杆图标（如 `💠 ·` 后面无文案），
+   也不允许光杆文字（行首无图标）。模式行文案来自
+   `Flags.main_mode_text` / `Flags.scrape_like_text`，二者是配置派生的展示态
+   （`load/save_config` 从持久化配置写入），`Flags.reset()` 不得清空——
+   刮削启停调 `reset()` 后文案必须保留，否则刮削完成后的状态区（读取/正常/
+   整理/更新所有模式）模式行只剩图标。教训：`reset()` 曾清空二者，
+   导致 `🎉 刮削完成` 之后模式行显示为 `💠 ·`。
+4. 改本节规范时同步改 `tests/test_left_status_icons.py` 的
+   `_REQUIRED_ICON_LITERALS`，文档与测试二者必须一致。
+
+回归：`tests/test_left_status_icons.py`（图标逐字存在、`SCRAPE_INFO_EMOJI_RE`
+不得复活、`GITHUB_REPO`/帮助页地址指向自有仓库、`reset()` 不得清空模式文案）。
+
 ## 数据模型
 
 完整数据流转链路：

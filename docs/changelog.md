@@ -2,6 +2,10 @@
 
 ## 未发布
 
+- **刮削后左下角模式行只剩 `💠 ·` 光杆图标（读取/正常/整理/更新模式全中）**：`Flags.reset()` 把配置派生的展示文案 `main_mode_text` / `scrape_like_text` 置空且无人恢复，`_run` 经 `reset_flags_preserving_single_file_inputs()` 调 `reset()` 后，所有 `show_scrape_info`（刮削中/完成）模式行都只剩图标没有文字。现 `reset()` 不再清空二者（`load/save_config` 从持久化配置写入，刮削启停不影响），模式行恢复 `💠 读取模式 · 字段优先` 形态。MD 无冲突描述（changelog #86、DEVELOPMENT.md 均为文字行描述，与图标+文字一致，无需改）。`DEVELOPMENT.md` 图标规范由三条增至四条（新增：每行必须图标+文字同时存在，`reset()` 不得清空展示文案）。`tests/test_left_status_icons.py` 加第 5 项回归（`reset()` 保留模式文案， save/restore 隔离全局单例）
+
+- **#183 左下角状态区图标对齐 mdcx-diy-main + 版本检查跳转改自有仓库**：`mdcx/controllers/main_window/main_window.py` 的 `show_scrape_info` 按 `mdcx-diy-main` 同位置补图标——`💡 单文件刮削` / `💡 单站刮削`、`💠 正常模式·字段优先`、`🍯 软/硬链接·开`、`🛠 配置文件`、`🐰 MDCx 版本号`，`new_version` 保持 `🔍 点击检查最新版本`、有新版本时补 `🍉`；去掉 `before_info` 的 `SCRAPE_INFO_EMOJI_RE` 过滤（`💡/🔎/🎉/⛔/✅` 等恢复显示），删除无用常量。`mdcx/consts.py` 的 `GITHUB_REPO` 由 `cdlongbow/mdcx-diy` 改为 `z291173301/MDCx`，左下角点击（`label_version_clicked`）、日志下载链接、`check_version` 列表 API、Issues 反馈入口同步切换；点击检查最新版本打开 `https://github.com/z291173301/MDCx/releases`。使用说明页「十二、获取帮助」的项目主页/Release 下载硬编码地址同步改到新仓库（`MDCx.ui` 与 `MDCx.py` 同改，两处一致）。新增 `tests/test_left_status_icons.py`（4 项：9 处行首图标逐字存在、`SCRAPE_INFO_EMOJI_RE` 不得复活、`GITHUB_REPO`/帮助页地址指向自有仓库），`docs/DEVELOPMENT.md` 新增「左下角状态区图标规范」（对照表 + 三条硬规则）
+
 - **「使用代理」开关不再联动 CF Bypass 代理**：`checkBox_use_proxy` 此前会连带关闭 Bypass 专用代理，现仅控制常规网络请求代理；CF Bypass 代理改由 `cf_bypass_proxy` 独立生效（`_resolve_cf_bypass_proxy` 去掉 `use_proxy` 门控，未配置时仍为空），mirror 的 `x-proxy` 头 / bypass html 的 `proxy` 参数、检测页 bypass 项均不再受该开关影响。设置页文案随之一并统一：网络页「CF Bypass代理」标签改「Bypass代理」、「外部 CF 服务」改「外部CF服务」，使用代理勾选框补 tooltip「仅控制常规网络请求代理开关，不控制CF Bypass代理」及说明段，帮助文档「CF Bypass 代理」条目同步改「Bypass代理」。`tests/test_ui_structure.py` 补文案回归（tooltip / 两个标签 / 说明段 / 帮助文本，`.ui` 与 `.py` 由既有同步测试把关）
 
 - **诊断表头状态码/路由/信息各左移一格（数据行不动）**：状态码表头 37 → 36（下方 200/204 数字右缘独占 40 不动，状态码前后间隔由 6+6 重分为 5+7）；路由表头 63 → 62（下方代理 @61 不动）；信息表头 72 → 71（下方连接正常 @70 不动，路由后 5 空格不变）。耗时表头与数据列全部原位。程序按显示宽度断言验证（表头 @3/@11/@37/@50/@63/@72，数据名字 @10、数字右缘 41、耗时右缘 54、代理 @62、信息 @71，长耗时不断列）

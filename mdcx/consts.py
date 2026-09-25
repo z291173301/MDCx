@@ -11,7 +11,7 @@ VERSION_NAME = "v2.1.3"  # 展示用版本名
 # Windows 打包(windowed)下每次调用会闪黑色控制台窗口。platform.uname() 无此问题。
 SYSTEM_INFO = platform.uname().system or "Unknown"
 
-GITHUB_REPO = "cdlongbow/mdcx-diy"
+GITHUB_REPO = "z291173301/MDCx"
 GITHUB_RELEASES_URL = f"https://github.com/{GITHUB_REPO}/releases"
 GITHUB_RELEASES_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 GITHUB_RELEASES_API_LIST = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=10"
