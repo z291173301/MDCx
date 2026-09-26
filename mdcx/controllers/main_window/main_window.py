@@ -179,6 +179,9 @@ class MyMAinWindow(QMainWindow):
         self.localversion = LOCAL_VERSION  # 当前版本号(数值, 用于版本比较)
         self.version_display = f"{VERSION_NAME} ({LOCAL_VERSION})"  # 展示用: v2.0.0 (220260712)
         self.new_version = "\n🔍 点击检查最新版本"  # 有版本更新时在左下角显示的新版本信息
+        self._notified_new_version: int | None = (
+            None  # 已提示过的新版本号：12h 定时复查仅在发现更新的版本时再提示，避免同一版本重复刷屏
+        )
         self.show_data: ShowData | None = None  # 当前树状图选中文件的数据
         self.img_path = None  # 当前树状图选中文件的图片地址
         self.m_drag = False  # 允许鼠标拖动的标识
@@ -232,7 +235,7 @@ class MyMAinWindow(QMainWindow):
         self.timer_scrape = QTimer()  # 初始化一个定时器，用于间隔刮削
         self.timer_scrape.timeout.connect(self.auto_scrape)
         self.timer_update = QTimer()  # 初始化一个定时器，用于检查更新
-        self.timer_update.timeout.connect(check_version)
+        self.timer_update.timeout.connect(self.show_version)
         self.timer_update.start(43200000)  # 设置检查间隔12小时
         self.timer_remain_task = QTimer()  # 初始化一个定时器，用于显示保存剩余任务
         self.timer_remain_task.timeout.connect(save_remain_list)
@@ -1941,10 +1944,15 @@ class MyMAinWindow(QMainWindow):
         if latest_version:
             if int(self.localversion) < int(latest_version):
                 has_new_version = True
-                self.new_version = f"\n🍉 有新版本了！（{latest_version}）"
-                signal_qt.show_scrape_info()
-                version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="red" >最新版本是: {latest_version}，请及时更新！🚀 </font>）'
-                download_link = f' ⬇️ <a href="{GITHUB_RELEASES_URL}">下载新版本</a>'
+                # 定时复查与启动自检共用本函数：仅在首次发现该新版本时提示
+                # （红字日志、下载链接与左下角标签刷新），同一版本重复检查
+                # 不再刷屏；出现更新的版本时会自动再次提示。
+                if latest_version != self._notified_new_version:
+                    self._notified_new_version = latest_version
+                    self.new_version = f"\n🍉 有新版本了！（{latest_version}）"
+                    signal_qt.show_scrape_info()
+                    version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="red" >最新版本是: {latest_version}，请及时更新！🚀 </font>）'
+                    download_link = f' ⬇️ <a href="{GITHUB_RELEASES_URL}">下载新版本</a>'
             else:
                 version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="green">你使用的是最新版本！🎉 </font>）'
 

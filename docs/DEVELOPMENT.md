@@ -99,6 +99,12 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 - 修复：`_sync_nfo_field_tips()`（`_sync_page_layouts` 末尾、set_align 之后调用，无新钩子）。绝对 pin：复位 x=640→重排→按钮右缘超过（组右缘-11）才左移进去；只左移，宽态 640 不动，y 不动；同父坐标系直接可比；休眠页跳过，多拍收敛幂等。测试写法注意：goto 的 beats 会提前同步把按钮钉到 pin 位，“自然溢出”基线须先 `btn.move(640, y)` 复位再取。
 - 回归测试：`tests/test_window_state_matrix.py::test_nfo_field_tips_stays_inside_group_box` 锁定「1000 窄态按钮右缘≤组右缘-11、y 不动、二次同步幂等；1900 宽态 x==640」。
 
+**版本检查定时复查走完整提示链**（用户需求：`timer_update`（12h）只连裸 `check_version`——主线程阻塞做网络且返回值丢弃，定时检查永远不提示）
+
+- 根因：定时器直连 `check_version`（`main_window.py:235`），阻塞主线程做网络 I/O，返回的版本号无处消费；真正会提示的只有启动 `show_version()` 那一次（工作线程 + 比较 + 红字/下载链接/标签刷新全链路）。
+- 修复：定时器改连 `self.show_version`（网络回工作线程，结果走比较+提示链）；`_show_version_thread` 内用 `_notified_new_version` 做 transition 去重——仅首次发现该新版本时执行提示块（红字日志、下载链接、左下角标签刷新），同一版本重复检查不再刷屏，出现更新的版本自动再次提示；`version_check_done` 原样发射（cursor 设置幂等，cookie 检查顺带保鲜）。注意 E3 初版曾把 gate 只套在 `_notified` 赋值上、红字与下载链接露在外面，被回归测试当场抓获——提示副作用必须整体进 gate。
+- 回归测试：`tests/test_version_check_notify.py`（fixture 照 matrix 配方，另桩 `show_version` 禁启动线程抢读桩、`check_theporndb_api_token`/`ActressDB.init_db`/三 cookie 检查禁网络，`signal_qt.show_log_text` 计数红字）：新版本提示一次→同版本复查零新增→更新的版本再提示→已是最新走绿色；另锁定定时器周期仍为 12h。
+
 **设置-NFO 左标签冒号与组标题冒号对齐**（用户窄/宽两态截图：标题：/简介：/发行日期：/国家/分级：/年份/时长/想看：/评分：/演员/导演：/系列/标签：/风格/合集：/片商/发行商：/封面/背景/预告片：11 个左标签整体左移、冒号与「写入NFO的字段：」组标题的冒号上下对齐）
 
 - 根因：11 个行标签是外层 grid col0 的 Fixed130 右对齐 QLabel，公共冒号 x = col0 右缘 − 右 pad；而组标题冒号 x 由标题文本宽度决定（8 个字），比最长的 11 字行标签文本更靠左。预算证明严格对齐结构性无解：不裁字要求公共冒号 x ≥ 最长标签文本宽（11 标签都以：结尾且右对齐，冒号即文本右墨点）；严格对齐要求公共冒号 x ≤ 组标题冒号 x；实测最长文本宽 > 标题冒号 x（差约 7px，任何正常字体同理）——免裁字最优只能贴到守卫极值，残差约 7px，用户已接受保留最大位移。
