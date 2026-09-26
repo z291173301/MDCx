@@ -9156,7 +9156,7 @@ class Ui_MDCx(object):
             | QtCore.Qt.AlignmentFlag.AlignLeft
             | QtCore.Qt.AlignmentFlag.AlignVCenter
         )
-        self.label_428.setWordWrap(True)
+        self.label_428.setWordWrap(False)
         self.label_428.setObjectName("label_428")
         self.gridLayout_40.addWidget(self.label_428, 23, 1, 1, 1)
         self.label_429 = QtWidgets.QLabel(parent=self.layoutWidget_10)
@@ -13692,7 +13692,7 @@ class Ui_MDCx(object):
         self.checkBox_nfo_title_cd.setText(_translate("MDCx", "标题末尾写入分集信息"))
         self.checkBox_nfo_country.setText(_translate("MDCx", "国家（country）"))
         self.checkBox_nfo_mpaa.setText(_translate("MDCx", "分级信息（mpaa）"))
-        self.checkBox_nfo_customrating.setText(_translate("MDCx", "自定义分级（customrating）"))
+        self.checkBox_nfo_customrating.setText(_translate("MDCx", "自定义（customrating）"))
         self.label_386.setText(_translate("MDCx", "演员/导演："))
         self.label_395.setText(_translate("MDCx", "请勾选写入标签的信息："))
         self.label_150.setText(_translate("MDCx", "封面/背景/预告片："))

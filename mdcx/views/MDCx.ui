@@ -19029,7 +19029,7 @@
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_customrating">
                                 <property name="text">
-                                  <string>自定义分级（customrating）</string>
+                                  <string>自定义（customrating）</string>
                                 </property>
                               </widget>
                             </item>
@@ -19210,7 +19210,7 @@
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
                             </property>
                             <property name="wordWrap">
-                              <bool>true</bool>
+                              <bool>false</bool>
                             </property>
                           </widget>
                         </item>

@@ -1449,9 +1449,10 @@ def test_nfo_country_year_align_to_release_when_narrow(win, app):
     同一起点 X0。有余量时三行均分天然对齐；容器窄到装不下 hint 总宽时
     Minimum 项被挤到 hint 以下、各行按各自文本乱挤（850 宽实测 rd=257、
     mpaa=252、runtime=268）。
-    _sync_nfo_row_align 条件修正：mpaa 偏左时加宽 country（只推右，rd 不动），
-    runtime 偏右时封顶 year（把多占的挤压份额吐出来，60px 地板保可读）；
-    有余量/已对齐时两条件不触发，宽态零改动。只碰列宽，参照与 y 不动。
+    _sync_nfo_row_align 绝对钉死+有界迭代：country/year 的最小/最大宽
+    全部钉到 rd.x - 前项.x - h137 实测间距（min=max 一次钉死，60px 地板），
+    单遍后重排漂移再测再钉、最多 3 遍；mpaa.x 与 runtime.x 恒等于 rd.x；
+    有余量时条件不触发，宽态零改动。只碰列宽，参照与 y 不动。
     """
     ui = win.Ui
     release = ui.checkBox_nfo_release
@@ -1471,41 +1472,279 @@ def test_nfo_country_year_align_to_release_when_narrow(win, app):
 
     rows = (ui.horizontalLayout_137, ui.horizontalLayout_141, ui.horizontalLayout_40)
 
-    # 挤压态（850x700）：两者严格钉到 rd，参照与 y 逐像素不变
-    win.resize(850, 700)
+    # 挤压态（700/750/850x700）：翻转方向全覆盖——750 宽 runtime 自然偏左、
+    # 850 宽 settled 态 mpaa 反超；同步后三者严格 == rd.x，参照与 y 不动
     win.show()
-    goto_nfo_tab()
-    app.processEvents()
-    # 自然基线：约束复位→重排→记录位置
-    country.setMinimumWidth(0)
-    year.setMaximumWidth(16777215)
-    for row in rows:
-        row.invalidate()
-        row.activate()
-    ui.gridLayout_40.activate()
-    app.processEvents()
-    nat = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
-    # 全量同步：两者严格对齐 rd，参照/前项/y 不动
-    win._sync_page_layouts()
-    app.processEvents()
-    assert mpaa.x() == rd.x(), f"窄态 mpaa 未对齐: mpaa={mpaa.x()} rd={rd.x()}"
-    assert runtime.x() == rd.x(), f"窄态 runtime 未对齐: runtime={runtime.x()} rd={rd.x()}"
-    assert (rd.x(), rd.y()) == nat[rd], "参照发行日期移动"
-    for cb in (release, country, year):
-        assert (cb.x(), cb.y()) == nat[cb], f"前项移动 {cb.objectName()}"
-    for cb in (mpaa, runtime):
-        assert cb.y() == nat[cb][1], f"后项上下移动 {cb.objectName()}"
-    # 幂等：再同步一次位置不变
-    before = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
-    win._sync_page_layouts()
-    app.processEvents()
-    after = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
-    assert before == after, "二次同步漂移"
+    for w in (700, 750, 850):
+        win.resize(w, 700)
+        goto_nfo_tab()
+        app.processEvents()
+        # 自然基线：四约束复位→重排→记录位置
+        country.setMinimumWidth(0)
+        country.setMaximumWidth(16777215)
+        year.setMinimumWidth(0)
+        year.setMaximumWidth(16777215)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        ui.gridLayout_40.activate()
+        app.processEvents()
+        nat = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
+        # 全量同步：两者严格对齐 rd，参照/前项/y 不动
+        win._sync_page_layouts()
+        app.processEvents()
+        assert mpaa.x() == rd.x(), f"{w}宽 mpaa 未对齐: mpaa={mpaa.x()} rd={rd.x()}"
+        assert runtime.x() == rd.x(), f"{w}宽 runtime 未对齐: runtime={runtime.x()} rd={rd.x()}"
+        assert (rd.x(), rd.y()) == nat[rd], f"{w}宽 参照发行日期移动"
+        for cb in (release, country, year):
+            assert (cb.x(), cb.y()) == nat[cb], f"{w}宽 前项移动 {cb.objectName()}"
+        for cb in (mpaa, runtime):
+            assert cb.y() == nat[cb][1], f"{w}宽 后项上下移动 {cb.objectName()}"
+        # 幂等：再同步一次位置不变
+        before = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
+        win._sync_page_layouts()
+        app.processEvents()
+        after = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
+        assert before == after, f"{w}宽 二次同步漂移"
 
-    # 宽态（1900）：天然对齐，约束零残留
+    # 宽态（1900）：天然对齐，条件式无触发、约束零残留
     win.resize(1900, 1050)
     goto_nfo_tab()
     app.processEvents()
     assert mpaa.x() == rd.x() == runtime.x(), f"宽态三者应对齐: mpaa={mpaa.x()} rd={rd.x()} runtime={runtime.x()}"
     assert country.minimumWidth() == 0, "宽态 country 不应残留最小宽"
+    assert country.maximumWidth() == 16777215, "宽态 country 不应残留最大宽"
+    assert year.minimumWidth() == 0, "宽态 year 不应残留最小宽"
     assert year.maximumWidth() == 16777215, "宽态 year 不应残留最大宽"
+
+
+def test_nfo_tail_align_to_premiered_when_narrow(win, app):
+    """设置-NFO：窄态下自定义（customrating）、想看人数（votes）右移到首播日期列。
+
+    用户需求（最小化）：custom 框、votes 框与 premiered（premiered）框严格
+    上下对齐，premiered 不动；最大化天然对齐、行为不变；只能左右移动。
+    根因：三行（h137 发行/h141 国家/h40 年份）皆左堆积无弹簧的 Minimum 行，
+    同一起点 X0。有余量时三行均分天然对齐；800~900 宽挤压区第二项
+    （mpaa/runtime）被挤得比 relasedate 窄（850 宽实测 mpaa.w=119、
+    relasedate.w=133），末项 custom/votes 落在 premiered 左边
+    （800 宽 custom 偏左 15、850 宽 custom 偏左 14/votes 偏左 2）。
+    _sync_nfo_tail_align 条件对称钉死+有界迭代：只钉 mpaa/runtime 的
+    最小/最大宽到 rd.width()（min=max 一次钉死，60px 地板），
+    单遍后重排漂移再测再钉、最多 3 遍；custom.x 与 votes.x 恒等于 pr.x；
+    有余量时条件不触发，宽态零改动。只碰列宽，参照与 y 不动。
+    """
+    ui = win.Ui
+    country = ui.checkBox_nfo_country
+    mpaa = ui.checkBox_nfo_mpaa
+    custom = ui.checkBox_nfo_customrating
+    year = ui.checkBox_nfo_year
+    runtime = ui.checkBox_nfo_runtime
+    votes = ui.checkBox_nfo_wanted
+    rd = ui.checkBox_nfo_relasedate
+    pr = ui.checkBox_nfo_premiered
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(rd), "checkBox_nfo_relasedate") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    rows = (ui.horizontalLayout_137, ui.horizontalLayout_141, ui.horizontalLayout_40)
+
+    # 挤压态（800/850x700）：800 宽 custom 自然偏左 15、850 宽偏左 14/votes 偏左 2；
+    # 同步后两者严格 == pr.x，参照/中项/y 不动
+    win.show()
+    for w in (800, 850):
+        win.resize(w, 700)
+        goto_nfo_tab()
+        app.processEvents()
+        # 自然基线：四约束复位→重排→记录位置
+        country.setMinimumWidth(0)
+        country.setMaximumWidth(16777215)
+        year.setMinimumWidth(0)
+        year.setMaximumWidth(16777215)
+        mpaa.setMinimumWidth(0)
+        mpaa.setMaximumWidth(16777215)
+        runtime.setMinimumWidth(0)
+        runtime.setMaximumWidth(16777215)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        ui.gridLayout_40.activate()
+        app.processEvents()
+        nat = {cb: (cb.x(), cb.y()) for cb in (mpaa, custom, runtime, votes, rd, pr)}
+        # 全量同步：两者严格对齐 pr，参照/中项/y 不动
+        win._sync_page_layouts()
+        app.processEvents()
+        assert custom.x() == pr.x(), f"{w}宽 custom 未对齐: custom={custom.x()} pr={pr.x()}"
+        assert votes.x() == pr.x(), f"{w}宽 votes 未对齐: votes={votes.x()} pr={pr.x()}"
+        assert (pr.x(), pr.y()) == nat[pr], f"{w}宽 参照首播日期移动"
+        assert (rd.x(), rd.y()) == nat[rd], f"{w}宽 参照发行日期移动"
+        for cb in (mpaa, runtime):
+            assert cb.y() == nat[cb][1], f"{w}宽 中项上下移动 {cb.objectName()}"
+        for cb in (custom, votes):
+            assert cb.y() == nat[cb][1], f"{w}宽 末项上下移动 {cb.objectName()}"
+        # 幂等：再同步一次位置不变
+        before = {cb: (cb.x(), cb.y()) for cb in (mpaa, custom, runtime, votes, rd, pr)}
+        win._sync_page_layouts()
+        app.processEvents()
+        after = {cb: (cb.x(), cb.y()) for cb in (mpaa, custom, runtime, votes, rd, pr)}
+        assert before == after, f"{w}宽 二次同步漂移"
+
+    # 无操作检查（700/750/1900）：天然对齐，条件式无触发、约束零残留
+    for w in (700, 750, 1900):
+        win.resize(w, 700 if w < 1900 else 1050)
+        goto_nfo_tab()
+        app.processEvents()
+        assert custom.x() == pr.x() == votes.x(), f"{w}宽三者应对齐"
+        assert mpaa.minimumWidth() == 0, f"{w}宽 mpaa 不应残留最小宽"
+        assert mpaa.maximumWidth() == 16777215, f"{w}宽 mpaa 不应残留最大宽"
+        assert runtime.minimumWidth() == 0, f"{w}宽 runtime 不应残留最小宽"
+        assert runtime.maximumWidth() == 16777215, f"{w}宽 runtime 不应残留最大宽"
+
+
+def test_nfo_set_aligns_to_maker_publisher_when_wide(win, app):
+    """设置-NFO：宽态下合集（演员字段）==片商、合集（系列字段）==发行商。
+
+    用户需求（最大化）：actor_set 框与 maker（maker）框、set 框与
+    publisher（publisher）框严格上下对齐；最小化布局不动；只能左右移动。
+    根因（离屏 1900/1400/1089/1000 实测，测试字体）：h114 三分、h138
+    四分，同一起点左堆积无弹簧，_sync_wide_children_width 加宽容器后两行
+    按各自等分数 surplus，行为线性三分 vs 四分（d_aset≈W_cell/12、
+    d_set≈W_cell/6）：1900 宽 d=+116/+232、1400 宽 d=+74/+149；
+    1000/1089 自然 d=+41/+82、+46/+102，宽态门（extra=viewport-796>200）
+    关闭保持不动。_sync_nfo_set_align 门内条件左移：genre 封顶钉
+    actor_set.x==maker.x、actor_set 封顶钉 set.x==publisher.x，
+    studio/maker/publisher 与 y 全不动。只碰列宽。
+    """
+    ui = win.Ui
+    genre = ui.checkBox_nfo_genre
+    actor_set = ui.checkBox_nfo_actor_set
+    nfo_set = ui.checkBox_nfo_set
+    studio = ui.checkBox_nfo_studio
+    maker = ui.checkBox_nfo_maker
+    publisher = ui.checkBox_nfo_publisher
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(maker), "checkBox_nfo_maker") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    rows = (ui.horizontalLayout_114, ui.horizontalLayout_138)
+
+    # 门内（1900/1400x900）：自然错位，同步后两者严格==maker/publisher.x
+    win.show()
+    for w in (1900, 1400):
+        win.resize(w, 900)
+        goto_nfo_tab()
+        app.processEvents()
+        # 自然基线：两约束复位→重排→记录位置
+        genre.setMinimumWidth(0)
+        genre.setMaximumWidth(16777215)
+        actor_set.setMinimumWidth(0)
+        actor_set.setMaximumWidth(16777215)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        ui.gridLayout_40.activate()
+        app.processEvents()
+        nat = {cb: (cb.x(), cb.y()) for cb in (genre, actor_set, nfo_set, studio, maker, publisher)}
+        assert nat[actor_set][0] > nat[maker][0], f"{w}宽 门内自然应对错位"
+        assert nat[nfo_set][0] > nat[publisher][0], f"{w}宽 门内自然应对错位"
+        # 全量同步：两者严格对齐 maker/publisher，参照/y 不动
+        win._sync_page_layouts()
+        app.processEvents()
+        assert actor_set.x() == maker.x(), f"{w}宽 actor_set 未对齐: aset={actor_set.x()} mk={maker.x()}"
+        assert nfo_set.x() == publisher.x(), f"{w}宽 set 未对齐: set={nfo_set.x()} pb={publisher.x()}"
+        for cb in (studio, maker, publisher):
+            assert (cb.x(), cb.y()) == nat[cb], f"{w}宽 参照移动 {cb.objectName()}"
+        for cb in (genre, actor_set, nfo_set):
+            assert cb.y() == nat[cb][1], f"{w}宽 上下移动 {cb.objectName()}"
+        # 幂等：再同步一次位置不变
+        before = {cb: (cb.x(), cb.y()) for cb in (genre, actor_set, nfo_set, studio, maker, publisher)}
+        win._sync_page_layouts()
+        app.processEvents()
+        after = {cb: (cb.x(), cb.y()) for cb in (genre, actor_set, nfo_set, studio, maker, publisher)}
+        assert before == after, f"{w}宽 二次同步漂移"
+
+    # 门外无操作（1000/1089）：自然漂移保留、约束零残留
+    for w in (1000, 1089):
+        win.resize(w, 700)
+        goto_nfo_tab()
+        app.processEvents()
+        genre.setMinimumWidth(0)
+        genre.setMaximumWidth(16777215)
+        actor_set.setMinimumWidth(0)
+        actor_set.setMaximumWidth(16777215)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        ui.gridLayout_40.activate()
+        app.processEvents()
+        nat_aset_x = actor_set.x()
+        nat_set_x = nfo_set.x()
+        win._sync_page_layouts()
+        app.processEvents()
+        assert actor_set.x() == nat_aset_x, f"{w}宽 门外不应移动"
+        assert nfo_set.x() == nat_set_x, f"{w}宽 门外不应移动"
+        assert genre.minimumWidth() == 0, f"{w}宽 genre 不应残留最小宽"
+        assert genre.maximumWidth() == 16777215, f"{w}宽 genre 不应残留最大宽"
+        assert actor_set.minimumWidth() == 0, f"{w}宽 actor_set 不应残留最小宽"
+        assert actor_set.maximumWidth() == 16777215, f"{w}宽 actor_set 不应残留最大宽"
+
+
+def test_nfo_field_tips_stays_inside_group_box(win, app):
+    """设置-NFO：窄态下字段说明按钮左移进组框，宽态保持 640 不动。
+
+    用户截图：最小化时「字段说明」按钮（80 宽，设计 x=640..720）伸出
+    「写入NFO的字段」组框（设计右缘 731，余量仅 11px）——宽幅同步按
+    width=设计宽+extra 双向拉伸组框，extra<0 时组右缘左移而按钮不动。
+    _sync_nfo_field_tips 做绝对 pin：按钮右缘>组右缘-11 才左移，
+    只左移，y 不动，多拍收敛幂等。
+    """
+    ui = win.Ui
+    btn = ui.pushButton_field_tips_nfo
+    gb = ui.groupBox_81
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(btn), "pushButton_field_tips_nfo") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    win.show()
+    # 窄态（1000x700）：自然应溢出，同步后按钮右缘≤组右缘-11，y 不动
+    win.resize(1000, 700)
+    goto_nfo_tab()
+    app.processEvents()
+    # goto 的 beats 已提前同步（btn.x()≈574 精确 pin 位），先复位到设计位再取自然基线
+    btn.move(640, btn.y())
+    app.processEvents()
+    nat = (btn.x(), btn.y())
+    gb_nat = (gb.x(), gb.width())
+    assert nat[0] + btn.width() > gb_nat[0] + gb_nat[1] - 11, "1000宽 自然应溢出"
+    win._sync_page_layouts()
+    app.processEvents()
+    assert btn.x() + btn.width() <= gb.x() + gb.width() - 11, (
+        f"1000宽 按钮仍伸出: btn右={btn.x() + btn.width()} 组右-11={gb.x() + gb.width() - 11}"
+    )
+    assert btn.y() == nat[1], "1000宽 按钮上下移动"
+    # 幂等：再同步一次位置不变
+    before = (btn.x(), btn.y())
+    win._sync_page_layouts()
+    app.processEvents()
+    assert (btn.x(), btn.y()) == before, "1000宽 二次同步漂移"
+    # 宽态（1900x900）：x==640 逐像素不动
+    win.resize(1900, 900)
+    goto_nfo_tab()
+    app.processEvents()
+    win._sync_page_layouts()
+    app.processEvents()
+    assert btn.x() == 640, f"1900宽 按钮不应移动: x={btn.x()}"

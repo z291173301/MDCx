@@ -78,8 +78,26 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 **设置-NFO 窄态分级信息/时长对齐发行日期列**（用户最小化截图：分级信息（mpaa）框偏左、时长（runtime）框偏右；最大化天然对齐）
 
 - 根因：三行（h137 发行/h141 国家/h40 年份）皆左堆积无弹簧的 Minimum 行，同一起点 X0。有余量时三行均分天然对齐；容器窄到装不下 hint 总宽时 Minimum 项被挤到 hint 以下、各行按各自文本乱挤（country 短→mpaa 落下；year 比 release 抗挤→runtime 被顶出）。离屏实测（测试字体 850 宽）：rd=257、mpaa=252（左 5）、runtime=268（右 11），与用户症状（生产字体约 30/60）同向；800/760 宽方向乱跳，挤压区分配混沌、随宽度乱飘。
-- 修复：`_sync_nfo_row_align()`（`_sync_page_layouts` 末尾、title_plot 之后调用，无新钩子）。约束复位（country 最小宽回设计 0、year 最大宽放开）→重排+外层落定→实测；仅当 mpaa.x<rd.x 时把 country 最小宽加宽“当前宽+(rd.x-mpaa.x)”（只推右，rd 不动）；仅当 runtime.x>rd.x 时把 year 最大宽封顶到“rd.x-year.x-行间距”（现场实测间距，不硬编码；60px 地板保可读，过深挤压只尽量靠近）。有余量/已对齐时两条件皆不触发，宽态零改动；反方向保持自然位（仿 title_plot 的 max(d,0) 钳制思想）。只碰列宽，行高不变故无上下移动；休眠页跳过，由现有切页钩子补齐。
-- 回归测试：`tests/test_window_state_matrix.py::test_nfo_country_year_align_to_release_when_narrow` 锁定「挤压态（850）两者严格钉到 rd、参照/前项/y 逐像素不变、二次同步幂等；宽态（1900）天然对齐且约束零残留（country 最小宽 0、year 最大宽默认）」。
+- 修复：`_sync_nfo_row_align()`（`_sync_page_layouts` 末尾、title_plot 之后调用，无新钩子）。四约束复位（country/year 最小宽回 0、最大宽放开）→重排+外层落定→实测；四方向条件钉死，目标一律锚定参照行 h137 实测值（rd.x − 前项.x − h137 实测间距，min=max 一次钉死，60px 地板），有界迭代 3 遍兜 ±1px 取整漂移。教训：初版三处用了 `rd.width()`（relasedate 自身宽度，挤压区比 release 宽出一截，850 宽下 133 vs 115），cap 系统性钉错位（mpaa 稳定 +2、第二遍也不自愈：cap 不 binding）；只有 year-max 支是绝对式所以 runtime 收敛了。无条件全钉死不可行：宽态 mid-cascade 误测 pin<share 会把 country 钉小、custom 左顶 10px（thirds 单跑即挂，critic=1076/custom=1066）；条件式只在错位方向触发，复位保证误触发下一拍自愈。有余量时条件皆不触发，宽态零改动。只碰列宽，行高不变故无上下移动；休眠页跳过，由现有切页钩子补齐。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_country_year_align_to_release_when_narrow` 锁定「挤压态（700/750/850，翻转方向全覆盖）三者严格 == rd.x、参照/前项/y 逐像素不变、二次同步幂等；宽态（1900）天然对齐且条件式无触发、约束零残留（country/year 最小宽 0、最大宽默认）」。
+
+**设置-NFO 末项（自定义/想看人数）与首播日期列对齐**（用户需求：最小化时自定义（customrating）、想看人数（votes）右移到与发行日期（premiered）严格上下对齐，premiered 不动；最大化不变；只能左右移动）
+
+- 根因：同三行左堆积 Minimum 行；800~900 宽挤压区第二项（mpaa/runtime）被挤得比 relasedate 窄（850 宽实测 mpaa.w=119、relasedate.w=133，测试字体），末项 custom/votes 落在 premiered 左边（800 宽 custom 偏左 15，850 宽 custom 偏左 14、votes 偏左 2；700/750/900+ 天然对齐）。
+- 修复：`_sync_nfo_tail_align()`（`_sync_page_layouts` 末尾、row_align 之后调用，无新钩子）。只钉 mpaa/runtime 的最小/最大宽到 rd.width()（min=max 一次钉死，60px 地板），条件对称+有界迭代 3 遍。目标合法性：row_align 已把 country/year 钉到与 release 等宽（同 X0 同间距），故 custom==pr 当且仅当 mpaa.w==rd.w（850 验算 136+115+6+133+6=396=pr 精确成立）。前项与参照不动，只碰列宽；有余量时条件不触发，宽态零改动；休眠页跳过，由现有切页钩子补齐。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_tail_align_to_premiered_when_narrow` 锁定「挤压态（800/850）两者严格 == pr.x、参照/中项/y 逐像素不变、二次同步幂等；700/750/1900 天然对齐且条件式无触发、约束零残留（mpaa/runtime 最小宽 0、最大宽默认）」。
+
+**设置-NFO 合集两项与片商/发行商列对齐**（用户需求：最大化时合集（使用演员字段）左移到与片商（maker）严格上下对齐、合集（使用系列字段）左移到与发行商（publisher）严格上下对齐；最小化布局不动；只能左右移动）
+
+- 根因：h114 三分、h138 四分（皆左堆积无弹簧、同一起点、无自定义间距），有余量时均分：d_aset≈W_cell/12、d_set≈W_cell/6，随宽度线性漂移（离屏实测 1900 宽 +116/+232、1400 宽 +74/+149，逐值吻合；1000/1089 宽 +41/+82、+46/+102）。
+- 修复：`_sync_nfo_set_align()`（`_sync_page_layouts` 末尾、tail_align 之后调用，无新钩子）。宽态门 extra=viewport-796>200（scrollArea_13 即 NFO 设置滚动区，设计 796；不用 isMaximized，因离屏不可测；1400 中宽同样开门，属宽向无害）：关门时复位 genre/actor_set 约束并直接返回，窄态逐像素不动。开门后 3 遍有界迭代、条件左移单向（封顶前项，60 地板）：两钉必须串行——genre 钉会连带左移整块 [actor_set, set]，actor_set 钉必须用 genre 钉生效并重排后的新鲜位置计算，否则同一快照下重复扣除 genre 修正量（1900 宽实测 overshoot 116px：set 落到 publisher 左边 718 vs 834）。studio/maker/publisher 与 y 全不动；休眠页跳过，由现有切页钩子补齐。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_set_aligns_to_maker_publisher_when_wide` 锁定「1900/1400 门内两者严格 == maker.x/publisher.x、参照 studio/maker/publisher 与 y 逐像素不变、二次同步幂等；1000/1089 门外自然漂移保留、约束零残留（genre/actor_set 最小宽 0、最大宽默认）」。
+
+**设置-NFO 字段说明按钮收进组框**（用户窄态截图：最小化时「字段说明」按钮伸出「写入NFO的字段」组框右缘）
+
+- 根因：按钮 Fixed 80x26、设计 x=640..720；组框设计 x=30 宽 701、右缘 731，设计余量仅 11px。宽幅同步按 width=设计宽+extra 双向拉伸组框（extra<=0 时缩回）；extra<0（视口窄于设计 796）时组右缘左移而按钮不动——测试环境 1089 窗组宽 724 尚未溢出，1000 窗组宽约 635、按钮伸出约 66px。
+- 修复：`_sync_nfo_field_tips()`（`_sync_page_layouts` 末尾、set_align 之后调用，无新钩子）。绝对 pin：复位 x=640→重排→按钮右缘超过（组右缘-11）才左移进去；只左移，宽态 640 不动，y 不动；同父坐标系直接可比；休眠页跳过，多拍收敛幂等。测试写法注意：goto 的 beats 会提前同步把按钮钉到 pin 位，“自然溢出”基线须先 `btn.move(640, y)` 复位再取。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_field_tips_stays_inside_group_box` 锁定「1000 窄态按钮右缘≤组右缘-11、y 不动、二次同步幂等；1900 宽态 x==640」。
 
 **设置-NFO 左标签冒号与组标题冒号对齐**（用户窄/宽两态截图：标题：/简介：/发行日期：/国家/分级：/年份/时长/想看：/评分：/演员/导演：/系列/标签：/风格/合集：/片商/发行商：/封面/背景/预告片：11 个左标签整体左移、冒号与「写入NFO的字段：」组标题的冒号上下对齐）
 

@@ -1072,6 +1072,15 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / NFO页: 窄态下分级信息/时长左对齐到发行日期列 ============
         self._sync_nfo_row_align()
 
+        # ============ page_setting / NFO页: 窄态下末项自定义/想看人数右对齐到上映日期列 ============
+        self._sync_nfo_tail_align()
+
+        # ============ page_setting / NFO页: 宽态下合集两项左对齐到片商/发行商列 ============
+        self._sync_nfo_set_align()
+
+        # ============ page_setting / NFO页: 窄态下字段说明按钮左移进组框 ============
+        self._sync_nfo_field_tips()
+
     def _queue_nfo_post_cascade_sync(self) -> None:
         """tab 切换后第一拍：只排队，把全量同步留到级联落定后的第二拍。"""
         QTimer.singleShot(0, self._sync_page_layouts)
@@ -1350,12 +1359,16 @@ class MyMAinWindow(QMainWindow):
         Minimum 项被挤到 hint 以下、各行按各自文本乱挤（country 短→mpaa 落下；
         year 比 release 抗挤→runtime 被顶出）。离屏实测（测试字体 850 宽）：
         rd=257、mpaa=252（左 5）、runtime=268（右 11），与用户症状同向。
-        做法（仿 title_plot，条件修正、天然无操作）：防御性重排+外层落定后实测；
-        仅当 mpaa.x<rd.x 时把 country 最小宽加宽“当前宽+(rd.x-mpaa.x)”
-        （只推右，rd 不动）；仅当 runtime.x>rd.x 时把 year 最大宽封顶到
-        “rd.x-year.x-行间距”（把多占的挤压份额吐出来；60px 地板保可读，
-        过深挤压时只做到尽量靠近）。有余量/已对齐时两条件皆不触发，
-        宽态零改动。复选框只改列宽，高不变→行高不变→无上下移动。
+        挤压分配随宽度混沌翻转（850 宽 settled 态 mpaa 反超 +2、750 宽
+        runtime 自然偏左 -13），单边修法顾此失彼，故四方向条件钉死。
+        pin 目标必须锚定参照行 h137 实测值：rd.width() 是 relasedate 自身
+        宽度，挤压区里比 release 宽出一截，拿它当目标会系统性钉错位
+        （mpaa 稳定 +2、第二遍也不自愈）；正确目标 = rd.x - 前项.x -
+        h137 实测间距，min=max 一次钉死，有界迭代 3 遍兜 ±1px 取整漂移
+        （60px 地板保可读）。无条件全钉死不可行：宽态 mid-cascade 误测
+        pin<share 会把 country 钉小、custom 左顶 10px（thirds 单跑即挂）；
+        条件式只在错位方向触发，复位保证误触发下一拍自愈。有余量时条件
+        皆不触发，宽态零改动。复选框只改列宽，高不变→行高不变→无上下移动。
         休眠页跳过，由切页钩子补齐。
         """
         ui = self.Ui
@@ -1363,12 +1376,16 @@ class MyMAinWindow(QMainWindow):
         mpaa = ui.checkBox_nfo_mpaa
         year = ui.checkBox_nfo_year
         runtime = ui.checkBox_nfo_runtime
+        release = ui.checkBox_nfo_release
         rd = ui.checkBox_nfo_relasedate
-        if not rd.isVisibleTo(self):
-            return
+        for cb in (rd, mpaa, runtime):
+            if not cb.isVisibleTo(self):
+                return
         rows = (ui.horizontalLayout_137, ui.horizontalLayout_141, ui.horizontalLayout_40)
-        # 重置上一轮约束，还原自然位（country 设计最小宽 0，year 最大宽默认）。
+        # 重置上一轮约束，还原自然位（设计最小宽 0，最大宽默认）。
         country.setMinimumWidth(0)
+        country.setMaximumWidth(16777215)
+        year.setMinimumWidth(0)
         year.setMaximumWidth(16777215)
         for row in rows:
             row.invalidate()
@@ -1376,16 +1393,195 @@ class MyMAinWindow(QMainWindow):
         outer = ui.gridLayout_40
         if outer is not None:
             outer.activate()
-        # 条件修正：只修需要的方向（仿 title_plot 的 max(d,0) 钳制思想）；
-        # 反方向（mpaa 偏右/runtime 偏左）保持自然位，不碰。
-        if mpaa.x() < rd.x():
-            country.setMinimumWidth(country.width() + (rd.x() - mpaa.x()))
-        if runtime.x() > rd.x():
-            gap = runtime.x() - year.x() - year.width()
-            year.setMaximumWidth(max(rd.x() - year.x() - gap, 60))
+        # 条件对称钉死（有界迭代到不动点）：只修实测到错位的方向。
+        # pin 目标必须锚定参照行 h137 的实测值——rd.width() 是 relasedate
+        # 自身宽度，挤压区里它比 release 宽出一截（850 宽下 133 vs 115，
+        # 长文本抗挤），拿它当 country/year 的目标会系统性钉错位
+        # （mpaa 稳定 +2、第二遍也不自愈：cap 不 binding）。
+        # 正确目标 = rd.x - 前项.x - h137 实测间距（release 同行、X0 同系，
+        # min=max 一次钉死）；单遍后重排可能再漂 ±1px（挤压整数取整），
+        # 故有界重测 3 遍。参照行 h137 本轮内不受 pins 影响（只动 h141/h40
+        # 的前项），目标稳定，迭代收敛。无条件全钉死仍禁止（宽态
+        # mid-cascade 误测把 custom 左顶的教训见上）；复位保证误触发自愈。
+        for _ in range(3):
+            gap_ref = rd.x() - release.x() - release.width()
+            t_country = rd.x() - country.x() - gap_ref
+            t_year = rd.x() - year.x() - gap_ref
+            if mpaa.x() == rd.x() and runtime.x() == rd.x():
+                break
+            if mpaa.x() != rd.x():
+                country.setMinimumWidth(max(t_country, 60))
+                country.setMaximumWidth(max(t_country, 60))
+            if runtime.x() != rd.x():
+                year.setMinimumWidth(max(t_year, 60))
+                year.setMaximumWidth(max(t_year, 60))
+            for row in rows:
+                row.invalidate()
+                row.activate()
+            if outer is not None:
+                outer.activate()
+
+    def _sync_nfo_tail_align(self) -> None:
+        """设置-NFO：窄态下末项 customrating/votes 右对齐到 premiered，宽态不动。
+
+        用户需求：“nfo 页面最小化时将自定义（customrating）、想看人数
+        （votes）向右移动到与发行日期（premiered）严格上下对齐的位置，
+        发行日期（premiered）保持不变，最大化的页面保持不变，只能左右
+        移动不能上下移动”。
+        根因：_sync_nfo_row_align 只钉了三行的前两项（country/year →
+        mpaa/runtime 对齐 rd）；窄态 800~900 挤压带里，第二项自身宽度
+        也会漂（850 宽下 mpaa.w=119 vs relasedate.w=133，长文本抗挤），
+        导致末项 custom/votes 落在 pr 左边（800 宽 custom 偏左 15、
+        850 宽偏左 14；votes 在 850 偏左 2）。700/750 及 900+ 均天然
+        对齐，1900 宽态全 0。
+        做法（条件对称式，有界迭代到不动点，仿 row_align）：每遍先把
+        mpaa/runtime 的约束复位（最小宽 0、最大宽默认），重排落定后实测；
+        只修错位的方向——custom.x != pr.x 则把 mpaa 钉到 rd 实测宽度
+        （min=max 一次钉死，60 地板），votes.x != pr.x 则把 runtime 钉到
+        rd 实测宽度；对齐即停，最多 3 遍（挤压整数取整漂移）。
+        目标为什么是 rd.width()（与 b34 教训不矛盾）：前项已被 row_align
+        钉到与 release 等宽（同一起点 X0、同间距），故 custom.x == pr.x
+        当且仅当 mpaa.w == rd.w（同序位等宽）；实测 850：钉 133 后
+        custom.x = 136+115+6+133+6 = 396 = pr.x 精确成立。
+        前项 country/year 与参照 rd/pr 本方法只读不动；只改列宽，不碰 y；
+        宽态修正量恒 0（自然对齐→条件跳过→约束零残留）。休眠页跳过，
+        复用 tab/切页双拍钩子，无新钩子。
+        """
+        ui = self.Ui
+        mpaa = ui.checkBox_nfo_mpaa
+        custom = ui.checkBox_nfo_customrating
+        runtime = ui.checkBox_nfo_runtime
+        votes = ui.checkBox_nfo_wanted
+        rd = ui.checkBox_nfo_relasedate
+        pr = ui.checkBox_nfo_premiered
+        for cb in (pr, custom, votes):
+            if not cb.isVisibleTo(self):
+                return
+        rows = (ui.horizontalLayout_137, ui.horizontalLayout_141, ui.horizontalLayout_40)
+        # 重置上一轮约束，还原自然位（设计最小宽 0，最大宽默认）。
+        mpaa.setMinimumWidth(0)
+        mpaa.setMaximumWidth(16777215)
+        runtime.setMinimumWidth(0)
+        runtime.setMaximumWidth(16777215)
         for row in rows:
             row.invalidate()
             row.activate()
+        outer = ui.gridLayout_40
+        if outer is not None:
+            outer.activate()
+        # 条件对称钉死（有界迭代到不动点）：只修实测到错位的方向。
+        # row_align 在本方法之前已跑完，前项 country/year 被钉死，
+        # 故本轮内 mpaa/runtime 的 pin 只动末项位置，前两项不受影响；
+        # 参照行 h137 不受 pins 影响，目标稳定，迭代收敛。
+        for _ in range(3):
+            t_second = rd.width()
+            if custom.x() == pr.x() and votes.x() == pr.x():
+                break
+            if custom.x() != pr.x():
+                mpaa.setMinimumWidth(max(t_second, 60))
+                mpaa.setMaximumWidth(max(t_second, 60))
+            if votes.x() != pr.x():
+                runtime.setMinimumWidth(max(t_second, 60))
+                runtime.setMaximumWidth(max(t_second, 60))
+            for row in rows:
+                row.invalidate()
+                row.activate()
+            if outer is not None:
+                outer.activate()
+
+    def _sync_nfo_set_align(self) -> None:
+        """设置-NFO：宽态下合集两项左对齐到片商/发行商列，窄态保持不动。
+
+        用户需求：最大化时合集（使用演员字段）与片商（maker）严格上下对齐、
+        合集（使用系列字段）与发行商（publisher）严格上下对齐；最小化时布局
+        不动；只能左右移动。
+        根因：风格行 h114 是 3 等分、片商行 h138 是 4 等分（皆左堆积无弹簧、
+        同一起点、无自定义间距），有余量时均分：d_aset=W_cell/12、
+        d_set=W_cell/6，随宽度线性漂移（离屏实测 1000→+41/+82、
+        1900→+116/+232，逐值吻合）。
+        做法（条件左移单向、宽态门控）：宽态门 extra=viewport-796>200
+        （scrollArea_13 即 NFO 设置滚动区，设计宽 796；不用 isMaximized，
+        因离屏不可测；1400 中宽 extra≈334 同样开门，属宽向无害）。
+        关门（窄态）时复位 genre/actor_set 约束并直接返回，窄态逐像素不动。
+        开门后 3 遍有界迭代（两钉串行：先钉 genre、重排后用新鲜位置再算
+        actor_set 钉）：只在实测到偏右时封顶前项
+        （cap=参照.x-前项.x-行内实测间距，60 地板），studio/maker/
+        publisher/label 与 y 全不动；参照行 h138 不受 pins 影响，目标稳定。
+        休眠页（不可见）跳过，由切 tab/切页下一拍单发触发补齐。
+        """
+        ui = self.Ui
+        genre = ui.checkBox_nfo_genre
+        actor_set = ui.checkBox_nfo_actor_set
+        nfo_set = ui.checkBox_nfo_set
+        maker = ui.checkBox_nfo_maker
+        publisher = ui.checkBox_nfo_publisher
+        if not actor_set.isVisibleTo(self):
+            return
+        # 宽态门：关门时复位并返回，窄态布局逐像素不动。
+        viewport_w = ui.scrollArea_13.viewport().width()
+        rows = (ui.horizontalLayout_114, ui.horizontalLayout_138)
+        outer = ui.gridLayout_40
+        genre.setMinimumWidth(0)
+        genre.setMaximumWidth(16777215)
+        actor_set.setMinimumWidth(0)
+        actor_set.setMaximumWidth(16777215)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        if outer is not None:
+            outer.activate()
+        if viewport_w - 796 <= 200:
+            return
+        gap = ui.horizontalLayout_114.spacing()
+        # 条件左移（有界迭代到不动点）：两钉必须串行——genre 钉会连带左移
+        # 整块 [actor_set, set]，actor_set 钉必须用 genre 钉生效并重排后的
+        # 新鲜位置计算，否则同一快照下重复扣除 genre 修正量（1900 宽实测
+        # overshoot 116px：set 落到 publisher 左边）。
+        for _ in range(3):
+            if actor_set.x() == maker.x() and nfo_set.x() == publisher.x():
+                break
+            if actor_set.x() > maker.x():
+                cap = maker.x() - genre.x() - gap
+                if cap < genre.width() and cap >= 60:
+                    genre.setMaximumWidth(cap)
+                    for row in rows:
+                        row.invalidate()
+                        row.activate()
+                    if outer is not None:
+                        outer.activate()
+            if nfo_set.x() > publisher.x():
+                cap2 = publisher.x() - actor_set.x() - gap
+                if cap2 < actor_set.width() and cap2 >= 60:
+                    actor_set.setMaximumWidth(cap2)
+                    for row in rows:
+                        row.invalidate()
+                        row.activate()
+                    if outer is not None:
+                        outer.activate()
+
+    def _sync_nfo_field_tips(self) -> None:
+        """设置-NFO：窄态下字段说明按钮左移进组框，宽态保持不动。
+
+        用户截图：最小化时「字段说明」按钮（pushButton_field_tips_nfo，
+        Fixed 80x26，设计几何 x=640..720）伸出「写入NFO的字段」组框
+        （groupBox_81，设计 x=30 宽 701，右缘 731，设计余量仅 11px）。
+        根因：宽幅同步按 width=设计宽+extra 双向拉伸组框（extra<=0 时
+        缩回）；extra<0（视口窄于设计 796）时组右缘左移，按钮还钉在 640
+        就伸出去（1089 窗 extra≈-14，伸出约 3px；越窄越糟）。
+        做法（绝对 pin，只左移）：复位 x=640→重排→若按钮右缘超过
+        （组右缘-11），则 btn.move(组右缘-11-80, y)；宽态 640 逐像素不动，
+        y 不动。按钮与组框同属 scrollAreaWidgetContents_nfo，同父坐标系
+        直接可比。休眠页跳过，由切 tab/切页下一拍补齐；多拍收敛幂等。
+        """
+        ui = self.Ui
+        btn = ui.pushButton_field_tips_nfo
+        gb = ui.groupBox_81
+        if not btn.isVisibleTo(self):
+            return
+        btn.move(640, btn.y())
+        limit = gb.x() + gb.width() - 11
+        if btn.x() + btn.width() > limit:
+            btn.move(limit - btn.width(), btn.y())
 
     def _sync_naming_template_section(self) -> None:
         """命名页「视频命名规则」组（groupBox_8）按内容收缩，消除大片空白。
