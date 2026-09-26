@@ -13632,7 +13632,7 @@ class Ui_MDCx(object):
         self.radioButton_bottom_left_corner.setText(_translate("MDCx", "左下"))
         self.label_233.setText(_translate("MDCx", "水印显示位置："))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab4), _translate("MDCx", " 水印 "))
-        self.groupBox_81.setTitle(_translate("MDCx", "写入 NFO 的字段："))
+        self.groupBox_81.setTitle(_translate("MDCx", "写入NFO的字段："))
         self.checkBox_nfo_score.setText(_translate("MDCx", "公众评分（score）"))
         self.checkBox_nfo_criticrating.setText(_translate("MDCx", "影评人评分（criticrating）"))
         self.checkBox_nfo_actor.setText(_translate("MDCx", "演员（actor）"))

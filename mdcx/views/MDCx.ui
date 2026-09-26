@@ -17755,7 +17755,7 @@
                       </size>
                     </property>
                     <property name="title">
-                      <string>写入 NFO 的字段：</string>
+                      <string>写入NFO的字段：</string>
                     </property>
                     <widget class="QWidget" name="layoutWidget_10">
                       <property name="geometry">
