@@ -1179,3 +1179,57 @@ def test_nfo_right_column_aligns_to_thirds_when_wide(win, app):
     app.processEvents()
     assert ui.gridLayout_66.columnMinimumWidth(1) == 0, "窄态 C1 列最小宽应清零"
     assert critic.x() <= custom.x(), f"窄态右列应保持自然位置: critic={critic.x()} custom={custom.x()}"
+
+
+def test_nfo_title_plot_aligns_to_release_when_wide(win, app):
+    """设置-NFO：宽窗口下原标题/简介对齐发行日期、原简介对齐上映日期，窄态保持原样。
+
+    用户截图（最大化）：原标题（originaltitle）应与发行日期（releasedate）
+    上下对齐、简介（plot）与 releasedate 对齐、原简介（originalplot）与上映
+    日期（premiered）对齐。根因：发行三项为 Minimum 策略、视口加宽时各自吞
+    掉 extra/3，而原标题/简介行的 Fixed-150 前缀把后继项 x 冻结在窄态位置。
+    _sync_nfo_title_plot_align 自适应加宽 sorttitle/outline/plot 三前缀：
+    发散态（视口 extra > 200）钉到发行日期列，窄态恢复 150 不动。
+    """
+    ui = win.Ui
+    st = ui.checkBox_nfo_sorttitle
+    ot = ui.checkBox_nfo_originaltitle
+    outline = ui.checkBox_nfo_outline
+    plot = ui.checkBox_nfo_plot
+    opl = ui.checkBox_nfo_originalplot
+    rd = ui.checkBox_nfo_relasedate
+    pr = ui.checkBox_nfo_premiered
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(ot), "checkBox_nfo_originaltitle") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    # 宽态（用户截图场景）：三者严格上下对齐，前缀被加宽钳制
+    win.resize(1900, 1050)
+    win.show()
+    goto_nfo_tab()
+    app.processEvents()
+    assert ot.x() == rd.x(), f"宽态原标题未对齐发行日期: ot={ot.x()} rd={rd.x()}"
+    assert plot.x() == rd.x(), f"宽态简介未对齐发行日期: plot={plot.x()} rd={rd.x()}"
+    assert opl.x() == pr.x(), f"宽态原简介未对齐上映日期: opl={opl.x()} pr={pr.x()}"
+    assert st.minimumWidth() > 150, "宽态 sorttitle 前缀应被加宽"
+    assert outline.minimumWidth() > 150, "宽态 outline 前缀应被加宽"
+    assert plot.minimumWidth() > 150, "宽态 plot 前缀应被加宽"
+
+    # 幂等：再同步一次位置不变
+    win._sync_page_layouts()
+    app.processEvents()
+    assert ot.x() == rd.x() == plot.x(), "二次同步后对齐漂移"
+    assert opl.x() == pr.x(), "二次同步后原简介对齐漂移"
+
+    # 窄态：前缀恢复 150、自然位置原样保留
+    win.resize(900, 700)
+    goto_nfo_tab()
+    app.processEvents()
+    assert st.minimumWidth() == 150, "窄态 sorttitle 前缀应恢复 150"
+    assert outline.minimumWidth() == 150, "窄态 outline 前缀应恢复 150"
+    assert plot.minimumWidth() == 150, "窄态 plot 前缀应恢复 150"

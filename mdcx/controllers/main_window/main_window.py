@@ -271,6 +271,8 @@ class MyMAinWindow(QMainWindow):
         # NFO 页同样在设置页 tab 内：切到该 tab 时滚动区 showEvent 会重做宽幅拉伸，
         # gridLayout_66 的 C1 随之重新发散，需在下一拍按最新视口宽重钉 thirds。
         self.Ui.tabWidget.currentChanged.connect(lambda _index: QTimer.singleShot(0, self._sync_nfo_right_column_align))
+        # 原标题/简介行同理：休眠页切回时重钉发行日期列（见 _sync_nfo_title_plot_align）。
+        self.Ui.tabWidget.currentChanged.connect(lambda _index: QTimer.singleShot(0, self._sync_nfo_title_plot_align))
         # 说明文字宽度变化（滚动条占位、休眠页拉伸等）时自动补一次重算。
         self.Ui.label_66.installEventFilter(self)
         self._bind_system_theme_refresh()
@@ -1050,6 +1052,9 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / NFO页: 宽视口下右列左对齐到 thirds ============
         self._sync_nfo_right_column_align()
 
+        # ============ page_setting / NFO页: 宽视口下原标题/简介/原简介左对齐到发行日期列 ============
+        self._sync_nfo_title_plot_align()
+
     def _sync_nfo_right_column_align(self) -> None:
         """设置-NFO：宽视口下右列（影评/导演/TMDB/标签）左对齐到自定义分级/想看人数。
 
@@ -1080,6 +1085,55 @@ class MyMAinWindow(QMainWindow):
             grid.setColumnMinimumWidth(1, max(col_w - custom.x() + score.x(), 0))
             grid.invalidate()
             grid.activate()
+
+    def _sync_nfo_title_plot_align(self) -> None:
+        """设置-NFO：宽视口下原标题/简介/原简介左对齐到发行日期列。
+
+        用户截图：最大化后原标题（originaltitle）应与发行日期（relasedate）
+        上下对齐、简介（plot）与 relasedate 对齐、原简介（originalplot）
+        与上映日期（premiered）对齐，relasedate/premiered 不动、窄态不变。
+        根因：发行三项（release/relasedate/premiered）为 Minimum 策略，
+        视口加宽时各自吞掉 extra/3；而原标题/简介行的 150 前缀把后继项 x
+        冻结在窄态位置。纯拉伸定不住三者的相对位置，故用前缀最小宽做自适
+        应钳制。
+        做法（纯函数、双向幂等、单遍精确）：先把 sorttitle/outline/plot 三
+        前缀恢复最小宽 150→重排→量自然位置；仅当视口真正加宽（extra > 200）
+        时设三前缀最小宽为「当前宽+位移」（位移 d0=rd.x-ot.x，
+        d1=rd.x-plot.x，d2=pr.x-opl.x-d1），把后继项精确钉到发行日期列；
+        窄态恢复 150 原样不动。用当前宽而非 150 做基址：前缀 hint 随字体
+        变化（如测试字体下 sorttitle hint 为 192），基址 150 会系统性欠
+        299-257=42px；当前宽基址与样式无关且天然幂等。复选框加宽只延长点
+        击区，视觉无变化。各控件同属 layoutWidget_10，.x() 同一坐标系直接
+        可比；只碰前缀列宽，不碰 y 与其它行。休眠页（不可见）跳过，由切
+        tab 下一拍单发触发补齐。
+        """
+        ui = self.Ui
+        st = ui.checkBox_nfo_sorttitle
+        ot = ui.checkBox_nfo_originaltitle
+        outline = ui.checkBox_nfo_outline
+        plot = ui.checkBox_nfo_plot
+        opl = ui.checkBox_nfo_originalplot
+        rd = ui.checkBox_nfo_relasedate
+        pr = ui.checkBox_nfo_premiered
+        if not ot.isVisibleTo(self):
+            return
+        rows = (ui.horizontalLayout_135, ui.horizontalLayout_136, ui.horizontalLayout_137)
+        for cb in (st, outline, plot):
+            cb.setMinimumWidth(150)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        if ui.scrollArea_13.viewport().width() - 796 <= 200:
+            return
+        d0 = rd.x() - ot.x()
+        d1 = rd.x() - plot.x()
+        d2 = pr.x() - opl.x() - d1
+        st.setMinimumWidth(max(st.width() + d0, 150))
+        outline.setMinimumWidth(max(outline.width() + d1, 150))
+        plot.setMinimumWidth(max(plot.width() + d2, 150))
+        for row in rows:
+            row.invalidate()
+            row.activate()
 
     def _sync_naming_template_section(self) -> None:
         """命名页「视频命名规则」组（groupBox_8）按内容收缩，消除大片空白。

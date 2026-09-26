@@ -69,6 +69,12 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 - 修复：`_sync_nfo_right_column_align()`（`_sync_page_layouts` 末尾调用，另接 `tabWidget.currentChanged` 下一拍——切 tab 时滚动区 showEvent 会重做宽幅拉伸使 C1 重新发散）。自适应钳制：先清 C1 列最小宽→重排→量自然位置，仅当 `critic.x > custom.x`（发散态）时设 C1 列最小宽把左缘精确钉到 thirds（导演/TMDB/标签同属 C1，一并归位）；窄态保持清零、原样不动。各控件同属 `layoutWidget_10`，`.x()` 同坐标系可比；只碰列宽，不碰 y 与其它行。
 - 回归测试：`tests/test_window_state_matrix.py::test_nfo_right_column_aligns_to_thirds_when_wide` 锁定「宽态四者与 thirds 严格对齐、二次同步幂等、窄态钳制清零且自然位置保留」（复现用户场景：show + 切到 NFO 页后断言）。
 
+**设置-NFO 原标题/简介对齐发行日期列**（用户最大化截图：原标题应与发行日期上下对齐、简介与发行日期对齐、原简介与上映日期对齐）
+
+- 根因：发行三项（release/relasedate/premiered，注意中间项对象名拼写即 `relasedate`）为 Minimum 策略，视口加宽时各自吞掉 extra/3；而原标题/简介行的 150 前缀把后继项 x 冻结在窄态位置。纯拉伸定不住三者的相对位置。
+- 修复：`_sync_nfo_title_plot_align()`（`_sync_page_layouts` 末尾调用，另接 `tabWidget.currentChanged` 下一拍，同右列对齐的休眠页补齐逻辑）。自适应钳制：先把 sorttitle/outline/plot 三前缀恢复最小宽 150→重排→量自然位置；仅当视口真正加宽（`scrollArea_13.viewport().width() - 796 > 200`，默认窗 extra≈23 恒落恢复分支，与字体无关）时设三前缀最小宽为「当前宽+位移」（d0=rd.x-ot.x，d1=rd.x-plot.x，d2=pr.x-opl.x-d1），把后继项精确钉到发行日期列；窄态恢复 150 原样不动。用当前宽而非 150 做基址：前缀 hint 随字体变化（如测试字体下 sorttitle hint 为 192），基址 150 会系统性欠 42px；当前宽基址与样式无关且天然幂等（单遍精确，无需重钉）。复选框加宽只延长点击区，视觉无变化；只碰前缀列宽，不碰 y 与其它行。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_title_plot_aligns_to_release_when_wide` 锁定「宽态三者严格对齐、前缀被加宽、二次同步幂等、窄态前缀恢复 150」。
+
 ### 设置页「命名」模板预览区按内容收缩（案例）
 
 命名页「视频命名规则」（`groupBox_8`）是绝对定位页内的 `QGridLayout`：说明文字 `label_66` 顶端对齐且可换行，「模板预览」多行框垂直策略为 `Expanding`。两者叠加产生两个问题：说明文字行高按更窄宽度的 `sizeHint` 计算（大于当前宽度实际换行高度）→「视频文件名」上方留白；预览框吃满网格剩余空间 → 被撑得过高。
