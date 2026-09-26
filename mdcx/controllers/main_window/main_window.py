@@ -1263,25 +1263,31 @@ class MyMAinWindow(QMainWindow):
             grid.activate()
 
     def _sync_nfo_title_plot_align(self) -> None:
-        """设置-NFO：宽视口下原标题/简介/原简介左对齐到发行日期列。
+        """设置-NFO：原标题/简介/原简介左对齐到发行日期列，窄态宽态一致。
 
         用户截图：最大化后原标题（originaltitle）应与发行日期（relasedate）
         上下对齐、简介（plot）与 relasedate 对齐、原简介（originalplot）
-        与上映日期（premiered）对齐，relasedate/premiered 不动、窄态不变。
+        与上映日期（premiered）对齐，relasedate/premiered 不动；后用户要求
+        最小化（窄视口）同样对齐：ot/plot 对齐 rd.x，opl 对齐 pr.x，
+        relasedate/premiered 位置不变、最大化行为不变、任何控件都不上下移动。
         根因：发行三项（release/relasedate/premiered）为 Minimum 策略，
         视口加宽时各自吞掉 extra/3；而原标题/简介行的 150 前缀把后继项 x
         冻结在窄态位置。纯拉伸定不住三者的相对位置，故用前缀最小宽做自适
         应钳制。
         做法（纯函数、双向幂等、单遍精确）：先把 sorttitle/outline/plot 三
-        前缀恢复最小宽 150→重排→量自然位置；仅当视口真正加宽（extra > 200）
-        时设三前缀最小宽为「当前宽+位移」（位移 d0=rd.x-ot.x，
-        d1=rd.x-plot.x，d2=pr.x-opl.x-d1），把后继项精确钉到发行日期列；
-        窄态恢复 150 原样不动。用当前宽而非 150 做基址：前缀 hint 随字体
+        前缀恢复最小宽 150→重排→量自然位置；再设三前缀最小宽为「当前宽+
+        位移」（位移 g0=max(rd.x-ot.x,0)，g1=max(rd.x-plot.x,0)，
+        g2=max(pr.x-opl.x-g1,0)，opl 永不超过 pr），把后继项精确钉到
+        发行日期列。公式只用实测相对位移，与视口宽窄无关，
+        窄态宽态同一套：窄态 d≈+29 小步右移，宽态 d 大步右移；已对齐时位
+        移为 0 天然无操作。用当前宽而非 150 做基址：前缀 hint 随字体
         变化（如测试字体下 sorttitle hint 为 192），基址 150 会系统性欠
         299-257=42px；当前宽基址与样式无关且天然幂等。复选框加宽只延长点
-        击区，视觉无变化。各控件同属 layoutWidget_10，.x() 同一坐标系直接
-        可比；只碰前缀列宽，不碰 y 与其它行。休眠页（不可见）跳过，由切
-        tab 下一拍单发触发补齐。
+        击区，视觉无变化。relasedate/premiered 不动：三行是 gridLayout_40
+        里三个独立 HBox（135/136/137），加宽 135/136 的前缀只推本行后继项，
+        137 行的 rd/pr 几何不受影响。各控件同属 layoutWidget_10，.x() 同一
+        坐标系直接可比；只碰前缀列宽，不碰 y 与其它行（高不变→行高不变→
+        无上下移动）。休眠页（不可见）跳过，由切 tab 下一拍单发触发补齐。
         """
         ui = self.Ui
         st = ui.checkBox_nfo_sorttitle
@@ -1303,14 +1309,20 @@ class MyMAinWindow(QMainWindow):
         outer = ui.gridLayout_40
         if outer is not None:
             outer.activate()
-        if ui.scrollArea_13.viewport().width() - 796 <= 200:
-            return
+        # 窄态宽态同一套公式：位移全是实测相对值，与视口宽窄无关；
+        # 窄态自然 d≈+29 小步右移，宽态 d 大步右移，已对齐时 d=0 无操作。
+        # 只取正部 + opl 上限钳制：过窄窗口布局被压缩时 d 可能为负（如 900
+        # 宽下 rd 被挤到 ot 左边），此时“向右移+参照不动”几何无解——负位移
+        # 钳零（前缀不动），且 opl 永不超过 pr（不过调）；宽态 d 全为正，
+        # 与旧式 d2=pr.x-opl.x-d1 逐值相等，行为不变。
         d0 = rd.x() - ot.x()
         d1 = rd.x() - plot.x()
-        d2 = pr.x() - opl.x() - d1
-        st.setMinimumWidth(max(st.width() + d0, 150))
-        outline.setMinimumWidth(max(outline.width() + d1, 150))
-        plot.setMinimumWidth(max(plot.width() + d2, 150))
+        g0 = max(d0, 0)
+        g1 = max(d1, 0)
+        g2 = max(pr.x() - opl.x() - g1, 0)
+        st.setMinimumWidth(max(st.width() + g0, 150))
+        outline.setMinimumWidth(max(outline.width() + g1, 150))
+        plot.setMinimumWidth(max(plot.width() + g2, 150))
         for row in rows:
             row.invalidate()
             row.activate()

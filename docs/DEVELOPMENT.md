@@ -72,8 +72,8 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 **设置-NFO 原标题/简介对齐发行日期列**（用户最大化截图：原标题应与发行日期上下对齐、简介与发行日期对齐、原简介与上映日期对齐）
 
 - 根因：发行三项（release/relasedate/premiered，注意中间项对象名拼写即 `relasedate`）为 Minimum 策略，视口加宽时各自吞掉 extra/3；而原标题/简介行的 150 前缀把后继项 x 冻结在窄态位置。纯拉伸定不住三者的相对位置。
-- 修复：`_sync_nfo_title_plot_align()`（`_sync_page_layouts` 末尾调用，另接 `tabWidget.currentChanged` 下一拍，同右列对齐的休眠页补齐逻辑）。自适应钳制：先把 sorttitle/outline/plot 三前缀恢复最小宽 150→重排→量自然位置；仅当视口真正加宽（`scrollArea_13.viewport().width() - 796 > 200`，默认窗 extra≈23 恒落恢复分支，与字体无关）时设三前缀最小宽为「当前宽+位移」（d0=rd.x-ot.x，d1=rd.x-plot.x，d2=pr.x-opl.x-d1），把后继项精确钉到发行日期列；窄态恢复 150 原样不动。用当前宽而非 150 做基址：前缀 hint 随字体变化（如测试字体下 sorttitle hint 为 192），基址 150 会系统性欠 42px；当前宽基址与样式无关且天然幂等（单遍精确，无需重钉）。复选框加宽只延长点击区，视觉无变化；只碰前缀列宽，不碰 y 与其它行。
-- 回归测试：`tests/test_window_state_matrix.py::test_nfo_title_plot_aligns_to_release_when_wide` 锁定「宽态三者严格对齐、前缀被加宽、二次同步幂等、窄态前缀恢复 150」。
+- 修复：`_sync_nfo_title_plot_align()`（`_sync_page_layouts` 末尾调用，另接 `tabWidget.currentChanged` 下一拍，同右列对齐的休眠页补齐逻辑）。自适应钳制：先把 sorttitle/outline/plot 三前缀恢复最小宽 150→重排→量自然位置；再设三前缀最小宽为「当前宽+位移」（g0=max(rd.x-ot.x,0)，g1=max(rd.x-plot.x,0)，g2=max(pr.x-opl.x-g1,0)，opl 永不超过 pr），把后继项精确钉到发行日期列；窄态宽态同一套公式（原 `extra > 200` 门限已删，窄态 d≈+29 小步右移）。负位移钳零的由来：过窄窗口布局被压缩时 d 可能为负（如 900 宽下 rd 被挤到 ot 左边，实测 d0=-8），此时“向右移+参照不动”几何无解，钳零保持自然；且旧式 d2=pr.x-opl.x-d1 在 d1<0 时会把 opl 推过 pr（超调），故 plot 增量改按 g1 上限钳制，宽态 d 全为正时与旧式逐值相等。用当前宽而非 150 做基址：前缀 hint 随字体变化（如测试字体下 sorttitle hint 为 192），基址 150 会系统性欠 42px；当前宽基址与样式无关且天然幂等（单遍精确，无需重钉）。复选框加宽只延长点击区，视觉无变化；只碰前缀列宽，不碰 y 与其它行。三行是三个独立 HBox（135/136/137），加宽 135/136 前缀天然碰不到 137 行的 rd/pr。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_title_plot_aligns_to_release_when_wide` 锁定「宽态三者严格对齐、前缀被加宽、二次同步幂等；窄态（1089/900）字体无关契约不变量：后继项只许右移、opl 永不超过 pr、rd/pr 与各行 y 逐像素不变、二次同步幂等」。注意测试字体的特殊性：set_style=None 下 sorttitle hint=192，ot 自然位 334 卡在 rd（322）右边，严格窄态对齐在此字体下可证明无解（两边都动不得），故窄态腿不断言绝对等式；生产字体（YaHei）下 st=150、ot=292<rd=321，对齐发生。
 
 **设置-NFO 左标签冒号与组标题冒号对齐**（用户窄/宽两态截图：标题：/简介：/发行日期：/国家/分级：/年份/时长/想看：/评分：/演员/导演：/系列/标签：/风格/合集：/片商/发行商：/封面/背景/预告片：11 个左标签整体左移、冒号与「写入NFO的字段：」组标题的冒号上下对齐）
 

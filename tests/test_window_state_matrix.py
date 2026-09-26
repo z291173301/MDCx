@@ -1182,14 +1182,18 @@ def test_nfo_right_column_aligns_to_thirds_when_wide(win, app):
 
 
 def test_nfo_title_plot_aligns_to_release_when_wide(win, app):
-    """设置-NFO：宽窗口下原标题/简介对齐发行日期、原简介对齐上映日期，窄态保持原样。
+    """设置-NFO：原标题/简介对齐发行日期、原简介对齐上映日期，窄态宽态一致。
 
     用户截图（最大化）：原标题（originaltitle）应与发行日期（releasedate）
     上下对齐、简介（plot）与 releasedate 对齐、原简介（originalplot）与上映
     日期（premiered）对齐。根因：发行三项为 Minimum 策略、视口加宽时各自吞
     掉 extra/3，而原标题/简介行的 Fixed-150 前缀把后继项 x 冻结在窄态位置。
     _sync_nfo_title_plot_align 自适应加宽 sorttitle/outline/plot 三前缀：
-    发散态（视口 extra > 200）钉到发行日期列，窄态恢复 150 不动。
+    公式只用实测相对位移（g0=max(rd.x-ot.x,0)，g1=max(rd.x-plot.x,0)，
+    g2=max(pr.x-opl.x-g1,0)），与视口宽窄无关，窄态宽态同一套。
+    后用户要求最小化（窄态）同样对齐：三行是三个独立 HBox，加宽 135/136
+    前缀只推本行后继项，137 行的 relasedate/premiered 纹丝不动；只碰列宽，
+    行高不变故无上下移动。
     """
     ui = win.Ui
     st = ui.checkBox_nfo_sorttitle
@@ -1220,19 +1224,56 @@ def test_nfo_title_plot_aligns_to_release_when_wide(win, app):
     assert outline.minimumWidth() > 150, "宽态 outline 前缀应被加宽"
     assert plot.minimumWidth() > 150, "宽态 plot 前缀应被加宽"
 
-    # 幂等：再同步一次位置不变
+    # 幂等：再同步一次位置不变（含 y 稳定）
     win._sync_page_layouts()
     app.processEvents()
     assert ot.x() == rd.x() == plot.x(), "二次同步后对齐漂移"
     assert opl.x() == pr.x(), "二次同步后原简介对齐漂移"
 
-    # 窄态：前缀恢复 150、自然位置原样保留
+    # 窄态（用户新需求，默认窗口尺寸）：几何允许时对齐，否则只保证不变量。
+    # 注意测试字体的特殊性：set_style=None 下 sorttitle hint=192（>150），
+    # 前缀缩不到 150 以下，ot 自然位 334 卡在 rd（322）右边 12px——两边都
+    # 动不得（st 不能缩、rd 不能动），严格对齐在此字体下可证明无解，实现
+    # 正确 no-op。生产字体（YaHei）下 st=150、ot=292<rd=321，对齐发生。
+    # 此处不断言绝对等式，只断言字体无关的契约不变量。
+    win.resize(1089, 1050)
+    goto_nfo_tab()
+    app.processEvents()
+    rows = (ui.horizontalLayout_135, ui.horizontalLayout_136, ui.horizontalLayout_137)
+
+    def check_narrow_invariants(tag):
+        # 自然基线：前缀钉回 150 重排（改动前的窄态行为），记录位置
+        for cb in (st, outline, plot):
+            cb.setMinimumWidth(150)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        ui.gridLayout_40.activate()
+        app.processEvents()
+        nat = {cb: (cb.x(), cb.y()) for cb in (st, ot, outline, plot, opl, rd, pr)}
+        # 全量同步后：后继项只许右移且 opl 永不超过 pr；参照与 y 逐像素不变
+        win._sync_page_layouts()
+        app.processEvents()
+        assert ot.x() >= nat[ot][0] and plot.x() >= nat[plot][0], f"{tag}：后继项左移"
+        assert nat[opl][0] <= opl.x() <= pr.x(), f"{tag}：原简介越界 opl={opl.x()} pr={pr.x()}"
+        assert (rd.x(), rd.y()) == nat[rd], f"{tag}：发行日期移动"
+        assert (pr.x(), pr.y()) == nat[pr], f"{tag}：上映日期移动"
+        for cb in (st, ot, outline, plot, opl):
+            assert cb.y() == nat[cb][1], f"{tag}：控件上下移动 {cb.objectName()}"
+        # 幂等
+        before = {cb: (cb.x(), cb.y()) for cb in (st, ot, outline, plot, opl, rd, pr)}
+        win._sync_page_layouts()
+        app.processEvents()
+        after = {cb: (cb.x(), cb.y()) for cb in (st, ot, outline, plot, opl, rd, pr)}
+        assert before == after, f"{tag}：二次同步漂移"
+
+    check_narrow_invariants("窄态1089")
+
+    # 过窄窗口（900x700）：布局更压缩，同样只断言不变量
     win.resize(900, 700)
     goto_nfo_tab()
     app.processEvents()
-    assert st.minimumWidth() == 150, "窄态 sorttitle 前缀应恢复 150"
-    assert outline.minimumWidth() == 150, "窄态 outline 前缀应恢复 150"
-    assert plot.minimumWidth() == 150, "窄态 plot 前缀应恢复 150"
+    check_narrow_invariants("过窄态900")
 
 
 def test_nfo_colon_aligns_to_group_title(win, app):
