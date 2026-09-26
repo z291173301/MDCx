@@ -275,6 +275,15 @@ class MyMAinWindow(QMainWindow):
         # （1076 stale，由此 C1min=449 钉错 critic），而全量 pass 自带 page 级
         # 刷新、落定后单遍收敛（1075 对齐 / 显式重跑 459 收敛实测）。
         self.Ui.tabWidget.currentChanged.connect(lambda _index: QTimer.singleShot(0, self._queue_nfo_post_cascade_sync))
+        # stacked 切页同理：NFO 休眠时 resize/changeEvent 进来的 _sync_page_layouts
+        # 会被各 sync 内 isVisibleTo 早退跳过，而切回设置页时 NFO 的 tab 索引没变、
+        # tabWidget.currentChanged 根本不触发——NFO 将永远停留在旧几何（用户截图：
+        # 窄态下 opl 从未被同步过、以天然位落在 pr 左边；宽态因之前切过 tab 已对齐）。
+        # 故 stacked 切页下一拍同样只排队：休眠页由内层守卫 no-op，NFO 可见时在级
+        # 联落定后的第二拍补齐（与 tab 钩子同一机制，幂等无累积）。
+        self.Ui.stackedWidget.currentChanged.connect(
+            lambda _index: QTimer.singleShot(0, self._queue_nfo_post_cascade_sync)
+        )
         # 说明文字宽度变化（滚动条占位、休眠页拉伸等）时自动补一次重算。
         self.Ui.label_66.installEventFilter(self)
         self._bind_system_theme_refresh()
@@ -1060,6 +1069,9 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / NFO页: 宽视口下原标题/简介/原简介左对齐到发行日期列 ============
         self._sync_nfo_title_plot_align()
 
+        # ============ page_setting / NFO页: 窄态下分级信息/时长左对齐到发行日期列 ============
+        self._sync_nfo_row_align()
+
     def _queue_nfo_post_cascade_sync(self) -> None:
         """tab 切换后第一拍：只排队，把全量同步留到级联落定后的第二拍。"""
         QTimer.singleShot(0, self._sync_page_layouts)
@@ -1287,7 +1299,8 @@ class MyMAinWindow(QMainWindow):
         里三个独立 HBox（135/136/137），加宽 135/136 的前缀只推本行后继项，
         137 行的 rd/pr 几何不受影响。各控件同属 layoutWidget_10，.x() 同一
         坐标系直接可比；只碰前缀列宽，不碰 y 与其它行（高不变→行高不变→
-        无上下移动）。休眠页（不可见）跳过，由切 tab 下一拍单发触发补齐。
+        无上下移动）。休眠页（不可见）跳过，由切 tab 下一拍单发
+        与切回设置页排队触发补齐。
         """
         ui = self.Ui
         st = ui.checkBox_nfo_sorttitle
@@ -1323,6 +1336,53 @@ class MyMAinWindow(QMainWindow):
         st.setMinimumWidth(max(st.width() + g0, 150))
         outline.setMinimumWidth(max(outline.width() + g1, 150))
         plot.setMinimumWidth(max(plot.width() + g2, 150))
+        for row in rows:
+            row.invalidate()
+            row.activate()
+
+    def _sync_nfo_row_align(self) -> None:
+        """设置-NFO：窄态下分级信息（mpaa）/时长（runtime）左对齐到发行日期列。
+
+        用户截图（最小化）：mpaa 框偏左、runtime 框偏右（生产字体约 30/60px），
+        最大化天然对齐。只许水平移动，宽态不动。
+        根因：三行（h137 发行/h141 国家/h40 年份）皆左堆积无弹簧的 Minimum 行，
+        同一起点 X0。有余量时三行均分天然对齐；容器窄到装不下 hint 总宽时，
+        Minimum 项被挤到 hint 以下、各行按各自文本乱挤（country 短→mpaa 落下；
+        year 比 release 抗挤→runtime 被顶出）。离屏实测（测试字体 850 宽）：
+        rd=257、mpaa=252（左 5）、runtime=268（右 11），与用户症状同向。
+        做法（仿 title_plot，条件修正、天然无操作）：防御性重排+外层落定后实测；
+        仅当 mpaa.x<rd.x 时把 country 最小宽加宽“当前宽+(rd.x-mpaa.x)”
+        （只推右，rd 不动）；仅当 runtime.x>rd.x 时把 year 最大宽封顶到
+        “rd.x-year.x-行间距”（把多占的挤压份额吐出来；60px 地板保可读，
+        过深挤压时只做到尽量靠近）。有余量/已对齐时两条件皆不触发，
+        宽态零改动。复选框只改列宽，高不变→行高不变→无上下移动。
+        休眠页跳过，由切页钩子补齐。
+        """
+        ui = self.Ui
+        country = ui.checkBox_nfo_country
+        mpaa = ui.checkBox_nfo_mpaa
+        year = ui.checkBox_nfo_year
+        runtime = ui.checkBox_nfo_runtime
+        rd = ui.checkBox_nfo_relasedate
+        if not rd.isVisibleTo(self):
+            return
+        rows = (ui.horizontalLayout_137, ui.horizontalLayout_141, ui.horizontalLayout_40)
+        # 重置上一轮约束，还原自然位（country 设计最小宽 0，year 最大宽默认）。
+        country.setMinimumWidth(0)
+        year.setMaximumWidth(16777215)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        outer = ui.gridLayout_40
+        if outer is not None:
+            outer.activate()
+        # 条件修正：只修需要的方向（仿 title_plot 的 max(d,0) 钳制思想）；
+        # 反方向（mpaa 偏右/runtime 偏左）保持自然位，不碰。
+        if mpaa.x() < rd.x():
+            country.setMinimumWidth(country.width() + (rd.x() - mpaa.x()))
+        if runtime.x() > rd.x():
+            gap = runtime.x() - year.x() - year.width()
+            year.setMaximumWidth(max(rd.x() - year.x() - gap, 60))
         for row in rows:
             row.invalidate()
             row.activate()

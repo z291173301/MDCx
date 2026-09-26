@@ -1188,9 +1188,9 @@ def test_nfo_title_plot_aligns_to_release_when_wide(win, app):
     上下对齐、简介（plot）与 releasedate 对齐、原简介（originalplot）与上映
     日期（premiered）对齐。根因：发行三项为 Minimum 策略、视口加宽时各自吞
     掉 extra/3，而原标题/简介行的 Fixed-150 前缀把后继项 x 冻结在窄态位置。
-    _sync_nfo_title_plot_align 自适应加宽 sorttitle/outline/plot 三前缀：
-    公式只用实测相对位移（g0=max(rd.x-ot.x,0)，g1=max(rd.x-plot.x,0)，
-    g2=max(pr.x-opl.x-g1,0)），与视口宽窄无关，窄态宽态同一套。
+    _sync_nfo_title_plot_align 把三前缀恢复最小宽 150→重排→量自然位置，
+    再按「当前宽+位移」设最小宽（g0=max(rd.x-ot.x,0)，g1=max(rd.x-plot.x,0)，
+    g2=max(pr.x-opl.x-g1,0)，opl 永不超过 pr）；与视口宽窄无关，窄态宽态同一套。
     后用户要求最小化（窄态）同样对齐：三行是三个独立 HBox，加宽 135/136
     前缀只推本行后继项，137 行的 relasedate/premiered 纹丝不动；只碰列宽，
     行高不变故无上下移动。
@@ -1242,7 +1242,7 @@ def test_nfo_title_plot_aligns_to_release_when_wide(win, app):
     rows = (ui.horizontalLayout_135, ui.horizontalLayout_136, ui.horizontalLayout_137)
 
     def check_narrow_invariants(tag):
-        # 自然基线：前缀钉回 150 重排（改动前的窄态行为），记录位置
+        # 自然基线：前缀恢复最小宽 150→重排→量自然位置，记录位置
         for cb in (st, outline, plot):
             cb.setMinimumWidth(150)
         for row in rows:
@@ -1274,6 +1274,86 @@ def test_nfo_title_plot_aligns_to_release_when_wide(win, app):
     goto_nfo_tab()
     app.processEvents()
     check_narrow_invariants("过窄态900")
+
+
+def test_nfo_resyncs_after_dormant_resize_on_page_back(win, app):
+    """休眠 NFO 页 resize 后切回设置页必须补同步（用户截图：窄态 opl 落在 pr 左边）。
+
+    根因：resize/changeEvent 进来的 _sync_page_layouts 会被各 sync 内 isVisibleTo
+    早退跳过休眠 NFO；而切回设置页时 NFO 的 tab 索引没变，tabWidget.currentChanged
+    不触发——此前 NFO 永远停留旧几何。修复：stackedWidget.currentChanged 同样排队
+    级联后全量同步（_queue_nfo_post_cascade_sync，内层守卫保证休眠 no-op）。
+    覆盖两条返回路径：
+    A. 返回窄态（1000）：不断言严格对齐——桩配置+测试字体下冒号标定走另一分支
+       （cal title=103/pad=5，lw10=(-10,625)），rd=301 卡在 ot 自然位 334 左边，
+       d0 为负被钳，可证明无解（同 b23 窄态 hint-192 注释）；只断言钩子跑过
+       （宽态残留前缀被清掉）+ 不变量（opl 不超 pr、二次同步幂等）。
+    B. 返回宽态（1900）：严格对齐（宽态 d 全为正，任何字体/配置都可达）；无钩子
+       时前缀停留窄态，ot≈318≠rd 必挂，保证测试对钩子失效敏感。
+    """
+    ui = win.Ui
+    st = ui.checkBox_nfo_sorttitle
+    ot = ui.checkBox_nfo_originaltitle
+    outline = ui.checkBox_nfo_outline
+    plot = ui.checkBox_nfo_plot
+    opl = ui.checkBox_nfo_originalplot
+    rd = ui.checkBox_nfo_relasedate
+    pr = ui.checkBox_nfo_premiered
+    keys = (st, ot, outline, plot, opl, rd, pr)
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(ot), "checkBox_nfo_originaltitle") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    def pump_until_stable(rounds=10):
+        """抽干事件链直到坐标稳定（stacked 切回的级联比 tab 切换长，不固定拍数）。"""
+        last = None
+        for _ in range(rounds):
+            app.processEvents()
+            cur = tuple(cb.x() for cb in keys)
+            if cur == last:
+                return cur
+            last = cur
+        return last
+
+    win.resize(1900, 1050)
+    win.show()
+    goto_nfo_tab()
+    pump_until_stable()
+    assert opl.x() == pr.x(), "前置条件：宽态原简介应对齐上映日期"
+
+    # A. 休眠后返回窄态：钩子必须跑过（清掉宽态残留），但不断言严格对齐
+    _goto(win, app, "page_log")
+    app.processEvents()
+    win.resize(1000, 760)
+    app.processEvents()
+    stale = tuple(cb.minimumWidth() for cb in (st, outline, plot))
+    assert all(v > 400 for v in stale), "前置条件：休眠 resize 后宽态前缀应残留"
+    _goto(win, app, "page_setting")  # NFO tab 索引不变，无 tab 钩子
+    pump_until_stable()
+    post = tuple(cb.minimumWidth() for cb in (st, outline, plot))
+    assert all(p < s for p, s in zip(post, stale, strict=True)), f"切回后钩子未跑：前缀仍是宽态残留 {post} vs {stale}"
+    assert opl.x() <= pr.x(), f"切回后原简介越界: opl={opl.x()} pr={pr.x()}"
+    before = tuple((cb.x(), cb.y()) for cb in keys)
+    win._sync_page_layouts()
+    app.processEvents()
+    assert before == tuple((cb.x(), cb.y()) for cb in keys), "二次同步漂移"
+
+    # B. 休眠后返回宽态：必须严格收敛（无钩子时前缀停留窄态，ot≈318≠rd 必挂）
+    _goto(win, app, "page_log")
+    app.processEvents()
+    win.resize(1900, 1050)
+    app.processEvents()
+    _goto(win, app, "page_setting")
+    pump_until_stable()
+    assert ot.x() == rd.x(), f"返回宽态后原标题未重对齐: ot={ot.x()} rd={rd.x()}"
+    assert plot.x() == rd.x(), f"返回宽态后简介未重对齐: plot={plot.x()} rd={rd.x()}"
+    assert opl.x() == pr.x(), f"返回宽态后原简介未重对齐: opl={opl.x()} pr={pr.x()}"
+    assert st.minimumWidth() > 150, "返回宽态后 sorttitle 前缀应被加宽"
 
 
 def test_nfo_colon_aligns_to_group_title(win, app):
@@ -1359,3 +1439,73 @@ def test_nfo_colon_aligns_to_group_title(win, app):
     app.processEvents()
     narrow_x = check_state("窄态")
     assert narrow_x == wide_x, f"窄宽位移不一致: {narrow_x} vs {wide_x}"
+
+
+def test_nfo_country_year_align_to_release_when_narrow(win, app):
+    """设置-NFO：窄态下分级信息（mpaa）右移、时长（runtime）左移到发行日期列。
+
+    用户截图（最小化）：mpaa 框偏左、runtime 框偏右；最大化天然对齐。
+    根因：三行（h137 发行/h141 国家/h40 年份）皆左堆积无弹簧的 Minimum 行，
+    同一起点 X0。有余量时三行均分天然对齐；容器窄到装不下 hint 总宽时
+    Minimum 项被挤到 hint 以下、各行按各自文本乱挤（850 宽实测 rd=257、
+    mpaa=252、runtime=268）。
+    _sync_nfo_row_align 条件修正：mpaa 偏左时加宽 country（只推右，rd 不动），
+    runtime 偏右时封顶 year（把多占的挤压份额吐出来，60px 地板保可读）；
+    有余量/已对齐时两条件不触发，宽态零改动。只碰列宽，参照与 y 不动。
+    """
+    ui = win.Ui
+    release = ui.checkBox_nfo_release
+    country = ui.checkBox_nfo_country
+    mpaa = ui.checkBox_nfo_mpaa
+    year = ui.checkBox_nfo_year
+    runtime = ui.checkBox_nfo_runtime
+    rd = ui.checkBox_nfo_relasedate
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(rd), "checkBox_nfo_relasedate") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    rows = (ui.horizontalLayout_137, ui.horizontalLayout_141, ui.horizontalLayout_40)
+
+    # 挤压态（850x700）：两者严格钉到 rd，参照与 y 逐像素不变
+    win.resize(850, 700)
+    win.show()
+    goto_nfo_tab()
+    app.processEvents()
+    # 自然基线：约束复位→重排→记录位置
+    country.setMinimumWidth(0)
+    year.setMaximumWidth(16777215)
+    for row in rows:
+        row.invalidate()
+        row.activate()
+    ui.gridLayout_40.activate()
+    app.processEvents()
+    nat = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
+    # 全量同步：两者严格对齐 rd，参照/前项/y 不动
+    win._sync_page_layouts()
+    app.processEvents()
+    assert mpaa.x() == rd.x(), f"窄态 mpaa 未对齐: mpaa={mpaa.x()} rd={rd.x()}"
+    assert runtime.x() == rd.x(), f"窄态 runtime 未对齐: runtime={runtime.x()} rd={rd.x()}"
+    assert (rd.x(), rd.y()) == nat[rd], "参照发行日期移动"
+    for cb in (release, country, year):
+        assert (cb.x(), cb.y()) == nat[cb], f"前项移动 {cb.objectName()}"
+    for cb in (mpaa, runtime):
+        assert cb.y() == nat[cb][1], f"后项上下移动 {cb.objectName()}"
+    # 幂等：再同步一次位置不变
+    before = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
+    win._sync_page_layouts()
+    app.processEvents()
+    after = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
+    assert before == after, "二次同步漂移"
+
+    # 宽态（1900）：天然对齐，约束零残留
+    win.resize(1900, 1050)
+    goto_nfo_tab()
+    app.processEvents()
+    assert mpaa.x() == rd.x() == runtime.x(), f"宽态三者应对齐: mpaa={mpaa.x()} rd={rd.x()} runtime={runtime.x()}"
+    assert country.minimumWidth() == 0, "宽态 country 不应残留最小宽"
+    assert year.maximumWidth() == 16777215, "宽态 year 不应残留最大宽"
