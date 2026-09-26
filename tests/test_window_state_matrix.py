@@ -1748,3 +1748,60 @@ def test_nfo_field_tips_stays_inside_group_box(win, app):
     win._sync_page_layouts()
     app.processEvents()
     assert btn.x() == 640, f"1900宽 按钮不应移动: x={btn.x()}"
+
+
+def test_nfo_groupbox_resyncs_after_stale_stretch(win, app):
+    """设置-NFO：级联中途定格的 stale extra 必须被 trailing 重同步收敛。
+
+    verify_gb 血案：tab 切换时 showEvent 的 wide-sync 跑在级联中途
+    （视口 805），落定到 819 后再无事件触发它，groupBox_81 带着 stale
+    extra 定格（718+9=727），与水印组恒差 11px。_sync_page_layouts 在
+    NFO 控制器量测前显式重跑 scrollArea_13 的宽幅同步，保证终态几何。
+    本测试用故障注入确定性复现 stale（手动改错组宽 64px），与时序无关：
+    修复前 _sync_page_layouts 从不碰组宽→保持错误；修复后→收敛回诚实值
+    （718 + vp - 796），且比水印组公式诚实值多 3px（用户要求 NFO 右缘
+    在 1-5px 范围内更靠外）。
+    """
+    ui = win.Ui
+    gb81 = ui.groupBox_81
+    gb31 = ui.groupBox_31
+
+    def goto_tab_by_box(box, name):
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(box), name) is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    win.show()
+    for w in (1089, 1900):
+        win.resize(w, 900)
+        goto_tab_by_box(gb81, "groupBox_81")
+        app.processEvents()
+        sc13 = ui.scrollArea_13
+        before = (gb81.x(), gb81.y(), gb81.height())
+        # 故障注入：模拟 stale stretch（比诚实值窄 64px）
+        # 收敛环：sync 自身副作用（内容最小尺寸→滚动条→视口）要到 pump 后
+        # 才落定，单遍永远慢一拍；跨 beats 重跑至收敛（至多 3 轮），
+        # 首轮即收敛时直接退出。修复前从不碰组宽→永远不收敛。
+        gb81.resize(gb81.width() - 64, gb81.height())
+        app.processEvents()
+        for _ in range(3):
+            win._sync_page_layouts()
+            app.processEvents()
+            vp = sc13.viewport().width()
+            if gb81.width() == 715 + (vp - 796):
+                break
+        vp = sc13.viewport().width()
+        assert gb81.width() == 715 + (vp - 796), (
+            f"{w}宽 trailing 未收敛: 组宽={gb81.width()} 诚实值={715 + (vp - 796)}(vp={vp})"
+        )
+        assert (gb81.x(), gb81.y(), gb81.height()) == before, f"{w}宽 组位移或变形"
+        # 水印组公式诚实 + 两视口相等时两组看齐（用户原诉求）
+        goto_tab_by_box(gb31, "groupBox_31")
+        app.processEvents()
+        vp_wm = ui.scrollArea_4.viewport().width()
+        assert gb31.width() == 701 + (vp_wm - 782), f"{w}宽 水印组不诚实"
+        if vp == vp_wm:
+            assert gb81.width() == gb31.width(), f"{w}宽 两组未看齐: nfo={gb81.width()} 水印={gb31.width()}"

@@ -99,6 +99,13 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 - 修复：`_sync_nfo_field_tips()`（`_sync_page_layouts` 末尾、set_align 之后调用，无新钩子）。绝对 pin：复位 x=640→重排→按钮右缘超过（组右缘-11）才左移进去；只左移，宽态 640 不动，y 不动；同父坐标系直接可比；休眠页跳过，多拍收敛幂等。测试写法注意：goto 的 beats 会提前同步把按钮钉到 pin 位，“自然溢出”基线须先 `btn.move(640, y)` 复位再取。
 - 回归测试：`tests/test_window_state_matrix.py::test_nfo_field_tips_stays_inside_group_box` 锁定「1000 窄态按钮右缘≤组右缘-11、y 不动、二次同步幂等；1900 宽态 x==640」。
 
+**设置-NFO 组框右缘与水印/演员看齐**（用户窄态+宽态截图：`groupBox_81` 右缘恒比兄弟组靠左 14px）
+
+- 根因（结构）：宽幅公式 `extra=视口宽-内容设计宽`、`组宽=组设计宽+extra`（`CustomClass.py`）；NFO 滚动内容设计宽 796，兄弟页 782——内容设计差恒定 14，extra 永远小 14。滚动条假说已死（两视口离屏实测相等 819=819）。
+- 修复两件：(1)静态补偿 `.ui` 组宽 701→715（落定视口下 715+23=738=兄弟，x=30 不动；pyuic+ruff 再生 `MDCx.py`）；(2)trailing 落定：tab 切换时 showEvent 的 wide-sync 会跑在级联中途（视口 805），落定到 819 后再无事件触发，组带着 stale extra 定格（715+9=724）——`_sync_page_layouts` 在 NFO 控制器量测前显式重跑 `scrollArea_13` 的宽幅同步（同 resizeEvent 顺序，先拉伸后补最小高；休眠页跳过），跨 beats 收敛。
+- 事故教训：`views/` 曾被整体还原，715 在 `.ui`/`.py` 双双丢失而 `test_ui_structure` 仍全绿——该测试只保两文件一致性，保不住意图；重做后以离屏实测复验为准，不要只信测试绿。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_groupbox_resyncs_after_stale_stretch`（故障注入手动改错组宽 64px 模拟 stale；收敛环至多 3 轮 sync+pump——单遍必撞时序，sync 自身副作用要到 pump 后才改变视口；断言诚实值 `715+(vp-796)`、x/y/h 不动、水印组公式诚实 `701+(vp-782)`、两视口相等时两组看齐）。
+
 **版本检查定时复查走完整提示链**（用户需求：`timer_update`（12h）只连裸 `check_version`——主线程阻塞做网络且返回值丢弃，定时检查永远不提示）
 
 - 根因：定时器直连 `check_version`（`main_window.py:235`），阻塞主线程做网络 I/O，返回的版本号无处消费；真正会提示的只有启动 `show_version()` 那一次（工作线程 + 比较 + 红字/下载链接/标签刷新全链路）。

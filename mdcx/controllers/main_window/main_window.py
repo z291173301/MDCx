@@ -1063,6 +1063,17 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / 命名页: 模板预览固定高度 + 说明文字贴合 ============
         self._sync_naming_template_section()
 
+        # ============ page_setting / NFO页: 宽幅组落定（先落定再量） ============
+        # verify_gb 复验血案：tab 切换时 showEvent 的 wide-sync 跑在级联中途
+        # （视口 805），落定到 819 后再无事件触发它，groupBox_81 带着 stale
+        # extra 定格（715+9=724），与水印组恒差 14px，且后面六个控制器全在
+        # stale 几何上量测。在 NFO 控制器量测之前显式重跑一次 NFO 滚动区的
+        # 宽幅同步（同 resizeEvent 顺序：先拉伸后补最小高），保证控制器量的
+        # 全是终态几何。休眠页跳过（切页 showEvent + beats 会补齐）。
+        if ui.groupBox_81.isVisibleTo(self):
+            ui.scrollArea_13.sync_wide_children_width()
+            ui.scrollArea_13.sync_content_min_height()
+
         # ============ page_setting / NFO页: 左标签冒号左移与组标题冒号对齐 ============
         self._sync_nfo_colon_align()
 

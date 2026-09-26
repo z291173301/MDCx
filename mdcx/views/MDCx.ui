@@ -17724,6 +17724,9 @@
                 <property name="lineWidth">
                   <number>0</number>
                 </property>
+                <property name="verticalScrollBarPolicy">
+                  <enum>Qt::ScrollBarAlwaysOn</enum>
+                </property>
                 <property name="horizontalScrollBarPolicy">
                   <enum>Qt::ScrollBarAlwaysOff</enum>
                 </property>
@@ -17744,7 +17747,7 @@
                       <rect>
                         <x>30</x>
                         <y>20</y>
-                        <width>701</width>
+                        <width>715</width>
                         <height>1071</height>
                       </rect>
                     </property>
