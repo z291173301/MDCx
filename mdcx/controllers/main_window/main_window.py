@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
 from PyQt6.QtCore import QEvent, QItemSelectionModel, QPoint, QPointF, QRect, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QCursor, QGuiApplication, QHoverEvent, QIcon, QKeySequence, QPixmap, QShortcut
+from PyQt6.QtGui import QAction, QCursor, QGuiApplication, QHoverEvent, QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -202,6 +202,7 @@ class MyMAinWindow(QMainWindow):
         self._naming_design: dict | None = None  # 命名页模板预览区：首次登记的设计几何基准
         self._naming_resyncing = False  # 命名页模板预览区：重算中标志（防 label resize 递归触发）
         self._naming_last_width = -1  # 命名页说明文字上次同步所用的宽度
+        self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
 
         self.window_radius = 0  # 窗口四角弧度，为0时表示显示窗口标题栏
         self.window_border = 0  # 窗口描边，为0时表示显示窗口标题栏
@@ -268,11 +269,12 @@ class MyMAinWindow(QMainWindow):
         self.Ui.tabWidget.currentChanged.connect(
             lambda _index: QTimer.singleShot(0, self._sync_naming_template_section)
         )
-        # NFO 页同样在设置页 tab 内：切到该 tab 时滚动区 showEvent 会重做宽幅拉伸，
-        # gridLayout_66 的 C1 随之重新发散，需在下一拍按最新视口宽重钉 thirds。
-        self.Ui.tabWidget.currentChanged.connect(lambda _index: QTimer.singleShot(0, self._sync_nfo_right_column_align))
-        # 原标题/简介行同理：休眠页切回时重钉发行日期列（见 _sync_nfo_title_plot_align）。
-        self.Ui.tabWidget.currentChanged.connect(lambda _index: QTimer.singleShot(0, self._sync_nfo_title_plot_align))
+        # 设置页 tab 内各页同理：切 tab 下一拍只排队，真活留到再下一拍的全量同步。
+        # 实测：切 NFO 页当拍布局 deferred 级联（scrollbar 出现约 14px、宽幅重拉）
+        # 要到一批 processEvents 后才落定，直接同步会读到级联前的旧 custom.x
+        # （1076 stale，由此 C1min=449 钉错 critic），而全量 pass 自带 page 级
+        # 刷新、落定后单遍收敛（1075 对齐 / 显式重跑 459 收敛实测）。
+        self.Ui.tabWidget.currentChanged.connect(lambda _index: QTimer.singleShot(0, self._queue_nfo_post_cascade_sync))
         # 说明文字宽度变化（滚动条占位、休眠页拉伸等）时自动补一次重算。
         self.Ui.label_66.installEventFilter(self)
         self._bind_system_theme_refresh()
@@ -1049,11 +1051,179 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / 命名页: 模板预览固定高度 + 说明文字贴合 ============
         self._sync_naming_template_section()
 
+        # ============ page_setting / NFO页: 左标签冒号左移与组标题冒号对齐 ============
+        self._sync_nfo_colon_align()
+
         # ============ page_setting / NFO页: 宽视口下右列左对齐到 thirds ============
         self._sync_nfo_right_column_align()
 
         # ============ page_setting / NFO页: 宽视口下原标题/简介/原简介左对齐到发行日期列 ============
         self._sync_nfo_title_plot_align()
+
+    def _queue_nfo_post_cascade_sync(self) -> None:
+        """tab 切换后第一拍：只排队，把全量同步留到级联落定后的第二拍。"""
+        QTimer.singleShot(0, self._sync_page_layouts)
+
+    # 设置-NFO「写入NFO的字段」组：col0 左标签（130px Fixed 右对齐），冒号在右缘
+    _NFO_COLON_LABELS = (
+        "label_163",  # 标题：
+        "label_384",  # 简介：
+        "label_385",  # 发行日期：
+        "label_392",  # 国家/分级：
+        "label_391",  # 年份/时长/想看：
+        "label_390",  # 评分：
+        "label_386",  # 演员/导演：
+        "label_208",  # 系列/标签：
+        "label_334",  # 风格/合集：
+        "label_388",  # 片商/发行商：
+        "label_150",  # 封面/背景/预告片：
+    )
+
+    def _sync_nfo_colon_align(self) -> None:
+        """设置-NFO：左标签冒号左移与组标题冒号严格上下对齐，窄态宽态一致。
+
+        用户截图：标题：/简介：/发行日期：/国家/分级：/年份/时长/想看：/
+        评分：/演员/导演：/系列/标签：/风格/合集：/片商/发行商：/封面/背景/
+        预告片：等 11 个左标签缩进在右，要求整体左移、冒号与组标题
+        「写入NFO的字段：」的冒号严格对齐，右侧控件跟随、间距不变，
+        最小化与最大化都要对齐。
+        根因：col0 标签 130px Fixed 右对齐，冒号恒在 col0 右缘
+        （layoutWidget_10.x + 130，实测窄态 gb 坐标 x=150）；组标题冒号
+        在组左缘 + 标题字形宽（实测 x≈103）。两者差约 42px，而内容区左
+        空气只有 layoutWidget_10.x ≈ 20px（gridLayout_40 margin 全 0，
+        已离屏实测），固定 margin 杠杆不够；且标题字形宽随字体变，
+        魔法数字必随字体漂移（见右列对齐 b14 教训）。
+        做法（像素标定 + 纯函数位移，双向幂等）：_calibrate_nfo_colons
+        对组盒做一次渲染扫描，标定组标题冒号 x 与行标签右 pad（字形右缘
+        与矩形右缘差，同字同号两边抵消的余量），按字体样式 key 缓存，
+        稳态零渲染开销；每遍用「当前位 + 位移」把 layoutWidget_10 连 x
+        带宽整体左移（右缘保持，col1 右侧不动，col0/col1 间距全保留），
+        防裁字守卫只允许裁 col0 左缘空白（右对齐标签文本左缘禁区，活测
+        最长文本），最长标签宽于组标题冒号位置时（如当前）钳住取免裁字
+        最大位移、接受残差（预算证明严格对齐结构性无解）。只碰容器几何，不碰 y 与行。
+        在 _sync_page_layouts 最先调用（右列/thirds、标题/发行日期两同步
+        都是相对位置比较，整体平移对其透明）。休眠页跳过，切 tab 下一拍
+        单发补齐（同 b14/b17 钩子）。
+        """
+        ui = self.Ui
+        gb = ui.groupBox_81
+        if not gb.isVisibleTo(self):
+            return
+        lw = ui.layoutWidget_10
+        lbs = [getattr(ui, n) for n in self._NFO_COLON_LABELS]
+        ref = lbs[0]  # 标题：，col0 右对齐代表行
+        key = (gb.font().toString(), ref.font().toString(), type(gb.style()).__name__)
+        cal = self._nfo_colon_cal
+        if cal is None or cal[0] != key:
+            fresh = self._calibrate_nfo_colons(gb, lw, lbs)
+            if fresh is None:
+                return
+            self._nfo_colon_cal = (key,) + fresh
+            cal = self._nfo_colon_cal
+        _, title_colon, row_pad = cal
+        dm = title_colon - (lw.x() + ref.x() + ref.width() - row_pad)
+        new_x = lw.x() + dm
+        # 防裁字：文本左缘（gb 坐标）不许进负区
+        fm = ref.fontMetrics()
+        widths = [fm.horizontalAdvance(getattr(ui, n).text()) for n in self._NFO_COLON_LABELS]
+        fitting = [w for w in widths if w <= ref.width()]
+        min_x = (
+            (max(fitting) - ref.width()) if fitting else -1000000
+        )  # 守卫生于 advance 空间：+row_pad 版曾稳定触发 fail-fast 崩溃，故保持本式；残余 advance 缺口为 bearings，ink 由回归测试验证放得下
+        if new_x < min_x:
+            new_x = min_x
+        right = lw.x() + lw.width()
+        new_w = right - new_x
+        if new_x == lw.x() and new_w == lw.width():
+            return
+        lw.setGeometry(new_x, lw.y(), new_w, lw.height())
+        grid = lw.layout()
+        if grid is not None:
+            grid.invalidate()
+            grid.activate()
+
+    @staticmethod
+    def _calibrate_nfo_colons(gb, lw, labels):
+        """渲染扫描标定 (组标题冒号x, 行标签右pad)，失败返回 None（调用方跳过）。
+
+        标题行（组顶 y 2..17）从左向右找第一个 ≥15px 的墨点间隙：
+        有注释同行时间隙后是注释，无注释时标题冒号即带内最右墨点，
+        两种版式都成立。行标签文本恒以中文冒号结尾，从矩形右缘向左
+        首个墨点即冒号右缘；11 个取中位数抗个别渲染抖动。阈值相对背景
+        取 60，暗黑主题同样成立。纵坐标按 dpr 换算，返回逻辑像素。
+        """
+        try:
+            pix = gb.grab()
+            img = pix.toImage().convertToFormat(QImage.Format.Format_RGB32)
+        except Exception:
+            return None
+        wpx, hpx = img.width(), img.height()
+        if wpx <= 0 or hpx <= 0:
+            return None
+        dpr = pix.devicePixelRatio() or 1.0
+
+        def lum(x, y):
+            c = img.pixel(int(x), int(y))
+            return (((c >> 16) & 0xFF) * 3 + ((c >> 8) & 0xFF) * 6 + (c & 0xFF)) / 9.0
+
+        bg = lum(wpx / 2, hpx - 4 * dpr)
+
+        def ink(x, y):
+            return abs(lum(x, y) - bg) > 60
+
+        # 组标题冒号：y 2..17 带，x 0..400 的墨点 runs
+        y0, y1 = int(2 * dpr), min(int(17 * dpr), hpx)
+        x_max = min(int(400 * dpr), wpx)
+        runs = []
+        cur = None
+        for x in range(0, x_max):
+            hit = any(ink(x, y) for y in range(y0, y1))
+            if hit:
+                if cur is None:
+                    cur = [x, x]
+                else:
+                    cur[1] = x
+            elif cur is not None:
+                runs.append(tuple(cur))
+                cur = None
+        if cur is not None:
+            runs.append(tuple(cur))
+        if not runs:
+            return None
+        title_colon = runs[-1][1]
+        for i, (_a, b) in enumerate(runs):
+            if b > 60 * dpr and i + 1 < len(runs) and runs[i + 1][0] - b >= 15 * dpr:
+                title_colon = b
+                break
+        title_colon = title_colon / dpr
+        if not 0 < title_colon < 400:
+            return None
+        # 11 行标签冒号：各带内从矩形右缘向左首个墨点，取中位数
+        found = []
+        for lb in labels:
+            try:
+                top = lb.mapTo(gb, lb.rect().topLeft())
+                right = top.x() + lb.rect().width()
+                yy0 = max(0, int(top.y() * dpr))
+                yy1 = min(hpx, int((top.y() + lb.rect().height()) * dpr))
+                xx = int(right * dpr)
+                stop = (right - 40) * dpr
+                while xx > stop:
+                    if any(ink(xx, y) for y in range(yy0, yy1)):
+                        found.append(xx / dpr)
+                        break
+                    xx -= 1
+            except Exception:
+                continue
+        if len(found) < 6:
+            return None
+        found.sort()
+        median = found[len(found) // 2]
+        ref = labels[0]
+        row_pad = (lw.x() + ref.x() + ref.width()) - median
+        if not 0 <= row_pad <= 40:
+            return None
+        return (title_colon, row_pad)
 
     def _sync_nfo_right_column_align(self) -> None:
         """设置-NFO：宽视口下右列（影评/导演/TMDB/标签）左对齐到自定义分级/想看人数。
@@ -1078,6 +1248,12 @@ class MyMAinWindow(QMainWindow):
         critic = ui.checkBox_nfo_criticrating
         custom = ui.checkBox_nfo_customrating
         grid.setColumnMinimumWidth(1, 0)
+        # 防御性刷新：直接调用时若外层有 pending 布局请求，先落定再测量
+        # （内层激活只排布 cell 内部，不管 cell 本身在哪）。钩子时序问题另由
+        # _queue_nfo_post_cascade_sync 解决，此处只保测量新鲜。
+        outer = ui.gridLayout_40
+        if outer is not None:
+            outer.activate()
         grid.invalidate()
         grid.activate()
         if critic.x() > custom.x():
@@ -1123,6 +1299,10 @@ class MyMAinWindow(QMainWindow):
         for row in rows:
             row.invalidate()
             row.activate()
+        # 防御性刷新：同 thirds，行位置由外层分配，先落定再读 ot/rd.x。
+        outer = ui.gridLayout_40
+        if outer is not None:
+            outer.activate()
         if ui.scrollArea_13.viewport().width() - 796 <= 200:
             return
         d0 = rd.x() - ot.x()

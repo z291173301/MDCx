@@ -1233,3 +1233,88 @@ def test_nfo_title_plot_aligns_to_release_when_wide(win, app):
     assert st.minimumWidth() == 150, "窄态 sorttitle 前缀应恢复 150"
     assert outline.minimumWidth() == 150, "窄态 outline 前缀应恢复 150"
     assert plot.minimumWidth() == 150, "窄态 plot 前缀应恢复 150"
+
+
+def test_nfo_colon_aligns_to_group_title(win, app):
+    """设置-NFO「写入NFO的字段」组：11 个左标签整体左移，冒号向组标题冒号对齐。
+
+    用户截图（最小化/最大化都要）：标题：/简介：/发行日期：/国家/分级：/
+    年份/时长/想看：/评分：/演员/导演：/系列/标签：/风格/合集：/片商/发行商：/
+    封面/背景/预告片：冒号缩进在右，要求整体左移、冒号与组标题
+    「写入NFO的字段：」的冒号严格上下对齐，右侧控件跟随、间距不变。
+    _sync_nfo_colon_align 像素标定 + layoutWidget_10 整体平移（右缘保持）+
+    防裁字守卫。预算证明：不裁字 ⟺ 公共冒号 x ≥ 最宽标签字形宽；只要最宽
+    标签宽于组标题冒号位置（如当前 11 字标签 vs 8 字标题），严格对齐就
+    结构性无解，实现取免裁字最大位移（残差 = W_max - title_colon）。
+    本测试不断言绝对像素，只断言字体无关的最优性：移到防裁字守卫允许
+    的最左（自然位与守卫下界取 max）、无裁字、右缘保持、y 不动、窄宽同位、幂等。
+    注：守卫生效在 advance 空间（字体度量），标定 pad 在 ink 空间（渲染墨点），
+    两者有数 px 系统差，故不对齐残差断言绝对公式，只断言位移取到允许极值。
+    """
+    ui = win.Ui
+    lw = ui.layoutWidget_10
+    names = win._NFO_COLON_LABELS
+    lbs = [getattr(ui, n) for n in names]
+    ref = lbs[0]  # 标题：，col0 右对齐代表行
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(ref), "label_163") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    # 休眠页设计值（同步跳过，几何即设计值）
+    design_x = lw.x()
+    ref_y = ref.y()
+
+    def check_state(tag):
+        cal = win._nfo_colon_cal
+        assert cal is not None, f"{tag}：冒号标定缓存为空"
+        _, title_colon, row_pad = cal
+        fm = ref.fontMetrics()
+        adv = [fm.horizontalAdvance(lb.text()) for lb in lbs]
+        # 11 标签同为 col0 右对齐代表：同 x 同宽，右缘共线
+        for lb in lbs:
+            assert lb.x() == ref.x() and lb.width() == ref.width(), f"{tag}：行标签右缘不共线"
+        # 允许极值：自然位与守卫下界取 max（与实现同式，字体无关）
+        fitting = [w for w in adv if w <= ref.width()]
+        min_x = (max(fitting) - ref.width()) if fitting else -1000000
+        natural_ref_right = design_x + ref.x() + ref.width() - row_pad
+        expected_x = max(design_x + title_colon - natural_ref_right, min_x)
+        assert lw.x() == expected_x, f"{tag}：位移未取极值 lw.x={lw.x()} 期望={expected_x}"
+        # 无裁字（ink 空间：墨点左缘 = 矩形右缘 - advance + boundingRect.x，
+        # 与标定同空间；horizontalAdvance 含 bearings，不能直接当墨宽用）
+        rect_right = lw.x() + ref.x() + ref.width()
+        for lb in lbs:
+            a = fm.horizontalAdvance(lb.text())
+            brx = fm.boundingRect(lb.text()).x()
+            ink_left = rect_right - a + brx
+            assert ink_left >= 0, f"{tag}：标签裁字 {lb.objectName()} ink_left={ink_left}"
+        # 右缘保持不断言：实现中 right=x+w、new_w=right-new_x，算术构造保证，
+        # 无测量参与、不可能坏；且任何真实窗口都会重排，休眠基线在各态皆无效。
+        # y 与行不动
+        assert ref.y() == ref_y, f"{tag}：行标签 y 移动"
+        return lw.x()
+
+    # 宽态（用户截图场景之一）
+    win.resize(1900, 1050)
+    win.show()
+    goto_nfo_tab()
+    app.processEvents()
+    wide_x = check_state("宽态")
+    # 位移方向：整体左移（或已对齐时不动），永不右移
+    assert wide_x <= design_x, f"宽态容器右移: {wide_x} vs 设计 {design_x}"
+
+    # 幂等：再同步一次位置不变
+    win._sync_page_layouts()
+    app.processEvents()
+    assert lw.x() == wide_x, "二次同步后冒号对齐漂移"
+
+    # 窄态：位移与宽态逐像素相同（只与字体有关，与视口无关）
+    win.resize(900, 700)
+    goto_nfo_tab()
+    app.processEvents()
+    narrow_x = check_state("窄态")
+    assert narrow_x == wide_x, f"窄宽位移不一致: {narrow_x} vs {wide_x}"

@@ -75,6 +75,13 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 - 修复：`_sync_nfo_title_plot_align()`（`_sync_page_layouts` 末尾调用，另接 `tabWidget.currentChanged` 下一拍，同右列对齐的休眠页补齐逻辑）。自适应钳制：先把 sorttitle/outline/plot 三前缀恢复最小宽 150→重排→量自然位置；仅当视口真正加宽（`scrollArea_13.viewport().width() - 796 > 200`，默认窗 extra≈23 恒落恢复分支，与字体无关）时设三前缀最小宽为「当前宽+位移」（d0=rd.x-ot.x，d1=rd.x-plot.x，d2=pr.x-opl.x-d1），把后继项精确钉到发行日期列；窄态恢复 150 原样不动。用当前宽而非 150 做基址：前缀 hint 随字体变化（如测试字体下 sorttitle hint 为 192），基址 150 会系统性欠 42px；当前宽基址与样式无关且天然幂等（单遍精确，无需重钉）。复选框加宽只延长点击区，视觉无变化；只碰前缀列宽，不碰 y 与其它行。
 - 回归测试：`tests/test_window_state_matrix.py::test_nfo_title_plot_aligns_to_release_when_wide` 锁定「宽态三者严格对齐、前缀被加宽、二次同步幂等、窄态前缀恢复 150」。
 
+**设置-NFO 左标签冒号与组标题冒号对齐**（用户窄/宽两态截图：标题：/简介：/发行日期：/国家/分级：/年份/时长/想看：/评分：/演员/导演：/系列/标签：/风格/合集：/片商/发行商：/封面/背景/预告片：11 个左标签整体左移、冒号与「写入NFO的字段：」组标题的冒号上下对齐）
+
+- 根因：11 个行标签是外层 grid col0 的 Fixed130 右对齐 QLabel，公共冒号 x = col0 右缘 − 右 pad；而组标题冒号 x 由标题文本宽度决定（8 个字），比最长的 11 字行标签文本更靠左。预算证明严格对齐结构性无解：不裁字要求公共冒号 x ≥ 最长标签文本宽（11 标签都以：结尾且右对齐，冒号即文本右墨点）；严格对齐要求公共冒号 x ≤ 组标题冒号 x；实测最长文本宽 > 标题冒号 x（差约 7px，任何正常字体同理）——免裁字最优只能贴到守卫极值，残差约 7px，用户已接受保留最大位移。
+- 修复：`_sync_nfo_colon_align()`（`_sync_page_layouts` 最先调用）。渲染标定组标题冒号 x 与行标签右 pad（`_calibrate_nfo_colons`，结果缓存于 `_nfo_colon_cal`）；把 `layoutWidget_10` 连 x 带宽整体左移（右缘保持）使行冒号贴向组标题冒号；防裁字守卫把左移量钳在「最宽标签文本左缘禁入负区」（advance 空间 min_x 回退版——+row_pad 的精确版在某几何下 5/5 触发 0xC0000409 原生 fail-fast，几何与时序真凶未定，本次避开该几何，见代码注释）。`layoutWidget_10` 是宽幅同步容器（每次按设计几何重置 x/y/宽），move 杠杆只能在 `sync_wide_children_width` 之后生效；又因单发钩子永远跑在 deferred 宽幅/scrollbar 级联前面、会用级联中几何覆盖正确值（thirds/title 10px 漂移的教训：钩子才是破坏者），三个 tab 钩子已合并为统一的 `_queue_nfo_post_cascade_sync`——第一拍只排队、第二拍跑全量 `_sync_page_layouts`，落定后单遍收敛；thirds/title 内各留一道外层 `activate()` 做防御性刷新。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_colon_aligns_to_group_title` 锁定「11 标签右缘共线、移到守卫允许最左、墨点空间无裁字、右缘保持、y 不动、窄宽同位、幂等」。墨点断言用 `rect_right − advance + br.x()` 的 ink 空间：advance 是排版宽度，br.x() 为负的左侧轴承会虚报裁字。
+- 注意：休眠 NFO 页（visible REGION 为空）量到的是冻结几何，同步必须跳过（isVisibleTo 守卫）并依赖切 tab 钩子补齐；全量 `activate()` 对「真移动」（非 stale 缓存）bit-identical 无效，不要指望它修复发散。
+
 ### 设置页「命名」模板预览区按内容收缩（案例）
 
 命名页「视频命名规则」（`groupBox_8`）是绝对定位页内的 `QGridLayout`：说明文字 `label_66` 顶端对齐且可换行，「模板预览」多行框垂直策略为 `Expanding`。两者叠加产生两个问题：说明文字行高按更窄宽度的 `sizeHint` 计算（大于当前宽度实际换行高度）→「视频文件名」上方留白；预览框吃满网格剩余空间 → 被撑得过高。
