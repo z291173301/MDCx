@@ -269,6 +269,9 @@ def Init_Ui(self: "MyMAinWindow"):
     # 是给设置页浮框带留的），否则小窗时多余留白把「保存当前nfo文件」挤出视口、
     # 凭空多出一条垂直滚动条，滚动条还会盖住输入框右侧圆角。
     self.Ui.scrollArea_nfo_lib_form.set_content_bottom_margin(8)
+    # 软件工具页卡片右缘向左收到与软件设置页齐平：左缘不动，内部相对位置不变。
+    # 差值 800~2200 窗宽下实测恒定 4px（见 tests/test_tool_page_right_align.py）。
+    self.Ui.scrollArea_10.set_content_right_trim(4)
     # stackedWidget 中未显示的页面不会触发 resize/show 事件，统一初始化
     # 自定义滚动区内容最小高度，保证首次切换到任一页面垂直滚动即可用
     from mdcx.views.CustomClass import CustomScrollArea

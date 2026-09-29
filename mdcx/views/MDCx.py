@@ -725,7 +725,7 @@ class Ui_MDCx(object):
         self.pushButton_move_mp4.setGeometry(QtCore.QRect(140, 110, 351, 40))
         self.pushButton_move_mp4.setObjectName("pushButton_move_mp4")
         self.label_41 = QtWidgets.QLabel(parent=self.groupBox_6)
-        self.label_41.setGeometry(QtCore.QRect(70, 30, 80, 30))
+        self.label_41.setGeometry(QtCore.QRect(50, 30, 90, 30))
         self.label_41.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignLeading
             | QtCore.Qt.AlignmentFlag.AlignLeft
@@ -898,11 +898,11 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_link.setObjectName("pushButton_actor_db_link")
         self.label_actor_db_translate_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_translate_desc.setGeometry(QtCore.QRect(40, 120, 200, 20))
-        self.label_actor_db_translate_desc.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_translate_desc.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_translate_desc.setObjectName("label_actor_db_translate_desc")
         self.label_actor_db_link_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_link_desc.setGeometry(QtCore.QRect(260, 120, 200, 20))
-        self.label_actor_db_link_desc.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_link_desc.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_link_desc.setObjectName("label_actor_db_link_desc")
         self.pushButton_actor_db_open = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
         self.pushButton_actor_db_open.setGeometry(QtCore.QRect(40, 140, 200, 28))
@@ -912,7 +912,7 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_stop.setObjectName("pushButton_actor_db_stop")
         self.label_actor_db_open_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_open_desc.setGeometry(QtCore.QRect(260, 144, 200, 20))
-        self.label_actor_db_open_desc.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_open_desc.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_open_desc.setObjectName("label_actor_db_open_desc")
         self.label_actor_db_note = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_note.setGeometry(QtCore.QRect(40, 176, 621, 28))
@@ -927,7 +927,7 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_fill_minnano.setObjectName("pushButton_actor_db_fill_minnano")
         self.label_actor_db_fill_minnano_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_fill_minnano_desc.setGeometry(QtCore.QRect(480, 206, 221, 30))
-        self.label_actor_db_fill_minnano_desc.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_fill_minnano_desc.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_fill_minnano_desc.setWordWrap(True)
         self.label_actor_db_fill_minnano_desc.setObjectName("label_actor_db_fill_minnano_desc")
         self.pushButton_actor_db_verify_tmdbid = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
@@ -935,7 +935,7 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_verify_tmdbid.setObjectName("pushButton_actor_db_verify_tmdbid")
         self.label_actor_db_verify_tmdbid_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_verify_tmdbid_desc.setGeometry(QtCore.QRect(260, 246, 381, 28))
-        self.label_actor_db_verify_tmdbid_desc.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_verify_tmdbid_desc.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_verify_tmdbid_desc.setWordWrap(True)
         self.label_actor_db_verify_tmdbid_desc.setObjectName("label_actor_db_verify_tmdbid_desc")
         self.pushButton_actor_db_check = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
@@ -943,7 +943,7 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_check.setObjectName("pushButton_actor_db_check")
         self.label_actor_db_check_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_check_desc.setGeometry(QtCore.QRect(260, 280, 381, 42))
-        self.label_actor_db_check_desc.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_check_desc.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_check_desc.setWordWrap(True)
         self.label_actor_db_check_desc.setObjectName("label_actor_db_check_desc")
         self.pushButton_actor_db_fill_zh_javdb = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
@@ -951,7 +951,7 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_fill_zh_javdb.setObjectName("pushButton_actor_db_fill_zh_javdb")
         self.label_actor_db_fill_zh_javdb_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_fill_zh_javdb_desc.setGeometry(QtCore.QRect(260, 534, 421, 30))
-        self.label_actor_db_fill_zh_javdb_desc.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_fill_zh_javdb_desc.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_fill_zh_javdb_desc.setWordWrap(True)
         self.label_actor_db_fill_zh_javdb_desc.setObjectName("label_actor_db_fill_zh_javdb_desc")
         self.lineEdit_actor_db_nfo_dir = QtWidgets.QLineEdit(parent=self.groupBox_actor_db_maintenance)
@@ -965,7 +965,7 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_update_nfo_tmdbid.setObjectName("pushButton_actor_db_update_nfo_tmdbid")
         self.label_actor_db_update_nfo_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_update_nfo_desc.setGeometry(QtCore.QRect(40, 360, 621, 28))
-        self.label_actor_db_update_nfo_desc.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_update_nfo_desc.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_update_nfo_desc.setWordWrap(True)
         self.label_actor_db_update_nfo_desc.setObjectName("label_actor_db_update_nfo_desc")
         self.pushButton_actor_db_sync_aliases = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
@@ -1003,12 +1003,12 @@ class Ui_MDCx(object):
         self.spinBox_actor_db_sync_limit.setObjectName("spinBox_actor_db_sync_limit")
         self.label_actor_db_sync_slice_hint = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_sync_slice_hint.setGeometry(QtCore.QRect(400, 444, 261, 28))
-        self.label_actor_db_sync_slice_hint.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_sync_slice_hint.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_sync_slice_hint.setWordWrap(True)
         self.label_actor_db_sync_slice_hint.setObjectName("label_actor_db_sync_slice_hint")
         self.label_actor_db_sync_aliases_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_sync_aliases_desc.setGeometry(QtCore.QRect(40, 480, 621, 42))
-        self.label_actor_db_sync_aliases_desc.setStyleSheet("color: rgb(160, 160, 160); font-size: 12px;")
+        self.label_actor_db_sync_aliases_desc.setStyleSheet("color: rgb(8, 128, 128); font-size: 12px;")
         self.label_actor_db_sync_aliases_desc.setWordWrap(True)
         self.label_actor_db_sync_aliases_desc.setObjectName("label_actor_db_sync_aliases_desc")
         self.groupBox_cover_backfill = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
@@ -12537,13 +12537,13 @@ class Ui_MDCx(object):
         self.pushButton_select_file_clear_info.setText(_translate("MDCx", "清空信息"))
         self.groupBox_13.setTitle(_translate("MDCx", "裁剪图片（将某个图片裁剪为封面图大小，支持加水印）"))
         self.pushButton_select_thumb.setText(_translate("MDCx", "选择图片"))
-        self.label_6.setText(_translate("MDCx", "此工具支持拖动选择裁剪范围，可将图片裁剪为封面图（poster）。"))
+        self.label_6.setText(_translate("MDCx", "此工具支持拖动选择裁剪范围，可将图片裁剪为Poster封面图"))
         self.groupBox_19.setTitle(_translate("MDCx", "检查演员缺失番号（检查资源库中指定演员本地缺失的番号）"))
         self.label_53.setText(_translate("MDCx", "演员名："))
         self.label_72.setText(_translate("MDCx", "本地资源库："))
         self.pushButton_find_missing_number.setText(_translate("MDCx", "检查缺失番号"))
         self.pushButton_select_local_library.setText(_translate("MDCx", "选择目录"))
-        self.label_62.setText(_translate("MDCx", "本地资源库和演员名都可以填写多个，以逗号分开（中英文逗号都可以）"))
+        self.label_62.setText(_translate("MDCx", "本地资源库和演员名都可以填写多个，以中英文逗号分开"))
         self.groupBox_6.setTitle(
             _translate("MDCx", "移动视频、字幕（将待刮削目录下所有子目录中的视频移动到一个目录中以方便进行查看）")
         )
@@ -12572,17 +12572,17 @@ class Ui_MDCx(object):
             _translate("MDCx", "演员库维护（直接操作 actor_database.xlsx，复用当前配置的 TMDB API）")
         )
         self.label_actor_db_desc.setText(
-            _translate("MDCx", "以下操作均直接读写 actor_database.xlsx 文件，无需输入演员名单。")
+            _translate("MDCx", "以下操作均直接读写Actor_Database.xlsx文件，无需输入演员名单")
         )
         self.pushButton_actor_db_translate.setText(_translate("MDCx", "补全中文名"))
-        self.pushButton_actor_db_link.setText(_translate("MDCx", "补全 LibreDMM 链接"))
-        self.label_actor_db_translate_desc.setText(_translate("MDCx", "扫描已有TMDB ID缺少中文名的条目"))
+        self.pushButton_actor_db_link.setText(_translate("MDCx", "补全LibreDMM链接"))
+        self.label_actor_db_translate_desc.setText(_translate("MDCx", "扫描已有演员TMDB ID但是缺少中文姓名的条目"))
         self.label_actor_db_link_desc.setText(_translate("MDCx", "扫描已有TMDB ID缺少链接的条目"))
         self.pushButton_actor_db_open.setText(_translate("MDCx", "打开演员数据库"))
         self.pushButton_actor_db_stop.setText(_translate("MDCx", "停止当前维护任务"))
-        self.label_actor_db_open_desc.setText(_translate("MDCx", "用默认程序打开xlsx供查看与编辑"))
+        self.label_actor_db_open_desc.setText(_translate("MDCx", "用默认程序打开xlsx查看与编辑"))
         self.label_actor_db_note.setText(
-            _translate("MDCx", "提示：补全结果将输出到日志页。所有按钮均防重入，运行中按钮禁用。")
+            _translate("MDCx", "提示：补全结果将输出到日志页所有按钮均防重入，运行中按钮将禁用")
         )
         self.pushButton_actor_db_clean_male.setText(_translate("MDCx", "剔除男演员"))
         self.pushButton_actor_db_fill_minnano.setToolTip(
@@ -12591,9 +12591,9 @@ class Ui_MDCx(object):
                 "从 minnano-av 补全缺生日/简介的条目（已有生日且简介非空的行跳过）。只补空缺，不覆盖已有值，作用于当前用户演员库。补全时会将出身/爱好/事务所/标签等日文字段翻译成中文（事务所/标签优先用内置信息库映射，其余用已配置的翻译引擎）。需联网。",
             )
         )
-        self.pushButton_actor_db_fill_minnano.setText(_translate("MDCx", "minnano 补全"))
+        self.pushButton_actor_db_fill_minnano.setText(_translate("MDCx", "Minnano-av补全"))
         self.label_actor_db_fill_minnano_desc.setText(
-            _translate("MDCx", "从Minnano-av补全缺少的生日/简介，日文字段自动翻译")
+            _translate("MDCx", "从Minnano-av补全缺少的演员生日和简介信息，其中日文字段将自动翻译为中文")
         )
         self.pushButton_actor_db_verify_tmdbid.setToolTip(
             _translate(
@@ -12601,7 +12601,7 @@ class Ui_MDCx(object):
                 "校验库中所有 tmdbid 是否仍有效。TMDB 是公开平台，person id 可能被删除/重建，失效 id 会被清除，并自动按名字重新搜索补回新 id（搜不到则保持无 id，刮削按名字兜底搜索）。需配置 TMDB API Key。",
             )
         )
-        self.pushButton_actor_db_verify_tmdbid.setText(_translate("MDCx", "校验 tmdbid 有效性"))
+        self.pushButton_actor_db_verify_tmdbid.setText(_translate("MDCx", "校验TMDB ID有效性"))
         self.label_actor_db_verify_tmdbid_desc.setText(
             _translate("MDCx", "失效ID清除后自动按名字重搜补新ID，搜不到则保持无ID刮削兜底")
         )
@@ -12621,11 +12621,11 @@ class Ui_MDCx(object):
                 "从 JavDB 移动端 API 查询演员的中文名/繁体名。仅处理「中文名 == 日文原名」的行（即未做中文化、且日文原名含汉字的条目），用 JavDB 的 name_zht/name 字段补全正式中文名，繁体转简体写入中文名列、繁体写入繁体名列。无需 TMDB API Key，按日文原名搜索。配合「起始行/限量」可分片续跑。",
             )
         )
-        self.pushButton_actor_db_fill_zh_javdb.setText(_translate("MDCx", "JavDB 中文名"))
+        self.pushButton_actor_db_fill_zh_javdb.setText(_translate("MDCx", "JavDB中文名"))
         self.label_actor_db_fill_zh_javdb_desc.setText(
-            _translate("MDCx", "JavDB的name_zht转简体补全中文名；仅处理「中文==日文原名」的行")
+            _translate("MDCx", "JavDB的name_zht转简体并补全中文姓名，仅处理中文姓名==日文原名的行")
         )
-        self.lineEdit_actor_db_nfo_dir.setPlaceholderText(_translate("MDCx", "选择 nfo 目录"))
+        self.lineEdit_actor_db_nfo_dir.setPlaceholderText(_translate("MDCx", "选择nfo目录"))
         self.pushButton_actor_db_pick_nfo_dir.setText(_translate("MDCx", "选择目录"))
         self.pushButton_actor_db_update_nfo_tmdbid.setToolTip(
             _translate(
@@ -12633,7 +12633,7 @@ class Ui_MDCx(object):
                 "批量更新指定目录下所有 nfo 中 actor 的 tmdbid：用本地演员库（已校验+补回）的新 id 覆盖 nfo 旧 id，nfo 原本没有 tmdbid 的也补上。仅改 tmdbid 值，保留 nfo 其他内容。",
             )
         )
-        self.pushButton_actor_db_update_nfo_tmdbid.setText(_translate("MDCx", "更新 nfo tmdbid"))
+        self.pushButton_actor_db_update_nfo_tmdbid.setText(_translate("MDCx", "更新nfo文件TMDB ID字段"))
         self.label_actor_db_update_nfo_desc.setText(
             _translate("MDCx", "用本地库新 id 覆盖 nfo 旧 id；原本没有的补上（nfo 是持久源，改这里 Emby 重扫才一致）")
         )
@@ -12678,7 +12678,7 @@ class Ui_MDCx(object):
         self.label_cover_backfill_desc.setText(
             _translate(
                 "MDCx",
-                "输入番号（多个用空格分隔）将自动刮削并补齐封面和缩略图，复用当前配置的站点优先级、命名、裁切、水印规则，输出目录为当前数据目录（可在设置页修改）。",
+                "输入番号，多个用空格分隔将自动刮削并补齐封面和缩略图，复用当前配置站点优先级顺序、命名、裁切、水印规则，输出目录为当前数据目录，可以在设置页修改",
             )
         )
         self.lineEdit_cover_backfill_numbers.setPlaceholderText(_translate("MDCx", "例如：SSIS-001 ABF-371 JIMMY-003"))
@@ -14081,7 +14081,7 @@ class Ui_MDCx(object):
                 "<h4>十、软件工具页面</h4>\n"
                 " <ul>\n"
                 "  <li><b>NFO 库管理</b>：左侧导航独立页面，浏览和编辑整个 NFO 库。选择目录后递归扫描所有 .nfo 文件生成列表（支持番号/演员/标题筛选）；点列表项读取 NFO 填充 15 字段编辑表单（番号/标题/演员/发行日/年份/时长/导演/片商/发行商/系列/评分/简介/标签/封面URL/海报URL），右侧同步预览本地海报和缩略图，可调起裁剪工具；保存前自动对比改动弹窗确认（字段级 diff），无改动不写盘；批量操作面板支持多选后一键替换演员名、加标签、删标签、统一系列名；列表右键菜单提供重新刮削（找同目录同名视频入队）、打开所在目录、删除 NFO。</li>\n"
-                "  <li><b>演员库维护</b>：直接操作 actor_database.xlsx。补全中文名（按 TMDB ID 补翻译）、补全 LibreDMM 链接、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的条目，勾选「全量更新」则并入全部行，不覆盖本地已有别名，支持「起始行/限量」分片续跑）、JavDB 中文名（从 JavDB 影片详情页抓取演员中文名，并发拉取影片详情，支持分片续跑与「停止当前维护任务」）、minnano 补全（从 minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，TMDB给人工修复步骤）、打开数据库（用默认程序打开xlsx供查看与编辑）、剔除男演员（按 TMDB 性别删除男优）、校验 tmdbid 有效性（清除 TMDB 失效 id 并按名字重搜补回）、更新 nfo tmdbid（用本地库新 id 覆盖 nfo 旧 id）。联网工具支持限量分片与「停止当前维护任务」按钮，网络请求自动并发，进度实时显示。</li>\n"
+                "  <li><b>演员库维护</b>：直接操作 actor_database.xlsx。补全中文名（按 TMDB ID 补翻译）、补全LibreDMM链接、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的条目，勾选「全量更新」则并入全部行，不覆盖本地已有别名，支持「起始行/限量」分片续跑）、JavDB中文名（从 JavDB 影片详情页抓取演员中文名，并发拉取影片详情，支持分片续跑与「停止当前维护任务」）、Minnano-av补全（从 minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，TMDB给人工修复步骤）、打开数据库（用默认程序打开xlsx查看与编辑）、剔除男演员（按 TMDB 性别删除男优）、校验 tmdbid 有效性（清除 TMDB 失效 id 并按名字重搜补回）、更新nfo文件TMDB ID字段（用本地库新 id 覆盖 nfo 旧 id）。联网工具支持限量分片与「停止当前维护任务」按钮，网络请求自动并发，进度实时显示。</li>\n"
                 "  <li><b>刮削缓存管理</b>：在「软件工具」页刮削缓存面板可查看断点续刮缓存状态（已完成/失败/总数），支持刷新缓存统计、导出缓存数据、重置缓存（清除全部已完成标记，下次全量重刮）、清空缓存（删除 scrape_state.db 文件）。适合在断点续刮数据异常或需要重新全量刮削时使用。</li>\n"
                 "  <li><b>Emby/Jellyfin 演员管理器</b>：填写 Emby/Jellyfin 地址和 API 密钥后连接服务器，获取演员列表并按媒体库筛选（可配置只获取演员类型 / 重复去重）；从 Gfriends / graphis.ne.jp / minnano-av / 本地文件夹按可配置优先级匹配头像和背景图（本地文件夹采用预扫描索引，N 次全树遍历降为 1 次），从本地演员库 / 维基百科 / minnano-av / 数据库按可配置优先级匹配简介和出生日期；Gfriends / Graphis / 信息链路已合并为统一函数，按数据源优先级依次尝试；「数据源测试」可逐源验证结果，「设置」可配置数据源优先级与获取过滤；预览后批量同步到服务器（支持仅补缺失或强制重新获取，同步完成后自动刷新列表），双击演员行打开详情编辑对话框，可编辑简介 / 信息并单独同步头像 / 简介；头像缓存持久化到 userdata/emby_actor_cache/ 目录（不再随临时目录清理丢失），「清空缓存文件夹」可一键清理。</li>\n"
                 " <li><b>单文件刮削</b>：指定某个文件的番号网址进行刮削，当存在相同番号时可手工指定。</li>\n"

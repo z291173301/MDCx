@@ -334,7 +334,7 @@ def pushButton_actor_db_pick_nfo_dir_clicked(self):
 
     folder = QFileDialog.getExistingDirectory(
         None,
-        "选择 nfo 目录",
+        "选择nfo目录",
         "",
         QFileDialog.Option.ShowDirsOnly,
     )

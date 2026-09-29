@@ -1,7 +1,10 @@
 from dataclasses import dataclass, field
 
+import math
+
 from PyQt6.QtCore import QEvent
-from PyQt6.QtWidgets import QComboBox, QScrollArea, QSlider, QSpinBox, QWidget
+from PyQt6.QtGui import QTextDocument
+from PyQt6.QtWidgets import QComboBox, QLabel, QScrollArea, QSlider, QSpinBox, QWidget
 
 # 子控件跟随分类
 _STRETCH = "stretch"  # 宽幅拉伸：宽 ≥ groupBox 内宽 55%（输入框等）
@@ -45,6 +48,25 @@ class CustomQSlider(QSlider):
             e.ignore()
 
 
+def wrapped_label_height(label: QLabel, width: int, min_h: int, max_h: int) -> int:
+    """QLabel 多行文本所需高度（QLabel.heightForWidth 实测不可靠，勿用）。
+
+    背景：演员库工具页裁字事故——离线实测同字体同宽度下，
+    QLabel.heightForWidth(221) 返回 26（单行高度，错误），而 QTextDocument
+    量出 merged=50、minnano=36（正确）。heightForWidth 拿到的是陈旧
+    sizeHint，与换行后真实高度无关。
+    做法：用 QTextDocument（与 QLabel 同一文本排版引擎）按 label 当前
+    字体/文本量出换行总高，向上取整再留 6px 引擎差异余量，夹到 [min_h, max_h]。
+    调用方负责让 max_h 对应的底边不侵入下一行控件。
+    """
+    doc = QTextDocument()
+    doc.setDefaultFont(label.font())
+    doc.setPlainText(label.text() or "")
+    doc.setTextWidth(max(width, 1))
+    need = math.ceil(doc.size().height()) + 6
+    return max(min_h, min(need, max_h))
+
+
 class CustomScrollArea(QScrollArea):
     """widgetResizable=true 时按子控件包围盒维护内容最小高度的滚动区。
 
@@ -79,6 +101,18 @@ class CustomScrollArea(QScrollArea):
 
     def content_bottom_margin(self) -> int:
         return getattr(self, "_content_bottom_margin", self._CONTENT_BOTTOM_MARGIN)
+
+    def set_content_right_trim(self, trim: int) -> None:
+        """按实例设置内容右侧内收量（默认 0）。
+
+        软件工具页卡片右缘比软件设置页同类卡片宽出 4px（800~2200 窗宽下
+        离线实测恒定，与 DPI 无关），左缘不动：extra 统一减去该值，
+        容器与内部跟随项整体左收，内部控件相对位置不变。
+        """
+        self._content_right_trim = max(trim, 0)
+
+    def content_right_trim(self) -> int:
+        return getattr(self, "_content_right_trim", 0)
 
     def sync_content_min_height(self) -> None:
         content = self.widget()
@@ -140,8 +174,45 @@ class CustomScrollArea(QScrollArea):
         "QTreeWidget",
     )
 
+    # 演员库维护三行由 MainWindow._sync_actor_db_tool_layout 接管（最大化才重排，
+    # 还原恢复设计几何），此处不再自动拉伸/右缘锚定，避免通用逻辑覆盖定制布局。
+    _MANUAL_WIDGET_NAMES = frozenset(
+        {
+            "label_actor_db_fill_minnano_desc",
+            "lineEdit_actor_db_nfo_dir",
+            "pushButton_actor_db_pick_nfo_dir",
+            "pushButton_actor_db_update_nfo_tmdbid",
+            "comboBox_actor_db_alias_source",
+            "checkBox_actor_db_alias_all",
+            "label_actor_db_sync_slice_hint",
+            "label_actor_db_translate_desc",
+            "pushButton_actor_db_stop",
+            "label_actor_db_open_desc",
+            "label_actor_db_note",
+            "pushButton_actor_db_open",
+            "pushButton_actor_db_clean_male",
+            "pushButton_actor_db_fill_minnano",
+            "pushButton_actor_db_verify_tmdbid",
+            "label_actor_db_verify_tmdbid_desc",
+            "pushButton_actor_db_check",
+            "label_actor_db_check_desc",
+            "label_actor_db_update_nfo_desc",
+            "pushButton_actor_db_sync_aliases",
+            "label_actor_db_sync_offset",
+            "spinBox_actor_db_sync_offset",
+            "label_actor_db_sync_limit",
+            "spinBox_actor_db_sync_limit",
+            "label_actor_db_sync_aliases_desc",
+            "pushButton_actor_db_fill_zh_javdb",
+            "label_actor_db_fill_zh_javdb_desc",
+            "label_actor_db_desc",
+        }
+    )
+
     def _classify_inner(self, sub: QWidget, inner_w: int, box_w: int) -> str | None:
         """groupBox 内部子项分类：拉伸 / 右缘锚定 / None（不登记保持原位）。"""
+        if sub.objectName() in self._MANUAL_WIDGET_NAMES:
+            return None  # 演员库三行定制布局，不参与通用跟随
         if sub.layout() is not None:
             return _STRETCH  # 布局容器：拉宽后 invalidate+activate 重排列宽
         meta = sub.metaObject()
@@ -218,7 +289,7 @@ class CustomScrollArea(QScrollArea):
         if viewport is None:
             return
         design_w = getattr(content, "_wide_children_design_width", 0)
-        extra = viewport.width() - design_w
+        extra = viewport.width() - design_w - self.content_right_trim()
         for entry in registry:
             x, y, w, h = entry.geometry
             box = entry.widget
