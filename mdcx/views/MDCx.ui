@@ -22985,7 +22985,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>保存后重启软件生效 </string>
+                                  <string>保存后重启生效 </string>
                                 </property>
                                 <property name="alignment">
                                   <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -23757,7 +23757,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="toolTip">
-                                  <string>界面缩放比例，保存后重启软件生效</string>
+                                  <string>界面缩放比例，保存后重启生效</string>
                                 </property>
                                 <item>
                                   <property name="text">
@@ -23819,7 +23819,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                    <string notr="true">color: rgb(8, 128, 128);</string>
                                  </property>
                                  <property name="text">
-                                   <string>保存后重启软件生效，可能会有点模糊</string>
+                                   <string>保存后重启生效，可能会有点模糊</string>
                                  </property>
                                  <property name="alignment">
                                    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -23836,8 +23836,14 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                  <verstretch>0</verstretch>
                                </sizepolicy>
                              </property>
+                             <property name="layoutDirection">
+                               <enum>Qt::RightToLeft</enum>
+                             </property>
                              <property name="text">
                                <string>隐藏入口：</string>
+                             </property>
+                             <property name="alignment">
+                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                              </property>
                            </widget>
                          </item>

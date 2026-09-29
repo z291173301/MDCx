@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QSystemTrayIcon,
     QTableWidgetItem,
     QTreeWidgetItem,
@@ -206,6 +207,8 @@ class MyMAinWindow(QMainWindow):
         self._naming_resyncing = False  # 命名页模板预览区：重算中标志（防 label resize 递归触发）
         self._naming_last_width = -1  # 命名页说明文字上次同步所用的宽度
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
+        self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
+        self._adv_dock_gap = -1  # 该间隔当前生效的宽度（-1 = 从未设置）
 
         self.window_radius = 0  # 窗口四角弧度，为0时表示显示窗口标题栏
         self.window_border = 0  # 窗口描边，为0时表示显示窗口标题栏
@@ -621,6 +624,12 @@ class MyMAinWindow(QMainWindow):
     # 窗口缩放时，需要用子页面内容的实际高度来自定义 MDCx 中央区域的高度
     _CONTENT_TOP_OFFSET = 6
     _CONTENT_BOTTOM_MARGIN = 2
+
+    # 高级页「界面外观」行的 layoutWidget5 设计宽度（MDCx.ui 里
+    # QRect(0,-10,550,51)）。最大化时该容器要临时加宽以对齐，见
+    # _sync_advanced_page_align 的设计态对照值（.ui 里 layoutWidget5 = 550x51）；
+    # 该控制器每一态都会按实测列宽重算，此常量仅作「放弃对齐」时的回退值。
+    _ADV_FRAME_LW_W = 550
 
     # 议题 #117：信息管理页「简介/标签」多行框的设计高度（.ui 中 min=max=60）。
     # 视口放不下整表时按缺口压缩这两个框，压缩下限 40（再矮就没法看内容，
@@ -1205,6 +1214,9 @@ class MyMAinWindow(QMainWindow):
         # Qt 绝对定位布局中：先让所有 tab 的 tab_page 自身 resize 到正确尺寸，
         # 这样 scrollArea 才会感知到变化；然后对每个 scrollArea 显式设置几何。
         # 否则 scrollArea 保留设计器固定尺寸（如 796x658），不跟随变化。
+        # 高级页（tab5）滚动区要留给 _sync_advanced_page_align 做宽幅同步 + 量基准，
+        # 休眠页由切 tab 的 showEvent 补齐。
+        adv_scroll = None
         for index in range(ui.tabWidget.count()):
             tab_page = ui.tabWidget.widget(index)
             # 关键：tab_page 必须先获得新尺寸，scrollArea 才能跟随同步
@@ -1212,6 +1224,8 @@ class MyMAinWindow(QMainWindow):
             scroll_area = tab_page.findChild(CustomScrollArea)
             if scroll_area is not None and scroll_area.parentWidget() == tab_page:
                 scroll_area.setGeometry(0, 0, scroll_w, scroll_h)
+                if tab_page.objectName() == "tab5":
+                    adv_scroll = scroll_area
 
         # ---- page_setting 底部配置操作浮框（当前配置/另存为/恢复默认/保存）----
         # 设计基准 y620-692 贴页底（page_setting 高 692）。窗口放大后浮框停在设计
@@ -1320,6 +1334,160 @@ class MyMAinWindow(QMainWindow):
 
         # ============ page_setting / NFO页: 窄态下字段说明按钮左移进组框 ============
         self._sync_nfo_field_tips()
+
+        # ============ page_setting / 高级页: 四行第1列对齐到「刮削结束后自动退出软件」 ============
+        # 必须排在最后：本控制器要量高级页的实时列宽，而宽幅同步会改写
+        # groupBox_12 的列宽，放前面量到的是过期值（同 verify_gb 血案）。
+        self._sync_advanced_page_align(adv_scroll)
+
+    def _sync_advanced_page_align(self, adv_scroll=None) -> None:
+        """设置-高级：四行复选框对齐到「刮削结束后自动退出软件」同一条竖线。
+
+        用户截图（先最大化态、后还原态两轮）：「停止刮削时」「隐藏菜单栏图标
+        （Mac）」「暗黑模式」「隐藏 NFO 库管理」四个复选框的左缘都挤在第1列起
+        点，要求对齐到第2行「刮削结束后自动退出软件」的正下方严格上下对齐；该
+        基准复选框自身位置必须保持不变。最大化态要全对齐、还原态只要求前三个
+        （「隐藏NFO库管理」在还原态放不下，用户没要求、也不该裁字）。
+
+        根因（离屏实测 + 用户截图双证，gridLayoutWidget_20 两列 QGridLayout，
+        col1 起于 x=97）：QHBoxLayout 把剩余空间在**所有可拉伸项之间等分**
+        （弹窗确认行 811/811、界面外观行 272/272、隐藏入口行 539/538/539、
+        隐藏图标行 191/104/1321），所以第1列里每一个复选框的绝对 x 都随列宽漂移。
+        最大化时 CustomScrollArea.sync_wide_children_width() 把列从 568 拉到
+        1628，两项均分的那几行末位被推到 x=914，而 Fixed 前缀行（隐藏图标行）
+        仍停在 x=404——同一条竖线上出现三个不同的左缘，等分只认剩余空间总量，
+        既不能靠 margin 也不能靠撑宽前导项（等分会推着目标项一起走）。
+
+        做法（量基准 + 钉死前导项，纯函数、双向幂等）：
+        基准锚点取 checkBox_auto_exit（「刮削结束后自动退出软件」，第2行末位），
+        本方法**从不触碰 horizontalLayout_102**，所以基准自身恒定；每遍现量
+        现用，不写死像素。令 pin = anchor - row_x - spacing，钉死该行前导控件
+        为 pin 宽后剩余空间全部归末位项，目标项的绝对 x 恒等于 anchor：
+          弹窗确认行  钉「退出软件时」            -> 「停止刮削时」        落 anchor
+          隐藏图标行  在 label_42 之后插固定间隔  -> 「隐藏菜单栏图标（Mac）」落 anchor，
+                      前两项保持贴 col1 左缘（改用整行左 margin 会把「隐藏Dock图标
+                      （Mac）」「保存后重启生效」一起推走，破坏本页左缘节奏）
+          界面外观行  把 layoutWidget5 加宽到 2*(anchor-row_x)-spacing（两项均分）
+                      -> 「暗黑模式」落 anchor；该容器是 frame 的普通子 QWidget
+                      （frame 无 layout），故用 setGeometry 而非 layout 属性
+          隐藏入口行  钉「隐藏 Emby 演员管理」    -> 「隐藏 NFO 库管理」落 anchor，
+                      说明标签随 spacing 紧邻其右（仅最大化）
+        前导控件全是左对齐绘制，钉宽/插间隔只改右侧留白，不移动自身字形。
+        走 setFixedWidth / QSpacerItem / setGeometry 而非 move()：layout
+        重新 activate 会覆盖 move()。任一行余量放不下（窗口太窄、说明标签挤不
+        下）就整行解除，保持设计态原样。
+        「隐藏入口：」冒号对齐已在 MDCx.ui/.py 静态补齐 RightToLeft + AlignRight，
+        与同列标签共用网格列右缘，不需运行时介入。休眠页跳过。
+        """
+        ui = self.Ui
+        host = ui.gridLayoutWidget_20
+        if not host.isVisibleTo(self):
+            return
+        # 同 verify_gb 血案：先显式重跑宽幅同步，保证量到的是终态列宽
+        if adv_scroll is not None and adv_scroll.isVisibleTo(self):
+            adv_scroll.sync_wide_children_width()
+        anchor_box = ui.checkBox_auto_exit
+        lead_box = ui.checkBox_show_dialog_exit
+        if not anchor_box.isVisibleTo(self) or not lead_box.isVisibleTo(self):
+            return
+        anchor = anchor_box.mapTo(host, anchor_box.rect().topLeft()).x()
+        row_x = lead_box.mapTo(host, lead_box.rect().topLeft()).x()
+        col_w = host.width() - row_x
+        if anchor <= row_x or col_w <= 0:
+            return
+        maxed = self.isMaximized()
+        lay_a = ui.horizontalLayout_55  # 退出软件时 / 停止刮削时
+        lay_b = ui.horizontalLayout_dock  # 隐藏Dock图标 / 保存后重启生效 / 隐藏菜单栏图标
+        lay_d = ui.horizontalLayout_nav_hide  # 隐藏Emby演员管理 / 隐藏NFO库管理 / 说明
+        changed = False
+
+        # ---- 弹窗确认行：钉「退出软件时」，「停止刮削时」即落 anchor（两态生效） ----
+        stop_scrape = ui.checkBox_show_dialog_stop_scrape
+        pin_a = anchor - row_x - lay_a.spacing()
+        ok_a = (
+            pin_a >= lead_box.sizeHint().width()
+            and col_w - pin_a - lay_a.spacing() >= stop_scrape.sizeHint().width()
+        )
+        changed |= self._pin_row_lead_width(lead_box, pin_a if ok_a else None)
+
+        # ---- 隐藏图标行：前两项是 Fixed 文本项，插固定间隔把末项单独推到 anchor ----
+        # 用「插在 label_42 之后」的固定间隔，而不是给整行加左 margin：后者会
+        # 把「隐藏Dock图标（Mac）」「保存后重启生效」一起推到右边，破坏本页
+        # 「每行第一个控件都贴着 col1 左缘」的节奏（实测 col1 左缘 = row_x = 97）。
+        # gap_b < 0 说明列太窄、Fixed 前缀已经越过 anchor，QCheckBox/QLabel 的
+        # sizeHint 就是不裁字下限，压缩必裁字，所以整行放弃（保持设计态原样）。
+        dock_icon = ui.checkBox_hide_dock_icon
+        label_42 = ui.label_42
+        menu_icon = ui.checkBox_hide_menu_icon
+        prefix = dock_icon.sizeHint().width() + label_42.sizeHint().width() + 2 * lay_b.spacing()
+        gap_b = anchor - row_x - prefix
+        ok_b = gap_b >= 0 and col_w - gap_b - prefix >= menu_icon.sizeHint().width()
+        new_gap_b = gap_b if ok_b else 0
+        if self._adv_dock_gap != new_gap_b:
+            # PyQt6 的 insertSpacing 返回值恒为 None，改插完再 itemAt 取回
+            spacer = self._adv_dock_spacer
+            if spacer is None or lay_b.indexOf(spacer) != 2:
+                lay_b.insertSpacing(2, new_gap_b)
+                spacer = lay_b.itemAt(2)
+                self._adv_dock_spacer = spacer
+            if spacer is not None:
+                spacer.changeSize(
+                    new_gap_b, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum
+                )
+                self._adv_dock_gap = new_gap_b
+                changed = True
+
+        # ---- 界面外观行：layoutWidget5 加宽，两项均分后「暗黑模式」落 anchor ----
+        # want_w 恒等于 col_w（anchor = row_x + col_w/2 + 3，两项均分同式），
+        # 即最多填满 frame，绝不溢出。
+        lw = ui.layoutWidget5
+        lay_c = ui.horizontalLayout_62
+        want_w = 2 * (anchor - row_x) - lay_c.spacing()
+        ok_c = want_w <= ui.frame.width() and want_w >= lw.sizeHint().width()
+        new_w = want_w if ok_c else self._ADV_FRAME_LW_W
+        if lw.width() != new_w:
+            lw.setGeometry(lw.x(), lw.y(), new_w, lw.height())
+            changed = True
+
+        # ---- 隐藏入口行：钉「隐藏 Emby 演员管理」，「隐藏NFO库管理」落 anchor ----
+        # 仅最大化：还原态列宽只有 568，pin_d 之后余量 255 放不下「隐藏NFO库管理
+        # + 说明标签」的 412，钉了必然裁字，用户也只要求最大化时对齐。
+        actor = ui.checkBox_hide_actor_nav
+        nfo = ui.checkBox_hide_nfo_nav
+        hint = ui.label_nav_hide_hint
+        pin_d = anchor - row_x - lay_d.spacing()
+        room = col_w - pin_d - 2 * lay_d.spacing()
+        ok_d = maxed and pin_d >= actor.sizeHint().width() and room >= (
+            nfo.sizeHint().width() + hint.sizeHint().width()
+        )
+        changed |= self._pin_row_lead_width(actor, pin_d if ok_d else None)
+
+        if not changed:
+            return
+        for lay in (lay_a, lay_b, lay_d, lay_c):
+            lay.invalidate()
+            lay.activate()
+        ui.gridLayout_20.invalidate()
+        ui.gridLayout_20.activate()
+
+    @staticmethod
+    def _pin_row_lead_width(box, width) -> bool:
+        """把行内前导控件钉成固定宽（width=None 表示解除），返回是否发生改动。
+
+        见 _sync_advanced_page_align：只有钉死前导项，末位项的绝对位置才与
+        列宽解耦。走 setFixedWidth（= setMinimumWidth + setMaximumWidth）而非
+        move()，因为 layout 重新 activate 会覆盖 move()；解除时恢复
+        (0, QWIDGETSIZE_MAX) 而不是 0，否则控件会被压成零宽。
+        """
+        if width is None:
+            new_min, new_max = 0, 16777215  # 16777215 = QWIDGETSIZE_MAX
+        else:
+            new_min = new_max = max(0, int(width))
+        if box.minimumWidth() == new_min and box.maximumWidth() == new_max:
+            return False
+        box.setMinimumWidth(new_min)
+        box.setMaximumWidth(new_max)
+        return True
 
     def _queue_nfo_post_cascade_sync(self) -> None:
         """tab 切换后第一拍：只排队，把全量同步留到级联落定后的第二拍。"""

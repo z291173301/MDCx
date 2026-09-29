@@ -11493,6 +11493,12 @@ class Ui_MDCx(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label_nav_hide.sizePolicy().hasHeightForWidth())
         self.label_nav_hide.setSizePolicy(sizePolicy)
+        self.label_nav_hide.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
+        self.label_nav_hide.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight
+            | QtCore.Qt.AlignmentFlag.AlignTrailing
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
         self.label_nav_hide.setObjectName("label_nav_hide")
         self.gridLayout_20.addWidget(self.label_nav_hide, 12, 0, 1, 1)
         self.horizontalLayout_nav_hide = QtWidgets.QHBoxLayout()
@@ -13920,7 +13926,7 @@ class Ui_MDCx(object):
         self.checkBox_hide_window_title.setText(_translate("MDCx", "隐藏边框（美观样式）"))
         self.checkBox_dark_mode.setText(_translate("MDCx", "暗黑模式"))
         self.checkBox_hide_dock_icon.setText(_translate("MDCx", "隐藏Dock图标（Mac）"))
-        self.label_42.setText(_translate("MDCx", "保存后重启软件生效 "))
+        self.label_42.setText(_translate("MDCx", "保存后重启生效 "))
         self.checkBox_hide_menu_icon.setText(_translate("MDCx", "隐藏菜单栏图标（Mac）"))
         self.label_321.setText(_translate("MDCx", "间歇刮削："))
         self.checkBox_auto_start.setText(_translate("MDCx", "启动软件后自动开始刮削"))
@@ -13954,7 +13960,7 @@ class Ui_MDCx(object):
         self.label_246.setText(_translate("MDCx", "界面外观："))
         self.label_420.setText(_translate("MDCx", "选择对话框："))
         self.label_426.setText(_translate("MDCx", "高分屏缩放："))
-        self.comboBox_ui_scale.setToolTip(_translate("MDCx", "界面缩放比例，保存后重启软件生效"))
+        self.comboBox_ui_scale.setToolTip(_translate("MDCx", "界面缩放比例，保存后重启生效"))
         self.comboBox_ui_scale.setItemText(0, _translate("MDCx", "跟随系统"))
         self.comboBox_ui_scale.setItemText(1, _translate("MDCx", "80%"))
         self.comboBox_ui_scale.setItemText(2, _translate("MDCx", "90%"))
@@ -13963,7 +13969,7 @@ class Ui_MDCx(object):
         self.comboBox_ui_scale.setItemText(5, _translate("MDCx", "150%"))
         self.comboBox_ui_scale.setItemText(6, _translate("MDCx", "175%"))
         self.comboBox_ui_scale.setItemText(7, _translate("MDCx", "200%"))
-        self.label_427.setText(_translate("MDCx", "保存后重启软件生效，可能会有点模糊"))
+        self.label_427.setText(_translate("MDCx", "保存后重启生效，可能会有点模糊"))
         self.label_nav_hide.setText(_translate("MDCx", "隐藏入口："))
         self.checkBox_hide_actor_nav.setToolTip(
             _translate("MDCx", "隐藏左侧导航的「演员管理」入口，可随时在此重新开启")
