@@ -567,11 +567,11 @@ class Ui_MDCx(object):
         self.scrollArea_10.setWidgetResizable(True)
         self.scrollArea_10.setObjectName("scrollArea_10")
         self.scrollAreaWidgetContents_gongju = QtWidgets.QWidget()
-        self.scrollAreaWidgetContents_gongju.setGeometry(QtCore.QRect(0, 0, 860, 2475))
+        self.scrollAreaWidgetContents_gongju.setGeometry(QtCore.QRect(0, 0, 860, 2309))
         self.scrollAreaWidgetContents_gongju.setAutoFillBackground(True)
         self.scrollAreaWidgetContents_gongju.setObjectName("scrollAreaWidgetContents_gongju")
         self.groupBox_7 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
-        self.groupBox_7.setGeometry(QtCore.QRect(30, 660, 701, 271))
+        self.groupBox_7.setGeometry(QtCore.QRect(30, 564, 701, 271))
         self.groupBox_7.setObjectName("groupBox_7")
         self.pushButton_select_file = QtWidgets.QPushButton(parent=self.groupBox_7)
         self.pushButton_select_file.setGeometry(QtCore.QRect(510, 30, 151, 40))
@@ -621,7 +621,7 @@ class Ui_MDCx(object):
         self.pushButton_select_file_clear_info.setGeometry(QtCore.QRect(510, 100, 151, 40))
         self.pushButton_select_file_clear_info.setObjectName("pushButton_select_file_clear_info")
         self.groupBox_13 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
-        self.groupBox_13.setGeometry(QtCore.QRect(30, 951, 701, 141))
+        self.groupBox_13.setGeometry(QtCore.QRect(30, 855, 701, 141))
         self.groupBox_13.setStyleSheet('font:"Courier New";')
         self.groupBox_13.setObjectName("groupBox_13")
         self.pushButton_select_thumb = QtWidgets.QPushButton(parent=self.groupBox_13)
@@ -634,7 +634,7 @@ class Ui_MDCx(object):
         self.label_6.setWordWrap(True)
         self.label_6.setObjectName("label_6")
         self.groupBox_19 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
-        self.groupBox_19.setGeometry(QtCore.QRect(30, 1854, 701, 241))
+        self.groupBox_19.setGeometry(QtCore.QRect(30, 1688, 701, 241))
         self.groupBox_19.setObjectName("groupBox_19")
         self.gridLayoutWidget_18 = QtWidgets.QWidget(parent=self.groupBox_19)
         self.gridLayoutWidget_18.setGeometry(QtCore.QRect(30, 30, 461, 111))
@@ -719,7 +719,7 @@ class Ui_MDCx(object):
         self.label_62.setWordWrap(True)
         self.label_62.setObjectName("label_62")
         self.groupBox_6 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
-        self.groupBox_6.setGeometry(QtCore.QRect(30, 1663, 701, 171))
+        self.groupBox_6.setGeometry(QtCore.QRect(30, 1497, 701, 171))
         self.groupBox_6.setObjectName("groupBox_6")
         self.pushButton_move_mp4 = QtWidgets.QPushButton(parent=self.groupBox_6)
         self.pushButton_move_mp4.setGeometry(QtCore.QRect(140, 110, 351, 40))
@@ -749,7 +749,7 @@ class Ui_MDCx(object):
         self.label_8.setWordWrap(True)
         self.label_8.setObjectName("label_8")
         self.groupBox_21 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
-        self.groupBox_21.setGeometry(QtCore.QRect(30, 1332, 701, 311))
+        self.groupBox_21.setGeometry(QtCore.QRect(30, 1236, 701, 241))
         self.groupBox_21.setObjectName("groupBox_21")
         self.gridLayoutWidget_36 = QtWidgets.QWidget(parent=self.groupBox_21)
         self.gridLayoutWidget_36.setGeometry(QtCore.QRect(30, 30, 461, 111))
@@ -818,7 +818,7 @@ class Ui_MDCx(object):
         self.label_339.setObjectName("label_339")
         self.gridLayout_56.addWidget(self.label_339, 0, 0, 1, 1)
         self.pushButton_creat_symlink = QtWidgets.QPushButton(parent=self.groupBox_21)
-        self.pushButton_creat_symlink.setGeometry(QtCore.QRect(140, 250, 241, 40))
+        self.pushButton_creat_symlink.setGeometry(QtCore.QRect(140, 180, 241, 40))
         self.pushButton_creat_symlink.setObjectName("pushButton_creat_symlink")
         self.pushButton_select_netdisk_path = QtWidgets.QPushButton(parent=self.groupBox_21)
         self.pushButton_select_netdisk_path.setGeometry(QtCore.QRect(510, 40, 151, 40))
@@ -874,7 +874,7 @@ class Ui_MDCx(object):
         self.label_341.setObjectName("label_341")
         self.verticalLayout_6.addWidget(self.label_341)
         self.checkBox_create_link = QtWidgets.QCheckBox(parent=self.groupBox_21)
-        self.checkBox_create_link.setGeometry(QtCore.QRect(410, 250, 191, 40))
+        self.checkBox_create_link.setGeometry(QtCore.QRect(410, 180, 191, 40))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Maximum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -883,7 +883,7 @@ class Ui_MDCx(object):
         self.checkBox_create_link.setMinimumSize(QtCore.QSize(0, 30))
         self.checkBox_create_link.setObjectName("checkBox_create_link")
         self.groupBox_actor_db_maintenance = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
-        self.groupBox_actor_db_maintenance.setGeometry(QtCore.QRect(30, 40, 701, 600))
+        self.groupBox_actor_db_maintenance.setGeometry(QtCore.QRect(30, 40, 701, 504))
         self.groupBox_actor_db_maintenance.setObjectName("groupBox_actor_db_maintenance")
         self.label_actor_db_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_desc.setGeometry(QtCore.QRect(40, 30, 621, 40))
@@ -989,6 +989,7 @@ class Ui_MDCx(object):
         self.spinBox_actor_db_sync_offset.setMinimum(0)
         self.spinBox_actor_db_sync_offset.setMaximum(999999)
         self.spinBox_actor_db_sync_offset.setProperty("value", 0)
+        self.spinBox_actor_db_sync_offset.setStyleSheet("QSpinBox::up-button { margin-right: 5px; }\nQSpinBox::down-button { margin-right: 5px; }")
         self.spinBox_actor_db_sync_offset.setObjectName("spinBox_actor_db_sync_offset")
         self.label_actor_db_sync_limit = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_sync_limit.setGeometry(QtCore.QRect(210, 444, 56, 28))
@@ -1000,6 +1001,7 @@ class Ui_MDCx(object):
         self.spinBox_actor_db_sync_limit.setMaximum(999999)
         self.spinBox_actor_db_sync_limit.setSingleStep(100)
         self.spinBox_actor_db_sync_limit.setProperty("value", 5000)
+        self.spinBox_actor_db_sync_limit.setStyleSheet("QSpinBox::up-button { margin-right: 5px; }\nQSpinBox::down-button { margin-right: 5px; }")
         self.spinBox_actor_db_sync_limit.setObjectName("spinBox_actor_db_sync_limit")
         self.label_actor_db_sync_slice_hint = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_sync_slice_hint.setGeometry(QtCore.QRect(400, 444, 261, 28))
@@ -1012,7 +1014,7 @@ class Ui_MDCx(object):
         self.label_actor_db_sync_aliases_desc.setWordWrap(True)
         self.label_actor_db_sync_aliases_desc.setObjectName("label_actor_db_sync_aliases_desc")
         self.groupBox_cover_backfill = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
-        self.groupBox_cover_backfill.setGeometry(QtCore.QRect(30, 1112, 701, 200))
+        self.groupBox_cover_backfill.setGeometry(QtCore.QRect(30, 1016, 701, 200))
         self.groupBox_cover_backfill.setObjectName("groupBox_cover_backfill")
         self.label_cover_backfill_desc = QtWidgets.QLabel(parent=self.groupBox_cover_backfill)
         self.label_cover_backfill_desc.setGeometry(QtCore.QRect(40, 30, 621, 40))
@@ -1041,7 +1043,7 @@ class Ui_MDCx(object):
         self.label_cover_backfill_note.setWordWrap(True)
         self.label_cover_backfill_note.setObjectName("label_cover_backfill_note")
         self.groupBox_scrape_cache = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
-        self.groupBox_scrape_cache.setGeometry(QtCore.QRect(30, 2115, 701, 340))
+        self.groupBox_scrape_cache.setGeometry(QtCore.QRect(30, 1949, 701, 340))
         self.groupBox_scrape_cache.setObjectName("groupBox_scrape_cache")
         self.label_scrape_cache_done = QtWidgets.QLabel(parent=self.groupBox_scrape_cache)
         self.label_scrape_cache_done.setGeometry(QtCore.QRect(20, 30, 120, 21))
@@ -12545,7 +12547,7 @@ class Ui_MDCx(object):
         self.pushButton_select_local_library.setText(_translate("MDCx", "选择目录"))
         self.label_62.setText(_translate("MDCx", "本地资源库和演员名都可以填写多个，以中英文逗号分开"))
         self.groupBox_6.setTitle(
-            _translate("MDCx", "移动视频、字幕（将待刮削目录下所有子目录中的视频移动到一个目录中以方便进行查看）")
+            _translate("MDCx", "移动视频与字幕（将待刮削目录下所有子目录中的视频移动到一个目录中以方便进行查看）")
         )
         self.pushButton_move_mp4.setText(_translate("MDCx", "开始移动"))
         self.label_41.setText(_translate("MDCx", "刮削排除目录："))
@@ -12569,7 +12571,7 @@ class Ui_MDCx(object):
         )
         self.checkBox_create_link.setText(_translate("MDCx", "刮削过程中自动创建软链接"))
         self.groupBox_actor_db_maintenance.setTitle(
-            _translate("MDCx", "演员库维护（直接操作 actor_database.xlsx，复用当前配置的 TMDB API）")
+            _translate("MDCx", "演员库维护（直接操作actor_database.xlsx，复用当前配置的TMDB API）")
         )
         self.label_actor_db_desc.setText(
             _translate("MDCx", "以下操作均直接读写Actor_Database.xlsx文件，无需输入演员名单")
@@ -12598,12 +12600,12 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_verify_tmdbid.setToolTip(
             _translate(
                 "MDCx",
-                "校验库中所有 tmdbid 是否仍有效。TMDB 是公开平台，person id 可能被删除/重建，失效 id 会被清除，并自动按名字重新搜索补回新 id（搜不到则保持无 id，刮削按名字兜底搜索）。需配置 TMDB API Key。",
+                "校验库中所有 tmdbid 是否仍有效。TMDB 是公开平台，person id 可能被删除/重建，失效 id 会被清除，并自动按名字重新搜索补回新 id（搜索不到则保持无 id，刮削按名字兜底搜索）。需配置 TMDB API Key。",
             )
         )
         self.pushButton_actor_db_verify_tmdbid.setText(_translate("MDCx", "校验TMDB ID有效性"))
         self.label_actor_db_verify_tmdbid_desc.setText(
-            _translate("MDCx", "失效ID清除后自动按名字重搜补新ID，搜不到则保持无ID刮削兜底")
+            _translate("MDCx", "失效ID清除后自动按名字重搜补新\nID，搜索不到则保持无ID刮削兜底")
         )
         self.pushButton_actor_db_check.setToolTip(
             _translate(
@@ -12613,7 +12615,7 @@ class Ui_MDCx(object):
         )
         self.pushButton_actor_db_check.setText(_translate("MDCx", "检查用户库"))
         self.label_actor_db_check_desc.setText(
-            _translate("MDCx", "检查格式错误、数据异常，安全项自动修复，TMDB给人工修复步骤")
+            _translate("MDCx", "检查格式错误和数据异常，安全项\n自动修复，TMDB给出人工修复步骤")
         )
         self.pushButton_actor_db_fill_zh_javdb.setToolTip(
             _translate(
@@ -12689,7 +12691,7 @@ class Ui_MDCx(object):
             _translate("MDCx", "提示：补图结果将输出到日志页，可在日志页查看详细进度和错误信息。")
         )
         self.groupBox_scrape_cache.setTitle(
-            _translate("MDCx", "刮削缓存管理（断点续刮/失败重试状态，清缓存只影响是否跳过，不删已生成 NFO）")
+            _translate("MDCx", "刮削缓存管理（断点续刮/失败重试状态，清缓存只影响是否跳过，不删除已经生成的NFO文件）")
         )
         self.label_scrape_cache_done.setText(_translate("MDCx", "已完成：0"))
         self.label_scrape_cache_failed.setText(_translate("MDCx", "失败：0"))
@@ -14081,7 +14083,7 @@ class Ui_MDCx(object):
                 "<h4>十、软件工具页面</h4>\n"
                 " <ul>\n"
                 "  <li><b>NFO 库管理</b>：左侧导航独立页面，浏览和编辑整个 NFO 库。选择目录后递归扫描所有 .nfo 文件生成列表（支持番号/演员/标题筛选）；点列表项读取 NFO 填充 15 字段编辑表单（番号/标题/演员/发行日/年份/时长/导演/片商/发行商/系列/评分/简介/标签/封面URL/海报URL），右侧同步预览本地海报和缩略图，可调起裁剪工具；保存前自动对比改动弹窗确认（字段级 diff），无改动不写盘；批量操作面板支持多选后一键替换演员名、加标签、删标签、统一系列名；列表右键菜单提供重新刮削（找同目录同名视频入队）、打开所在目录、删除 NFO。</li>\n"
-                "  <li><b>演员库维护</b>：直接操作 actor_database.xlsx。补全中文名（按 TMDB ID 补翻译）、补全LibreDMM链接、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的条目，勾选「全量更新」则并入全部行，不覆盖本地已有别名，支持「起始行/限量」分片续跑）、JavDB中文名（从 JavDB 影片详情页抓取演员中文名，并发拉取影片详情，支持分片续跑与「停止当前维护任务」）、Minnano-av补全（从 minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，TMDB给人工修复步骤）、打开数据库（用默认程序打开xlsx查看与编辑）、剔除男演员（按 TMDB 性别删除男优）、校验 tmdbid 有效性（清除 TMDB 失效 id 并按名字重搜补回）、更新nfo文件TMDB ID字段（用本地库新 id 覆盖 nfo 旧 id）。联网工具支持限量分片与「停止当前维护任务」按钮，网络请求自动并发，进度实时显示。</li>\n"
+                "  <li><b>演员库维护</b>：直接操作 actor_database.xlsx。补全中文名（按 TMDB ID 补翻译）、补全LibreDMM链接、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的条目，勾选「全量更新」则并入全部行，不覆盖本地已有别名，支持「起始行/限量」分片续跑）、JavDB中文名（从 JavDB 影片详情页抓取演员中文名，并发拉取影片详情，支持分片续跑与「停止当前维护任务」）、Minnano-av补全（从 minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，TMDB给出人工修复步骤）、打开数据库（用默认程序打开xlsx查看与编辑）、剔除男演员（按 TMDB 性别删除男优）、校验 tmdbid 有效性（清除 TMDB 失效 id 并按名字重搜补回）、更新nfo文件TMDB ID字段（用本地库新 id 覆盖 nfo 旧 id）。联网工具支持限量分片与「停止当前维护任务」按钮，网络请求自动并发，进度实时显示。</li>\n"
                 "  <li><b>刮削缓存管理</b>：在「软件工具」页刮削缓存面板可查看断点续刮缓存状态（已完成/失败/总数），支持刷新缓存统计、导出缓存数据、重置缓存（清除全部已完成标记，下次全量重刮）、清空缓存（删除 scrape_state.db 文件）。适合在断点续刮数据异常或需要重新全量刮削时使用。</li>\n"
                 "  <li><b>Emby/Jellyfin 演员管理器</b>：填写 Emby/Jellyfin 地址和 API 密钥后连接服务器，获取演员列表并按媒体库筛选（可配置只获取演员类型 / 重复去重）；从 Gfriends / graphis.ne.jp / minnano-av / 本地文件夹按可配置优先级匹配头像和背景图（本地文件夹采用预扫描索引，N 次全树遍历降为 1 次），从本地演员库 / 维基百科 / minnano-av / 数据库按可配置优先级匹配简介和出生日期；Gfriends / Graphis / 信息链路已合并为统一函数，按数据源优先级依次尝试；「数据源测试」可逐源验证结果，「设置」可配置数据源优先级与获取过滤；预览后批量同步到服务器（支持仅补缺失或强制重新获取，同步完成后自动刷新列表），双击演员行打开详情编辑对话框，可编辑简介 / 信息并单独同步头像 / 简介；头像缓存持久化到 userdata/emby_actor_cache/ 目录（不再随临时目录清理丢失），「清空缓存文件夹」可一键清理。</li>\n"
                 " <li><b>单文件刮削</b>：指定某个文件的番号网址进行刮削，当存在相同番号时可手工指定。</li>\n"

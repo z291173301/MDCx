@@ -696,31 +696,38 @@ class MyMAinWindow(QMainWindow):
         "pushButton_actor_db_clean_male": (40, 140, 200, 30),
         "pushButton_actor_db_fill_minnano": (260, 140, 200, 30),
         "label_actor_db_fill_minnano_desc": (460, 140, 221, 30),
-        "pushButton_actor_db_verify_tmdbid": (40, 196, 200, 30),
-        "label_actor_db_verify_tmdbid_desc": (260, 200, 381, 28),
-        "pushButton_actor_db_check": (40, 234, 200, 30),
-        "label_actor_db_check_desc": (260, 234, 381, 42),
-        "lineEdit_actor_db_nfo_dir": (40, 278, 300, 30),
-        "pushButton_actor_db_pick_nfo_dir": (350, 278, 80, 30),
-        "pushButton_actor_db_update_nfo_tmdbid": (440, 278, 170, 30),
-        "label_actor_db_update_nfo_desc": (40, 314, 621, 28),
-        "pushButton_actor_db_sync_aliases": (40, 342, 200, 32),
-        "comboBox_actor_db_alias_source": (260, 342, 140, 32),
-        "checkBox_actor_db_alias_all": (420, 342, 180, 32),
-        "label_actor_db_sync_offset": (40, 398, 56, 28),
-        "spinBox_actor_db_sync_offset": (100, 398, 90, 28),
-        "label_actor_db_sync_limit": (210, 398, 56, 28),
-        "spinBox_actor_db_sync_limit": (270, 398, 110, 28),
-        "label_actor_db_sync_slice_hint": (400, 398, 261, 28),
-        "label_actor_db_sync_aliases_desc": (40, 434, 621, 42),
-        "pushButton_actor_db_fill_zh_javdb": (40, 484, 200, 30),
-        "label_actor_db_fill_zh_javdb_desc": (260, 488, 421, 30),
+        "pushButton_actor_db_verify_tmdbid": (40, 170, 200, 30),
+        "label_actor_db_verify_tmdbid_desc": (40, 206, 220, 40),
+        "pushButton_actor_db_check": (260, 170, 200, 30),
+        "label_actor_db_check_desc": (260, 206, 220, 40),
+        "lineEdit_actor_db_nfo_dir": (40, 252, 300, 30),
+        "pushButton_actor_db_pick_nfo_dir": (350, 252, 80, 30),
+        "pushButton_actor_db_update_nfo_tmdbid": (440, 252, 170, 30),
+        "label_actor_db_update_nfo_desc": (40, 288, 621, 28),
+        "pushButton_actor_db_sync_aliases": (40, 316, 200, 32),
+        "comboBox_actor_db_alias_source": (260, 316, 140, 32),
+        "checkBox_actor_db_alias_all": (420, 316, 180, 32),
+        "label_actor_db_sync_offset": (40, 372, 56, 28),
+        "spinBox_actor_db_sync_offset": (100, 372, 90, 28),
+        "label_actor_db_sync_limit": (210, 372, 56, 28),
+        "spinBox_actor_db_sync_limit": (270, 372, 110, 28),
+        "label_actor_db_sync_slice_hint": (400, 372, 261, 28),
+        "label_actor_db_sync_aliases_desc": (40, 408, 621, 42),
+        "pushButton_actor_db_fill_zh_javdb": (40, 458, 200, 30),
+        "label_actor_db_fill_zh_javdb_desc": (260, 462, 421, 30),
     }
 
     # 顶部两条提示词原文（两态都合并为一条显示在 LibreDMM 按钮右侧，与
     # minnano 说明一样是单条紧凑标签；高度按内容 heightForWidth 自适应，保证不断尾）
     _ACTOR_DB_HINT_T1 = "扫描已有演员TMDB ID但是缺少中文姓名的条目"
     _ACTOR_DB_HINT_T2 = "用默认程序打开xlxs查看与编辑"
+    # 校验行两说明的双行原文（与 .ui/.py 静态文本保持一致；最大化单行显示时去掉硬换行）
+    _ACTOR_DB_VERIFY_DESC = "失效ID清除后自动按名字重搜补新\nID，搜索不到则保持无ID刮削兜底"
+    _ACTOR_DB_CHECK_DESC = "检查格式错误和数据异常，安全项\n自动修复，TMDB给出人工修复步骤"
+    # 最大化单行重排时右列按钮左缘 = 左说明右缘 + 此间距
+    _ACTOR_DB_TOOL_COL_GAP = 20
+    # 右列按钮固定宽度（与常态一致，只平移不拉宽）
+    _ACTOR_DB_TOOL_COL_BTN_W = 200
 
     def _sync_actor_db_tool_layout(self) -> None:
         """软件工具页演员库分组：紧凑排布 + 最大化拉宽。
@@ -731,7 +738,9 @@ class MyMAinWindow(QMainWindow):
         （通用拉伸之后覆盖），接管组内全部 27 个控件：
         - 常态（最小化/还原）：按 _ACTOR_DB_TOOL_DESIGN 紧凑排布，提示条在顶部
           说明下方单行显示（颜色不变），右列为合并后单条提示（两行显示）；
-        - 最大化：宽幅控件拉宽，顶部合并提示词一行显示，其余位置与常态一致。
+        - 最大化：宽幅控件拉宽，顶部合并提示词一行显示；校验行两说明去硬换行
+          单行显示，右列按钮（LibreDMM/停止/minnano/检查）及右侧提示同步右移，
+          宽度不足时回落双列双行。
         """
         ui = getattr(self, "Ui", None)
         if ui is None:
@@ -770,30 +779,65 @@ class MyMAinWindow(QMainWindow):
             # 同上，底边封顶 196（校验行 y196/200 上方）；顶部锚定 minnano 按钮顶部
             btn = ui.pushButton_actor_db_fill_minnano
             minnano_desc.setGeometry(460, btn.y(), 221, wrapped_label_height(minnano_desc, 221, 30, 56))
+            # 最大化曾把校验行两说明改成单行、右列按钮右移；常态全部复位，
+            # 最小化布局与原来逐像素一致
+            ui.pushButton_actor_db_link.setGeometry(260, 80, 200, 32)
+            verify_lbl = widgets["label_actor_db_verify_tmdbid_desc"]
+            check_lbl = widgets["label_actor_db_check_desc"]
+            verify_lbl.setText(self._ACTOR_DB_VERIFY_DESC)
+            verify_lbl.setWordWrap(True)
+            check_lbl.setText(self._ACTOR_DB_CHECK_DESC)
+            check_lbl.setWordWrap(True)
             return
         # ---- 最大化：拉宽（顶部合并提示词够宽一行、窄屏换行，均不断尾）----
         extra = max(box_w - 701, 0)  # 组框相对设计宽度的增量
-        tdesc_w = max(box_w - 460 - 10, 200)
-        tdesc.setWordWrap(True)  # 够宽一行显示，窄屏自动换行不断尾
-        tdesc.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        tdesc.setGeometry(460, ui.pushButton_actor_db_link.y(), tdesc_w, wrapped_label_height(tdesc, tdesc_w, 32, 56))
         widgets["label_actor_db_desc"].setGeometry(40, 30, 621 + extra, 22)
         note.setGeometry(40, 52, 621 + extra, 20)
-        # minnano 说明：紧贴补全按钮右侧，右缘收到组框内缘；够宽一行显示，
-        # 窄屏自动换行不断尾（增高时底边封顶 196，不侵入校验行 y196/200）
-        btn = ui.pushButton_actor_db_fill_minnano
-        mw = max(box_w - (btn.x() + btn.width()) - 10, 200)
+        # ---- 校验行单行化：两说明去硬换行单行显示，右列按钮及右侧提示同步右移 ----
+        # verify 单行宽按字体实测；右列左缘 = 左说明右缘 + 间距；check 说明跟随右列
+        # 同样单行。宽度不够时回落常态双列双行（窄屏最大化保护）。
+        verify_lbl = widgets["label_actor_db_verify_tmdbid_desc"]
+        check_lbl = widgets["label_actor_db_check_desc"]
+        verify_single = self._ACTOR_DB_VERIFY_DESC.replace("\n", "")
+        check_single = self._ACTOR_DB_CHECK_DESC.replace("\n", "")
+        verify_w = verify_lbl.fontMetrics().horizontalAdvance(verify_single) + 8
+        check_w = check_lbl.fontMetrics().horizontalAdvance(check_single) + 8
+        col_x = 40 + verify_w + self._ACTOR_DB_TOOL_COL_GAP
+        btn_w = self._ACTOR_DB_TOOL_COL_BTN_W
+        single_ok = (col_x + check_w + 10 <= box_w) and (col_x + btn_w + 200 + 10 <= box_w)
+        if not single_ok:
+            col_x = 260
+        ui.pushButton_actor_db_link.setGeometry(col_x, 80, btn_w, 32)
+        widgets["pushButton_actor_db_stop"].setGeometry(col_x, 112, btn_w, 28)
+        mbtn = widgets["pushButton_actor_db_fill_minnano"]
+        mbtn.setGeometry(col_x, 140, btn_w, 30)
+        widgets["pushButton_actor_db_check"].setGeometry(col_x, 170, btn_w, 30)
+        if single_ok:
+            verify_lbl.setText(verify_single)
+            verify_lbl.setWordWrap(False)
+            verify_lbl.setGeometry(40, 206, verify_w, 40)
+            check_lbl.setText(check_single)
+            check_lbl.setWordWrap(False)
+            check_lbl.setGeometry(col_x, 206, check_w, 40)
+        else:
+            verify_lbl.setText(self._ACTOR_DB_VERIFY_DESC)
+            verify_lbl.setWordWrap(True)
+            verify_lbl.setGeometry(40, 206, 220, 40)
+            check_lbl.setText(self._ACTOR_DB_CHECK_DESC)
+            check_lbl.setWordWrap(True)
+            check_lbl.setGeometry(260, 206, 220, 40)
+        # 右侧提示（顶部合并提示/minnano 说明）：紧贴右列按钮右侧，右缘收到组框内缘
+        prompt_x = col_x + btn_w
+        prompt_w = max(box_w - prompt_x - 10, 200)
+        tdesc.setWordWrap(True)  # 够宽一行显示，窄屏自动换行不断尾
+        tdesc.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        tdesc.setGeometry(prompt_x, ui.pushButton_actor_db_link.y(), prompt_w, wrapped_label_height(tdesc, prompt_w, 32, 56))
         minnano_desc.setWordWrap(True)
         minnano_desc.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        minnano_desc.setGeometry(
-            btn.x() + btn.width(), btn.y(), mw, wrapped_label_height(minnano_desc, mw, 30, 56)
-        )
-        # 宽幅说明行跟随拉宽：y/h 取字典常态值，只加宽（与原通用拉伸一致，防脱节）
-        widgets["label_actor_db_verify_tmdbid_desc"].setGeometry(260, 200, 381 + extra, 28)
-        widgets["label_actor_db_check_desc"].setGeometry(260, 234, 381 + extra, 42)
-        widgets["label_actor_db_update_nfo_desc"].setGeometry(40, 314, 621 + extra, 28)
-        widgets["label_actor_db_sync_aliases_desc"].setGeometry(40, 434, 621 + extra, 42)
-        widgets["label_actor_db_fill_zh_javdb_desc"].setGeometry(260, 488, 421 + extra, 30)
+        minnano_desc.setGeometry(prompt_x, mbtn.y(), prompt_w, wrapped_label_height(minnano_desc, prompt_w, 30, 56))
+        widgets["label_actor_db_update_nfo_desc"].setGeometry(40, 288, 621 + extra, 28)
+        widgets["label_actor_db_sync_aliases_desc"].setGeometry(40, 408, 621 + extra, 42)
+        widgets["label_actor_db_fill_zh_javdb_desc"].setGeometry(260, 462, 421 + extra, 30)
         # nfo 目录行：输入框缩为拉伸后一半，两按钮紧随其右侧
         nfo_w = max((300 + extra) // 2, 150)
         nfo_x, nfo_y, _, nfo_h = self._ACTOR_DB_TOOL_DESIGN["lineEdit_actor_db_nfo_dir"]

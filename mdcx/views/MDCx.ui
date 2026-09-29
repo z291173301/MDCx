@@ -1569,7 +1569,7 @@
                   <x>0</x>
                   <y>0</y>
                   <width>860</width>
-                  <height>2475</height>
+                  <height>2309</height>
                 </rect>
               </property>
               <property name="autoFillBackground">
@@ -1579,7 +1579,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>660</y>
+                    <y>564</y>
                     <width>701</width>
                     <height>271</height>
                   </rect>
@@ -1715,7 +1715,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>951</y>
+                    <y>855</y>
                     <width>701</width>
                     <height>141</height>
                   </rect>
@@ -1766,7 +1766,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1854</y>
+                    <y>1688</y>
                     <width>701</width>
                     <height>241</height>
                   </rect>
@@ -1942,13 +1942,13 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1663</y>
+                    <y>1497</y>
                     <width>701</width>
                     <height>171</height>
                   </rect>
                 </property>
                 <property name="title">
-                  <string>移动视频、字幕（将待刮削目录下所有子目录中的视频移动到一个目录中以方便进行查看）</string>
+                  <string>移动视频与字幕（将待刮削目录下所有子目录中的视频移动到一个目录中以方便进行查看）</string>
                 </property>
                 <widget class="QPushButton" name="pushButton_move_mp4">
                   <property name="geometry">
@@ -2021,9 +2021,9 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1332</y>
+                    <y>1236</y>
                     <width>701</width>
-                    <height>311</height>
+                    <height>241</height>
                   </rect>
                 </property>
                 <property name="title">
@@ -2145,7 +2145,7 @@
                   <property name="geometry">
                     <rect>
                       <x>140</x>
-                      <y>250</y>
+                      <y>180</y>
                       <width>241</width>
                       <height>40</height>
                     </rect>
@@ -2274,7 +2274,7 @@
                   <property name="geometry">
                     <rect>
                       <x>410</x>
-                      <y>250</y>
+                      <y>180</y>
                       <width>191</width>
                       <height>40</height>
                     </rect>
@@ -2302,11 +2302,11 @@
                      <x>30</x>
                      <y>40</y>
                      <width>701</width>
-                     <height>600</height>
+                     <height>504</height>
                    </rect>
                  </property>
                 <property name="title">
-                  <string>演员库维护（直接操作 actor_database.xlsx，复用当前配置的 TMDB API）</string>
+                  <string>演员库维护（直接操作actor_database.xlsx，复用当前配置的TMDB API）</string>
                 </property>
                 <widget class="QLabel" name="label_actor_db_desc">
                   <property name="geometry">
@@ -2504,7 +2504,7 @@
                     </rect>
                   </property>
                   <property name="toolTip">
-                    <string>校验库中所有 tmdbid 是否仍有效。TMDB 是公开平台，person id 可能被删除/重建，失效 id 会被清除，并自动按名字重新搜索补回新 id（搜不到则保持无 id，刮削按名字兜底搜索）。需配置 TMDB API Key。</string>
+                    <string>校验库中所有 tmdbid 是否仍有效。TMDB 是公开平台，person id 可能被删除/重建，失效 id 会被清除，并自动按名字重新搜索补回新 id（搜索不到则保持无 id，刮削按名字兜底搜索）。需配置 TMDB API Key。</string>
                   </property>
                   <property name="text">
                     <string>校验TMDB ID有效性</string>
@@ -2523,7 +2523,8 @@
                     <string notr="true">color: rgb(8, 128, 128); font-size: 12px;</string>
                   </property>
                   <property name="text">
-                    <string>失效ID清除后自动按名字重搜补新ID，搜不到则保持无ID刮削兜底</string>
+                    <string>失效ID清除后自动按名字重搜补新
+ID，搜索不到则保持无ID刮削兜底</string>
                   </property>
                     <property name="wordWrap">
                       <bool>true</bool>
@@ -2558,7 +2559,8 @@
                     <string notr="true">color: rgb(8, 128, 128); font-size: 12px;</string>
                   </property>
                   <property name="text">
-                    <string>检查格式错误、数据异常，安全项自动修复，TMDB给人工修复步骤</string>
+                    <string>检查格式错误和数据异常，安全项
+自动修复，TMDB给出人工修复步骤</string>
                   </property>
                     <property name="wordWrap">
                       <bool>true</bool>
@@ -2740,6 +2742,10 @@
                       <height>28</height>
                     </rect>
                   </property>
+                  <property name="styleSheet">
+                    <string notr="true">QSpinBox::up-button { margin-right: 5px; }
+QSpinBox::down-button { margin-right: 5px; }</string>
+                  </property>
                   <property name="toolTip">
                     <string>跳过数据文件前 N 行（不含表头）再扫描。用于上次中断后的手动续跑：填入上次日志中已处理的最大行号，从下一行继续。</string>
                   </property>
@@ -2775,6 +2781,10 @@
                       <width>110</width>
                       <height>28</height>
                     </rect>
+                  </property>
+                  <property name="styleSheet">
+                    <string notr="true">QSpinBox::up-button { margin-right: 5px; }
+QSpinBox::down-button { margin-right: 5px; }</string>
                   </property>
                   <property name="toolTip">
                     <string>本次最多处理的条目数。0 表示不限制；非 0 时分片推进，建议 500~2000 之间按网络状况选择。</string>
@@ -2838,7 +2848,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1112</y>
+                    <y>1016</y>
                     <width>701</width>
                     <height>200</height>
                   </rect>
@@ -2949,13 +2959,13 @@
                   <property name="geometry">
                     <rect>
                       <x>30</x>
-                      <y>2115</y>
+                      <y>1949</y>
                       <width>701</width>
                       <height>340</height>
                     </rect>
                   </property>
                   <property name="title">
-                    <string>刮削缓存管理（断点续刮/失败重试状态，清缓存只影响是否跳过，不删已生成 NFO）</string>
+                    <string>刮削缓存管理（断点续刮/失败重试状态，清缓存只影响是否跳过，不删除已经生成的NFO文件）</string>
                   </property>
                   <widget class="QLabel" name="label_scrape_cache_done">
                     <property name="geometry"><rect><x>20</x><y>30</y><width>120</width><height>21</height></rect></property>
@@ -24380,7 +24390,7 @@ p, li { white-space: pre-wrap; }
 &lt;h4&gt;十、软件工具页面&lt;/h4&gt;
  &lt;ul&gt;
   &lt;li&gt;&lt;b&gt;NFO 库管理&lt;/b&gt;：左侧导航独立页面，浏览和编辑整个 NFO 库。选择目录后递归扫描所有 .nfo 文件生成列表（支持番号/演员/标题筛选）；点列表项读取 NFO 填充 15 字段编辑表单（番号/标题/演员/发行日/年份/时长/导演/片商/发行商/系列/评分/简介/标签/封面URL/海报URL），右侧同步预览本地海报和缩略图，可调起裁剪工具；保存前自动对比改动弹窗确认（字段级 diff），无改动不写盘；批量操作面板支持多选后一键替换演员名、加标签、删标签、统一系列名；列表右键菜单提供重新刮削（找同目录同名视频入队）、打开所在目录、删除 NFO。&lt;/li&gt;
-  &lt;li&gt;&lt;b&gt;演员库维护&lt;/b&gt;：直接操作 actor_database.xlsx。补全中文名（按 TMDB ID 补翻译）、补全LibreDMM链接、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的条目，勾选「全量更新」则并入全部行，不覆盖本地已有别名，支持「起始行/限量」分片续跑）、JavDB中文名（从 JavDB 影片详情页抓取演员中文名，并发拉取影片详情，支持分片续跑与「停止当前维护任务」）、Minnano-av补全（从 minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，TMDB给人工修复步骤）、打开数据库（用默认程序打开xlsx查看与编辑）、剔除男演员（按 TMDB 性别删除男优）、校验 tmdbid 有效性（清除 TMDB 失效 id 并按名字重搜补回）、更新nfo文件TMDB ID字段（用本地库新 id 覆盖 nfo 旧 id）。联网工具支持限量分片与「停止当前维护任务」按钮，网络请求自动并发，进度实时显示。&lt;/li&gt;
+  &lt;li&gt;&lt;b&gt;演员库维护&lt;/b&gt;：直接操作 actor_database.xlsx。补全中文名（按 TMDB ID 补翻译）、补全LibreDMM链接、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的条目，勾选「全量更新」则并入全部行，不覆盖本地已有别名，支持「起始行/限量」分片续跑）、JavDB中文名（从 JavDB 影片详情页抓取演员中文名，并发拉取影片详情，支持分片续跑与「停止当前维护任务」）、Minnano-av补全（从 minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，TMDB给出人工修复步骤）、打开数据库（用默认程序打开xlsx查看与编辑）、剔除男演员（按 TMDB 性别删除男优）、校验 tmdbid 有效性（清除 TMDB 失效 id 并按名字重搜补回）、更新nfo文件TMDB ID字段（用本地库新 id 覆盖 nfo 旧 id）。联网工具支持限量分片与「停止当前维护任务」按钮，网络请求自动并发，进度实时显示。&lt;/li&gt;
   &lt;li&gt;&lt;b&gt;刮削缓存管理&lt;/b&gt;：在「软件工具」页刮削缓存面板可查看断点续刮缓存状态（已完成/失败/总数），支持刷新缓存统计、导出缓存数据、重置缓存（清除全部已完成标记，下次全量重刮）、清空缓存（删除 scrape_state.db 文件）。适合在断点续刮数据异常或需要重新全量刮削时使用。&lt;/li&gt;
   &lt;li&gt;&lt;b&gt;Emby/Jellyfin 演员管理器&lt;/b&gt;：填写 Emby/Jellyfin 地址和 API 密钥后连接服务器，获取演员列表并按媒体库筛选（可配置只获取演员类型 / 重复去重）；从 Gfriends / graphis.ne.jp / minnano-av / 本地文件夹按可配置优先级匹配头像和背景图（本地文件夹采用预扫描索引，N 次全树遍历降为 1 次），从本地演员库 / 维基百科 / minnano-av / 数据库按可配置优先级匹配简介和出生日期；Gfriends / Graphis / 信息链路已合并为统一函数，按数据源优先级依次尝试；「数据源测试」可逐源验证结果，「设置」可配置数据源优先级与获取过滤；预览后批量同步到服务器（支持仅补缺失或强制重新获取，同步完成后自动刷新列表），双击演员行打开详情编辑对话框，可编辑简介 / 信息并单独同步头像 / 简介；头像缓存持久化到 userdata/emby_actor_cache/ 目录（不再随临时目录清理丢失），「清空缓存文件夹」可一键清理。&lt;/li&gt;
  &lt;li&gt;&lt;b&gt;单文件刮削&lt;/b&gt;：指定某个文件的番号网址进行刮削，当存在相同番号时可手工指定。&lt;/li&gt;
