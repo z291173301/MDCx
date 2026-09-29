@@ -22963,7 +22963,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>隐藏 Dock 图标（Mac）</string>
+                                  <string>隐藏Dock图标（Mac）</string>
                                 </property>
                               </widget>
                             </item>

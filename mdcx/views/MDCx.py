@@ -13919,7 +13919,7 @@ class Ui_MDCx(object):
         self.groupBox_12.setTitle(_translate("MDCx", "高级功能"))
         self.checkBox_hide_window_title.setText(_translate("MDCx", "隐藏边框（美观样式）"))
         self.checkBox_dark_mode.setText(_translate("MDCx", "暗黑模式"))
-        self.checkBox_hide_dock_icon.setText(_translate("MDCx", "隐藏 Dock 图标（Mac）"))
+        self.checkBox_hide_dock_icon.setText(_translate("MDCx", "隐藏Dock图标（Mac）"))
         self.label_42.setText(_translate("MDCx", "保存后重启软件生效 "))
         self.checkBox_hide_menu_icon.setText(_translate("MDCx", "隐藏菜单栏图标（Mac）"))
         self.label_321.setText(_translate("MDCx", "间歇刮削："))
