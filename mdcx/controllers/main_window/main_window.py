@@ -738,6 +738,21 @@ class MyMAinWindow(QMainWindow):
     # 右列按钮固定宽度（与常态一致，只平移不拉宽）
     _ACTOR_DB_TOOL_COL_BTN_W = 200
 
+    # 需求①：三个控件与 checkBox_actor_photo_ne_new（请求 Graphis 最新图片）左缘对齐
+    _ACTOR_PAGE_GRAPHIS_TARGETS = (
+        "checkBox_actor_photo_auto",
+        "checkBox_actor_info_photo",
+        "pushButton_del_actor_folder",
+    )
+    # 需求②：checkBox_actor_photo_kodi 与 radioButton_actor_photo_miss
+    # （仅缺少头像的演员）左缘对齐
+    _ACTOR_PAGE_MISS_TARGETS = ("checkBox_actor_photo_kodi",)
+    # checkBox_actor_photo_kodi 在 groupBox_68 内被 _classify_inner 判为 None
+    # （既非 _STRETCH 也非右缘 ≥90%），压根没进 registry，于是通用宽幅同步
+    # 既不会推它、也不会在还原时把它推回来。最大化被本方法挪走后只能靠自己复位，
+    # 故单独记下它的设计几何（相对 groupBox_68，与 MDCx.ui 一致）。
+    _ACTOR_PAGE_MISS_DESIGN = (300, 130, 141, 40)
+
     def _sync_actor_db_tool_layout(self) -> None:
         """软件工具页演员库分组：紧凑排布 + 最大化拉宽。
 
@@ -868,6 +883,86 @@ class MyMAinWindow(QMainWindow):
         spin = ui.spinBox_actor_db_sync_limit
         hint = widgets["label_actor_db_sync_slice_hint"]
         hint.setGeometry(spin.x() + spin.width() + 10, spin.y(), 261, spin.height())
+
+    def _sync_actor_page_align(self, actor_scroll=None) -> None:
+        """软件设置-演员页：两个基准线上的四个控件左缘对齐（最大化才生效）。
+
+        用户截图（最大化态，1920 屏 content 1650 宽，组框 1569 宽）：
+          ① 「补全完成后自动补全演员头像」「刮削结束后自动补全演员头像」「清除所有
+             .actors 文件夹」三者的左缘停在 content_x=1348/1348/1388，而「请求
+             Graphis 最新图片」在 1136，要求三者与它严格上下对齐（各自左移
+             212/212/252px）；「请求 Graphis 最新图片」自身保持不变。
+          ② 「刮削结束后自动创建」要求与「仅缺少头像的演员」严格上下对齐（右移
+             119px）；「仅缺少头像的演员」自身保持不变。
+        还原态页面、控件、布局必须保持不变（与纯设计几何逐像素一致）。
+
+        根因：groupBox_41/64/68 的这四个控件是绝对定位直接子项，CustomScrollArea
+        的通用宽幅同步按 _classify_inner 分类——右缘 ≥ 组框宽 90% 的判为
+        _DOCK_RIGHT，最大化时执行 sub.move(design_x + extra) 把它们钉到右缘；
+        而锚点 checkBox_actor_photo_ne_new 在 layoutWidget_8 内，是 _STRETCH
+        （两项等分拉伸），于是被推到 1136，与右缘钉定的三者分属两条线。
+
+        做法（只改最大化态，还原态一个像素都不碰，纯函数、双向幂等）：
+        本方法在 _sync_page_layouts 末尾（通用拉伸之后）执行：
+          - 非最大化**直接 return，一个 setGeometry 都不发**：还原态几何完全由
+            CustomScrollArea.sync_wide_children_width() 产出，本方法若去「落回
+            设计几何」就会把 _DOCK_RIGHT 的 design_x + extra 覆盖成 design_x，
+            还原态凭空右移 -extra（实测 win=1030 时 extra=-22，三个控件齐刷刷
+            右移 22px），违反「最小化时界面、控件、布局等等保持不变」。同理也
+            不能把这几个名字挪进 _MANUAL_* 从 registry 里摘掉——那会让通用
+            同步彻底不碰它们，还原态同样回到设计 x。故一律不摘不改。
+          - 最大化：先显式重跑一次宽幅同步（拿到终态 extra，休眠页由切 tab 的
+            showEvent 补齐），再用 mapTo 把锚点量到与目标同一个 content 祖先
+            坐标系，得到「锚点绝对 x」与「目标当前绝对 x」，目标新 x = 当前 x +
+            差值后 setGeometry；守卫 x>=0 且右缘不越父级，越界（窄屏最大化）则
+            该控件保持通用逻辑给出的位置。
+          - 还原时通用逻辑每遍都会 move(design_x + extra) 自愈，不依赖本方法复位。
+        休眠页跳过。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_41", None)
+        if box is None or not box.isVisibleTo(self):
+            return
+        # 还原态：除 checkBox_actor_photo_kodi 外一个像素都不碰，几何完全交给
+        # 通用宽幅同步（见 docstring）。kodi 未进 registry，通用逻辑不会自愈，
+        # 必须显式复位，否则最大化挪走后会一直停在锚点线上。
+        if not self.isMaximized():
+            kodi = getattr(ui, "checkBox_actor_photo_kodi", None)
+            if kodi is not None:
+                kodi.setGeometry(*self._ACTOR_PAGE_MISS_DESIGN)
+            return
+        if actor_scroll is not None and actor_scroll.isVisibleTo(self):
+            actor_scroll.sync_wide_children_width()  # 取终态 extra，勿量过期几何
+        graphis = getattr(ui, "checkBox_actor_photo_ne_new", None)
+        miss = getattr(ui, "radioButton_actor_photo_miss", None)
+        widgets = {name: getattr(ui, name, None) for name in self._ACTOR_PAGE_GRAPHIS_TARGETS + self._ACTOR_PAGE_MISS_TARGETS}
+        if graphis is None or miss is None or any(w is None for w in widgets.values()):
+            return
+        content = box.parentWidget()
+        if content is None:
+            return
+
+        def shift_to(name, anchor):
+            """把 name 的左缘对到 anchor 的左缘（同一 content 坐标系）。"""
+            w = widgets[name]
+            if w.parentWidget() is None or anchor.parentWidget() is None:
+                return
+            dx = anchor.mapTo(content, anchor.rect().topLeft()).x() - w.mapTo(
+                content, w.rect().topLeft()
+            ).x()
+            g = w.geometry()
+            nx = g.x() + dx
+            if nx < 0 or nx + g.width() > w.parentWidget().width():
+                return  # 越出父级（窄屏最大化）：保持通用逻辑给出的位置
+            if dx:
+                w.setGeometry(nx, g.y(), g.width(), g.height())
+
+        for name in self._ACTOR_PAGE_GRAPHIS_TARGETS:
+            shift_to(name, graphis)
+        for name in self._ACTOR_PAGE_MISS_TARGETS:
+            shift_to(name, miss)
 
     def resizeEvent(self, a0):
         # 全局 UI 为绝对定位布局（上游遗留），centralwidget 无布局管理器，
@@ -1214,9 +1309,10 @@ class MyMAinWindow(QMainWindow):
         # Qt 绝对定位布局中：先让所有 tab 的 tab_page 自身 resize 到正确尺寸，
         # 这样 scrollArea 才会感知到变化；然后对每个 scrollArea 显式设置几何。
         # 否则 scrollArea 保留设计器固定尺寸（如 796x658），不跟随变化。
-        # 高级页（tab5）滚动区要留给 _sync_advanced_page_align 做宽幅同步 + 量基准，
-        # 休眠页由切 tab 的 showEvent 补齐。
+        # 高级页（tab5）/ 演员页（tab_5）滚动区要留给 _sync_advanced_page_align /
+        # _sync_actor_page_align 做宽幅同步 + 量基准，休眠页由切 tab 的 showEvent 补齐。
         adv_scroll = None
+        actor_scroll = None
         for index in range(ui.tabWidget.count()):
             tab_page = ui.tabWidget.widget(index)
             # 关键：tab_page 必须先获得新尺寸，scrollArea 才能跟随同步
@@ -1226,6 +1322,8 @@ class MyMAinWindow(QMainWindow):
                 scroll_area.setGeometry(0, 0, scroll_w, scroll_h)
                 if tab_page.objectName() == "tab5":
                     adv_scroll = scroll_area
+                elif tab_page.objectName() == "tab_5":
+                    actor_scroll = scroll_area
 
         # ---- page_setting 底部配置操作浮框（当前配置/另存为/恢复默认/保存）----
         # 设计基准 y620-692 贴页底（page_setting 高 692）。窗口放大后浮框停在设计
@@ -1340,6 +1438,10 @@ class MyMAinWindow(QMainWindow):
         # groupBox_12 的列宽，放前面量到的是过期值（同 verify_gb 血案）。
         self._sync_advanced_page_align(adv_scroll)
 
+        # ============ page_setting / 演员页: 两行控件对齐到各自基准线 ============
+        # 同样排在通用拉伸之后：本方法先落设计几何再按最大化分支覆盖。
+        self._sync_actor_page_align(actor_scroll)
+
     def _sync_advanced_page_align(self, adv_scroll=None) -> None:
         """设置-高级：四行复选框对齐到「刮削结束后自动退出软件」同一条竖线。
 
@@ -1366,12 +1468,14 @@ class MyMAinWindow(QMainWindow):
           弹窗确认行  钉「退出软件时」            -> 「停止刮削时」        落 anchor
           隐藏图标行  在 label_42 之后插固定间隔  -> 「隐藏菜单栏图标（Mac）」落 anchor，
                       前两项保持贴 col1 左缘（改用整行左 margin 会把「隐藏Dock图标
-                      （Mac）」「保存后重启生效」一起推走，破坏本页左缘节奏）
+                      （Mac）」「保存重启软件生效」一起推走，破坏本页左缘节奏）
           界面外观行  把 layoutWidget5 加宽到 2*(anchor-row_x)-spacing（两项均分）
                       -> 「暗黑模式」落 anchor；该容器是 frame 的普通子 QWidget
                       （frame 无 layout），故用 setGeometry 而非 layout 属性
           隐藏入口行  钉「隐藏 Emby 演员管理」    -> 「隐藏 NFO 库管理」落 anchor，
-                      说明标签随 spacing 紧邻其右（仅最大化）
+                      并把它自己钉回 sizeHint 宽（QCheckBox 可拉伸，不钉会被余量
+                      撑到 658px，左对齐绘制时字形只占 152，与说明标签之间空出
+                      394px，见用户截图红框）-> 说明标签紧贴其右 6px（仅最大化）
         前导控件全是左对齐绘制，钉宽/插间隔只改右侧留白，不移动自身字形。
         走 setFixedWidth / QSpacerItem / setGeometry 而非 move()：layout
         重新 activate 会覆盖 move()。任一行余量放不下（窗口太窄、说明标签挤不
@@ -1397,7 +1501,7 @@ class MyMAinWindow(QMainWindow):
             return
         maxed = self.isMaximized()
         lay_a = ui.horizontalLayout_55  # 退出软件时 / 停止刮削时
-        lay_b = ui.horizontalLayout_dock  # 隐藏Dock图标 / 保存后重启生效 / 隐藏菜单栏图标
+        lay_b = ui.horizontalLayout_dock  # 隐藏Dock图标 / 保存重启软件生效 / 隐藏菜单栏图标
         lay_d = ui.horizontalLayout_nav_hide  # 隐藏Emby演员管理 / 隐藏NFO库管理 / 说明
         changed = False
 
@@ -1412,7 +1516,7 @@ class MyMAinWindow(QMainWindow):
 
         # ---- 隐藏图标行：前两项是 Fixed 文本项，插固定间隔把末项单独推到 anchor ----
         # 用「插在 label_42 之后」的固定间隔，而不是给整行加左 margin：后者会
-        # 把「隐藏Dock图标（Mac）」「保存后重启生效」一起推到右边，破坏本页
+        # 把「隐藏Dock图标（Mac）」「保存重启软件生效」一起推到右边，破坏本页
         # 「每行第一个控件都贴着 col1 左缘」的节奏（实测 col1 左缘 = row_x = 97）。
         # gap_b < 0 说明列太窄、Fixed 前缀已经越过 anchor，QCheckBox/QLabel 的
         # sizeHint 就是不裁字下限，压缩必裁字，所以整行放弃（保持设计态原样）。
@@ -1452,6 +1556,10 @@ class MyMAinWindow(QMainWindow):
         # ---- 隐藏入口行：钉「隐藏 Emby 演员管理」，「隐藏NFO库管理」落 anchor ----
         # 仅最大化：还原态列宽只有 568，pin_d 之后余量 255 放不下「隐藏NFO库管理
         # + 说明标签」的 412，钉了必然裁字，用户也只要求最大化时对齐。
+        # 钉住后还须把 nfo 本身也钉回 sizeHint 宽：QCheckBox 默认 sizePolicy 可拉伸，
+        # 最大化时它会独吞余量把说明标签顶到 1323（实测），而复选框是左对齐绘制、
+        # 文字只占 152，于是文字与说明标签之间出现 394px 空洞（用户截图红框）。
+        # 钉死后余量全归末位的说明标签，它紧贴 nfo 文字右侧 6px。
         actor = ui.checkBox_hide_actor_nav
         nfo = ui.checkBox_hide_nfo_nav
         hint = ui.label_nav_hide_hint
@@ -1461,6 +1569,7 @@ class MyMAinWindow(QMainWindow):
             nfo.sizeHint().width() + hint.sizeHint().width()
         )
         changed |= self._pin_row_lead_width(actor, pin_d if ok_d else None)
+        changed |= self._pin_row_lead_width(nfo, nfo.sizeHint().width() if ok_d else None)
 
         if not changed:
             return

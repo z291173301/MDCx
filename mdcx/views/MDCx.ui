@@ -7586,7 +7586,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>MyWife：</string>
+                              <string>MyWifes：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -7847,7 +7847,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>素人：</string>
+                              <string>素人番号：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -13016,7 +13016,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </size>
                             </property>
                             <property name="text">
-                              <string>去除素人番号前缀数字（比如：259LUXU-1488 将修改为 LUXU-1488，建议保留）</string>
+                              <string>去除素人番号的前缀数字，比如：259LUXU-1488将修改为LUXU-1488，建议保留</string>
                             </property>
                           </widget>
                         </item>
@@ -13051,7 +13051,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </size>
                             </property>
                             <property name="text">
-                              <string>去除演员名括号中的名字（比如：Rio（柚木ティナ）将修改为 Rio）</string>
+                              <string>去除演员名括号中的名字，比如：演员姓名为Rio（柚木ティナ）将修改为Rio）</string>
                             </property>
                           </widget>
                         </item>
@@ -13108,7 +13108,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <item row="0" column="1">
                           <widget class="QCheckBox" name="checkBox_title_del_actor">
                             <property name="text">
-                              <string>去除标题后的演员名（个别网站在标题末尾额外多加了演员名，建议去除）</string>
+                              <string>去除番号标题后的演员名，个别网站在标题末尾额外多加了演员名，建议去除）</string>
                             </property>
                           </widget>
                         </item>
@@ -13872,7 +13872,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>百度 APP ID：</string>
+                              <string>百度APP ID：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -16462,16 +16462,16 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           破解水印：\配置文件目录\userdata\watermark\umr.png&lt;br&gt;
                           流出水印：\配置文件目录\userdata\watermark\leak.png&lt;br&gt;
                           无码水印：\配置文件目录\userdata\watermark\wuma.png&lt;br&gt;
-                          加4K水印：\配置文件目录\userdata\watermark\4k.png&lt;br&gt;
-                          加8K水印：\配置文件目录\userdata\watermark\8k.png&lt;br&gt;
+                          4K加水印：\配置文件目录\userdata\watermark\4k.png&lt;br&gt;
+                          8K加水印：\配置文件目录\userdata\watermark\8k.png&lt;br&gt;
                           MAC系统：（配置文件的目录可以在「设置」-「高级」中设置）&lt;br&gt;
                           字幕水印：/配置文件目录/userdata/watermark/sub.png&lt;br&gt;
                           有码水印：/配置文件目录/userdata/watermark/youma.png&lt;br&gt;
                           破解水印：/配置文件目录/userdata/watermark/umr.png&lt;br&gt;
                           流出水印：/配置文件目录/userdata/watermark/leak.png&lt;br&gt;
                           无码水印：/配置文件目录/userdata/watermark/wuma.png&lt;br&gt;
-                          加4K水印：/配置文件目录/userdata/watermark/4k.png&lt;br&gt;
-                          加8K水印：/配置文件目录/userdata/watermark/8k.png&lt;br&gt;
+                          4K加水印：/配置文件目录/userdata/watermark/4k.png&lt;br&gt;
+                          8K加水印：/配置文件目录/userdata/watermark/8k.png&lt;br&gt;
                           &lt;br&gt;
                           2、水印图片显示的逻辑：&lt;br&gt;
                           · 首先计算水印图片的显示高度=封面图高度*设置的水印大小/40&lt;br&gt;
@@ -20011,7 +20011,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>使用 Graphis 背景</string>
+                                  <string>使用Graphis背景</string>
                                 </property>
                               </widget>
                             </item>
@@ -20030,7 +20030,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>使用 Graphis 头像</string>
+                                  <string>使用Graphis头像</string>
                                 </property>
                               </widget>
                             </item>
@@ -20049,7 +20049,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>请求 Graphis 最新图片</string>
+                                  <string>请求Graphis最新图片</string>
                                 </property>
                               </widget>
                             </item>
@@ -20971,7 +20971,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         </rect>
                       </property>
                       <property name="text">
-                        <string>清除所有 .actors 文件夹</string>
+                        <string>清除所有.actors文件夹</string>
                       </property>
                     </widget>
                     <widget class="QCheckBox" name="checkBox_actor_photo_kodi">
@@ -22985,7 +22985,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>保存后重启生效 </string>
+                                  <string>保存重启软件生效 </string>
                                 </property>
                                 <property name="alignment">
                                   <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -23757,7 +23757,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="toolTip">
-                                  <string>界面缩放比例，保存后重启生效</string>
+                                  <string>界面缩放比例，保存重启软件生效</string>
                                 </property>
                                 <item>
                                   <property name="text">
@@ -23819,7 +23819,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                    <string notr="true">color: rgb(8, 128, 128);</string>
                                  </property>
                                  <property name="text">
-                                   <string>保存后重启生效，可能会有点模糊</string>
+                                   <string>保存重启软件生效，可能会有点模糊</string>
                                  </property>
                                  <property name="alignment">
                                    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -23861,7 +23861,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                    <string>隐藏左侧导航的「演员管理」入口，可随时在此重新开启</string>
                                  </property>
                                  <property name="text">
-                                   <string>隐藏 Emby 演员管理</string>
+                                   <string>隐藏Emby演员管理</string>
                                  </property>
                                </widget>
                              </item>
@@ -23877,7 +23877,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                    <string>隐藏左侧导航的「信息管理」入口，可随时在此重新开启</string>
                                  </property>
                                  <property name="text">
-                                   <string>隐藏 NFO 库管理</string>
+                                   <string>隐藏NFO库管理</string>
                                  </property>
                                </widget>
                              </item>
@@ -24363,7 +24363,7 @@ p, li { white-space: pre-wrap; }
 
 &lt;h4&gt;七、界面与高分屏&lt;/h4&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;b&gt;界面缩放&lt;/b&gt;：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% 共 8 档，保存后重启生效。&lt;/li&gt;
+&lt;li&gt;&lt;b&gt;界面缩放&lt;/b&gt;：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% 共 8 档，保存重启软件生效。&lt;/li&gt;
 &lt;li&gt;&lt;b&gt;非整数缩放&lt;/b&gt;：PassThrough 高 DPI 非整数缩放已默认启用，无需手动开启，Windows 125%/150% 等缩放档位下界面不再模糊。&lt;/li&gt;
 &lt;li&gt;&lt;b&gt;暗色模式&lt;/b&gt;：内置暗色主题切换。&lt;/li&gt;
 &lt;/ul&gt;

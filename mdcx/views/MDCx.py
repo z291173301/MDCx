@@ -12919,7 +12919,7 @@ class Ui_MDCx(object):
         self.groupBox_80.setTitle(_translate("MDCx", "类型刮削网站"))
         self.label_151.setText(_translate("MDCx", "无码番号："))
         self.label_316.setText(_translate("MDCx", "动漫里番："))
-        self.label_322.setText(_translate("MDCx", "MyWife："))
+        self.label_322.setText(_translate("MDCx", "MyWifes："))
         self.label_232.setText(
             _translate(
                 "MDCx",
@@ -12944,7 +12944,7 @@ class Ui_MDCx(object):
             )
         )
         self.label_154.setText(_translate("MDCx", "比如：MIDE-111，以及不符合以下类型的番号"))
-        self.label_152.setText(_translate("MDCx", "素人："))
+        self.label_152.setText(_translate("MDCx", "素人番号："))
         self.label_153.setText(_translate("MDCx", "有码番号："))
         self.label_148.setText(_translate("MDCx", "个摄番号："))
         self.label_217.setText(_translate("MDCx", "国产番号："))
@@ -13294,15 +13294,15 @@ class Ui_MDCx(object):
             )
         )
         self.checkBox_number_del_num.setText(
-            _translate("MDCx", "去除素人番号前缀数字（比如：259LUXU-1488 将修改为 LUXU-1488，建议保留）")
+            _translate("MDCx", "去除素人番号的前缀数字，比如：259LUXU-1488将修改为LUXU-1488，建议保留")
         )
         self.checkBox_actor_del_char.setText(
-            _translate("MDCx", "去除演员名括号中的名字（比如：Rio（柚木ティナ）将修改为 Rio）")
+            _translate("MDCx", "去除演员名括号中的名字，比如：演员姓名为Rio（柚木ティナ）将修改为Rio）")
         )
         self.label_319.setText(_translate("MDCx", "素人："))
         self.label_197.setText(_translate("MDCx", "后缀顺序："))
         self.checkBox_title_del_actor.setText(
-            _translate("MDCx", "去除标题后的演员名（个别网站在标题末尾额外多加了演员名，建议去除）")
+            _translate("MDCx", "去除番号标题后的演员名，个别网站在标题末尾额外多加了演员名，建议去除）")
         )
         self.label_276.setText(_translate("MDCx", "发行日期："))
         self.label_302.setText(_translate("MDCx", "年: YYYY或YY，月: MM，日:DD，比如: YY.MM.DD 将显示为 22.03.20"))
@@ -13357,7 +13357,7 @@ class Ui_MDCx(object):
                 "DeepL与DeepLX为独立选项，填写DeepL API/DeepLX URL/百度API凭据后才会生效，未填写时将会自动跳过",
             )
         )
-        self.label_baidu_appid.setText(_translate("MDCx", "百度 APP ID："))
+        self.label_baidu_appid.setText(_translate("MDCx", "百度APP ID："))
         self.label_baidu_key.setText(_translate("MDCx", "百度密钥："))
         self.checkBox_google.setText(_translate("MDCx", "Google"))
         self.checkBox_deepl.setText(_translate("MDCx", "DeepL"))
@@ -13544,16 +13544,16 @@ class Ui_MDCx(object):
                 "                          破解水印：\\配置文件目录\\userdata\\watermark\\umr.png<br>\n"
                 "                          流出水印：\\配置文件目录\\userdata\\watermark\\leak.png<br>\n"
                 "                          无码水印：\\配置文件目录\\userdata\\watermark\\wuma.png<br>\n"
-                "                          加4K水印：\\配置文件目录\\userdata\\watermark\\4k.png<br>\n"
-                "                          加8K水印：\\配置文件目录\\userdata\\watermark\\8k.png<br>\n"
+                "                          4K加水印：\\配置文件目录\\userdata\\watermark\\4k.png<br>\n"
+                "                          8K加水印：\\配置文件目录\\userdata\\watermark\\8k.png<br>\n"
                 "                          MAC系统：（配置文件的目录可以在「设置」-「高级」中设置）<br>\n"
                 "                          字幕水印：/配置文件目录/userdata/watermark/sub.png<br>\n"
                 "                          有码水印：/配置文件目录/userdata/watermark/youma.png<br>\n"
                 "                          破解水印：/配置文件目录/userdata/watermark/umr.png<br>\n"
                 "                          流出水印：/配置文件目录/userdata/watermark/leak.png<br>\n"
                 "                          无码水印：/配置文件目录/userdata/watermark/wuma.png<br>\n"
-                "                          加4K水印：/配置文件目录/userdata/watermark/4k.png<br>\n"
-                "                          加8K水印：/配置文件目录/userdata/watermark/8k.png<br>\n"
+                "                          4K加水印：/配置文件目录/userdata/watermark/4k.png<br>\n"
+                "                          8K加水印：/配置文件目录/userdata/watermark/8k.png<br>\n"
                 "                          <br>\n"
                 "                          2、水印图片显示的逻辑：<br>\n"
                 "                          · 首先计算水印图片的显示高度=封面图高度*设置的水印大小/40<br>\n"
@@ -13737,9 +13737,9 @@ class Ui_MDCx(object):
         self.label_77.setText(_translate("MDCx", "下载头像包解压，填写头像图片目录的路径"))
         self.label_293.setText(_translate("MDCx", "头像来源："))
         self.label_101.setText(_translate("MDCx", "本地头像库："))
-        self.checkBox_actor_photo_ne_backdrop.setText(_translate("MDCx", "使用 Graphis 背景"))
-        self.checkBox_actor_photo_ne_face.setText(_translate("MDCx", "使用 Graphis 头像"))
-        self.checkBox_actor_photo_ne_new.setText(_translate("MDCx", "请求 Graphis 最新图片"))
+        self.checkBox_actor_photo_ne_backdrop.setText(_translate("MDCx", "使用Graphis背景"))
+        self.checkBox_actor_photo_ne_face.setText(_translate("MDCx", "使用Graphis头像"))
+        self.checkBox_actor_photo_ne_new.setText(_translate("MDCx", "请求Graphis最新图片"))
         self.radioButton_actor_photo_net.setText(_translate("MDCx", "网络头像库（Gfriends）"))
         self.radioButton_actor_photo_local.setText(_translate("MDCx", "本地头像库"))
         self.label_download_actor_zip.setText(_translate("MDCx", "点击下载头像包"))
@@ -13785,7 +13785,7 @@ class Ui_MDCx(object):
         )
         self.checkBox_actor_pic_replace.setText(_translate("MDCx", "覆盖已存在的演员图片"))
         self.label_415.setText(_translate("MDCx", "图片已存在时："))
-        self.pushButton_del_actor_folder.setText(_translate("MDCx", "清除所有 .actors 文件夹"))
+        self.pushButton_del_actor_folder.setText(_translate("MDCx", "清除所有.actors文件夹"))
         self.checkBox_actor_photo_kodi.setText(_translate("MDCx", "刮削结束后自动创建"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_5), _translate("MDCx", " 演员 "))
         self.groupBox_10.setTitle(_translate("MDCx", "Cookie设置"))
@@ -13926,7 +13926,7 @@ class Ui_MDCx(object):
         self.checkBox_hide_window_title.setText(_translate("MDCx", "隐藏边框（美观样式）"))
         self.checkBox_dark_mode.setText(_translate("MDCx", "暗黑模式"))
         self.checkBox_hide_dock_icon.setText(_translate("MDCx", "隐藏Dock图标（Mac）"))
-        self.label_42.setText(_translate("MDCx", "保存后重启生效 "))
+        self.label_42.setText(_translate("MDCx", "保存重启软件生效 "))
         self.checkBox_hide_menu_icon.setText(_translate("MDCx", "隐藏菜单栏图标（Mac）"))
         self.label_321.setText(_translate("MDCx", "间歇刮削："))
         self.checkBox_auto_start.setText(_translate("MDCx", "启动软件后自动开始刮削"))
@@ -13960,7 +13960,7 @@ class Ui_MDCx(object):
         self.label_246.setText(_translate("MDCx", "界面外观："))
         self.label_420.setText(_translate("MDCx", "选择对话框："))
         self.label_426.setText(_translate("MDCx", "高分屏缩放："))
-        self.comboBox_ui_scale.setToolTip(_translate("MDCx", "界面缩放比例，保存后重启生效"))
+        self.comboBox_ui_scale.setToolTip(_translate("MDCx", "界面缩放比例，保存重启软件生效"))
         self.comboBox_ui_scale.setItemText(0, _translate("MDCx", "跟随系统"))
         self.comboBox_ui_scale.setItemText(1, _translate("MDCx", "80%"))
         self.comboBox_ui_scale.setItemText(2, _translate("MDCx", "90%"))
@@ -13969,14 +13969,14 @@ class Ui_MDCx(object):
         self.comboBox_ui_scale.setItemText(5, _translate("MDCx", "150%"))
         self.comboBox_ui_scale.setItemText(6, _translate("MDCx", "175%"))
         self.comboBox_ui_scale.setItemText(7, _translate("MDCx", "200%"))
-        self.label_427.setText(_translate("MDCx", "保存后重启生效，可能会有点模糊"))
+        self.label_427.setText(_translate("MDCx", "保存重启软件生效，可能会有点模糊"))
         self.label_nav_hide.setText(_translate("MDCx", "隐藏入口："))
         self.checkBox_hide_actor_nav.setToolTip(
             _translate("MDCx", "隐藏左侧导航的「演员管理」入口，可随时在此重新开启")
         )
-        self.checkBox_hide_actor_nav.setText(_translate("MDCx", "隐藏 Emby 演员管理"))
+        self.checkBox_hide_actor_nav.setText(_translate("MDCx", "隐藏Emby演员管理"))
         self.checkBox_hide_nfo_nav.setToolTip(_translate("MDCx", "隐藏左侧导航的「信息管理」入口，可随时在此重新开启"))
-        self.checkBox_hide_nfo_nav.setText(_translate("MDCx", "隐藏 NFO 库管理"))
+        self.checkBox_hide_nfo_nav.setText(_translate("MDCx", "隐藏NFO库管理"))
         self.label_nav_hide_hint.setText(_translate("MDCx", "仅隐藏入口，功能本身保留，保存后立即生效"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab5), _translate("MDCx", " 高级 "))
         self.pushButton_init_config.setText(_translate("MDCx", "恢复默认"))
@@ -14061,7 +14061,7 @@ class Ui_MDCx(object):
                 "\n"
                 "<h4>七、界面与高分屏</h4>\n"
                 "<ul>\n"
-                "<li><b>界面缩放</b>：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% 共 8 档，保存后重启生效。</li>\n"
+                "<li><b>界面缩放</b>：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% 共 8 档，保存重启软件生效。</li>\n"
                 "<li><b>非整数缩放</b>：PassThrough 高 DPI 非整数缩放已默认启用，无需手动开启，Windows 125%/150% 等缩放档位下界面不再模糊。</li>\n"
                 "<li><b>暗色模式</b>：内置暗色主题切换。</li>\n"
                 "</ul>\n"
