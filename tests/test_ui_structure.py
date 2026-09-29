@@ -350,21 +350,20 @@ _READ_MODE_UI_TEXTS = {
 # 马赛克命名规则四条说明（忽略 XML 缩进换行空白差异）。
 _MOSAIC_HINT_TEXTS = {
     "label_116": (
-        "<p style='line-height:20px'>无码破解指马赛克有损去除版本，当视频文件名路径中含有例如cracked、破解、克破、"
-        "-UMR.、-Uncensored.、.Restored字样时，该文件识别为无码破解版本。"
-        "在重命名文件名及目录名时，在番号后显示该字符表示为无码破解版本。</p>"
+        "<p style='line-height:20px'>指有损去除版本，有Cracked、破解、克破、UMR、Uncensored、Restored时，"
+        "识别为无码破解版本，在重命名文件名及目录名时，显示该字符表示为无码破解版本</p>"
     ),
     "label_117": (
-        "<p style='line-height:20px'>指无码流出版本，当文件路径中含有流出、LEAKED字样时，该文件识别为无码流出版本。"
-        "在重命名文件名及目录名时，在番号后显示该字符表示为无码流出版本。</p>"
+        "<p style='line-height:20px'>指无码流出版本，当文件路径中含有流出、Leaked字样时，该文件将被识别为无码流出版本，"
+        "在重命名文件名称及目录名时，在番号后显示该字符表示为无码流出版本</p>"
     ),
     "label_137": (
-        "<p style='line-height:20px'>指无码版本，当文件路径中含有无码、無碼、無修正、uncensored字样时，该文件<br>"
-        "识别为无码版本。在重命名文件及目录名时在番号后显示该字符表示为无码版本。</p>"
+        "<p style='line-height:20px'>指无码版本，当文件路径中含有无码、無碼、無修正、Uncensored字样时，"
+        "该文件将被识别为无码版本。在重命名文件及目录名时在番号后显示该字符表示为无码版本</p>"
     ),
     "label_145": (
-        "<p style='line-height:20px'>指有码版本，当视频文件路径中含有码、有碼字样时，该文件识别为有码版本，"
-        "重命名文件名及目录名时，在番号后显示该字符表示为有码版本。</p>"
+        "<p style='line-height:20px'>指有码版本，当视频文件名称路径中包含有码、有碼等字样时，该视频文件将被识别为有码版本，"
+        "在重命名文件名及目录名时，将在番号后显示该字符表示为有码版本</p>"
     ),
 }
 
@@ -398,6 +397,28 @@ def test_mosaic_rule_hint_texts_regression():
         if actual != expected:
             mismatches[name] = actual
     assert not mismatches, f"马赛克命名规则说明与预期不符: {mismatches}"
+
+    # label_116（无码破解说明）文案缩短后只需两行：line-height 20px，默认高度锁 40px，
+    # 保持三行（60px）会在窗口最小化/窄视口下留出大片空白。
+    height = _find_widget_by_name(root, "label_116").find("property/rect/height")
+    assert height is not None and height.text == "40", "label_116 默认高度应为 40px（两行）"
+
+    # groupBox_46 四行（无码破解/无码流出/无码/有码）绝对定位，缩高 label_116 后
+    # 下方各行必须整体上移，保持行距一致（否则「无码破解→无码流出」比其余行多 20px）。
+    rows = []
+    for name in ("lineEdit_umr_style", "lineEdit_leak_style", "lineEdit_wuma_style", "lineEdit_youma_style"):
+        rect = _find_widget_by_name(root, name).find("property/rect")
+        rows.append(int(rect.find("y").text))
+    pitch = {rows[i + 1] - rows[i] for i in range(len(rows) - 1)}
+    assert pitch == {92}, f"groupBox_46 四行行距应一致（92px），实际 {sorted(pitch)}"
+
+    # 四条绿色说明宽度必须一致（x=157 / w=523），否则最右侧的折行截断位置
+    # 参差不齐（曾出现 label_137 宽 546，比其余三条多探出 23px）。
+    right_edges = set()
+    for name in ("label_116", "label_117", "label_137", "label_145"):
+        rect = _find_widget_by_name(root, name).find("property/rect")
+        right_edges.add((int(rect.find("x").text), int(rect.find("width").text)))
+    assert right_edges == {(157, 523)}, f"groupBox_46 四条说明应统一 x=157 w=523，实际 {sorted(right_edges)}"
 
 
 # ---------- 「使用代理」开关 / Bypass 代理文案回归锁 ----------

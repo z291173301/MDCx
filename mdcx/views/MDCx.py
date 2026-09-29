@@ -5631,7 +5631,7 @@ class Ui_MDCx(object):
         self.groupBox_46.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_46.setObjectName("groupBox_46")
         self.label_285 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_285.setGeometry(QtCore.QRect(157, 459, 511, 16))
+        self.label_285.setGeometry(QtCore.QRect(157, 439, 536, 16))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5642,7 +5642,7 @@ class Ui_MDCx(object):
         self.label_285.setWordWrap(True)
         self.label_285.setObjectName("label_285")
         self.lineEdit_youma_style = QtWidgets.QLineEdit(parent=self.groupBox_46)
-        self.lineEdit_youma_style.setGeometry(QtCore.QRect(157, 332, 450, 30))
+        self.lineEdit_youma_style.setGeometry(QtCore.QRect(157, 312, 450, 30))
         self.lineEdit_youma_style.setMinimumSize(QtCore.QSize(450, 30))
         self.lineEdit_youma_style.setStyleSheet(
             ' font: "Courier New";\n'
@@ -5652,7 +5652,7 @@ class Ui_MDCx(object):
         )
         self.lineEdit_youma_style.setObjectName("lineEdit_youma_style")
         self.label_281 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_281.setGeometry(QtCore.QRect(21, 201, 130, 16))
+        self.label_281.setGeometry(QtCore.QRect(21, 181, 130, 16))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5668,7 +5668,7 @@ class Ui_MDCx(object):
         )
         self.label_281.setObjectName("label_281")
         self.label_189 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_189.setGeometry(QtCore.QRect(21, 247, 130, 16))
+        self.label_189.setGeometry(QtCore.QRect(21, 227, 130, 16))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5683,7 +5683,7 @@ class Ui_MDCx(object):
         )
         self.label_189.setObjectName("label_189")
         self.label_117 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_117.setGeometry(QtCore.QRect(157, 189, 523, 40))
+        self.label_117.setGeometry(QtCore.QRect(157, 169, 523, 40))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5713,7 +5713,7 @@ class Ui_MDCx(object):
         )
         self.label_282.setObjectName("label_282")
         self.lineEdit_wuma_style = QtWidgets.QLineEdit(parent=self.groupBox_46)
-        self.lineEdit_wuma_style.setGeometry(QtCore.QRect(157, 240, 450, 30))
+        self.lineEdit_wuma_style.setGeometry(QtCore.QRect(157, 220, 450, 30))
         self.lineEdit_wuma_style.setMinimumSize(QtCore.QSize(450, 30))
         self.lineEdit_wuma_style.setStyleSheet(
             ' font: "Courier New";\n'
@@ -5723,7 +5723,7 @@ class Ui_MDCx(object):
         )
         self.lineEdit_wuma_style.setObjectName("lineEdit_wuma_style")
         self.label_175 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_175.setGeometry(QtCore.QRect(21, 155, 130, 16))
+        self.label_175.setGeometry(QtCore.QRect(21, 135, 130, 16))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5748,7 +5748,7 @@ class Ui_MDCx(object):
         )
         self.lineEdit_umr_style.setObjectName("lineEdit_umr_style")
         self.label_284 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_284.setGeometry(QtCore.QRect(21, 381, 130, 16))
+        self.label_284.setGeometry(QtCore.QRect(21, 361, 130, 16))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5764,7 +5764,7 @@ class Ui_MDCx(object):
         )
         self.label_284.setObjectName("label_284")
         self.label_190 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_190.setGeometry(QtCore.QRect(21, 339, 130, 16))
+        self.label_190.setGeometry(QtCore.QRect(21, 319, 130, 16))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5779,7 +5779,7 @@ class Ui_MDCx(object):
         )
         self.label_190.setObjectName("label_190")
         self.label_137 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_137.setGeometry(QtCore.QRect(157, 281, 546, 40))
+        self.label_137.setGeometry(QtCore.QRect(157, 261, 523, 40))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5793,7 +5793,7 @@ class Ui_MDCx(object):
         self.label_137.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
         self.label_137.setObjectName("label_137")
         self.label_116 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_116.setGeometry(QtCore.QRect(157, 77, 523, 60))
+        self.label_116.setGeometry(QtCore.QRect(157, 77, 523, 40))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5807,7 +5807,7 @@ class Ui_MDCx(object):
         self.label_116.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
         self.label_116.setObjectName("label_116")
         self.label_283 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_283.setGeometry(QtCore.QRect(21, 303, 130, 16))
+        self.label_283.setGeometry(QtCore.QRect(21, 283, 130, 16))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5838,7 +5838,7 @@ class Ui_MDCx(object):
         )
         self.label_174.setObjectName("label_174")
         self.lineEdit_leak_style = QtWidgets.QLineEdit(parent=self.groupBox_46)
-        self.lineEdit_leak_style.setGeometry(QtCore.QRect(157, 148, 450, 30))
+        self.lineEdit_leak_style.setGeometry(QtCore.QRect(157, 128, 450, 30))
         self.lineEdit_leak_style.setMinimumSize(QtCore.QSize(450, 30))
         self.lineEdit_leak_style.setStyleSheet(
             ' font: "Courier New";\n'
@@ -5848,7 +5848,7 @@ class Ui_MDCx(object):
         )
         self.lineEdit_leak_style.setObjectName("lineEdit_leak_style")
         self.label_145 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_145.setGeometry(QtCore.QRect(157, 373, 523, 40))
+        self.label_145.setGeometry(QtCore.QRect(157, 353, 523, 40))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5862,7 +5862,7 @@ class Ui_MDCx(object):
         self.label_145.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
         self.label_145.setObjectName("label_145")
         self.label_286 = QtWidgets.QLabel(parent=self.groupBox_46)
-        self.label_286.setGeometry(QtCore.QRect(21, 417, 130, 30))
+        self.label_286.setGeometry(QtCore.QRect(21, 397, 130, 30))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5877,7 +5877,7 @@ class Ui_MDCx(object):
         )
         self.label_286.setObjectName("label_286")
         self.checkBox_foldername_mosaic = QtWidgets.QCheckBox(parent=self.groupBox_46)
-        self.checkBox_foldername_mosaic.setGeometry(QtCore.QRect(160, 420, 100, 30))
+        self.checkBox_foldername_mosaic.setGeometry(QtCore.QRect(160, 400, 100, 30))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Maximum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5886,7 +5886,7 @@ class Ui_MDCx(object):
         self.checkBox_foldername_mosaic.setMinimumSize(QtCore.QSize(100, 30))
         self.checkBox_foldername_mosaic.setObjectName("checkBox_foldername_mosaic")
         self.checkBox_filename_mosaic = QtWidgets.QCheckBox(parent=self.groupBox_46)
-        self.checkBox_filename_mosaic.setGeometry(QtCore.QRect(410, 420, 206, 30))
+        self.checkBox_filename_mosaic.setGeometry(QtCore.QRect(410, 400, 206, 30))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Maximum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -6217,7 +6217,7 @@ class Ui_MDCx(object):
         self.label_330.setObjectName("label_330")
         self.gridLayout_43.addWidget(self.label_330, 1, 1, 1, 1)
         self.label_331 = QtWidgets.QLabel(parent=self.groupBox_65)
-        self.label_331.setGeometry(QtCore.QRect(60, 120, 621, 41))
+        self.label_331.setGeometry(QtCore.QRect(60, 120, 634, 41))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -6292,7 +6292,7 @@ class Ui_MDCx(object):
         self.checkBox_filename_4k.setMinimumSize(QtCore.QSize(100, 30))
         self.checkBox_filename_4k.setObjectName("checkBox_filename_4k")
         self.label_358 = QtWidgets.QLabel(parent=self.groupBox_65)
-        self.label_358.setGeometry(QtCore.QRect(167, 260, 511, 16))
+        self.label_358.setGeometry(QtCore.QRect(167, 260, 524, 16))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -12938,7 +12938,7 @@ class Ui_MDCx(object):
             )
         )
         self.label_154.setText(_translate("MDCx", "比如：MIDE-111，以及不符合以下类型的番号"))
-        self.label_152.setText(_translate("MDCx", "素人番号："))
+        self.label_152.setText(_translate("MDCx", "素人："))
         self.label_153.setText(_translate("MDCx", "有码番号："))
         self.label_148.setText(_translate("MDCx", "个摄番号："))
         self.label_217.setText(_translate("MDCx", "国产番号："))
@@ -13170,7 +13170,7 @@ class Ui_MDCx(object):
         self.label_68.setText(
             _translate("MDCx", "指在nfo文件中的标题(title)格式在Emby中作为视频标题显示，支持完整Jinja2语法")
         )
-        self.label_67.setText(_translate("MDCx", "Emby视频标题："))
+        self.label_67.setText(_translate("MDCx", "视频标题名："))
         self.label_61.setText(_translate("MDCx", "指本地视频文件的文件名格式，命名字段同上，推荐 {{ number }}"))
         self.label_239.setText(_translate("MDCx", "视频文件命名时，可插入防屏蔽字符到文件名的每个字符之间"))
         self.label_name_template_preview.setText(_translate("MDCx", "模板预览："))
@@ -13229,7 +13229,7 @@ class Ui_MDCx(object):
         self.label_actor_name_more.setText(_translate("MDCx", "演员名末端插入："))
         self.groupBox_46.setTitle(_translate("MDCx", "马赛克命名规则"))
         self.label_285.setText(
-            _translate("MDCx", "指命名时在番号后添加版本命名字符。你也可以使用 moword 字段来调整添加位置")
+            _translate("MDCx", "指命名时在番号后添加版本命名字符，你也可以使用moword段来调整字符添加位置")
         )
         self.label_189.setText(_translate("MDCx", "无码："))
         self.label_117.setText(
@@ -13237,7 +13237,7 @@ class Ui_MDCx(object):
                 "MDCx",
                 "\n"
                 "                          <p\n"
-                "                          style='line-height:20px'>指无码流出版本，当文件路径中含有流出、LEAKED字样时，该文件识别为无码流出版本。在重命名文件名及目录名时，在番号后显示该字符表示为无码流出版本。</p>",
+                "                          style='line-height:20px'>指无码流出版本，当文件路径中含有流出、Leaked字样时，该文件将被识别为无码流出版本，在重命名文件名称及目录名时，在番号后显示该字符表示为无码流出版本</p>",
             )
         )
         self.label_175.setText(_translate("MDCx", "无码流出："))
@@ -13247,14 +13247,14 @@ class Ui_MDCx(object):
                 "MDCx",
                 "\n"
                 "                          <p\n"
-                "                          style='line-height:20px'>指无码版本，当文件路径中含有无码、無碼、無修正、uncensored字样时，该文件<br>识别为无码版本。在重命名文件及目录名时在番号后显示该字符表示为无码版本。</p>",
+                "                          style='line-height:20px'>指无码版本，当文件路径中含有无码、無碼、無修正、Uncensored字样时，该文件将被识别为无码版本。在重命名文件及目录名时在番号后显示该字符表示为无码版本</p>",
             )
         )
         self.label_116.setText(
             _translate(
                 "MDCx",
                 "<p\n"
-                "                          style='line-height:20px'>无码破解指马赛克有损去除版本，当视频文件名路径中含有例如cracked、破解、克破、-UMR.、-Uncensored.、.Restored字样时，该文件识别为无码破解版本。在重命名文件名及目录名时，在番号后显示该字符表示为无码破解版本。</p>",
+                "                          style='line-height:20px'>指有损去除版本，有Cracked、破解、克破、UMR、Uncensored、Restored时，识别为无码破解版本，在重命名文件名及目录名时，显示该字符表示为无码破解版本</p>",
             )
         )
         self.label_174.setText(_translate("MDCx", "无码破解："))
@@ -13262,7 +13262,7 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p\n"
-                "                          style='line-height:20px'>指有码版本，当视频文件路径中含有码、有碼字样时，该文件识别为有码版本，重命名文件名及目录名时，在番号后显示该字符表示为有码版本。</p>",
+                "                          style='line-height:20px'>指有码版本，当视频文件名称路径中包含有码、有碼等字样时，该视频文件将被识别为有码版本，在重命名文件名及目录名时，将在番号后显示该字符表示为有码版本</p>",
             )
         )
         self.label_286.setText(_translate("MDCx", "添加马赛克命名字符："))
@@ -13293,8 +13293,8 @@ class Ui_MDCx(object):
         self.checkBox_actor_del_char.setText(
             _translate("MDCx", "去除演员名括号中的名字（比如：Rio（柚木ティナ）将修改为 Rio）")
         )
-        self.label_319.setText(_translate("MDCx", "素人番号："))
-        self.label_197.setText(_translate("MDCx", "番号后缀顺序："))
+        self.label_319.setText(_translate("MDCx", "素人："))
+        self.label_197.setText(_translate("MDCx", "后缀顺序："))
         self.checkBox_title_del_actor.setText(
             _translate("MDCx", "去除标题后的演员名（个别网站在标题末尾额外多加了演员名，建议去除）")
         )
@@ -13312,7 +13312,7 @@ class Ui_MDCx(object):
         self.label_331.setText(
             _translate(
                 "MDCx",
-                "<p>说明：qHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K。低于540P时默认使用高度值命名</p>",
+                "<p>说明：QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，低于540P时默认使用高度值命名</p>",
             )
         )
         self.radioButton_videosize_video.setText(_translate("MDCx", "读取视频画面的高度"))
@@ -13322,7 +13322,7 @@ class Ui_MDCx(object):
         self.label_357.setText(_translate("MDCx", "添加 4K 字符："))
         self.checkBox_filename_4k.setText(_translate("MDCx", "视频文件名"))
         self.label_358.setText(
-            _translate("MDCx", "指命名时在番号后添加 4K（仅4K）。你也可以使用 4K 字段来调整添加位置")
+            _translate("MDCx", "指命名时在番号后添加4K（仅4K），你也可以使用definition字段来调整添加位置")
         )
         self.checkBox_foldername_4k.setText(_translate("MDCx", "视频目录名"))
         self.groupBox_67.setTitle(_translate("MDCx", "其他说明"))
@@ -13330,7 +13330,7 @@ class Ui_MDCx(object):
         self.label_352.setText(
             _translate(
                 "MDCx",
-                "<p>1）Emby 支持多版本显示（类似选集），\n"
+                "<p>1）Emby支持多版本显示，类似选集，\n"
                 "                          需要：</p><p>视频文件名的开头部分必须包含视频目录名。（比如：SSIS-111/SSIS-111-4K.mp4）\n"
                 "                          </p><p>查看规则：<a\n"
                 '                          href="https://support.emby.media/support/solutions/articles/44001159102-movie-naming"><span\n'
@@ -13339,7 +13339,7 @@ class Ui_MDCx(object):
             )
         )
         self.label_351.setText(
-            _translate("MDCx", "Emby 分集封面需要每个分集都提供图片，图片命名规则需要选择「视频文件名-poster.jpg」")
+            _translate("MDCx", "Emby分集封面需要为每个分集都提供图片，图片命名规则需要选择「视频文件名-poster.jpg」")
         )
         self.label_354.setText(_translate("MDCx", "2，分集封面显示："))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MDCx", " 命名 "))
@@ -13348,7 +13348,7 @@ class Ui_MDCx(object):
         self.label_baidu_hint.setText(
             _translate(
                 "MDCx",
-                "DeepL与DeepLX为独立选项，填写DeepL API/DeepLX URL/百度API凭据后才会生效，未填写时将会自动跳过。",
+                "DeepL与DeepLX为独立选项，填写DeepL API/DeepLX URL/百度API凭据后才会生效，未填写时将会自动跳过",
             )
         )
         self.label_baidu_appid.setText(_translate("MDCx", "百度 APP ID："))
@@ -13386,7 +13386,7 @@ class Ui_MDCx(object):
         self.checkBox_title_translate.setText(_translate("MDCx", "使用翻译引擎翻译标题"))
         self.label_242.setText(_translate("MDCx", "标题语言："))
         self.label_74.setText(
-            _translate("MDCx", "将优先使用刮削网站的中文翻译，当刮削页面无中文时，才使用以下翻译方式。")
+            _translate("MDCx", "将优先使用刮削网站的中文翻译，当刮削页面无中文时，才使用以下翻译方式")
         )
         self.radioButton_title_zh_cn.setText(_translate("MDCx", "中文简体"))
         self.radioButton_title_zh_tw.setText(_translate("MDCx", "中文繁体"))
@@ -13394,7 +13394,7 @@ class Ui_MDCx(object):
         self.label_244.setText(_translate("MDCx", "翻译方式："))
         self.groupBox_83.setTitle(_translate("MDCx", "简介"))
         self.label_133.setText(_translate("MDCx", "简介语言："))
-        self.label_176.setText(_translate("MDCx", "当字段语言选择中文，但只刮削到日语时，可使用翻译引擎进行翻译"))
+        self.label_176.setText(_translate("MDCx", "当字段语言选择中文，但只刮削到日语时，可以使用翻译引擎翻译为简体中文"))
         self.label_166.setText(_translate("MDCx", "翻译方式："))
         self.radioButton_outline_zh_cn.setText(_translate("MDCx", "中文简体"))
         self.radioButton_outline_zh_tw.setText(_translate("MDCx", "中文繁体"))
@@ -13416,12 +13416,12 @@ class Ui_MDCx(object):
                 "<p style='line-height:20px'>\n"
                 "                                素人和 FC2 番号演员可能是「素人」之类假名字，勾选「使用AV-wiki获取演员真实名字」，可以请求AV-Wiki获取演员真实日文名，之后可使用演员映射表翻译为中文！<br>\n"
                 "                                演员名比较复杂，不能简单使用翻译引擎翻译。主要的问题：演员名翻译不准确、演员有多个名字、同一演员不同番号演员名不统一、各网站使用的演员名不统一等。不过通过演员名映射翻译表可以解决这些问题，使刮削后的演员名整齐统一。<br>\n"
-                "                                实现逻辑：刮削网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译表文件名为：actor_database.xlsx。<br>\n"
-                "                                Windows：\\配置文件目录\\userdata\\actor_database.xlsx，配置文件目录可以在「设置」-「高级」中设置。<br>\n"
+                "                                实现逻辑：网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译表文件名为：actor_database.xlsx。<br>\n"
+                "                                Windows：\\配置文件目录\\userdata\\actor_database.xlsx，配置文件的目录可以在「设置」-「高级」中设置。<br>\n"
                 "                                MAC系统：/配置文件目录/userdata/actor_database.xlsx。<br>\n"
                 "                                你可使用文件编辑工具打开该文件后自定义修改添加，演员映射表中的字段含义如下：<br>\n"
-                "                                1、keyword：匹配词，每个名字前后都要有逗号，刮削网站获取演员名后，会在keyword的名字中进行匹配。<br>\n"
-                "                                2、zh_cn/zh_tw/jp：输出词，当keyword匹配到演员名时，可输出对应语言的名字。</p>",
+                "                                1、keyword：匹配词，每个名字前后都要有逗号，网站获取演员名后，会在keyword的名字中进行匹配。<br>\n"
+                "                                2、zh_cn/zh_tw/jp：输出词，当keyword匹配到演员名时，可以输出对应语言的名字</p>",
             )
         )
         self.checkBox_actor_realname.setText(_translate("MDCx", "使用AV-wiki获取演员真实名字"))
@@ -13432,7 +13432,7 @@ class Ui_MDCx(object):
         self.radioButton_tag_zh_tw.setText(_translate("MDCx", "中文繁体"))
         self.radioButton_tag_jp.setText(_translate("MDCx", "日语"))
         self.label_165.setText(
-            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。")
+            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表")
         )
         self.checkBox_tag_translate.setText(_translate("MDCx", "使用信息映射表翻译标签"))
         self.label_251.setText(_translate("MDCx", "标签语言："))
@@ -13441,7 +13441,7 @@ class Ui_MDCx(object):
         self.label_255.setText(_translate("MDCx", "系列语言："))
         self.label_256.setText(_translate("MDCx", "翻译方式："))
         self.label_245.setText(
-            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。")
+            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表")
         )
         self.radioButton_series_zh_cn.setText(_translate("MDCx", "中文简体"))
         self.radioButton_series_zh_tw.setText(_translate("MDCx", "中文繁体"))
@@ -13451,7 +13451,7 @@ class Ui_MDCx(object):
         self.label_259.setText(_translate("MDCx", "片商语言："))
         self.label_260.setText(_translate("MDCx", "翻译方式："))
         self.label_247.setText(
-            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。")
+            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表")
         )
         self.radioButton_studio_zh_cn.setText(_translate("MDCx", "中文简体"))
         self.radioButton_studio_zh_tw.setText(_translate("MDCx", "中文繁体"))
@@ -13461,7 +13461,7 @@ class Ui_MDCx(object):
         self.label_264.setText(_translate("MDCx", "发行商语言："))
         self.label_265.setText(_translate("MDCx", "翻译方式："))
         self.label_266.setText(
-            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。")
+            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表")
         )
         self.radioButton_publisher_zh_cn.setText(_translate("MDCx", "中文简体"))
         self.radioButton_publisher_zh_tw.setText(_translate("MDCx", "中文繁体"))
@@ -13471,7 +13471,7 @@ class Ui_MDCx(object):
         self.label_267.setText(_translate("MDCx", "发行商语言："))
         self.label_268.setText(_translate("MDCx", "翻译方式："))
         self.label_269.setText(
-            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。")
+            _translate("MDCx", "映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表")
         )
         self.checkBox_director_translate.setText(_translate("MDCx", "使用信息映射表翻译导演"))
         self.radioButton_director_zh_cn.setText(_translate("MDCx", "中文简体"))
@@ -13493,7 +13493,7 @@ class Ui_MDCx(object):
         )
         self.label_69.setText(_translate("MDCx", "中文字幕命名字符："))
         self.label_119.setText(
-            _translate("MDCx", "指命名时在番号后添加中文字幕命名字符。你也可以使用 cnword 字段来调整添加位置")
+            _translate("MDCx", "指在命名时在番号后添加中文字幕命名字符，你也可以使用cnword字段来调整添加位置")
         )
         self.checkBox_foldername.setText(_translate("MDCx", "视频目录名"))
         self.checkBox_filename.setText(_translate("MDCx", "视频文件名"))
@@ -13531,23 +13531,23 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p\n"
-                "                          style='line-height:20px'>1、下载水印图片包并解压（也可以使用自己的图片），水印图片的保存路径为：<br>\n"
-                "                          Windows：（配置文件目录可以在「设置」-「高级」中设置）<br>\n"
+                "                          style='line-height:20px'>1、下载水印图片包并解压，也可以使用自己的图片，水印图片的保存路径为：<br>\n"
+                "                          Windows：（配置文件的目录可以在「设置」-「高级」中设置）<br>\n"
                 "                          字幕水印：\\配置文件目录\\userdata\\watermark\\sub.png<br>\n"
                 "                          有码水印：\\配置文件目录\\userdata\\watermark\\youma.png<br>\n"
                 "                          破解水印：\\配置文件目录\\userdata\\watermark\\umr.png<br>\n"
                 "                          流出水印：\\配置文件目录\\userdata\\watermark\\leak.png<br>\n"
                 "                          无码水印：\\配置文件目录\\userdata\\watermark\\wuma.png<br>\n"
-                "                          4K水印：\\配置文件目录\\userdata\\watermark\\4k.png<br>\n"
-                "                          8K水印：\\配置文件目录\\userdata\\watermark\\8k.png<br>\n"
-                "                          MAC系统：（配置文件目录可以在「设置」-「高级」中设置）<br>\n"
+                "                          加4K水印：\\配置文件目录\\userdata\\watermark\\4k.png<br>\n"
+                "                          加8K水印：\\配置文件目录\\userdata\\watermark\\8k.png<br>\n"
+                "                          MAC系统：（配置文件的目录可以在「设置」-「高级」中设置）<br>\n"
                 "                          字幕水印：/配置文件目录/userdata/watermark/sub.png<br>\n"
                 "                          有码水印：/配置文件目录/userdata/watermark/youma.png<br>\n"
                 "                          破解水印：/配置文件目录/userdata/watermark/umr.png<br>\n"
                 "                          流出水印：/配置文件目录/userdata/watermark/leak.png<br>\n"
                 "                          无码水印：/配置文件目录/userdata/watermark/wuma.png<br>\n"
-                "                          4K水印：/配置文件目录/userdata/watermark/4k.png<br>\n"
-                "                          8K水印：/配置文件目录/userdata/watermark/8k.png<br>\n"
+                "                          加4K水印：/配置文件目录/userdata/watermark/4k.png<br>\n"
+                "                          加8K水印：/配置文件目录/userdata/watermark/8k.png<br>\n"
                 "                          <br>\n"
                 "                          2、水印图片显示的逻辑：<br>\n"
                 "                          · 首先计算水印图片的显示高度=封面图高度*设置的水印大小/40<br>\n"
@@ -13565,7 +13565,7 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p\n"
-                "                                style='line-height:20px'>水印分为字幕水印、马赛克水印、4K/8K水印。<br>\n"
+                "                                style='line-height:20px'>水印分为字幕水印、马赛克水印、4K/8K水印几种<br>\n"
                 "                                马赛克水印有四个：有码、破解、流出、无码，将按优先级显示其中一种状态<br>\n"
                 "                                马赛克水印优先级：有码 > 破解 > 流出 > 无码<br>\n"
                 "                                举例：如果视频是流出版本<br>\n"
@@ -13582,7 +13582,7 @@ class Ui_MDCx(object):
         self.checkBox_leak.setText(_translate("MDCx", "流出"))
         self.checkBox_uncensored.setText(_translate("MDCx", "无码"))
         self.checkBox_hd.setText(_translate("MDCx", "4K/8K"))
-        self.label_140.setText(_translate("MDCx", "水印图片的显示高度 = 设置的水印大小 / 40 * 封面图高度"))
+        self.label_140.setText(_translate("MDCx", "水印的显示高度=设置的水印大小/40*封面图高度"))
         self.label_141.setText(
             _translate(
                 "MDCx",
@@ -13599,7 +13599,7 @@ class Ui_MDCx(object):
         self.label_139.setText(_translate("MDCx", "水印大小："))
         self.label_127.setText(_translate("MDCx", "水印位置："))
         self.label_130.setText(
-            _translate("MDCx", "Emby 中 fanart 作为背景图，不需要添加水印。其他软件作为预览图时，可添加水印")
+            _translate("MDCx", "Emby中fanart作为背景图，不需要添加水印，其他软件作为预览图时，可以添加水印")
         )
         self.groupBox_36.setTitle(_translate("MDCx", "不固定位置"))
         self.radioButton_top_left.setText(_translate("MDCx", "左上"))
@@ -13702,7 +13702,7 @@ class Ui_MDCx(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_7), _translate("MDCx", " NFO "))
         self.groupBox_43.setTitle(_translate("MDCx", "Emby/Jellyfin 设置"))
         self.label_104.setText(_translate("MDCx", "服务器地址："))
-        self.label_105.setText(_translate("MDCx", "API 密钥创建方法：控制台->高级->API 密钥->添加（APP 名称任意）"))
+        self.label_105.setText(_translate("MDCx", "API密钥创建方法：控制台-高级-API密钥-添加，设置任何APP名称都行"))
         self.comboBox_pic_actor.setItemText(0, _translate("MDCx", "1 所有演员"))
         self.comboBox_pic_actor.setItemText(1, _translate("MDCx", "2 有信息，有头像的演员"))
         self.comboBox_pic_actor.setItemText(2, _translate("MDCx", "3 有信息，没头像的演员"))
@@ -13716,11 +13716,11 @@ class Ui_MDCx(object):
         self.radioButton_server_emby.setText(_translate("MDCx", "Emby"))
         self.radioButton_server_jellyfin.setText(_translate("MDCx", "Jellyfin"))
         self.label_298.setText(_translate("MDCx", "查看信息："))
-        self.label_121.setText(_translate("MDCx", "指你的 Emby/Jellyfin 服务器地址，比如：http://192.168.1.5:8096"))
+        self.label_121.setText(_translate("MDCx", "指你的Emby/Jellyfin服务器地址，比如：http://192.168.1.5:8096"))
         self.label_306.setText(_translate("MDCx", "服务器类型："))
         self.label_108.setText(_translate("MDCx", "用户 ID："))
         self.label_107.setText(_translate("MDCx", "API 密钥："))
-        self.label_109.setText(_translate("MDCx", "如果设置，将仅获取指定 Emby/Jellyfin 用户媒体库中的演员"))
+        self.label_109.setText(_translate("MDCx", "如果设置，将仅获取指定的Emby/Jellyfin服务器中用户媒体库中的演员"))
         self.groupBox_41.setTitle(_translate("MDCx", "补全 Emby/Jellyfin 演员头像"))
         self.pushButton_add_actor_pic.setText(_translate("MDCx", "开始补全"))
         self.label_297.setText(_translate("MDCx", "使用网络头像库或本地头像库，补全 Emby/Jellyfin 演员头像。"))
@@ -13809,7 +13809,7 @@ class Ui_MDCx(object):
                 "                          3，点击「名称」栏新加载出来的第一个内容 -> 「标头」 -> 「请求表头」 -> 「Cookie」；<br>\n"
                 "                          4，复制 Cookie 对应的全部值填入上面输入框。（不要直接右键点「复制值」！！！！\n"
                 "                          一定要先用鼠标「手动框选」要复制的全部文字，然后再右键点「复制」！！！不是「复制值」！！！！！！）<br>\n"
-                "                          （注意：Cookie 存在有效期，过期无效时请重新获取。）</p>",
+                "                          注意：Cookie 存在有效期，过期无效时需要重新获取。</p>",
             )
         )
         self.label_get_cookie_url.setText(_translate("MDCx", "https://tieba.baidu.com/p/5492736764"))

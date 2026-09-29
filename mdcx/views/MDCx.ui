@@ -7847,7 +7847,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>素人番号：</string>
+                              <string>素人：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -11225,7 +11225,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>Emby视频标题：</string>
+                              <string>视频标题名：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -12142,8 +12142,8 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>459</y>
-                          <width>511</width>
+                          <y>439</y>
+                          <width>536</width>
                           <height>16</height>
                         </rect>
                       </property>
@@ -12163,7 +12163,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>指命名时在番号后添加版本命名字符。你也可以使用 moword 字段来调整添加位置</string>
+                        <string>指命名时在番号后添加版本命名字符，你也可以使用moword段来调整字符添加位置</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -12173,7 +12173,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>332</y>
+                          <y>312</y>
                           <width>450</width>
                           <height>30</height>
                         </rect>
@@ -12195,7 +12195,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>201</y>
+                          <y>181</y>
                           <width>130</width>
                           <height>16</height>
                         </rect>
@@ -12226,7 +12226,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>247</y>
+                          <y>227</y>
                           <width>130</width>
                           <height>16</height>
                         </rect>
@@ -12257,7 +12257,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>189</y>
+                          <y>169</y>
                           <width>523</width>
                           <height>40</height>
                         </rect>
@@ -12274,7 +12274,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="text">
                         <string>
                           &lt;p
-                          style='line-height:20px'&gt;指无码流出版本，当文件路径中含有流出、LEAKED字样时，该文件识别为无码流出版本。在重命名文件名及目录名时，在番号后显示该字符表示为无码流出版本。&lt;/p&gt;</string>
+                          style='line-height:20px'&gt;指无码流出版本，当文件路径中含有流出、Leaked字样时，该文件将被识别为无码流出版本，在重命名文件名称及目录名时，在番号后显示该字符表示为无码流出版本&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -12321,7 +12321,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>240</y>
+                          <y>220</y>
                           <width>450</width>
                           <height>30</height>
                         </rect>
@@ -12343,7 +12343,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>155</y>
+                          <y>135</y>
                           <width>130</width>
                           <height>16</height>
                         </rect>
@@ -12396,7 +12396,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>381</y>
+                          <y>361</y>
                           <width>130</width>
                           <height>16</height>
                         </rect>
@@ -12427,7 +12427,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>339</y>
+                          <y>319</y>
                           <width>130</width>
                           <height>16</height>
                         </rect>
@@ -12458,8 +12458,8 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>281</y>
-                          <width>546</width>
+                          <y>261</y>
+                          <width>523</width>
                           <height>40</height>
                         </rect>
                       </property>
@@ -12475,7 +12475,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="text">
                         <string>
                           &lt;p
-                          style='line-height:20px'&gt;指无码版本，当文件路径中含有无码、無碼、無修正、uncensored字样时，该文件&lt;br&gt;识别为无码版本。在重命名文件及目录名时在番号后显示该字符表示为无码版本。&lt;/p&gt;</string>
+                          style='line-height:20px'&gt;指无码版本，当文件路径中含有无码、無碼、無修正、Uncensored字样时，该文件将被识别为无码版本。在重命名文件及目录名时在番号后显示该字符表示为无码版本&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -12493,7 +12493,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           <x>157</x>
                           <y>77</y>
                           <width>523</width>
-                          <height>60</height>
+                          <height>40</height>
                         </rect>
                       </property>
                       <property name="sizePolicy">
@@ -12507,7 +12507,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       </property>
                       <property name="text">
                         <string>&lt;p
-                          style='line-height:20px'&gt;无码破解指马赛克有损去除版本，当视频文件名路径中含有例如cracked、破解、克破、-UMR.、-Uncensored.、.Restored字样时，该文件识别为无码破解版本。在重命名文件名及目录名时，在番号后显示该字符表示为无码破解版本。&lt;/p&gt;</string>
+                          style='line-height:20px'&gt;指有损去除版本，有Cracked、破解、克破、UMR、Uncensored、Restored时，识别为无码破解版本，在重命名文件名及目录名时，显示该字符表示为无码破解版本&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -12523,7 +12523,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>303</y>
+                          <y>283</y>
                           <width>130</width>
                           <height>16</height>
                         </rect>
@@ -12585,7 +12585,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>148</y>
+                          <y>128</y>
                           <width>450</width>
                           <height>30</height>
                         </rect>
@@ -12607,7 +12607,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>157</x>
-                          <y>373</y>
+                          <y>353</y>
                           <width>523</width>
                           <height>40</height>
                         </rect>
@@ -12623,7 +12623,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       </property>
                       <property name="text">
                         <string>&lt;p
-                          style='line-height:20px'&gt;指有码版本，当视频文件路径中含有码、有碼字样时，该文件识别为有码版本，重命名文件名及目录名时，在番号后显示该字符表示为有码版本。&lt;/p&gt;</string>
+                          style='line-height:20px'&gt;指有码版本，当视频文件名称路径中包含有码、有碼等字样时，该视频文件将被识别为有码版本，在重命名文件名及目录名时，将在番号后显示该字符表示为有码版本&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -12639,7 +12639,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>21</x>
-                          <y>417</y>
+                          <y>397</y>
                           <width>130</width>
                           <height>30</height>
                         </rect>
@@ -12670,7 +12670,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>160</x>
-                          <y>420</y>
+                          <y>400</y>
                           <width>100</width>
                           <height>30</height>
                         </rect>
@@ -12695,7 +12695,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>410</x>
-                          <y>420</y>
+                          <y>400</y>
                           <width>206</width>
                           <height>30</height>
                         </rect>
@@ -13073,7 +13073,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>素人番号：</string>
+                              <string>素人：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -13098,7 +13098,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>番号后缀顺序：</string>
+                              <string>后缀顺序：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -13387,7 +13387,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <rect>
                           <x>60</x>
                           <y>120</y>
-                          <width>621</width>
+                          <width>634</width>
                           <height>41</height>
                         </rect>
                       </property>
@@ -13401,7 +13401,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p&gt;说明：qHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K。低于540P时默认使用高度值命名&lt;/p&gt;</string>
+                        <string>&lt;p&gt;说明：QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，低于540P时默认使用高度值命名&lt;/p&gt;</string>
                       </property>
                         <property name="wordWrap">
                           <bool>true</bool>
@@ -13560,7 +13560,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <rect>
                           <x>167</x>
                           <y>260</y>
-                          <width>511</width>
+                          <width>524</width>
                           <height>16</height>
                         </rect>
                       </property>
@@ -13574,7 +13574,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>指命名时在番号后添加 4K（仅4K）。你也可以使用 4K 字段来调整添加位置</string>
+                        <string>指命名时在番号后添加4K（仅4K），你也可以使用definition字段来调整添加位置</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -13674,7 +13674,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p&gt;1）Emby 支持多版本显示（类似选集），
+                        <string>&lt;p&gt;1）Emby支持多版本显示，类似选集，
                           需要：&lt;/p&gt;&lt;p&gt;视频文件名的开头部分必须包含视频目录名。（比如：SSIS-111/SSIS-111-4K.mp4）
                           &lt;/p&gt;&lt;p&gt;查看规则：&lt;a
                           href="https://support.emby.media/support/solutions/articles/44001159102-movie-naming"&gt;&lt;span
@@ -13707,7 +13707,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>Emby 分集封面需要每个分集都提供图片，图片命名规则需要选择「视频文件名-poster.jpg」</string>
+                        <string>Emby分集封面需要为每个分集都提供图片，图片命名规则需要选择「视频文件名-poster.jpg」</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -13847,7 +13847,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <bool>true</bool>
                             </property>
                             <property name="text">
-                              <string>DeepL与DeepLX为独立选项，填写DeepL API/DeepLX URL/百度API凭据后才会生效，未填写时将会自动跳过。</string>
+                              <string>DeepL与DeepLX为独立选项，填写DeepL API/DeepLX URL/百度API凭据后才会生效，未填写时将会自动跳过</string>
                             </property>
                           </widget>
                         </item>
@@ -14569,7 +14569,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>将优先使用刮削网站的中文翻译，当刮削页面无中文时，才使用以下翻译方式。</string>
+                              <string>将优先使用刮削网站的中文翻译，当刮削页面无中文时，才使用以下翻译方式</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -14703,7 +14703,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>当字段语言选择中文，但只刮削到日语时，可使用翻译引擎进行翻译</string>
+                              <string>当字段语言选择中文，但只刮削到日语时，可以使用翻译引擎翻译为简体中文</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -14978,12 +14978,12 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string>&lt;p style='line-height:20px'&gt;
                                 素人和 FC2 番号演员可能是「素人」之类假名字，勾选「使用AV-wiki获取演员真实名字」，可以请求AV-Wiki获取演员真实日文名，之后可使用演员映射表翻译为中文！&lt;br&gt;
                                 演员名比较复杂，不能简单使用翻译引擎翻译。主要的问题：演员名翻译不准确、演员有多个名字、同一演员不同番号演员名不统一、各网站使用的演员名不统一等。不过通过演员名映射翻译表可以解决这些问题，使刮削后的演员名整齐统一。&lt;br&gt;
-                                实现逻辑：刮削网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译表文件名为：actor_database.xlsx。&lt;br&gt;
-                                Windows：\配置文件目录\userdata\actor_database.xlsx，配置文件目录可以在「设置」-「高级」中设置。&lt;br&gt;
+                                实现逻辑：网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译表文件名为：actor_database.xlsx。&lt;br&gt;
+                                Windows：\配置文件目录\userdata\actor_database.xlsx，配置文件的目录可以在「设置」-「高级」中设置。&lt;br&gt;
                                 MAC系统：/配置文件目录/userdata/actor_database.xlsx。&lt;br&gt;
                                 你可使用文件编辑工具打开该文件后自定义修改添加，演员映射表中的字段含义如下：&lt;br&gt;
-                                1、keyword：匹配词，每个名字前后都要有逗号，刮削网站获取演员名后，会在keyword的名字中进行匹配。&lt;br&gt;
-                                2、zh_cn/zh_tw/jp：输出词，当keyword匹配到演员名时，可输出对应语言的名字。&lt;/p&gt;</string>
+                                1、keyword：匹配词，每个名字前后都要有逗号，网站获取演员名后，会在keyword的名字中进行匹配。&lt;br&gt;
+                                2、zh_cn/zh_tw/jp：输出词，当keyword匹配到演员名时，可以输出对应语言的名字&lt;/p&gt;</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -15113,7 +15113,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15279,7 +15279,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15423,7 +15423,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15567,7 +15567,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15711,7 +15711,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>映射表：info_database.xlsx，作用和演员映射表类似，说明可参考演员映射表。</string>
+                              <string>映射表：info_database.xlsx，作用和演员映射表类似，具体说明请参考演员映射表</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -15961,7 +15961,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>指命名时在番号后添加中文字幕命名字符。你也可以使用 cnword 字段来调整添加位置</string>
+                              <string>指在命名时在番号后添加中文字幕命名字符，你也可以使用cnword字段来调整添加位置</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -16455,23 +16455,23 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       </property>
                       <property name="text">
                         <string>&lt;p
-                          style='line-height:20px'&gt;1、下载水印图片包并解压（也可以使用自己的图片），水印图片的保存路径为：&lt;br&gt;
-                          Windows：（配置文件目录可以在「设置」-「高级」中设置）&lt;br&gt;
+                          style='line-height:20px'&gt;1、下载水印图片包并解压，也可以使用自己的图片，水印图片的保存路径为：&lt;br&gt;
+                          Windows：（配置文件的目录可以在「设置」-「高级」中设置）&lt;br&gt;
                           字幕水印：\配置文件目录\userdata\watermark\sub.png&lt;br&gt;
                           有码水印：\配置文件目录\userdata\watermark\youma.png&lt;br&gt;
                           破解水印：\配置文件目录\userdata\watermark\umr.png&lt;br&gt;
                           流出水印：\配置文件目录\userdata\watermark\leak.png&lt;br&gt;
                           无码水印：\配置文件目录\userdata\watermark\wuma.png&lt;br&gt;
-                          4K水印：\配置文件目录\userdata\watermark\4k.png&lt;br&gt;
-                          8K水印：\配置文件目录\userdata\watermark\8k.png&lt;br&gt;
-                          MAC系统：（配置文件目录可以在「设置」-「高级」中设置）&lt;br&gt;
+                          加4K水印：\配置文件目录\userdata\watermark\4k.png&lt;br&gt;
+                          加8K水印：\配置文件目录\userdata\watermark\8k.png&lt;br&gt;
+                          MAC系统：（配置文件的目录可以在「设置」-「高级」中设置）&lt;br&gt;
                           字幕水印：/配置文件目录/userdata/watermark/sub.png&lt;br&gt;
                           有码水印：/配置文件目录/userdata/watermark/youma.png&lt;br&gt;
                           破解水印：/配置文件目录/userdata/watermark/umr.png&lt;br&gt;
                           流出水印：/配置文件目录/userdata/watermark/leak.png&lt;br&gt;
                           无码水印：/配置文件目录/userdata/watermark/wuma.png&lt;br&gt;
-                          4K水印：/配置文件目录/userdata/watermark/4k.png&lt;br&gt;
-                          8K水印：/配置文件目录/userdata/watermark/8k.png&lt;br&gt;
+                          加4K水印：/配置文件目录/userdata/watermark/4k.png&lt;br&gt;
+                          加8K水印：/配置文件目录/userdata/watermark/8k.png&lt;br&gt;
                           &lt;br&gt;
                           2、水印图片显示的逻辑：&lt;br&gt;
                           · 首先计算水印图片的显示高度=封面图高度*设置的水印大小/40&lt;br&gt;
@@ -16626,7 +16626,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                             <property name="text">
                               <string>&lt;p
-                                style='line-height:20px'&gt;水印分为字幕水印、马赛克水印、4K/8K水印。&lt;br&gt;
+                                style='line-height:20px'&gt;水印分为字幕水印、马赛克水印、4K/8K水印几种&lt;br&gt;
                                 马赛克水印有四个：有码、破解、流出、无码，将按优先级显示其中一种状态&lt;br&gt;
                                 马赛克水印优先级：有码 &gt; 破解 &gt; 流出 &gt; 无码&lt;br&gt;
                                 举例：如果视频是流出版本&lt;br&gt;
@@ -16825,7 +16825,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>水印图片的显示高度 = 设置的水印大小 / 40 * 封面图高度</string>
+                              <string>水印的显示高度=设置的水印大小/40*封面图高度</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -17059,7 +17059,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>Emby 中 fanart 作为背景图，不需要添加水印。其他软件作为预览图时，可添加水印</string>
+                              <string>Emby中fanart作为背景图，不需要添加水印，其他软件作为预览图时，可以添加水印</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -19428,7 +19428,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>API 密钥创建方法：控制台-&gt;高级-&gt;API 密钥-&gt;添加（APP 名称任意）</string>
+                              <string>API密钥创建方法：控制台-高级-API密钥-添加，设置任何APP名称都行</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -19608,7 +19608,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>指你的 Emby/Jellyfin 服务器地址，比如：http://192.168.1.5:8096</string>
+                              <string>指你的Emby/Jellyfin服务器地址，比如：http://192.168.1.5:8096</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -19736,7 +19736,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>如果设置，将仅获取指定 Emby/Jellyfin 用户媒体库中的演员</string>
+                              <string>如果设置，将仅获取指定的Emby/Jellyfin服务器中用户媒体库中的演员</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -21390,7 +21390,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           3，点击「名称」栏新加载出来的第一个内容 -&gt; 「标头」 -&gt; 「请求表头」 -&gt; 「Cookie」；&lt;br&gt;
                           4，复制 Cookie 对应的全部值填入上面输入框。（不要直接右键点「复制值」！！！！
                           一定要先用鼠标「手动框选」要复制的全部文字，然后再右键点「复制」！！！不是「复制值」！！！！！！）&lt;br&gt;
-                          （注意：Cookie 存在有效期，过期无效时请重新获取。）&lt;/p&gt;</string>
+                          注意：Cookie 存在有效期，过期无效时需要重新获取。&lt;/p&gt;</string>
                       </property>
                       <property name="scaledContents">
                         <bool>true</bool>
