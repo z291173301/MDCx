@@ -5222,7 +5222,6 @@ class Ui_MDCx(object):
         sizePolicy.setHeightForWidth(self.label_68.sizePolicy().hasHeightForWidth())
         self.label_68.setSizePolicy(sizePolicy)
         self.label_68.setStyleSheet("color: rgb(8, 128, 128);")
-        self.label_68.setMinimumSize(QtCore.QSize(0, 40))
         self.label_68.setWordWrap(True)
         self.label_68.setObjectName("label_68")
         self.gridLayout_8.addWidget(self.label_68, 5, 1, 1, 1)
@@ -13083,9 +13082,7 @@ class Ui_MDCx(object):
         self.label_87.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>复制预告片到视频下的 backdrops 目录，当在 Emby\n"
-                "                          浏览该番号时，预告片会作为背景视频播放。<br>\n"
-                "                          开启主题视频：Emby 设置-显示-主题视频-开（PC 端可以打开，手机端不建议打开，会变成全屏播放...）</p>",
+                "<p style='line-height:20px'>复制预告片到视频下的backdrops目录，当在Emby浏览该番号时，预告片会作为背景视频播放。开启主题视频：Emby设置-显示-主题视频-开（PC 端可以打开，手机端不建议打开，会变成全屏播放...）</p>",
             )
         )
         self.checkBox_theme_videos.setText(_translate("MDCx", "使用预告片作为主题视频"))
@@ -13096,10 +13093,9 @@ class Ui_MDCx(object):
         self.label_59.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>在 Emby\n"
-                "                          中，剧照图片作为背景显示，无法手动浏览。<br>\n"
+                "<p style='line-height:20px'>在Emby中，剧照图片将作为背景显示，无法手动浏览。<br>\n"
                 "                          如需在 Emby 中手动查看剧照，可复制剧照图片到单独目录，并且媒体库类型选择「家庭视频与照片」<br>\n"
-                "                          请使用「extrafanart」以外的其他名字。目录名字为空或「extrafanart」时，将不会创建副本目录。<br>\n"
+                "                          请使用「extrafanart」以外的其他名字。目录名字为空或「extrafanart」时，将不会创建副本目录<br>\n"
                 "                          注意：此处只需填写目录名字，请不要填写完整路径！</p>",
             )
         )
@@ -13139,8 +13135,7 @@ class Ui_MDCx(object):
         self.label_333.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>复制剧照到视频下的 behind the scenes\n"
-                "                          目录，Emby 浏览时，剧照会作为附加内容在详情页下方显示。<br></p>",
+                "<p style='line-height:20px'>复制剧照到视频下的behind the scenes目录，Emby浏览时，剧照会作为附加内容在详情页下方显示<br></p>",
             )
         )
         self.checkBox_extras.setText(_translate("MDCx", "剧照作为附加内容显示"))
@@ -13173,7 +13168,7 @@ class Ui_MDCx(object):
         self.label_43.setText(_translate("MDCx", "视频目录名："))
         self.label_240.setText(_translate("MDCx", "防屏蔽字符："))
         self.label_68.setText(
-            _translate("MDCx", "指在nfo文件中的标题(title)格式，在Emby中作为视频标题显示，支持完整Jinja2语法")
+            _translate("MDCx", "指在nfo文件中的标题(title)格式在Emby中作为视频标题显示，支持完整Jinja2语法")
         )
         self.label_67.setText(_translate("MDCx", "Emby视频标题："))
         self.label_61.setText(_translate("MDCx", "指本地视频文件的文件名格式，命名字段同上，推荐 {{ number }}"))

@@ -10450,9 +10450,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p style='line-height:20px'&gt;复制预告片到视频下的 backdrops 目录，当在 Emby
-                          浏览该番号时，预告片会作为背景视频播放。&lt;br&gt;
-                          开启主题视频：Emby 设置-显示-主题视频-开（PC 端可以打开，手机端不建议打开，会变成全屏播放...）&lt;/p&gt;</string>
+                        <string>&lt;p style='line-height:20px'&gt;复制预告片到视频下的backdrops目录，当在Emby浏览该番号时，预告片会作为背景视频播放。开启主题视频：Emby设置-显示-主题视频-开（PC 端可以打开，手机端不建议打开，会变成全屏播放...）&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -10603,10 +10601,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p style='line-height:20px'&gt;在 Emby
-                          中，剧照图片作为背景显示，无法手动浏览。&lt;br&gt;
+                        <string>&lt;p style='line-height:20px'&gt;在Emby中，剧照图片将作为背景显示，无法手动浏览。&lt;br&gt;
                           如需在 Emby 中手动查看剧照，可复制剧照图片到单独目录，并且媒体库类型选择「家庭视频与照片」&lt;br&gt;
-                          请使用「extrafanart」以外的其他名字。目录名字为空或「extrafanart」时，将不会创建副本目录。&lt;br&gt;
+                          请使用「extrafanart」以外的其他名字。目录名字为空或「extrafanart」时，将不会创建副本目录&lt;br&gt;
                           注意：此处只需填写目录名字，请不要填写完整路径！&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
@@ -10893,8 +10890,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p style='line-height:20px'&gt;复制剧照到视频下的 behind the scenes
-                          目录，Emby 浏览时，剧照会作为附加内容在详情页下方显示。&lt;br&gt;&lt;/p&gt;</string>
+                        <string>&lt;p style='line-height:20px'&gt;复制剧照到视频下的behind the scenes目录，Emby浏览时，剧照会作为附加内容在详情页下方显示&lt;br&gt;&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -11203,14 +11199,8 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="styleSheet">
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
-                            <property name="minimumSize">
-                              <size>
-                                <width>0</width>
-                                <height>40</height>
-                              </size>
-                            </property>
                             <property name="text">
-                              <string>指在nfo文件中的标题(title)格式，在Emby中作为视频标题显示，支持完整Jinja2语法</string>
+                              <string>指在nfo文件中的标题(title)格式在Emby中作为视频标题显示，支持完整Jinja2语法</string>
                             </property>
                               <property name="wordWrap">
                                 <bool>true</bool>
