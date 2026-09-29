@@ -6172,6 +6172,21 @@ class Ui_MDCx(object):
         self.checkBox_actor_fc2_seller.setMinimumSize(QtCore.QSize(100, 30))
         self.checkBox_actor_fc2_seller.setObjectName("checkBox_actor_fc2_seller")
         self.gridLayout_26.addWidget(self.checkBox_actor_fc2_seller, 3, 1, 1, 1)
+        self.label_actor_fc2 = QtWidgets.QLabel(parent=self.gridLayoutWidget_26)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_actor_fc2.sizePolicy().hasHeightForWidth())
+        self.label_actor_fc2.setSizePolicy(sizePolicy)
+        self.label_actor_fc2.setMinimumSize(QtCore.QSize(130, 30))
+        self.label_actor_fc2.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
+        self.label_actor_fc2.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight
+            | QtCore.Qt.AlignmentFlag.AlignTrailing
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        self.label_actor_fc2.setObjectName("label_actor_fc2")
+        self.gridLayout_26.addWidget(self.label_actor_fc2, 3, 0, 1, 1)
         self.groupBox_65 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_mingming)
         self.groupBox_65.setGeometry(QtCore.QRect(30, 3150, 720, 301))
         self.groupBox_65.setMinimumSize(QtCore.QSize(200, 0))
@@ -13237,7 +13252,7 @@ class Ui_MDCx(object):
         self.label_285.setText(
             _translate("MDCx", "指命名时在番号后添加版本命名字符，你也可以使用moword段来调整字符添加位置")
         )
-        self.label_189.setText(_translate("MDCx", "无码："))
+        self.label_189.setText(_translate("MDCx", "无码番号："))
         self.label_117.setText(
             _translate(
                 "MDCx",
@@ -13247,7 +13262,7 @@ class Ui_MDCx(object):
             )
         )
         self.label_175.setText(_translate("MDCx", "无码流出："))
-        self.label_190.setText(_translate("MDCx", "有码："))
+        self.label_190.setText(_translate("MDCx", "有码番号："))
         self.label_137.setText(
             _translate(
                 "MDCx",
@@ -13294,22 +13309,23 @@ class Ui_MDCx(object):
             )
         )
         self.checkBox_number_del_num.setText(
-            _translate("MDCx", "去除素人番号的前缀数字，比如：259LUXU-1488将修改为LUXU-1488，建议保留")
+            _translate("MDCx", "去除素人番号的前缀数字，比如：259LUXU-1488修改为LUXU-1488，建议保留")
         )
         self.checkBox_actor_del_char.setText(
-            _translate("MDCx", "去除演员名括号中的名字，比如：演员姓名为Rio（柚木ティナ）将修改为Rio）")
+            _translate("MDCx", "去除演员名括号中的名字，比如：Rio（柚木ティナ）将修改为Rio，建议去除")
         )
         self.label_319.setText(_translate("MDCx", "素人："))
         self.label_197.setText(_translate("MDCx", "后缀顺序："))
         self.checkBox_title_del_actor.setText(
-            _translate("MDCx", "去除番号标题后的演员名，个别网站在标题末尾额外多加了演员名，建议去除）")
+            _translate("MDCx", "去除番号标题后的演员名，个别网站在标题末尾额外多加了演员名，建议去除")
         )
         self.label_276.setText(_translate("MDCx", "发行日期："))
         self.label_302.setText(_translate("MDCx", "年: YYYY或YY，月: MM，日:DD，比如: YY.MM.DD 将显示为 22.03.20"))
         self.label_100.setText(_translate("MDCx", "当演员名不存在时，在使用演员命名字段命名时，使用以上字符替代"))
         self.label_320.setText(_translate("MDCx", "标题："))
         self.label_173.setText(_translate("MDCx", "未知演员："))
-        self.checkBox_actor_fc2_seller.setText(_translate("MDCx", "FC2 无演员时，使用卖家名字作为演员名字"))
+        self.checkBox_actor_fc2_seller.setText(_translate("MDCx", "个人影片没有演员姓名时，将使用影片卖家名字作为影片演员名字，建议勾选"))
+        self.label_actor_fc2.setText(_translate("MDCx", "FC2："))
         self.groupBox_65.setTitle(_translate("MDCx", "画质命名规则"))
         self.radioButton_definition_height.setText(_translate("MDCx", "720P、1080P、4K、8K"))
         self.radioButton_definition_hd.setText(_translate("MDCx", "HD、FHD、QHD、UHD"))

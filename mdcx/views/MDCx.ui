@@ -12247,7 +12247,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <enum>Qt::RightToLeft</enum>
                       </property>
                       <property name="text">
-                        <string>无码：</string>
+                        <string>无码番号：</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -12448,7 +12448,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <enum>Qt::RightToLeft</enum>
                       </property>
                       <property name="text">
-                        <string>有码：</string>
+                        <string>有码番号：</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -13016,7 +13016,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </size>
                             </property>
                             <property name="text">
-                              <string>去除素人番号的前缀数字，比如：259LUXU-1488将修改为LUXU-1488，建议保留</string>
+                              <string>去除素人番号的前缀数字，比如：259LUXU-1488修改为LUXU-1488，建议保留</string>
                             </property>
                           </widget>
                         </item>
@@ -13051,7 +13051,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </size>
                             </property>
                             <property name="text">
-                              <string>去除演员名括号中的名字，比如：演员姓名为Rio（柚木ティナ）将修改为Rio）</string>
+                              <string>去除演员名括号中的名字，比如：Rio（柚木ティナ）将修改为Rio，建议去除</string>
                             </property>
                           </widget>
                         </item>
@@ -13108,7 +13108,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <item row="0" column="1">
                           <widget class="QCheckBox" name="checkBox_title_del_actor">
                             <property name="text">
-                              <string>去除番号标题后的演员名，个别网站在标题末尾额外多加了演员名，建议去除）</string>
+                              <string>去除番号标题后的演员名，个别网站在标题末尾额外多加了演员名，建议去除</string>
                             </property>
                           </widget>
                         </item>
@@ -13272,7 +13272,32 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </size>
                             </property>
                             <property name="text">
-                              <string>FC2 无演员时，使用卖家名字作为演员名字</string>
+                              <string>个人影片没有演员姓名时，将使用影片卖家名字作为影片演员名字，建议勾选</string>
+                            </property>
+                          </widget>
+                        </item>
+                        <item row="3" column="0">
+                          <widget class="QLabel" name="label_actor_fc2">
+                            <property name="sizePolicy">
+                              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                              </sizepolicy>
+                            </property>
+                            <property name="minimumSize">
+                              <size>
+                                <width>130</width>
+                                <height>30</height>
+                              </size>
+                            </property>
+                            <property name="layoutDirection">
+                              <enum>Qt::RightToLeft</enum>
+                            </property>
+                            <property name="text">
+                              <string>FC2：</string>
+                            </property>
+                            <property name="alignment">
+                              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                             </property>
                           </widget>
                         </item>
