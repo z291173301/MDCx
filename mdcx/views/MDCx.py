@@ -5374,7 +5374,7 @@ class Ui_MDCx(object):
         self.label_349.setObjectName("label_349")
         self.gridLayout_22.addWidget(self.label_349, 2, 1, 1, 1)
         self.label_99 = QtWidgets.QLabel(parent=self.groupBox_38)
-        self.label_99.setGeometry(QtCore.QRect(60, 150, 611, 20))
+        self.label_99.setGeometry(QtCore.QRect(60, 150, 627, 20))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5576,7 +5576,7 @@ class Ui_MDCx(object):
         self.label_172.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
         self.label_172.setObjectName("label_172")
         self.label_168 = QtWidgets.QLabel(parent=self.groupBox_77)
-        self.label_168.setGeometry(QtCore.QRect(157, 268, 464, 16))
+        self.label_168.setGeometry(QtCore.QRect(157, 268, 528, 16))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -6236,7 +6236,7 @@ class Ui_MDCx(object):
         self.label_330.setObjectName("label_330")
         self.gridLayout_43.addWidget(self.label_330, 1, 1, 1, 1)
         self.label_331 = QtWidgets.QLabel(parent=self.groupBox_65)
-        self.label_331.setGeometry(QtCore.QRect(60, 120, 634, 41))
+        self.label_331.setGeometry(QtCore.QRect(60, 120, 618, 41))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -13192,11 +13192,11 @@ class Ui_MDCx(object):
         self.label_43.setText(_translate("MDCx", "视频目录名："))
         self.label_240.setText(_translate("MDCx", "防屏蔽字符："))
         self.label_68.setText(
-            _translate("MDCx", "指在nfo文件中的标题(title)格式在Emby中作为视频标题显示，支持完整Jinja2语法")
+            _translate("MDCx", "指在nfo文件中的标题(title)格式在Emby中作为视频标题，支持完整Jinja2语法")
         )
         self.label_67.setText(_translate("MDCx", "视频标题名："))
-        self.label_61.setText(_translate("MDCx", "指本地视频文件的文件名格式，命名字段同上，推荐 {{number}}"))
-        self.label_239.setText(_translate("MDCx", "视频文件命名时，可插入防屏蔽字符到文件名的每个字符之间"))
+        self.label_61.setText(_translate("MDCx", "指本地视频文件的文件名格式，命名字段同上，推荐使用{{number}}字段来命名"))
+        self.label_239.setText(_translate("MDCx", "指当视频文件重新命名时，你可以设置插入防屏蔽字符到文件名称的每个字符之间"))
         self.label_name_template_preview.setText(_translate("MDCx", "模板预览："))
         self.plainTextEdit_name_template_preview.setPlaceholderText(
             _translate("MDCx", "{{ number }}{% if studio %} [{{ studio }}]{% endif %} {{ originaltitle }}")
@@ -13212,7 +13212,7 @@ class Ui_MDCx(object):
         self.radioButton_cd_part_digital.setText(_translate("MDCx", "-1"))
         self.label_349.setText(_translate("MDCx", "数字，-1、-2"))
         self.label_99.setText(
-            _translate("MDCx", "默认识别分集：-CD1｜-PART1｜-HD1｜-1.mp4 （文件名含有这些字符时将识别其中的分集信息）")
+            _translate("MDCx", "默认识别分集：-CD1｜-PART1｜-HD1｜-1.mp4，文件名称中含有这些字符时将识别其中的分集信息")
         )
         self.checkBox_cd_part_a.setText(_translate("MDCx", "-A.mp4｜.A.mp4｜12A.mp4 (字母结尾的分集，不含字母C)"))
         self.label_350.setText(_translate("MDCx", "允许识别分集："))
@@ -13231,8 +13231,8 @@ class Ui_MDCx(object):
         self.label_169.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>指目录名最长字符数，建议设置不要超过100个字符，太长时Windows可能会报错<br>\n"
-                "                          当超过最大长度时，将通过截短标题字段内容来缩短长度<br>\n"
+                "<p style='line-height:20px'>指目录名最长字符数，建议设置最大不要超过100字符，太长时Windows可能会报错<br>\n"
+                "                          已经超过最大长度时，程序将会通过截短视频番号标题字段内容的方式来缩短长度<br>\n"
                 "                          系列等目录级字段按固定预算截断，同系列影片始终归到同一文件夹</p>",
             )
         )
@@ -13240,18 +13240,18 @@ class Ui_MDCx(object):
         self.label_172.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>指文件名最长字符数，建议设置不要超过100个字符，太长时Windows可能会报错<br>\n"
-                "                          当超过最大长度时，将通过截短标题字段内容来缩短长度</p>",
+                "<p style='line-height:20px'>指文件名最长字符数，建议设置最大不要超过100字符，太长时Windows可能会报错<br>\n"
+                "                          已经超过最大长度时，程序将会通过截短视频番号标题字段内容的方式来缩短长度</p>",
             )
         )
         self.label_168.setText(
-            _translate("MDCx", "指有多位演员时，命名时最多显示的演员数量。超出的演员将用以下字符替代：")
+            _translate("MDCx", "指番号有多位演员时，命名时最多显示的演员数量，超出的演员将用以下字符替代")
         )
         self.lineEdit_folder_name_max.setAccessibleDescription(_translate("MDCx", "测试"))
         self.label_actor_name_more.setText(_translate("MDCx", "演员名末端插入："))
         self.groupBox_46.setTitle(_translate("MDCx", "马赛克命名规则"))
         self.label_285.setText(
-            _translate("MDCx", "指命名时在番号后添加版本命名字符，你也可以使用moword段来调整字符添加位置")
+            _translate("MDCx", "指命名时在番号后添加版本命名字符，你也可以使用moword来调整字符添加的位置")
         )
         self.label_189.setText(_translate("MDCx", "无码番号："))
         self.label_117.setText(
@@ -13305,8 +13305,8 @@ class Ui_MDCx(object):
         self.label_146.setText(
             _translate(
                 "MDCx",
-                "<p>比如moword(自定义的无码标识),cnword(字幕)将显示为: 番号-流出-C<br>\n"
-                "                                此处只控制顺序，需要在对应位置（如“添加 4K 字符”）勾选才能控制是否显示</p>",
+                "<p>比如cnword(字幕)，moword(自定义的无码标识)将被显示为: 番号-流出-C等样式<br>\n"
+                "                                此处只控制显示顺序，要在对应位置如“添加4K字符”，勾选之后才能控制是否显示</p>",
             )
         )
         self.checkBox_number_del_num.setText(
@@ -13321,8 +13321,8 @@ class Ui_MDCx(object):
             _translate("MDCx", "去除番号标题后的演员名，个别网站在标题末尾额外多加了演员名，建议去除")
         )
         self.label_276.setText(_translate("MDCx", "发行日期："))
-        self.label_302.setText(_translate("MDCx", "年: YYYY或YY，月: MM，日:DD，比如: YY.MM.DD 将显示为 22.03.20"))
-        self.label_100.setText(_translate("MDCx", "当演员名不存在时，在使用演员命名字段命名时，使用以上字符替代"))
+        self.label_302.setText(_translate("MDCx", "发行日期：年: YYYY或YY，月: MM，日:DD，比如:YY.MM.DD将被显示为22.03.20"))
+        self.label_100.setText(_translate("MDCx", "当演员名不存在时，在使用演员命名字段命名时，将使用自定义字符替代演员名称"))
         self.label_320.setText(_translate("MDCx", "标题："))
         self.label_173.setText(_translate("MDCx", "未知演员："))
         self.checkBox_actor_fc2_seller.setText(
@@ -13337,7 +13337,7 @@ class Ui_MDCx(object):
         self.label_331.setText(
             _translate(
                 "MDCx",
-                "<p>说明：QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，低于540P时默认使用高度值命名</p>",
+                "<p>QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，低于540P时用高度值命名</p>",
             )
         )
         self.radioButton_videosize_video.setText(_translate("MDCx", "读取视频画面的高度"))
@@ -13347,7 +13347,7 @@ class Ui_MDCx(object):
         self.label_357.setText(_translate("MDCx", "添加 4K 字符："))
         self.checkBox_filename_4k.setText(_translate("MDCx", "视频文件名"))
         self.label_358.setText(
-            _translate("MDCx", "指命名时在番号后添加4K（仅4K），你也可以使用definition字段来调整添加位置")
+            _translate("MDCx", "指命名时在番号后添加4K（仅4K），也可以使用definition字段来调整添加位置")
         )
         self.checkBox_foldername_4k.setText(_translate("MDCx", "视频目录名"))
         self.groupBox_67.setTitle(_translate("MDCx", "其他说明"))

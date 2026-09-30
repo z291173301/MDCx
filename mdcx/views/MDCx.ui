@@ -11191,7 +11191,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>指在nfo文件中的标题(title)格式在Emby中作为视频标题显示，支持完整Jinja2语法</string>
+                              <string>指在nfo文件中的标题(title)格式在Emby中作为视频标题，支持完整Jinja2语法</string>
                             </property>
                               <property name="wordWrap">
                                 <bool>true</bool>
@@ -11235,7 +11235,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>指本地视频文件的文件名格式，命名字段同上，推荐 {{number}}</string>
+                              <string>指本地视频文件的文件名格式，命名字段同上，推荐使用{{number}}字段来命名</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -11254,7 +11254,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>视频文件命名时，可插入防屏蔽字符到文件名的每个字符之间</string>
+                              <string>指当视频文件重新命名时，你可以设置插入防屏蔽字符到文件名称的每个字符之间</string>
                             </property>
                           </widget>
                         </item>
@@ -11489,7 +11489,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <rect>
                           <x>60</x>
                           <y>150</y>
-                          <width>611</width>
+                          <width>627</width>
                           <height>20</height>
                         </rect>
                       </property>
@@ -11503,7 +11503,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>默认识别分集：-CD1｜-PART1｜-HD1｜-1.mp4 （文件名含有这些字符时将识别其中的分集信息）</string>
+                        <string>默认识别分集：-CD1｜-PART1｜-HD1｜-1.mp4，文件名称中含有这些字符时将识别其中的分集信息</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -11906,8 +11906,8 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p style='line-height:20px'&gt;指目录名最长字符数，建议设置不要超过100个字符，太长时Windows可能会报错&lt;br&gt;
-                          当超过最大长度时，将通过截短标题字段内容来缩短长度&lt;br&gt;
+                        <string>&lt;p style='line-height:20px'&gt;指目录名最长字符数，建议设置最大不要超过100字符，太长时Windows可能会报错&lt;br&gt;
+                          已经超过最大长度时，程序将会通过截短视频番号标题字段内容的方式来缩短长度&lt;br&gt;
                           系列等目录级字段按固定预算截断，同系列影片始终归到同一文件夹&lt;/p&gt;</string>
                       </property>
                       <property name="wordWrap">
@@ -11967,8 +11967,8 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p style='line-height:20px'&gt;指文件名最长字符数，建议设置不要超过100个字符，太长时Windows可能会报错&lt;br&gt;
-                          当超过最大长度时，将通过截短标题字段内容来缩短长度&lt;/p&gt;</string>
+                        <string>&lt;p style='line-height:20px'&gt;指文件名最长字符数，建议设置最大不要超过100字符，太长时Windows可能会报错&lt;br&gt;
+                          已经超过最大长度时，程序将会通过截短视频番号标题字段内容的方式来缩短长度&lt;/p&gt;</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -11982,7 +11982,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <rect>
                           <x>157</x>
                           <y>268</y>
-                          <width>464</width>
+                          <width>528</width>
                           <height>16</height>
                         </rect>
                       </property>
@@ -11996,7 +11996,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>指有多位演员时，命名时最多显示的演员数量。超出的演员将用以下字符替代：</string>
+                        <string>指番号有多位演员时，命名时最多显示的演员数量，超出的演员将用以下字符替代</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -12143,7 +12143,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>指命名时在番号后添加版本命名字符，你也可以使用moword段来调整字符添加位置</string>
+                        <string>指命名时在番号后添加版本命名字符，你也可以使用moword来调整字符添加的位置</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -12967,8 +12967,8 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>&lt;p&gt;比如moword(自定义的无码标识),cnword(字幕)将显示为: 番号-流出-C&lt;br&gt;
-                                此处只控制顺序，需要在对应位置（如“添加 4K 字符”）勾选才能控制是否显示&lt;/p&gt;</string>
+                              <string>&lt;p&gt;比如cnword(字幕)，moword(自定义的无码标识)将被显示为: 番号-流出-C等样式&lt;br&gt;
+                                此处只控制显示顺序，要在对应位置如“添加4K字符”，勾选之后才能控制是否显示&lt;/p&gt;</string>
                             </property>
                           </widget>
                         </item>
@@ -13136,7 +13136,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>年: YYYY或YY，月: MM，日:DD，比如: YY.MM.DD 将显示为 22.03.20</string>
+                              <string>发行日期：年: YYYY或YY，月: MM，日:DD，比如:YY.MM.DD将被显示为22.03.20</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -13171,7 +13171,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>当演员名不存在时，在使用演员命名字段命名时，使用以上字符替代</string>
+                              <string>当演员名不存在时，在使用演员命名字段命名时，将使用自定义字符替代演员名称</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -13380,7 +13380,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <rect>
                           <x>60</x>
                           <y>120</y>
-                          <width>634</width>
+                          <width>618</width>
                           <height>41</height>
                         </rect>
                       </property>
@@ -13394,7 +13394,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p&gt;说明：QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，低于540P时默认使用高度值命名&lt;/p&gt;</string>
+                        <string>&lt;p&gt;QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，低于540P时用高度值命名&lt;/p&gt;</string>
                       </property>
                         <property name="wordWrap">
                           <bool>true</bool>
@@ -13567,7 +13567,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>指命名时在番号后添加4K（仅4K），你也可以使用definition字段来调整添加位置</string>
+                        <string>指命名时在番号后添加4K（仅4K），也可以使用definition字段来调整添加位置</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>

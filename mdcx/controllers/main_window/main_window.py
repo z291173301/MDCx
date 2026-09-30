@@ -467,7 +467,7 @@ class MyMAinWindow(QMainWindow):
         self.Ui.label_name_template_preview_result.setText(
             "状态：语法正确\n"
             f"结果：{html.escape(rendered.text, quote=False)}\n"
-            "示例字段：number=ABC-123, studio=Studio A, originaltitle=Original Title, definition=4K"
+            "示例：number=ABC-123, studio=Studio A, originaltitle=Original Title definition=4K"
         )
         self._sync_naming_template_section()
 
