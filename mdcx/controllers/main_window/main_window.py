@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
 from PyQt6.QtCore import QEvent, QItemSelectionModel, QPoint, QPointF, QRect, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QCursor, QGuiApplication, QHoverEvent, QIcon, QImage, QKeySequence, QPixmap, QShortcut
+from PyQt6.QtGui import QAction, QColor, QCursor, QGuiApplication, QHoverEvent, QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -215,6 +215,9 @@ class MyMAinWindow(QMainWindow):
         self._naming_resyncing = False  # 命名页模板预览区：重算中标志（防 label resize 递归触发）
         self._naming_last_width = -1  # 命名页说明文字上次同步所用的宽度
         self._naming_fix_tries = 0  # 同一宽度下的重算次数上限，防止布局压不下时反复排队
+        self._actor_scroll = None  # 设置-演员页的 CustomScrollArea（对齐判据要读它的视口宽）
+        self._nfo_scroll = None  # 设置-NFO页的 CustomScrollArea（右列对齐的钩子宿主）
+        self._adv_scroll = None  # 设置-高级页的 CustomScrollArea（四行对齐的钩子宿主）
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
         self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
         self._adv_dock_gap = -1  # 该间隔当前生效的宽度（-1 = 从未设置）
@@ -275,6 +278,30 @@ class MyMAinWindow(QMainWindow):
         resources.start_data_loading()
         self.Ui = Ui_MDCx()  # 实例化 Ui
         self.Ui.setupUi(self)  # 初始化 Ui
+        # 设置-演员页三行的对齐必须在滚动区拉伸的同一个 resizeEvent 里做完，
+        # 否则通用拉伸先把它们钉到右缘（中间态），外层下一拍再拉到基准线，
+        # 用户会看到「先在右边、再跳到左边」。详见 _sync_actor_page_align 与
+        # CustomScrollArea._post_wide_sync_hook。
+        # 按内容控件名认页面，不写死滚动区对象名（演员页是 scrollArea_12，
+        # scrollArea_9 是字幕页，写死会装错地方、静默失效）。
+        for _sa in self.Ui.tabWidget.findChildren(CustomScrollArea):
+            _content = _sa.widget()
+            if _content is not None and _content.objectName() == "scrollAreaWidgetContents_yanyuan":
+                _sa._post_wide_sync_hook = self._sync_actor_page_align
+                self._actor_scroll = _sa
+            elif _content is not None and _content.objectName() == "scrollAreaWidgetContents_nfo":
+                # NFO 页同病：右列（影评/导演/TMDB/标签）的列最小宽是在「拉伸前」的
+                # 几何上量的，那一拍条件不成立就留空，等下一拍才补上 → 用户看到
+                # 「先在左边、再向右跳」。挂在拉伸之后的钩子上即可同拍完成。
+                _sa._post_wide_sync_hook = self._sync_nfo_page_align
+                self._nfo_scroll = _sa
+            elif _content is not None and _content.objectName() == "scrollAreaWidgetContents_gaoji":
+                # 高级页同病：网格里两项均分的行（界面外观行的「暗黑模式」、隐藏入口
+                # 行的「隐藏NFO库管理」）会被通用拉伸推到右缘，本控制器下一拍才拉回
+                # 基准线 → 用户看到「先在右侧、再向左漂移」（最大化与还原两个方向
+                # 各出现一次）。挂在拉伸之后的钩子上即可同拍完成。
+                _sa._post_wide_sync_hook = self._sync_advanced_page_wide_hook
+                self._adv_scroll = _sa
         # QStackedWidget 只会把当前可见页 resize 到自身尺寸，休眠页永远停留在设计尺寸；
         # 切页后必须重新同步一次内部几何，否则"先改窗口尺寸再切页"时页面内容全部按陈旧尺寸布局
         self.Ui.stackedWidget.currentChanged.connect(self._sync_page_layouts)
@@ -387,6 +414,8 @@ class MyMAinWindow(QMainWindow):
         template = self.Ui.plainTextEdit_name_template_preview.toPlainText()
         if not template.strip():
             self.Ui.label_name_template_preview_result.setText("状态：等待输入模板")
+            # 结果文字行数随模板变化，重新贴合一次，否则上次钉的高度会裁字或留白
+            self._sync_naming_template_section()
             return
         try:
             file_info, result = self._build_name_preview_sample()
@@ -405,6 +434,7 @@ class MyMAinWindow(QMainWindow):
         except Exception as exc:
             self.Ui.label_name_template_preview_result.setStyleSheet("color: rgb(190, 0, 0);")
             self.Ui.label_name_template_preview_result.setText("状态：语法错误\n" + html.escape(str(exc), quote=False))
+            self._sync_naming_template_section()
             return
 
         self.Ui.label_name_template_preview_result.setStyleSheet("color: rgb(8, 128, 128);")
@@ -413,6 +443,7 @@ class MyMAinWindow(QMainWindow):
             f"结果：{html.escape(rendered.text, quote=False)}\n"
             "示例字段：number=ABC-123, studio=Studio A, originaltitle=Original Title, definition=4K"
         )
+        self._sync_naming_template_section()
 
     # region Init
     def Init_Ui(self): ...
@@ -689,9 +720,9 @@ class MyMAinWindow(QMainWindow):
     _NFO_LIB_FIELD_FULL_H = 60
     _NFO_LIB_FIELD_MIN_H = 40
 
-    # 命名页「视频命名规则」组（groupBox_8）：模板预览高度固定为原自适应高度的
-    # 约三分之一（设计网格里预览占 289px，运行时常被撑到 ~384px）。
-    _NAMING_PREVIEW_H = 128
+    # 命名页「视频命名规则」组（groupBox_8）：模板预览框的高度。默认模板只有一行，
+    # 128px 会在框内留出大片空白，这里按用户要求取其一半。
+    _NAMING_PREVIEW_H = 64
     # groupBox_8 内容上下留白（设计值：组高 1051 - 网格高 1001）。
     _NAMING_BOX_PAD = 50
     # groupBox_8 之后同页的 QGroupBox，组高收缩后需整体上移保持设计间距。
@@ -936,8 +967,35 @@ class MyMAinWindow(QMainWindow):
         hint = widgets["label_actor_db_sync_slice_hint"]
         hint.setGeometry(spin.x() + spin.width() + 10, spin.y(), 261, spin.height())
 
+    @staticmethod
+    def _scroll_stretch_extra(scroll) -> int:
+        """某个设置页滚动区当前的横向拉伸量（> 0 表示该页确实被拉宽了）。
+
+        公式与 CustomScrollArea.sync_wide_children_width() 内部用的完全一致：
+        视口宽 - 设计宽 - 右边距，这样「被拉宽」这件事只有一个判据来源。
+        """
+        if scroll is None:
+            return 0
+        content = scroll.widget()
+        viewport = scroll.viewport()
+        design_w = getattr(content, "_wide_children_design_width", 0) if content is not None else 0
+        if not design_w or viewport is None:
+            return 0
+        return viewport.width() - design_w - scroll.content_right_trim()
+
+    def _actor_page_stretch_extra(self) -> int:
+        """演员页当前的横向拉伸量（见 _scroll_stretch_extra）。
+
+        > 0 表示页面确实被拉宽了，这才是「该把三行对到基准线上」的判据。
+        这里刻意不用 isMaximized()：最大化时窗口管理器先发尺寸、状态标志稍后才
+        生效，那一拍里 isMaximized() 还是 False，于是右缘锚定被绘制出来，等标志
+        到位再重排一次才对齐——用户看到的就是「先在右边、再跳到左边」。改用几何
+        量后，拉伸与对齐永远发生在同一拍，与标志到达顺序无关。
+        """
+        return self._scroll_stretch_extra(getattr(self, "_actor_scroll", None))
+
     def _sync_actor_page_align(self, actor_scroll=None) -> None:
-        """软件设置-演员页：两个基准线上的四个控件左缘对齐（最大化才生效）。
+        """软件设置-演员页：两个基准线上的四个控件左缘对齐（仅页面被拉宽时生效）。
 
         用户截图（最大化态，1920 屏 content 1650 宽，组框 1569 宽）：
           ① 「补全完成后自动补全演员头像」「刮削结束后自动补全演员头像」「清除所有
@@ -954,22 +1012,28 @@ class MyMAinWindow(QMainWindow):
         而锚点 checkBox_actor_photo_ne_new 在 layoutWidget_8 内，是 _STRETCH
         （两项等分拉伸），于是被推到 1136，与右缘钉定的三者分属两条线。
 
-        做法（只改最大化态，还原态一个像素都不碰，纯函数、双向幂等）：
-        本方法在 _sync_page_layouts 末尾（通用拉伸之后）执行：
-          - 非最大化**直接 return，一个 setGeometry 都不发**：还原态几何完全由
-            CustomScrollArea.sync_wide_children_width() 产出，本方法若去「落回
-            设计几何」就会把 _DOCK_RIGHT 的 design_x + extra 覆盖成 design_x，
-            还原态凭空右移 -extra（实测 win=1030 时 extra=-22，三个控件齐刷刷
-            右移 22px），违反「最小化时界面、控件、布局等等保持不变」。同理也
-            不能把这几个名字挪进 _MANUAL_* 从 registry 里摘掉——那会让通用
-            同步彻底不碰它们，还原态同样回到设计 x。故一律不摘不改。
-          - 最大化：先显式重跑一次宽幅同步（拿到终态 extra，休眠页由切 tab 的
+        做法（只改「页面被拉宽」的态，还原态一个像素都不碰，纯函数、双向幂等）：
+        本方法既挂在滚动区拉伸之后的钩子上（CustomClass._post_wide_sync_hook），
+        也在 _sync_page_layouts 末尾再跑一遍：
+          - 拉伸量 <= 0（还原态）**直接 return，一个 setGeometry 都不发**：还原态
+            几何完全由 CustomScrollArea.sync_wide_children_width() 产出，本方法
+            若去「落回设计几何」就会把 _DOCK_RIGHT 的 design_x + extra 覆盖成
+            design_x，还原态凭空右移 -extra（实测 win=1030 时 extra=-26，三个控件
+            齐刷刷右移 26px），违反「最小化时界面、控件、布局等等保持不变」。同理
+            也不能把这几个名字挪进 _MANUAL_* 从 registry 里摘掉——那会让通用同步
+            彻底不碰它们，还原态同样回到设计 x。故一律不摘不改。
+          - 拉伸量 > 0：先显式重跑一次宽幅同步（拿到终态 extra，休眠页由切 tab 的
             showEvent 补齐），再用 mapTo 把锚点量到与目标同一个 content 祖先
             坐标系，得到「锚点绝对 x」与「目标当前绝对 x」，目标新 x = 当前 x +
-            差值后 setGeometry；守卫 x>=0 且右缘不越父级，越界（窄屏最大化）则
-            该控件保持通用逻辑给出的位置。
+            差值后 setGeometry；守卫 x>=0 且右缘不越父级，越界（窄屏）则该控件保持
+            通用逻辑给出的位置。
           - 还原时通用逻辑每遍都会 move(design_x + extra) 自愈，不依赖本方法复位。
         休眠页跳过。
+
+        历史坑：本方法早期用 isMaximized() 当判据，在窗口管理器「先发尺寸、后发状态」
+        的真实顺序下判据读成 False，右缘锚定被绘制出来，等标志到位才二次对齐，于是
+        出现「先在右边、再跳到左边」的跳动。判据换成 _actor_page_stretch_extra() 的
+        几何拉伸量后，拉伸与对齐必然同一拍完成；还原时同样一拍完成缩回。
         """
         ui = getattr(self, "Ui", None)
         if ui is None:
@@ -977,10 +1041,11 @@ class MyMAinWindow(QMainWindow):
         box = getattr(ui, "groupBox_41", None)
         if box is None or not box.isVisibleTo(self):
             return
-        # 还原态：除 checkBox_actor_photo_kodi 外一个像素都不碰，几何完全交给
-        # 通用宽幅同步（见 docstring）。kodi 未进 registry，通用逻辑不会自愈，
-        # 必须显式复位，否则最大化挪走后会一直停在锚点线上。
-        if not self.isMaximized():
+        # 还原态（页面未被拉宽）：除 checkBox_actor_photo_kodi 外一个像素都不碰，
+        # 几何完全交给通用宽幅同步（见 docstring）。kodi 未进 registry，通用逻辑
+        # 不会自愈，必须显式复位，否则拉宽挪走后会一直停在锚点线上。
+        # 判据是拉伸量而非 isMaximized()，理由见 _actor_page_stretch_extra。
+        if self._actor_page_stretch_extra() <= 0:
             kodi = getattr(ui, "checkBox_actor_photo_kodi", None)
             if kodi is not None:
                 kodi.setGeometry(*self._ACTOR_PAGE_MISS_DESIGN)
@@ -1609,7 +1674,24 @@ class MyMAinWindow(QMainWindow):
         # 同样排在通用拉伸之后：本方法先落设计几何再按最大化分支覆盖。
         self._sync_actor_page_align(actor_scroll)
 
-    def _sync_advanced_page_align(self, adv_scroll=None) -> None:
+    def _sync_advanced_page_wide_hook(self) -> None:
+        """滚动区宽幅拉伸之后立刻把高级页四行对回基准线（零参，钩子用）。
+
+        见 _sync_advanced_page_align 的说明：通用拉伸先把网格里两项均分的行
+        （界面外观行的「暗黑模式」、隐藏入口行的「隐藏NFO库管理」）等分推到右缘，
+        本控制器要到下一拍才把它们拉回「刮削结束后自动退出软件」那条竖线。
+        那一帧一旦被绘制，用户就会看到「先在右侧、再向左漂移」——最大化方向是
+        「隐藏NFO库管理」，还原方向是「暗黑模式」（还原时 layoutWidget5 还留着
+        最大化态的加宽宽度，同样先把两项等分往外推）。挂在拉伸之后的钩子上，
+        两者就在同一拍内完成，中间态不会被绘制。
+
+        与 _sync_nfo_page_align / _sync_actor_page_align 同源，休眠页同样零成本。
+        """
+        # 宽幅同步刚在 CustomScrollArea._run_post_wide_sync_hook 里做完，列宽已是
+        # 终态，这里不必（也不宜）再递归跑一遍 sync_wide_children_width()。
+        self._sync_advanced_page_align(self._adv_scroll, wide_synced=True)
+
+    def _sync_advanced_page_align(self, adv_scroll=None, wide_synced=False) -> None:
         """设置-高级：四行复选框对齐到「刮削结束后自动退出软件」同一条竖线。
 
         用户截图（先最大化态、后还原态两轮）：「停止刮削时」「隐藏菜单栏图标
@@ -1654,8 +1736,9 @@ class MyMAinWindow(QMainWindow):
         host = ui.gridLayoutWidget_20
         if not host.isVisibleTo(self):
             return
-        # 同 verify_gb 血案：先显式重跑宽幅同步，保证量到的是终态列宽
-        if adv_scroll is not None and adv_scroll.isVisibleTo(self):
+        # 同 verify_gb 血案：先显式重跑宽幅同步，保证量到的是终态列宽。
+        # 从拉伸之后的钩子进来时列宽已经是终态，wide_synced=True 跳过这次递归。
+        if not wide_synced and adv_scroll is not None and adv_scroll.isVisibleTo(self):
             adv_scroll.sync_wide_children_width()
         anchor_box = ui.checkBox_auto_exit
         lead_box = ui.checkBox_show_dialog_exit
@@ -1666,7 +1749,12 @@ class MyMAinWindow(QMainWindow):
         col_w = host.width() - row_x
         if anchor <= row_x or col_w <= 0:
             return
-        maxed = self.isMaximized()
+        # 「该对齐隐藏入口行」的判据同样改成几何量而非 isMaximized()：窗口管理器
+        # 最大化时先发尺寸、后发状态标志，那一拍 isMaximized() 还是 False，于是
+        # 钉宽被跳过、右缘等分被绘制，等标志到位再重排一次才对齐——用户看到
+        # 「隐藏NFO库管理先在右侧、再向左漂移」。还原态拉伸量为负，与原先
+        # 「非最大化不钉」的行为一致。
+        wide = self._scroll_stretch_extra(self._adv_scroll) > 0
         lay_a = ui.horizontalLayout_55  # 退出软件时 / 停止刮削时
         lay_b = ui.horizontalLayout_dock  # 隐藏Dock图标 / 保存重启软件生效 / 隐藏菜单栏图标
         lay_d = ui.horizontalLayout_nav_hide  # 隐藏Emby演员管理 / 隐藏NFO库管理 / 说明
@@ -1732,7 +1820,7 @@ class MyMAinWindow(QMainWindow):
         hint = ui.label_nav_hide_hint
         pin_d = anchor - row_x - lay_d.spacing()
         room = col_w - pin_d - 2 * lay_d.spacing()
-        ok_d = maxed and pin_d >= actor.sizeHint().width() and room >= (
+        ok_d = wide and pin_d >= actor.sizeHint().width() and room >= (
             nfo.sizeHint().width() + hint.sizeHint().width()
         )
         changed |= self._pin_row_lead_width(actor, pin_d if ok_d else None)
@@ -2020,6 +2108,38 @@ class MyMAinWindow(QMainWindow):
         if not 0 <= row_pad <= 40:
             return None
         return (title_colon, row_pad)
+
+    def _sync_nfo_page_align(self) -> None:
+        """设置-NFO：把七个列对齐控制器整条重跑一遍（纯几何刷新入口）。
+
+        用途只有一个：挂在 NFO 滚动区拉伸之后的钩子上
+        （CustomScrollArea._post_wide_sync_hook），使「拉伸」与「对齐」在同一个
+        事件里做完。起因是最大化时的可见跳动（与演员页同病、方向相反）：
+
+          离屏实测（探针 probe_2tasks.py，scrollArea_13 拉伸事件序列）
+            wide   colMinW1=0    criticX=444  customX=492   ← 拉伸前，条件不成立
+            rca    (0,444,492) → (0,444,492)               ← 量到旧几何，留空
+            wide   colMinW1=0    criticX=918  customX=498   ← 拉伸后已发散
+            hook   （原本是 no-op：本页没挂钩子）            ← 错过的补救机会
+            rca    (0,950,498) → (675,498,498)             ← 下一拍才补上 → 肉眼可见的右跳
+
+        _sync_nfo_right_column_align 的判据是 `critic.x() > custom.x()`，而
+        CustomScrollArea 是在主窗口 resizeEvent **之后**才把自己和内部子项拉到
+        终态的，所以主窗口那一拍量到的必然是拉伸前的几何。挂上钩子后判据在拉伸
+        后的几何上求值，一拍即到位，中间态没有机会被绘制。
+        七个控制器都是纯函数、双向幂等（各自 docstring 已声明），重复调用安全；
+        休眠页直接返回（切 tab 的 showEvent 与 beats 会补齐）。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None or not ui.groupBox_81.isVisibleTo(self):
+            return
+        self._sync_nfo_colon_align()
+        self._sync_nfo_right_column_align()
+        self._sync_nfo_title_plot_align()
+        self._sync_nfo_row_align()
+        self._sync_nfo_tail_align()
+        self._sync_nfo_set_align()
+        self._sync_nfo_field_tips()
 
     def _sync_nfo_right_column_align(self) -> None:
         """设置-NFO：宽视口下右列（影评/导演/TMDB/标签）左对齐到自定义分级/想看人数。
@@ -2360,22 +2480,28 @@ class MyMAinWindow(QMainWindow):
 
     @staticmethod
     def _naming_label_painted_height(lbl) -> int:
-        """label_66（命名模板说明文字）实际需要的高度（px）。
+        """标签实际绘制出来的高度（px）。
 
-        QLabel.heightForWidth() 对它基本是准的（实测绘制 382 / hFW 387，只差几像素）。
-        但它按「标签整体宽度」排版，而 QLabel 真正绘制时用的是带 padding 的
-        contentsRect 宽度，宽度不够时折行数会变多——极端情况下 hFW 会偏小而裁字。
-        所以取两者较大值：既不裁字，也不无谓留白。
+        QLabel 的 sizeHint()/heightForWidth() 对「整段 <br> 硬换行 + 长段落自动折行」
+        这类文字都偏大：前者按未折行的行数估算，后者按整段行距估算，都比真正画出
+        来的像素高几十像素（实测 label_66 绘制 282 / hFW 287 / sh 387；预览结果文字
+        绘制 65 / hFW 82 / sh 99，且 minimumSize 还钉着 82）。按这些值钉高，「视频文
+        件名」「示例字段」下方就会留出空白。
+        所以改成把标签渲染到一张白底 pixmap 上，从底部逐行回扫第一个有墨迹的行——
+        那就是文字真正的下沿。
         """
-        from PyQt6.QtGui import QTextDocument
-
-        h = lbl.heightForWidth(lbl.width())
-        doc = QTextDocument()
-        doc.setDocumentMargin(0)
-        doc.setDefaultFont(lbl.font())
-        doc.setHtml(lbl.text())
-        doc.setTextWidth(max(lbl.contentsRect().width(), 1))
-        return max(int(h), int(doc.size().height()), 1)
+        width = max(lbl.width(), 1)
+        probe_h = min(max(lbl.sizeHint().height(), 200) + 200, 2000)
+        pixmap = QPixmap(width, probe_h)
+        pixmap.fill(QColor(255, 255, 255))
+        lbl.render(pixmap)
+        img = pixmap.toImage()
+        white = QColor(255, 255, 255)
+        for y in range(probe_h - 1, -1, -1):
+            for x in range(0, width, 2):
+                if img.pixelColor(x, y) != white:
+                    return y + 1
+        return 1
 
     def _sync_naming_template_section(self) -> None:
         """命名页「视频命名规则」组（groupBox_8）按内容收缩，消除大片空白。
@@ -2385,6 +2511,9 @@ class MyMAinWindow(QMainWindow):
            文本标签，整块网格按内容收缩后，说明文字必须给出真实需要的高度，
            否则要么裁字、要么在下方留白（见 _naming_label_painted_height）。
         2. 「模板预览」占满网格剩余空间被撑得过高。
+        3. 「示例字段」下方大片空白——预览结果文字
+           label_name_template_preview_result 同理，它的 sizeHint/minimumSize 都
+           远大于实际绘制高度，不贴合就会把整组底部顶出一片空白。
 
         做法：预览钉到设计三分之一高度；说明文字按实际绘制高度贴合；整个网格的
         组高按内容收缩，其后的 QGroupBox 按同一增量上移保持设计间距
@@ -2395,6 +2524,7 @@ class MyMAinWindow(QMainWindow):
         widget = ui.gridLayoutWidget_8
         lbl = ui.label_66
         preview = ui.plainTextEdit_name_template_preview
+        result = ui.label_name_template_preview_result
         grid = ui.gridLayout_8
         if lbl.width() <= 0 or box.width() <= 0:
             return
@@ -2412,14 +2542,18 @@ class MyMAinWindow(QMainWindow):
         # 本方法会改 label_66 高度并触发其 Resize；用标志位抑制 eventFilter 的递归重算。
         self._naming_resyncing = True
         try:
-            # 1) 说明文字按实际绘制高度贴合。先解除上一轮的固定高度，否则高度不会重算。
-            lbl.setMinimumHeight(0)
-            lbl.setMaximumHeight(16777215)
+            # 1) 两段说明文字都按实际绘制高度贴合。测量前必须先解除上一轮的固定
+            #    高度，否则标签仍被裁着，量到的只是残缺高度（会越量越小、最后裁字）。
+            for text_widget in (lbl, result):
+                text_widget.setMinimumHeight(0)
+                text_widget.setMaximumHeight(16777215)
             grid.invalidate()
             grid.activate()
             lbl.setFixedHeight(self._naming_label_painted_height(lbl))
             # 2) 模板预览固定高度，不再吸收网格剩余空间。
             preview.setFixedHeight(self._NAMING_PREVIEW_H)
+            # 3) 预览结果文字（状态/结果/示例字段）同样按真实绘制高度贴合。
+            result.setFixedHeight(self._naming_label_painted_height(result))
             grid.invalidate()
             grid.activate()
 

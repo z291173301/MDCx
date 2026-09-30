@@ -308,15 +308,44 @@ class CustomScrollArea(QScrollArea):
                 else:  # _DOCK_RIGHT
                     sub.move(sx + extra, sy)
 
+    # 宽幅同步之后立刻执行的对齐钩子（可选，由外部按需赋值）。
+    #
+    # 为什么需要：通用拉伸只保证「不越界」，它把右缘控件钉在右缘、宽幅控件按
+    # 「设计宽 + extra」铺开。某些控件还要在拉伸落定后再对齐到同页别的控件
+    # （设置-演员页三行要对齐「请求Graphis最新图片」）。若把这一步留给外层在
+    # 下一轮事件里做，「右缘锚定」这个中间态会先被绘制出来——用户看到的就是
+    # 控件「先在右边、再跳到左边」。放进同一个 resizeEvent 里两步原子完成，
+    # 中间态就不会出现。钩子在拉伸之后调用，故能读到终态 extra。
+    _post_wide_sync_hook = None
+    _in_post_wide_sync_hook = False
+
+    def _run_post_wide_sync_hook(self) -> None:
+        """执行宽幅同步后的对齐钩子（未安装时零成本）。
+
+        带重入保护：钩子内部会 setGeometry，一旦连带引发本滚动区再次 resize，
+        没有保护就会无限递归（实测会把栈打爆）。重入时直接跳过——外层那一遍
+        已经在正确的几何上跑完，对齐结果不会因此丢失。
+        """
+        hook = self._post_wide_sync_hook
+        if hook is None or self._in_post_wide_sync_hook:
+            return
+        self._in_post_wide_sync_hook = True
+        try:
+            hook()
+        finally:
+            self._in_post_wide_sync_hook = False
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         # 先同步宽幅容器（含缩回），再按最新 childrenRect 补内容最小尺寸——
         # 顺序颠倒会让 min_width 吃到拉伸后的旧包围盒，还原路径锁死（议题 #82）
         self.sync_wide_children_width()
+        self._run_post_wide_sync_hook()
         self.sync_content_min_height()
 
     def showEvent(self, event):
         super().showEvent(event)
         self.sync_wide_children_width()
+        self._run_post_wide_sync_hook()
         self.sync_content_min_height()
 
