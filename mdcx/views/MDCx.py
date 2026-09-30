@@ -961,7 +961,7 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_pick_nfo_dir.setGeometry(QtCore.QRect(350, 324, 80, 30))
         self.pushButton_actor_db_pick_nfo_dir.setObjectName("pushButton_actor_db_pick_nfo_dir")
         self.pushButton_actor_db_update_nfo_tmdbid = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
-        self.pushButton_actor_db_update_nfo_tmdbid.setGeometry(QtCore.QRect(440, 324, 140, 30))
+        self.pushButton_actor_db_update_nfo_tmdbid.setGeometry(QtCore.QRect(440, 324, 170, 30))
         self.pushButton_actor_db_update_nfo_tmdbid.setObjectName("pushButton_actor_db_update_nfo_tmdbid")
         self.label_actor_db_update_nfo_desc = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_update_nfo_desc.setGeometry(QtCore.QRect(40, 360, 621, 28))
