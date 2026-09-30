@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
 from PyQt6.QtCore import QEvent, QItemSelectionModel, QPoint, QPointF, QRect, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QColor, QCursor, QGuiApplication, QHoverEvent, QIcon, QImage, QKeySequence, QPixmap, QShortcut
+from PyQt6.QtGui import QAction, QColor, QCursor, QFontMetrics, QGuiApplication, QHoverEvent, QIcon, QImage, QKeySequence, QPixmap, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -223,6 +223,10 @@ class MyMAinWindow(QMainWindow):
         self._actor_scroll = None  # 设置-演员页的 CustomScrollArea（对齐判据要读它的视口宽）
         self._nfo_scroll = None  # 设置-NFO页的 CustomScrollArea（右列对齐的钩子宿主）
         self._adv_scroll = None  # 设置-高级页的 CustomScrollArea（四行对齐的钩子宿主）
+        self._guaxiaomulu_scroll = None  # 设置-刮削目录页的 CustomScrollArea（文件清理提示对齐的钩子宿主）
+        self._zimu_scroll = None  # 设置-字幕页的 CustomScrollArea（底部空白收缩的钩子宿主）
+        self._zimu_dl_spacer = None  # 字幕页下载行插在 label_102 与「点击下载字幕包」之间的固定间隔
+        self._zimu_dl_gap = -1  # 该间隔当前生效的宽度（-1 = 未安装/已拆除）
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
         self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
         self._adv_dock_gap = -1  # 该间隔当前生效的宽度（-1 = 从未设置）
@@ -307,6 +311,18 @@ class MyMAinWindow(QMainWindow):
                 # 各出现一次）。挂在拉伸之后的钩子上即可同拍完成。
                 _sa._post_wide_sync_hook = self._sync_advanced_page_wide_hook
                 self._adv_scroll = _sa
+            elif _content is not None and _content.objectName() == "scrollAreaWidgetContents_guaxiaomulu":
+                # 刮削目录页同病：文件清理提示 label_271 被通用逻辑判为 _STRETCH
+                # （宽 381 ≥ 内宽一半），最大化时宽按「设计宽 + extra」铺开、
+                # 文本 AlignCenter 居中，整体右偏到按钮右侧；挂钩子同拍拉回按钮下方。
+                _sa._post_wide_sync_hook = self._sync_guaxiaomulu_page_align
+                self._guaxiaomulu_scroll = _sa
+            elif _content is not None and _content.objectName() == "scrollAreaWidgetContents_zimu":
+                # 字幕页：内容短（两组底缘 735 + 余量 72），最大化时视口更高，
+                # widgetResizable 把内容拉到视口高，组框下方留下大片白色填充；
+                # 挂钩子同拍把填充收进末尾组框（见 _sync_zimu_fill_blank）。
+                _sa._post_wide_sync_hook = self._sync_zimu_page_align
+                self._zimu_scroll = _sa
         # QStackedWidget 只会把当前可见页 resize 到自身尺寸，休眠页永远停留在设计尺寸；
         # 切页后必须重新同步一次内部几何，否则"先改窗口尺寸再切页"时页面内容全部按陈旧尺寸布局
         self.Ui.stackedWidget.currentChanged.connect(self._sync_page_layouts)
@@ -1094,6 +1110,333 @@ class MyMAinWindow(QMainWindow):
         for name in self._ACTOR_PAGE_MISS_TARGETS:
             shift_to(name, miss)
 
+    # 刮削目录页文件清理提示的设计宽（MDCx.ui label_271 设计几何 140,490,381,16）。
+    _GUAXIAOMULU_TIP_DESIGN_W = 381
+
+    def _sync_guaxiaomulu_page_align(self, _scroll=None) -> None:
+        """设置-刮削目录：把文件清理提示对齐入口整条重跑（钩子用，零参可调）。
+
+        挂在刮削目录滚动区拉伸之后的钩子上
+        （CustomScrollArea._post_wide_sync_hook），使「拉伸」与「对齐」在同一个
+        事件里做完，中间态（提示被拉宽后居中右偏）不会被绘制。休眠页直接返回，
+        由切 tab 的 showEvent 补齐。
+        """
+        self._sync_guaxiaomulu_clean_tip_align(
+            _scroll if _scroll is not None else getattr(self, "_guaxiaomulu_scroll", None)
+        )
+
+    def _sync_guaxiaomulu_clean_tip_align(self, scroll=None) -> None:
+        """设置-刮削目录：最大化时文件清理提示左移到按钮下方居中，最小化不动。
+
+        用户需求：最大化时「⚠️ 使用前请确认规则是否已启用！！！不启用不生效！！！」
+        （label_271）向左移动到「点击检查待刮削目录并清理文件」按钮
+        （pushButton_check_and_clean_files）下方；最小化时布局、页面、控件保持不变，
+        只能左右移动、不能上下移动。
+
+        根因：label_271 宽 381 ≥ 组框内宽一半，被 CustomScrollArea 通用宽幅同步判为
+        _STRETCH，最大化时宽按「设计宽 + extra」铺开；文本 AlignCenter 居中，
+        整体右偏到按钮右侧，而按钮本身是 _KEEP 原位不动。
+
+        做法（只改「页面被拉宽」的态，还原态一个像素都不碰，双向幂等）：
+          - 拉伸量 <= 0 直接 return：几何完全交给通用同步，本方法不复位、不摘
+            registry（理由同 _sync_actor_page_align：复位会覆盖通用同步的缩回量，
+            还原态凭空移位）。
+          - 拉伸量 > 0：先显式重跑一次宽幅同步拿到终态按钮位置，再把提示按设计宽
+            摆到按钮下方水平居中（x = 按钮.x + (按钮宽 - 设计宽)//2，y/h 不动）；
+            越界（窄屏）则保持通用逻辑给出的位置。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_61", None)
+        tip = getattr(ui, "label_271", None)
+        btn = getattr(ui, "pushButton_check_and_clean_files", None)
+        if box is None or tip is None or btn is None or not box.isVisibleTo(self):
+            return
+        if self._scroll_stretch_extra(scroll) <= 0:
+            return
+        if scroll is not None and scroll.isVisibleTo(self):
+            scroll.sync_wide_children_width()  # 取终态按钮位置，勿量过期几何
+        g = tip.geometry()
+        nx = btn.x() + (btn.width() - self._GUAXIAOMULU_TIP_DESIGN_W) // 2
+        if nx < 0 or nx + self._GUAXIAOMULU_TIP_DESIGN_W > tip.parentWidget().width():
+            return
+        if g.x() != nx or g.width() != self._GUAXIAOMULU_TIP_DESIGN_W:
+            tip.setGeometry(nx, g.y(), self._GUAXIAOMULU_TIP_DESIGN_W, g.height())
+
+    # 字幕页「添加外挂字幕」组设计几何（MDCx.ui groupBox_45: x30 y310 w701 h425）。
+    _ZIMU_BOX_DESIGN_Y = 310
+    _ZIMU_BOX_DESIGN_H = 425
+    # 字幕页纵向铺排的目标底垫：绿色说明底边与组框底边之间只留 12px，
+    # 其余多余底垫删除（绿色说明上提、组框底边同步上收）。
+    _ZIMU_TEAL_BOTTOM_PAD = 12
+
+    def _zimu_wide_rows(self, filler: int, teal_h: int):
+        """字幕页宽态纵向铺排：各行 y 与组框高（公式化，双向幂等）。
+
+        _sync_zimu_fill_blank（定组框高）与 _sync_zimu_row_align（定各行 y）
+        共用同一公式，任一先跑结果一致，不存在“对齐完又被覆盖”。
+        铺排：上方网格 4 行各增 unit（unit = filler//8），长按钮下移 5*unit，
+        复选框行下移 5*unit + unit//3，绿色说明先按 5*unit + 2*(unit//3)
+        铺排、再整体上移 X（删掉下方多余底垫；X 取到底垫只剩 12px 所需量，
+        并钳位不越过复选框行），组框高按绿色说明底部贴合
+        （box_h = teal_y + teal_h + 12，恒 <= 设计高 + filler）。
+        filler <= 0 时 unit/X 自动归零，返回值即设计几何。
+        """
+        unit = max(0, filler) // 8
+        gap = unit // 3
+        btn_y = self._ZIMU_BUTTON_DESIGN_Y + 5 * unit
+        checks_y = self._ZIMU_CHECKS_DESIGN_Y + 5 * unit + gap
+        spread_teal_y = self._ZIMU_TEAL_DESIGN_Y + 5 * unit + 2 * gap
+        pad_full = self._ZIMU_BOX_DESIGN_H + filler - (spread_teal_y + teal_h)
+        room = max(0, spread_teal_y - (checks_y + 38))
+        up = min(max(0, pad_full - self._ZIMU_TEAL_BOTTOM_PAD), room)
+        teal_y = spread_teal_y - up
+        box_h = min(self._ZIMU_BOX_DESIGN_H + filler, teal_y + teal_h + self._ZIMU_TEAL_BOTTOM_PAD)
+        return unit, btn_y, checks_y, teal_y, box_h
+    # 组内复选框行 / 绿色说明 label_125 / 长按钮的设计 y（宽态铺排的归位基准）。
+    _ZIMU_CHECKS_DESIGN_Y = 272
+    _ZIMU_TEAL_DESIGN_Y = 309
+    _ZIMU_BUTTON_DESIGN_Y = 220
+    # 上方网格容器 gridLayoutWidget_27 的设计高（宽态按行铺排量同步增高）。
+    _ZIMU_GRID_DESIGN_H = 186
+
+    def _sync_zimu_page_align(self, _scroll=None) -> None:
+        """设置-字幕：把底部空白收缩 + 行对齐入口整条重跑（钩子用，零参可调）。
+
+        挂在字幕滚动区拉伸之后的钩子上
+        （CustomScrollArea._post_wide_sync_hook），使「拉伸」与「收缩/对齐」在
+        同一个事件里做完，中间态（白色填充/右缘控件先被绘制一帧）不会出现。
+        休眠页直接返回，由切 tab 的 showEvent 补齐。
+
+        顺序：先 _sync_zimu_fill_blank（它内部会重跑宽幅同步拿到终态，通用
+        同步会把右缘锚定的复选框搬回右侧），再 _sync_zimu_row_align（按终态
+        几何左移）。顺序颠倒会对齐完又被通用同步覆盖。
+        """
+        scroll = _scroll if _scroll is not None else getattr(self, "_zimu_scroll", None)
+        self._sync_zimu_fill_blank(scroll)
+        self._sync_zimu_row_align(scroll)
+
+    def _sync_zimu_fill_blank(self, scroll=None) -> None:
+        """设置-字幕：高视口下把组框下方的白色填充收进末尾组框，矮视口不动。
+
+        用户需求：最大化时「添加外挂字幕」组最底部下方有大片白色空白，删除或缩进；
+        最小化时界面、布局、控件保持不变；组内控件不移动（只动组框底边）。
+
+        根因：字幕页内容短（groupBox_45 底缘 735，内容最小高 = 735 + 底部余量 72），
+        widgetResizable=true 的滚动区在视口更高时把内容拉伸到视口高，多出的部分
+        即组框下方的白色填充（1920x1170 下约 380px）；矮窗口视口 < 内容最小高，
+        出现垂直滚动条、无填充。
+
+        做法（只改「出现白色填充」的态，其余一个像素都不碰，双向幂等）：
+          - 先显式重跑一次宽幅同步拿到终态视口/组框（registry 高度从未改动，
+            每次复位回设计值 425，无累积漂移），再算填充
+            filler = 视口高 - (组框.y + 设计高) - 底部余量；
+          - filler <= 0（矮视口/最小化）直接 return：几何完全交给通用同步；
+          - filler > 0：组框高度按 _zimu_wide_rows 公式收缩（x/y/宽不动，
+            组间距保持设计值 19 不放大；绿色说明上提、底垫只留 12px，
+            删掉的多余底垫转为组框下方的页面底色，纵向不再有单块大空白）。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_45", None)
+        if box is None or not box.isVisibleTo(self):
+            return
+        if scroll is None:
+            scroll = getattr(self, "_zimu_scroll", None)
+        if scroll is None:
+            return
+        if scroll.isVisibleTo(self):
+            scroll.sync_wide_children_width()  # 取终态视口与组框，勿量过期几何
+        viewport = scroll.viewport()
+        if viewport is None:
+            return
+        margin = scroll.content_bottom_margin()
+        filler = viewport.height() - (self._ZIMU_BOX_DESIGN_Y + self._ZIMU_BOX_DESIGN_H) - margin
+        if filler <= 0:
+            return
+        teal = getattr(ui, "label_125", None)
+        want_h = self._zimu_wide_rows(filler, teal.height() if teal is not None else 131)[4]
+        g = box.geometry()
+        if g.y() != self._ZIMU_BOX_DESIGN_Y or g.height() != want_h:
+            box.setGeometry(g.x(), self._ZIMU_BOX_DESIGN_Y, g.width(), want_h)
+            scroll.sync_content_min_height()
+
+    def _sync_zimu_row_align(self, scroll=None) -> None:
+        """设置-字幕：最大化时两处左移到与「视频文件名」严格上下对齐，最小化不动。
+
+        用户需求（最大化态）：「新添加字幕的视频在结束后重新刮削」
+        （checkBox_sub_rescrape）左移到与「视频文件名」（checkBox_filename，
+        位置保持不变）左缘上下对齐；「点击下载字幕包」
+        （label_download_sub_zip）左移到「视频文件名」下方（左缘同样对齐）；
+        最小化时页面、布局、控件保持不变。
+
+        根因：复选框是 groupBox_45 的直接子项，宽 236 ≥ 内宽一半不成立、右缘
+        425+236=661 ≥ 组宽 701*0.9，被通用宽幅同步判为 _DOCK_RIGHT，最大化时
+        整体右移到右缘；下载行是横向均分布局，链接位置随列宽漂移。
+        上游「视频文件名」行同样是两项均分布局，两列 col0 同为 130，当前恰好
+        同位——本方法按活测量的「视频文件名」左缘钉死，不依赖这种巧合。
+
+        做法（只改「页面被拉宽」的态，还原态逐像素复原，双向幂等）：
+          - extra <= 0 直接拆除下载行间隔、解除 label_102 钉宽、恢复链接居中、
+            复位复选框行 y 后 return（复选框 x/组框几何由通用同步按设计复位）；
+          - extra > 0：以「视频文件名」经公共祖先 content 映射的 x 为基准
+            （注：QWidget.mapTo 要求目标是调用者的祖先，跨分支直接映射会
+            拿到未定义值，离屏实测恒偏 +302，故一律经 content 中转）；
+            复选框 move() 到基准 x（y 按纵向铺排值一并落定，越界则放弃）；
+            下载行把 label_102 钉回 sizeHint 宽 + 插入固定间隔把链接推到
+            基准 x（只允许左移，右推/放不下则放弃，链接右缘恒等于行右缘）。
+            链接 QLabel 设计态是 AlignCenter：格子拉宽后即使左缘对齐，可见
+            文字仍居中偏右，故宽态把文字对齐改左（窄态恢复 AlignCenter）。
+          - 纵向均匀铺排（宽态有填充时）：填充量按八等分铺进行内行距——上方
+            网格 4 行各增 unit（unit = filler//8），长按钮下移 5*unit，
+            复选框行下移 5*unit + unit//3（紧贴长按钮下方，间隙只 +unit//3），
+            绿色说明先按 5*unit + 2*(unit//3) 铺排、再整体上提删掉下方多余
+            底垫（底边与组框底边只留 12px，钳位不越过复选框行），组框高同步
+            收缩；
+            组框 y 钉回设计值，组间距保持 19 不放大。任一单块空白
+            都不再是“大片”，下半部分相对位置保持紧凑。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_45", None)
+        filename = getattr(ui, "checkBox_filename", None)
+        rescrape = getattr(ui, "checkBox_sub_rescrape", None)
+        add_chs = getattr(ui, "checkBox_sub_add_chs", None)
+        teal = getattr(ui, "label_125", None)
+        button = getattr(ui, "pushButton_add_sub_for_all_video", None)
+        lead = getattr(ui, "label_102", None)
+        link = getattr(ui, "label_download_sub_zip", None)
+        lay = getattr(ui, "horizontalLayout_10", None)
+        grid = getattr(ui, "gridLayout_27", None)
+        grid27 = getattr(ui, "gridLayoutWidget_27", None)
+        if (
+            box is None
+            or filename is None
+            or rescrape is None
+            or add_chs is None
+            or teal is None
+            or button is None
+            or lead is None
+            or link is None
+            or lay is None
+            or grid is None
+            or grid27 is None
+            or not box.isVisibleTo(self)
+        ):
+            return
+        if scroll is None:
+            scroll = getattr(self, "_zimu_scroll", None)
+        if scroll is None:
+            return
+        content = scroll.widget()
+        if content is None:
+            return
+        if self._scroll_stretch_extra(scroll) <= 0:
+            # 还原态：清零网格行最小高、拆除下载行间隔、解除前导钉宽、恢复链接
+            # 居中、复位复选框行 y，其余交给通用同步复位。
+            if link.alignment() != Qt.AlignmentFlag.AlignCenter:
+                link.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            if add_chs.y() != self._ZIMU_CHECKS_DESIGN_Y:
+                add_chs.move(add_chs.x(), self._ZIMU_CHECKS_DESIGN_Y)
+            if any(grid.rowMinimumHeight(r) != 0 for r in range(4)):
+                for r in range(4):
+                    grid.setRowMinimumHeight(r, 0)
+                grid.invalidate()
+                grid.activate()
+            spacer = self._zimu_dl_spacer
+            if spacer is not None and lay.indexOf(spacer) >= 0:
+                lay.removeItem(spacer)
+                self._zimu_dl_gap = -1
+                self._pin_row_lead_width(lead, None)
+                lay.invalidate()
+                lay.activate()
+            elif self._pin_row_lead_width(lead, None):
+                lay.invalidate()
+                lay.activate()
+            return
+        # 纵向均匀铺排：先清零行最小高再量设计行高，避免在已铺排几何上累加；
+        # 上方网格 4 行各增 unit，长按钮/复选框行/绿色说明整体跟进（下半部分
+        # 相对位置保持紧凑，复选框行与绿色说明只比设计间隙多 unit//3）。
+        viewport = scroll.viewport()
+        filler = 0
+        if viewport is not None:
+            filler = (
+                viewport.height()
+                - (self._ZIMU_BOX_DESIGN_Y + self._ZIMU_BOX_DESIGN_H)
+                - scroll.content_bottom_margin()
+            )
+        unit, btn_y, checks_y, teal_y, _box_h = self._zimu_wide_rows(filler, teal.height())
+        if any(grid.rowMinimumHeight(r) != 0 for r in range(4)):
+            for r in range(4):
+                grid.setRowMinimumHeight(r, 0)
+            grid.invalidate()
+            grid.activate()
+        if unit > 0:
+            for r in range(4):
+                grid.setRowMinimumHeight(r, grid.cellRect(r, 1).height() + unit)
+            gg = grid27.geometry()
+            if gg.height() != self._ZIMU_GRID_DESIGN_H + 4 * unit:
+                grid27.setGeometry(gg.x(), gg.y(), gg.width(), self._ZIMU_GRID_DESIGN_H + 4 * unit)
+            grid.invalidate()
+            grid.activate()
+        if button.y() != btn_y:
+            button.move(button.x(), btn_y)
+        if add_chs.y() != checks_y:
+            add_chs.move(add_chs.x(), checks_y)
+        if teal.y() != teal_y:
+            # label_125 与长按钮是通用同步的 _STRETCH 项：每次重跑都会按设计
+            # 几何复位，此处落在终态之后 move，只改 y 不碰宽高。
+            teal.move(teal.x(), teal_y)
+        # 基准：「视频文件名」左缘（经 content 中转到各坐标系，见 docstring）。
+        fn_cx = filename.mapTo(content, QPoint(0, 0)).x()
+        # ---- 「新添加字幕…重新刮削」复选框：x 到基准，y 按铺排 ----
+        tx_box = fn_cx - box.x()
+        if tx_box >= 0 and tx_box + rescrape.width() <= box.width() - 8:
+            if rescrape.x() != tx_box or rescrape.y() != checks_y:
+                rescrape.move(tx_box, checks_y)
+        # ---- 「点击下载字幕包」：钉前导 + 固定间隔，只允许左移 ----
+        tx_g27 = fn_cx - box.x() - grid27.x()
+        lead_w = lead.sizeHint().width()
+        want_gap = tx_g27 - lead.x() - lead_w - lay.spacing()
+        ok = (
+            want_gap >= 0
+            and tx_g27 <= link.x()
+            and tx_g27 + link.sizeHint().width() <= grid27.width()
+        )
+        new_gap = want_gap if ok else 0
+        changed = self._pin_row_lead_width(lead, lead_w if ok else None)
+        want_align = (
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            if ok
+            else Qt.AlignmentFlag.AlignCenter
+        )
+        if link.alignment() != want_align:
+            link.setAlignment(want_align)
+        spacer = self._zimu_dl_spacer
+        if self._zimu_dl_gap != new_gap or spacer is None or lay.indexOf(spacer) != 1:
+            if spacer is None or lay.indexOf(spacer) != 1:
+                if spacer is not None and lay.indexOf(spacer) >= 0:
+                    lay.removeItem(spacer)
+                # PyQt6 的 insertSpacing 返回值恒为 None，改插完再 itemAt 取回
+                lay.insertSpacing(1, new_gap)
+                spacer = lay.itemAt(1)
+                self._zimu_dl_spacer = spacer
+            if spacer is not None:
+                spacer.changeSize(
+                    new_gap, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum
+                )
+                self._zimu_dl_gap = new_gap
+                changed = True
+        if not changed:
+            return
+        lay.invalidate()
+        lay.activate()
+        ui.gridLayout_27.invalidate()
+        ui.gridLayout_27.activate()
+
     def resizeEvent(self, a0):
         # 全局 UI 为绝对定位布局（上游遗留），centralwidget 无布局管理器，
         # 窗口缩放时手动同步导航栏/内容区/顶部进度条几何，否则最大化后内容区固定 820x692
@@ -1558,6 +1901,8 @@ class MyMAinWindow(QMainWindow):
         # _sync_actor_page_align 做宽幅同步 + 量基准，休眠页由切 tab 的 showEvent 补齐。
         adv_scroll = None
         actor_scroll = None
+        guaxiaomulu_scroll = None
+        zimu_scroll = None
         for index in range(ui.tabWidget.count()):
             tab_page = ui.tabWidget.widget(index)
             # 关键：tab_page 必须先获得新尺寸，scrollArea 才能跟随同步
@@ -1569,6 +1914,11 @@ class MyMAinWindow(QMainWindow):
                     adv_scroll = scroll_area
                 elif tab_page.objectName() == "tab_5":
                     actor_scroll = scroll_area
+                content = scroll_area.widget()
+                if content is not None and content.objectName() == "scrollAreaWidgetContents_guaxiaomulu":
+                    guaxiaomulu_scroll = scroll_area
+                elif content is not None and content.objectName() == "scrollAreaWidgetContents_zimu":
+                    zimu_scroll = scroll_area
 
         # ---- page_setting 底部配置操作浮框（当前配置/另存为/恢复默认/保存）----
         # 设计基准 y620-692 贴页底（page_setting 高 692）。窗口放大后浮框停在设计
@@ -1691,6 +2041,22 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / 演员页: 两行控件对齐到各自基准线 ============
         # 同样排在通用拉伸之后：本方法先落设计几何再按最大化分支覆盖。
         self._sync_actor_page_align(actor_scroll)
+
+        # ============ page_setting / 刮削目录页: 文件清理提示左移到按钮下方 ============
+        # 排在通用拉伸之后：提示是 _STRETCH，最大化时先被拉宽右偏，本方法同拍拉回；
+        # 还原态（extra <= 0）内部直接 return，最小化布局逐像素不变。
+        self._sync_guaxiaomulu_clean_tip_align(
+            guaxiaomulu_scroll if guaxiaomulu_scroll is not None else getattr(self, "_guaxiaomulu_scroll", None)
+        )
+
+        # ============ page_setting / 字幕页: 底部填充收缩 + 两处左对齐 ============
+        # 排在通用拉伸之后：必须走统一入口 _sync_zimu_page_align（先收缩后对齐）。
+        # 若尾部只调 _sync_zimu_fill_blank，它内部的重跑宽幅同步会把钩子刚对好的
+        # 复选框搬回右缘（钩子才是破坏者同款）；矮视口各分支内部直接 return，
+        # 最小化布局逐像素不变。
+        self._sync_zimu_page_align(
+            zimu_scroll if zimu_scroll is not None else getattr(self, "_zimu_scroll", None)
+        )
 
     def _sync_advanced_page_wide_hook(self) -> None:
         """滚动区宽幅拉伸之后立刻把高级页四行对回基准线（零参，钩子用）。

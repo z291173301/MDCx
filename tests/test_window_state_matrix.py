@@ -2038,3 +2038,155 @@ def test_settings_scrollbars_uniform_width_across_tabs(win, app):
     win._sync_settings_scrollbar_widths()
     app.processEvents()
     assert {name: bar.width() for name, bar in found} == fixed, "非幂等"
+
+
+def test_zimu_rows_align_to_filename_when_wide(win, app):
+    """设置-字幕：最大化时两处左移到与「视频文件名」严格上下对齐，最小化复原。
+
+    用户需求（最大化态）：「新添加字幕的视频在结束后重新刮削」复选框左移到
+    与「视频文件名」左缘上下对齐（视频文件名自身保持不变）；「点击下载字幕包」
+    左移到视频文件名下方（左缘同样对齐）；最小化时页面、布局、控件保持不变。
+    根因：复选框被通用宽幅同步判为 _DOCK_RIGHT（右缘 661 ≥ 组宽 701*0.9），
+    最大化时右移到右缘；下载行是横向均分布局，链接位置随列宽漂移。
+    本测试锁定：宽态两处左缘 == 活测量的文件名左缘、参照与链接 y 不动、
+    复选框行/绿色说明钉回设计 y、组框底部上收贴内容、组间距保持设计值、
+    二次同步幂等；窄态复选框/链接/前导钉宽/行列数/组高/行 y 与基线逐值一致。
+    """
+    from PyQt6.QtCore import QPoint
+
+    from mdcx.views.CustomClass import CustomScrollArea
+
+    ui = win.Ui
+    _goto(win, app, "page_setting")
+    for i in range(ui.tabWidget.count()):
+        page = ui.tabWidget.widget(i)
+        area = page.findChild(CustomScrollArea)
+        if area is not None and area.widget() is not None and area.widget().objectName() == "scrollAreaWidgetContents_zimu":
+            ui.tabWidget.setCurrentIndex(i)
+            break
+    app.processEvents()
+    win.show()
+
+    rs = ui.checkBox_sub_rescrape
+    link = ui.label_download_sub_zip
+    lead = ui.label_102
+    lay = ui.horizontalLayout_10
+
+    win.resize(1000, 700)
+    app.processEvents()
+    win._sync_page_layouts()
+    app.processEvents()
+    base = {
+        "rs": rs.geometry().getRect(),
+        "link": link.geometry().getRect(),
+        "link_align": link.alignment(),
+        "lead_mm": (lead.minimumWidth(), lead.maximumWidth()),
+        "count": lay.count(),
+        "box": ui.groupBox_45.geometry().getRect(),
+        "fn": ui.checkBox_filename.geometry().getRect(),
+        "rows": [ui.gridLayout_27.cellRect(r, 1).height() for r in range(4)],
+        "lay": lay.geometry().getRect(),
+    }
+    assert lay.count() == 2, f"窄态下载行列数异常: {lay.count()}"
+
+    win.resize(1920, 1170)
+    app.processEvents()
+    win._sync_page_layouts()
+    app.processEvents()
+    content = ui.scrollArea_9.widget()
+    fn_cx = ui.checkBox_filename.mapTo(content, QPoint(0, 0)).x()
+    box = ui.groupBox_45
+    grid27 = ui.gridLayoutWidget_27
+    assert rs.x() == fn_cx - box.x(), f"复选框未对齐文件名: rs.x={rs.x()} 期望={fn_cx - box.x()}"
+    # 纵向均匀铺排：上方网格 4 行各增 unit，长按钮/复选框行/绿色说明跟进，
+    # 下半部分相对位置保持紧凑（复选框行与绿色说明只比设计间隙多 unit//3）。
+    zimu_scroll = getattr(win, "_zimu_scroll", None)
+    assert zimu_scroll is not None
+    filler = zimu_scroll.viewport().height() - (310 + 425) - zimu_scroll.content_bottom_margin()
+    assert filler > 0, f"宽态无填充可验: filler={filler}"
+    unit = filler // 8
+    gap = unit // 3
+    grid = ui.gridLayout_27
+    base_rows = base["rows"]
+    for r in range(4):
+        assert grid.rowMinimumHeight(r) == base_rows[r] + unit, f"网格行{r}铺排异常: min={grid.rowMinimumHeight(r)}"
+    assert grid27.height() == 186 + 4 * unit, f"网格容器未按铺排增高: h={grid27.height()}"
+    assert ui.pushButton_add_sub_for_all_video.y() == 220 + 5 * unit, "长按钮未按铺排下移"
+    assert (rs.y(), rs.width(), rs.height()) == (272 + 5 * unit + gap, 236, 30), f"复选框行铺排异常: {rs.geometry().getRect()}"
+    assert ui.checkBox_sub_add_chs.y() == 272 + 5 * unit + gap, "同行复选框未同步铺排"
+    # 绿色说明上提删掉下方多余底垫（与实现 _zimu_wide_rows 同式），
+    # 组框按绿色说明底部贴合（只留 12px），且不越过复选框行。
+    _checks_y = 272 + 5 * unit + gap
+    _spread_teal = 309 + 5 * unit + 2 * gap
+    _pad_full = 425 + filler - (_spread_teal + ui.label_125.height())
+    _room = max(0, _spread_teal - (_checks_y + 38))
+    _up = min(max(0, _pad_full - 12), _room)
+    _teal_y = _spread_teal - _up
+    _box_h = min(425 + filler, _teal_y + ui.label_125.height() + 12)
+    assert ui.label_125.y() == _teal_y, f"绿色说明未上提: y={ui.label_125.y()} 期望={_teal_y}"
+    assert ui.label_125.y() >= _checks_y + 38, "绿色说明越过复选框行"
+    assert box.height() == _box_h, f"组框底边未同步上收: h={box.height()} 期望={_box_h}"
+    assert box.height() - (ui.label_125.y() + ui.label_125.height()) == 12, "组框底垫未收至 12px"
+    assert link.x() == fn_cx - box.x() - grid27.x(), f"下载链接未对齐文件名: link.x={link.x()} 期望={fn_cx - box.x() - grid27.x()}"
+    # 链接行被第 0 行铺排顶下 unit，叠加行内垂直居中多下沉 unit//2；
+    # 用行布局几何推导期望（DPI 鲁棒），链接自身高度不变。
+    lay_geom = lay.geometry().getRect()
+    assert lay_geom[1] == base["lay"][1] + unit, f"下载行未跟随铺排: y={lay_geom[1]}"
+    assert link.y() == lay_geom[1] + (lay_geom[3] - link.height()) // 2, f"下载链接行内居中异常: {link.geometry().getRect()}"
+    assert link.height() == base["link"][3], f"下载链接高度变化: {link.geometry().getRect()}"
+    from PyQt6.QtCore import Qt as _Qt
+
+    assert link.alignment() == (_Qt.AlignmentFlag.AlignLeft | _Qt.AlignmentFlag.AlignVCenter), (
+        f"下载链接文字未左对齐: {link.alignment()}"
+    )
+    # 组间距保持设计值：y=310；组框底边已按绿色说明贴合上收（见上）。
+    assert box.y() == 310, f"组间距被放大: y={box.y()}"
+    assert zimu_scroll.verticalScrollBar().maximum() == 0, "宽态出现垂直滚动条"
+    assert ui.checkBox_filename.y() == base["fn"][1], "视频文件名 y 移动"
+    assert ui.checkBox_filename.height() == base["fn"][3], "视频文件名高变化"
+    assert lead.minimumWidth() == lead.maximumWidth() == lead.sizeHint().width(), "前导说明未钉回自然宽"
+
+    before = {
+        "rs": rs.geometry().getRect(),
+        "link": link.geometry().getRect(),
+        "lead_mm": (lead.minimumWidth(), lead.maximumWidth()),
+        "fn": ui.checkBox_filename.geometry().getRect(),
+        "box": box.geometry().getRect(),
+        "chs_y": ui.checkBox_sub_add_chs.y(),
+        "teal_y": ui.label_125.y(),
+        "btn_y": ui.pushButton_add_sub_for_all_video.y(),
+        "grid_h": grid27.height(),
+        "row_mins": [grid.rowMinimumHeight(r) for r in range(4)],
+    }
+    win._sync_page_layouts()
+    app.processEvents()
+    after = {
+        "rs": rs.geometry().getRect(),
+        "link": link.geometry().getRect(),
+        "lead_mm": (lead.minimumWidth(), lead.maximumWidth()),
+        "fn": ui.checkBox_filename.geometry().getRect(),
+        "box": box.geometry().getRect(),
+        "chs_y": ui.checkBox_sub_add_chs.y(),
+        "teal_y": ui.label_125.y(),
+        "btn_y": ui.pushButton_add_sub_for_all_video.y(),
+        "grid_h": grid27.height(),
+        "row_mins": [grid.rowMinimumHeight(r) for r in range(4)],
+    }
+    assert before == after, f"二次同步漂移: {before} -> {after}"
+
+    win.resize(1000, 700)
+    app.processEvents()
+    win._sync_page_layouts()
+    app.processEvents()
+    assert rs.geometry().getRect() == base["rs"], f"窄态复选框未复原: {rs.geometry().getRect()} vs {base['rs']}"
+    assert ui.checkBox_sub_add_chs.geometry().getRect() == (162, 272, 169, 30), "窄态同行复选框 y 未复原"
+    assert ui.label_125.y() == 309, "窄态绿色说明 y 未复原"
+    assert ui.pushButton_add_sub_for_all_video.y() == 220, "窄态长按钮 y 未复原"
+    assert ui.gridLayoutWidget_27.height() == 186, "窄态网格容器高未复原"
+    assert [ui.gridLayout_27.rowMinimumHeight(r) for r in range(4)] == [0, 0, 0, 0], "窄态网格行最小高残留"
+    assert link.geometry().getRect() == base["link"], f"窄态链接未复原: {link.geometry().getRect()} vs {base['link']}"
+    assert lay.geometry().getRect() == base["lay"], "窄态下载行几何未复原"
+    assert link.alignment() == base["link_align"], "窄态链接对齐残留"
+    assert (lead.minimumWidth(), lead.maximumWidth()) == base["lead_mm"], "窄态前导钉宽残留"
+    assert lay.count() == base["count"], f"窄态间隔未拆除: count={lay.count()}"
+    assert ui.groupBox_45.geometry().getRect() == base["box"], "窄态组框 y/高未复原"
