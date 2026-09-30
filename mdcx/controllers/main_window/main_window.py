@@ -214,6 +214,7 @@ class MyMAinWindow(QMainWindow):
         self._naming_design: dict | None = None  # 命名页模板预览区：首次登记的设计几何基准
         self._naming_resyncing = False  # 命名页模板预览区：重算中标志（防 label resize 递归触发）
         self._naming_last_width = -1  # 命名页说明文字上次同步所用的宽度
+        self._naming_fix_tries = 0  # 同一宽度下的重算次数上限，防止布局压不下时反复排队
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
         self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
         self._adv_dock_gap = -1  # 该间隔当前生效的宽度（-1 = 从未设置）
@@ -594,10 +595,20 @@ class MyMAinWindow(QMainWindow):
                 self.Ui.pushButton_save_failed_list.hide()
         # 命名页模板预览区：说明文字宽度一变（滚动条占位、窗口拉伸、切页）就重算，
         # 否则上次钉死的高度会残留成「视频文件名」上方的空白。
+        # 高度与当前宽度算出的需要值不一致时同样要重算——钉高是在某个瞬间算的，
+        # 那一刻标签还比较窄的话，窗口变宽后文字不再折行就会剩下一片死空白，
+        # 而宽度没再变过就再也不会触发 Resize 分支。故高度也要校验（重算次数封顶，
+        # 避免布局真压不下时无限排队）。
         if a0 is getattr(self.Ui, "label_66", None) and a1.type() == QEvent.Type.Resize:
-            if not self._naming_resyncing and a0.width() != self._naming_last_width:
-                self._naming_last_width = a0.width()
-                QTimer.singleShot(0, self._sync_naming_template_section)
+            if not self._naming_resyncing:
+                need = self._naming_label_painted_height(a0)
+                if a0.width() != self._naming_last_width:
+                    self._naming_fix_tries = 0
+                if a0.width() != self._naming_last_width or a0.height() != need:
+                    if self._naming_fix_tries < 3:
+                        self._naming_fix_tries += 1
+                        self._naming_last_width = a0.width()
+                        QTimer.singleShot(0, self._sync_naming_template_section)
         # 刮削缓存失败列表：表格/视口宽一变就按 4:2:6:3 重分布列宽，保持无横向滚动条。
         # setColumnWidth 不改变表格自身尺寸，只触发 header 几何变化，不会递归触发此处 Resize，
         # 故直接同步布局（若用 singleShot 延迟一拍，填入多行致视口收缩后断言时仍是旧列宽）。
@@ -2347,18 +2358,37 @@ class MyMAinWindow(QMainWindow):
         if btn.x() + btn.width() > limit:
             btn.move(limit - btn.width(), btn.y())
 
+    @staticmethod
+    def _naming_label_painted_height(lbl) -> int:
+        """label_66（命名模板说明文字）实际需要的高度（px）。
+
+        QLabel.heightForWidth() 对它基本是准的（实测绘制 382 / hFW 387，只差几像素）。
+        但它按「标签整体宽度」排版，而 QLabel 真正绘制时用的是带 padding 的
+        contentsRect 宽度，宽度不够时折行数会变多——极端情况下 hFW 会偏小而裁字。
+        所以取两者较大值：既不裁字，也不无谓留白。
+        """
+        from PyQt6.QtGui import QTextDocument
+
+        h = lbl.heightForWidth(lbl.width())
+        doc = QTextDocument()
+        doc.setDocumentMargin(0)
+        doc.setDefaultFont(lbl.font())
+        doc.setHtml(lbl.text())
+        doc.setTextWidth(max(lbl.contentsRect().width(), 1))
+        return max(int(h), int(doc.size().height()), 1)
+
     def _sync_naming_template_section(self) -> None:
         """命名页「视频命名规则」组（groupBox_8）按内容收缩，消除大片空白。
 
         两个现象（用户截图）：
         1. 「视频文件名」上方大片空白——说明文字 label_66 是 AlignTop 的可换行富
-           文本标签，QGridLayout 在宽度变化后给它的行高可能仍按更窄宽度的
-           sizeHint 计算（比实际换行后的文字高），文字贴顶、下方留白。
+           文本标签，整块网格按内容收缩后，说明文字必须给出真实需要的高度，
+           否则要么裁字、要么在下方留白（见 _naming_label_painted_height）。
         2. 「模板预览」占满网格剩余空间被撑得过高。
 
-        做法：预览钉到设计三分之一高度；说明文字按当前宽度 heightForWidth 精确
-        贴合；整个网格的组高按内容收缩，其后的 QGroupBox 按同一增量上移保持设计
-        间距（下移/上移都用「设计基准 + 增量」，幂等无累积漂移，见 MEMORY 军规③）。
+        做法：预览钉到设计三分之一高度；说明文字按实际绘制高度贴合；整个网格的
+        组高按内容收缩，其后的 QGroupBox 按同一增量上移保持设计间距
+        （下移/上移都用「设计基准 + 增量」，幂等无累积漂移，见 MEMORY 军规③）。
         """
         ui = self.Ui
         box = ui.groupBox_8
@@ -2382,13 +2412,12 @@ class MyMAinWindow(QMainWindow):
         # 本方法会改 label_66 高度并触发其 Resize；用标志位抑制 eventFilter 的递归重算。
         self._naming_resyncing = True
         try:
-            # 1) 说明文字按当前宽度精确贴合。先解除上一轮的固定高度，否则
-            #    QLabel.heightForWidth 会回落到被钉住的旧值（宽度变化后不再更新）。
+            # 1) 说明文字按实际绘制高度贴合。先解除上一轮的固定高度，否则高度不会重算。
             lbl.setMinimumHeight(0)
             lbl.setMaximumHeight(16777215)
             grid.invalidate()
             grid.activate()
-            lbl.setFixedHeight(max(lbl.heightForWidth(lbl.width()), 1))
+            lbl.setFixedHeight(self._naming_label_painted_height(lbl))
             # 2) 模板预览固定高度，不再吸收网格剩余空间。
             preview.setFixedHeight(self._NAMING_PREVIEW_H)
             grid.invalidate()

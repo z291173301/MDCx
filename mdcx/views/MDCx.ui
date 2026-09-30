@@ -10985,10 +10985,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                 <widget class="QWidget" name="scrollAreaWidgetContents_mingming">
                   <property name="geometry">
                     <rect>
-                      <x>0</x>
-                      <y>0</y>
-                      <width>860</width>
-                      <height>3840</height>
+                      <x>0</x><y>0</y><width>860</width><height>3558</height>
                     </rect>
                   </property>
                   <property name="sizePolicy">
@@ -11000,10 +10997,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <widget class="QGroupBox" name="groupBox_8">
                     <property name="geometry">
                       <rect>
-                        <x>30</x>
-                        <y>20</y>
-                        <width>720</width>
-                        <height>1051</height>
+                        <x>30</x><y>20</y><width>720</width><height>797</height>
                       </rect>
                     </property>
                     <property name="styleSheet">
@@ -11015,10 +11009,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QWidget" name="gridLayoutWidget_8">
                       <property name="geometry">
                         <rect>
-                          <x>20</x>
-                          <y>30</y>
-                          <width>680</width>
-                          <height>1001</height>
+                          <x>20</x><y>30</y><width>680</width><height>747</height>
                         </rect>
                       </property>
                       <layout class="QGridLayout" name="gridLayout_8">
@@ -11367,10 +11358,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <widget class="QGroupBox" name="groupBox_38">
                     <property name="geometry">
                       <rect>
-                        <x>30</x>
-                        <y>2410</y>
-                        <width>720</width>
-                        <height>441</height>
+                        <x>30</x><y>2156</y><width>720</width><height>441</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -11806,10 +11794,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <widget class="QGroupBox" name="groupBox_77">
                     <property name="geometry">
                       <rect>
-                        <x>30</x>
-                        <y>1520</y>
-                        <width>720</width>
-                        <height>351</height>
+                        <x>30</x><y>1266</y><width>720</width><height>351</height>
                       </rect>
                     </property>
                     <property name="styleSheet">
@@ -12123,10 +12108,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <widget class="QGroupBox" name="groupBox_46">
                     <property name="geometry">
                       <rect>
-                        <x>30</x>
-                        <y>1890</y>
-                        <width>720</width>
-                        <height>501</height>
+                        <x>30</x><y>1636</y><width>720</width><height>501</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -12720,10 +12702,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <widget class="QGroupBox" name="groupBox_37">
                     <property name="geometry">
                       <rect>
-                        <x>30</x>
-                        <y>2870</y>
-                        <width>720</width>
-                        <height>121</height>
+                        <x>30</x><y>2616</y><width>720</width><height>121</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -12824,10 +12803,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <widget class="QGroupBox" name="groupBox_62">
                     <property name="geometry">
                       <rect>
-                        <x>30</x>
-                        <y>3010</y>
-                        <width>720</width>
-                        <height>121</height>
+                        <x>30</x><y>2756</y><width>720</width><height>121</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -12934,10 +12910,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <widget class="QGroupBox" name="groupBox_40">
                     <property name="geometry">
                       <rect>
-                        <x>30</x>
-                        <y>1090</y>
-                        <width>720</width>
-                        <height>411</height>
+                        <x>30</x><y>836</y><width>720</width><height>411</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -13307,10 +13280,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <widget class="QGroupBox" name="groupBox_65">
                     <property name="geometry">
                       <rect>
-                        <x>30</x>
-                        <y>3150</y>
-                        <width>720</width>
-                        <height>301</height>
+                        <x>30</x><y>2896</y><width>720</width><height>301</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -13634,10 +13604,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <widget class="QGroupBox" name="groupBox_67">
                     <property name="geometry">
                       <rect>
-                        <x>30</x>
-                        <y>3470</y>
-                        <width>720</width>
-                        <height>271</height>
+                        <x>30</x><y>3216</y><width>720</width><height>271</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
