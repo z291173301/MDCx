@@ -21062,7 +21062,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <x>0</x>
                       <y>0</y>
                       <width>860</width>
-                      <height>1916</height>
+                      <height>1755</height>
                     </rect>
                   </property>
                   <widget class="QGroupBox" name="groupBox_10">
@@ -22254,9 +22254,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1572</y>
+                        <y>1502</y>
                         <width>701</width>
-                        <height>301</height>
+                        <height>210</height>
                       </rect>
                     </property>
                     <property name="styleSheet">
@@ -22271,7 +22271,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           <x>20</x>
                           <y>30</y>
                           <width>661</width>
-                          <height>241</height>
+                          <height>160</height>
                         </rect>
                       </property>
                       <layout class="QGridLayout" name="gridLayout_12" columnstretch="2,0">
@@ -22426,7 +22426,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1327</y>
+                        <y>1257</y>
                         <width>701</width>
                         <height>230</height>
                       </rect>
