@@ -2507,6 +2507,25 @@ class MyMAinWindow(QMainWindow):
         pixmap = QPixmap(width, probe_h)
         pixmap.fill(QColor(255, 255, 255))
         lbl.render(pixmap)
+        # 回扫用原始字节，而不是逐像素 pixelColor()：标签最多 2000 行 × 600 列，
+        # 逐像素一次最大化要调 42 万次 pixelColor（cProfile tottime 0.18s，是
+        # _sync_page_layouts 里最大的一笔）。这段时间事件循环被 resizeEvent 堵住、
+        # 窗口一次都没绘制，用户就看到「最大化时四周先是一大圈黑屏」。改成按行取
+        # bytes 切片整体比较（纯 C 层切片+比较），同图同结果、耗时可忽略。
+        # 取样规则与旧实现保持一致：x 从 0 到 width 步进 2，不改变已验证的落点。
+        try:
+            img = pixmap.toImage().convertToFormat(QImage.Format.Format_Grayscale8)
+            bpr = img.bytesPerLine()
+            buf = img.constBits().asstring(img.sizeInBytes())
+            white_row = b"\xff" * ((width + 1) // 2)
+            for y in range(probe_h - 1, -1, -1):
+                base = y * bpr
+                if buf[base : base + width : 2] != white_row:
+                    return y + 1
+            return 1
+        except Exception:
+            # 取不到原始缓冲（非常规像素格式等）时退回逐像素旧路径
+            pass
         img = pixmap.toImage()
         white = QColor(255, 255, 255)
         for y in range(probe_h - 1, -1, -1):
@@ -2541,6 +2560,16 @@ class MyMAinWindow(QMainWindow):
         if lbl.width() <= 0 or box.width() <= 0:
             return
         if self._naming_resyncing:
+            return
+        # 休眠页零成本：命名页不可见时整段跳过（切到该 tab 的 currentChanged 与
+        # 滚动区 showEvent 会补齐，接线见 __init__），省掉两次 pixmap 渲染扫描 +
+        # 网格重排 + 后续 6 个 groupBox 的 move。这一项是把最大化时 resizeEvent 的
+        # 阻塞从 ~600ms 压到 ~40ms 的关键（用户报「放大时四周先是一大圈黑屏」：
+        # 窗口在这一段时间里一次都没绘制，新露出的区域当然是黑的）。
+        # 不要在这里加「输入指纹相同就整体返回」的短路：sync_wide_children_width()
+        # 会把 groupBox_8 与后续 groupBox 按登记的设计几何复位，指纹没变但几何已被
+        # 复位时早退，会留下 groupBox_8 已收缩、后续组仍在设计位的错位。
+        if not box.isVisibleTo(self):
             return
 
         # 首次调用登记设计几何（此后 sync_wide_children_width 只改宽不改高，
