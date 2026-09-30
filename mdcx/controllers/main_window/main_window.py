@@ -215,6 +215,8 @@ class MyMAinWindow(QMainWindow):
         self._naming_resyncing = False  # 命名页模板预览区：重算中标志（防 label resize 递归触发）
         self._naming_last_width = -1  # 命名页说明文字上次同步所用的宽度
         self._naming_fix_tries = 0  # 同一宽度下的重算次数上限，防止布局压不下时反复排队
+        self._fanyi_design: dict | None = None  # 翻译页两组：首次登记的设计几何基准
+        self._fanyi_resyncing = False  # 翻译页两组：重算中标志（防标签 resize 递归触发）
         self._actor_scroll = None  # 设置-演员页的 CustomScrollArea（对齐判据要读它的视口宽）
         self._nfo_scroll = None  # 设置-NFO页的 CustomScrollArea（右列对齐的钩子宿主）
         self._adv_scroll = None  # 设置-高级页的 CustomScrollArea（四行对齐的钩子宿主）
@@ -310,6 +312,11 @@ class MyMAinWindow(QMainWindow):
         # 内部网格，需在事件循环下一拍按最新宽度重算模板预览区（见 _sync_naming_template_section）。
         self.Ui.tabWidget.currentChanged.connect(
             lambda _index: QTimer.singleShot(0, self._sync_naming_template_section)
+        )
+        # 翻译页同款：简介组/演员组的容器高度按实测内容算出，切 tab 引起的视口
+        # 变化（滚动条占位）会改掉网格列宽 → 文字折行数变 → 需要重算。
+        self.Ui.tabWidget.currentChanged.connect(
+            lambda _index: QTimer.singleShot(0, self._sync_fanyi_group_spacing)
         )
         # 设置页 tab 内各页同理：切 tab 下一拍只排队，真活留到再下一拍的全量同步。
         # 实测：切 NFO 页当拍布局 deferred 级联（scrollbar 出现约 14px、宽幅重拉）
@@ -1633,6 +1640,11 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / 命名页: 模板预览固定高度 + 说明文字贴合 ============
         self._sync_naming_template_section()
 
+        # ============ page_setting / 翻译页: 简介组与演员组按内容收紧间距 ============
+        # 必须排在通用拉伸之后：两个网格的列宽（从而提示文字折行数、说明文字需
+        # 要的总高度）取决于拉伸后的终态宽度。
+        self._sync_fanyi_group_spacing()
+
         # ============ page_setting / NFO页: 宽幅组落定（先落定再量） ============
         # verify_gb 复验血案：tab 切换时 showEvent 的 wide-sync 跑在级联中途
         # （视口 805），落定到 819 后再无事件触发它，groupBox_81 带着 stale
@@ -2586,6 +2598,143 @@ class MyMAinWindow(QMainWindow):
             self._naming_last_width = lbl.width()
         finally:
             self._naming_resyncing = False
+
+    # ============ 设置-翻译页（简介 / 演员两组）的间距收紧常量 ============
+    # groupBox_83（简介）：网格容器与 frame_5「双语显示」之间保留的间距、
+    # 组底留白。设计值里容器底部有 7px、组底 9px，两处都太松，合并成常量。
+    _FANYI_INTRO_GRID_GAP = 10
+    _FANYI_BOX_BOT_PAD = 9
+    # groupBox_84（演员）：行首上方留白。Qt 会把容器多出来的高度在「顶 / 行间 /
+    # 底」之间均分（实测 layoutWidget_20 418 vs 网格 sizeHint 352，多出的 66px
+    # 被均分成 顶16 / 行间各+16 / 底18），长说明文字的行顶因此落在 120，整体
+    # 比设计值低了一行多。改为由本控制器显式给定：行首留白 30 时，说明文字行顶
+    # 落在 102，正好上移一行（该标签行高 20px）。
+    _FANYI_ACTOR_TOP_PAD = 30
+    # groupBox_83/84 之后所有需要跟着上移的组（都是绝对定位在内容控件上的）。
+    _FANYI_FOLLOW_GROUPS = (
+        "groupBox_84",
+        "groupBox_85",
+        "groupBox_86",
+        "groupBox_87",
+        "groupBox_88",
+        "groupBox_89",
+    )
+
+    def _sync_fanyi_group_spacing(self) -> None:
+        """设置-翻译页：简介组与演员组按内容收紧间距（用户截图两处反馈）。
+
+        ① 简介组（groupBox_83）「翻译方式」与「双语显示」之间空得离谱。
+           离屏实测（探针 fanyi_probe2.py，还原态）：翻译方式行底在组内 y=108，
+           双语显示墨迹顶约 180，中间约 72px，而真正占位的只有一行 17px 的
+           提示文字。拆开来：label_176 拿了 34px 却只画 24px（富文本 <p> 的段
+           落边距吃掉了 17px）；gridLayout_48 的 sizeHint 106 被容器 131 拉出
+           25px 余量、Qt 在顶/行间/底均分（实测行距 12 而非设计的 6）；容器底
+           还剩 7px、组底 9px。
+        ② 演员组（groupBox_84）长说明文字 label_249 整体比设计值低一行。
+           gridLayout_50 的 sizeHint 352 被容器 418 拉出 66px，同样被均分成
+           顶16/行间各+16/底18，文字行顶落在 120；文字本身 14 行 × 20px = 280
+           正好等于标签高度，最后一行贴着组框内框。用户要求「整体上移一行，
+           同时从底部去掉一行高度」。
+
+        做法（与 _sync_naming_template_section 同款：设计基准 + 增量，幂等
+        不累积漂移）：
+          1) 量「真实绘制高度」前必须先解除上一轮的固定高度，否则量到的是被裁
+             的残缺高度（会越量越小、最后裁字）。富文本标签取 painted 与
+             heightForWidth 的较大者——heightForWidth 对富文本才准。
+          2) 把网格容器高度钉成 sizeHint（不给 Qt 任何均分空间），行首留白改
+             由常量显式给定，几何完全可预测。
+          3) 组高 = 容器底 + 固定底留白；其后的 QGroupBox 按「设计 y − 累计收
+             缩量」上移，并同步更新 scrollArea_11 宽幅登记表里的高度，最后
+             sync_content_min_height() 收紧内容控件（否则页尾留一大片空白）。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None or self._fanyi_resyncing:
+            return
+        intro, actor = ui.groupBox_83, ui.groupBox_84
+        hint, story = ui.label_176, ui.label_249
+        g_intro, g_actor = ui.gridLayout_48, ui.gridLayout_50
+        lw13, lw20, frame = ui.layoutWidget_13, ui.layoutWidget_20, ui.frame_5
+        # 休眠页零成本：没激活的页签不会给出真实视口，量出来的都是设计尺寸。
+        if not (intro.isVisibleTo(self) and actor.isVisibleTo(self)):
+            return
+        if hint.width() <= 0 or story.width() <= 0:
+            return
+
+        if self._fanyi_design is None:
+            self._fanyi_design = {
+                "groups": {n: getattr(ui, n).y() for n in self._FANYI_FOLLOW_GROUPS},
+                "intro_h": intro.height(),
+                "actor_h": actor.height(),
+            }
+
+        self._fanyi_resyncing = True
+        try:
+            # 1) 解除固定高度 → 量真实需要高度 → 重新钉上。
+            for lbl in (hint, story):
+                lbl.setMinimumHeight(0)
+                lbl.setMaximumHeight(16777215)
+            g_intro.invalidate()
+            g_actor.invalidate()
+            g_intro.activate()
+            g_actor.activate()
+            # 单行提示：painted + 2（+2 是抗字体 hinting 抖动的余量；若某宽度下
+            # 折成两行，量到的 painted 会自动变大，不依赖任何写死行数）。
+            hint_h = self._naming_label_painted_height(hint) + 2
+            # 长说明文字是富文本（<p style='line-height:20px'>），QFontMetrics 对
+            # 它无效，只能靠渲染扫描 + heightForWidth，取两者较大值防止裁字。
+            story_h = max(
+                self._naming_label_painted_height(story) + 2,
+                story.heightForWidth(story.width()),
+            )
+            hint.setFixedHeight(hint_h)
+            story.setFixedHeight(story_h)
+            g_actor.setContentsMargins(0, self._FANYI_ACTOR_TOP_PAD, 0, 0)
+            g_intro.invalidate()
+            g_actor.invalidate()
+            g_intro.activate()
+            g_actor.activate()
+
+            # 2) 简介组：容器按网格 sizeHint 收紧，frame_5 跟着上移。
+            intro_lw_h = g_intro.sizeHint().height()
+            lw13.setGeometry(lw13.x(), lw13.y(), lw13.width(), intro_lw_h)
+            frame.move(frame.x(), lw13.y() + intro_lw_h + self._FANYI_INTRO_GRID_GAP)
+            intro_h = frame.y() + frame.height() + self._FANYI_BOX_BOT_PAD
+            intro.setGeometry(intro.x(), intro.y(), intro.width(), intro_h)
+            delta_intro = self._fanyi_design["intro_h"] - intro_h
+
+            # 3) 演员组：容器按网格 sizeHint 收紧（行首留白已折进 topMargin）。
+            actor_lw_h = g_actor.sizeHint().height()
+            lw20.setGeometry(lw20.x(), lw20.y(), lw20.width(), actor_lw_h)
+            actor_h = lw20.y() + actor_lw_h + self._FANYI_BOX_BOT_PAD
+            actor_y = self._fanyi_design["groups"]["groupBox_84"] - delta_intro
+            actor.setGeometry(actor.x(), actor_y, actor.width(), actor_h)
+            delta_actor = self._fanyi_design["actor_h"] - actor_h
+
+            # 4) 后续组按累计收缩量上移（设计基准 + 增量，反复调用不漂移）。
+            for name in self._FANYI_FOLLOW_GROUPS[1:]:
+                group = getattr(ui, name)
+                group.move(group.x(),
+                           self._fanyi_design["groups"][name] - delta_intro - delta_actor)
+
+            # 宽幅登记表里存的是设计几何，同步宽度时会按登记值复位这些控件，
+            # 这里把登记的高度/位置一并更新（与命名页同一处理）。
+            registry = getattr(ui.scrollAreaWidgetContents_fanyi, "_wide_children_design", None)
+            new_geom = {
+                intro: (intro.x(), intro.y(), intro.width(), intro_h),
+                actor: (actor.x(), actor_y, actor.width(), actor_h),
+                lw13: (lw13.x(), lw13.y(), lw13.width(), intro_lw_h),
+                lw20: (lw20.x(), lw20.y(), lw20.width(), actor_lw_h),
+                frame: (frame.x(), frame.y(), frame.width(), frame.height()),
+            }
+            for entry in registry or ():
+                if entry.widget in new_geom:
+                    entry.geometry = new_geom[entry.widget]
+
+            scroll = getattr(ui, "scrollArea_11", None)
+            if scroll is not None:
+                scroll.sync_content_min_height()
+        finally:
+            self._fanyi_resyncing = False
 
     # 当隐藏边框时，最小化后，点击任务栏时，需要监听事件，在恢复窗口时隐藏边框
     def changeEvent(self, a0):
