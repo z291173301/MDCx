@@ -10031,7 +10031,7 @@ class Ui_MDCx(object):
         self.scrollAreaWidgetContents_wangluo.setGeometry(QtCore.QRect(0, 0, 860, 1916))
         self.scrollAreaWidgetContents_wangluo.setObjectName("scrollAreaWidgetContents_wangluo")
         self.groupBox_10 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_wangluo)
-        self.groupBox_10.setGeometry(QtCore.QRect(30, 641, 701, 671))
+        self.groupBox_10.setGeometry(QtCore.QRect(30, 641, 701, 601))
         self.groupBox_10.setStyleSheet('font:"Courier New";')
         self.groupBox_10.setObjectName("groupBox_10")
         self.gridLayoutWidget_10 = QtWidgets.QWidget(parent=self.groupBox_10)
@@ -10219,7 +10219,7 @@ class Ui_MDCx(object):
         self.horizontalLayout_fc2ppvdb_cookie.addWidget(self.label_fc2ppvdb_cookie_result)
         self.gridLayout_10.addLayout(self.horizontalLayout_fc2ppvdb_cookie, 5, 1, 1, 1)
         self.label_75 = QtWidgets.QLabel(parent=self.groupBox_10)
-        self.label_75.setGeometry(QtCore.QRect(60, 450, 611, 141))
+        self.label_75.setGeometry(QtCore.QRect(60, 435, 611, 121))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -10234,7 +10234,7 @@ class Ui_MDCx(object):
         self.label_75.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
         self.label_75.setObjectName("label_75")
         self.label_get_cookie_url = QtWidgets.QLabel(parent=self.groupBox_10)
-        self.label_get_cookie_url.setGeometry(QtCore.QRect(130, 600, 430, 21))
+        self.label_get_cookie_url.setGeometry(QtCore.QRect(130, 560, 430, 21))
         self.label_get_cookie_url.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.PointingHandCursor))
         self.label_get_cookie_url.setMouseTracking(False)
         self.label_get_cookie_url.setStyleSheet("color: rgb(10, 52, 255);")
@@ -10249,7 +10249,7 @@ class Ui_MDCx(object):
         self.label_get_cookie_url.setWordWrap(True)
         self.label_get_cookie_url.setObjectName("label_get_cookie_url")
         self.label_7 = QtWidgets.QLabel(parent=self.groupBox_10)
-        self.label_7.setGeometry(QtCore.QRect(60, 600, 71, 21))
+        self.label_7.setGeometry(QtCore.QRect(60, 560, 71, 21))
         self.label_7.setStyleSheet("color: rgb(8, 128, 128);")
         self.label_7.setObjectName("label_7")
         self.groupBox_28 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_wangluo)
@@ -13826,13 +13826,12 @@ class Ui_MDCx(object):
         self.label_75.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>Cookie 获取方法：<br>\n"
-                "                          1，使用浏览器打开目标网站并登录，在页面空白位置点击鼠标右键，选择 「检查」 ；<br>\n"
-                "                          2，右侧弹窗顶部选择：「网络」 -> 「全部」，然后刷新当前页面；<br>\n"
-                "                          3，点击「名称」栏新加载出来的第一个内容 -> 「标头」 -> 「请求表头」 -> 「Cookie」；<br>\n"
-                "                          4，复制 Cookie 对应的全部值填入上面输入框。（不要直接右键点「复制值」！！！！\n"
-                "                          一定要先用鼠标「手动框选」要复制的全部文字，然后再右键点「复制」！！！不是「复制值」！！！！！！）<br>\n"
-                "                          注意：Cookie 存在有效期，过期无效时需要重新获取。</p>",
+                "<p style='line-height:20px'>Cookie获取方法：<br>\n"
+                "                          1，使用浏览器打开目标网站然后登录，在网站页面空白位置点击鼠标右键，选择 「检查」 ；<br>\n"
+                "                          2，右侧弹窗顶部选择：「网络」->「全部」，然后刷新当前页面，在标头里查找「Cookie」；<br>\n"
+                "                          3，点击「名称」栏新加载出来的第一个内容-> 「标头」->「请求表头」->填入「Cookie」；<br>\n"
+                "                          4，复制Cookie对应的全部值填入上面输入框，不要直接右键点击「复制值」填入「Cookie」；<br>\n"
+                "                          注意：Cookie一般存在有效期，当Cookie过期无效时需要登录网站重新获取填入「Cookie」；</p>",
             )
         )
         self.label_get_cookie_url.setText(_translate("MDCx", "https://tieba.baidu.com/p/5492736764"))
@@ -13897,12 +13896,12 @@ class Ui_MDCx(object):
         self.label_132.setText(
             _translate(
                 "MDCx",
-                '<p>可在下方设置选定网站的配置。<span style=" color:#d9001f;">切换网站前需先保存，否则不会生效</span></p><p>注意：当前并非所有网站均支持这些配置，某些设置可能无效</p>',
+                '<p>可在下方设置选定网站的配置，<span style=" color:#d9001f;">切换网站前需先保存，否则不会生效</span></p><p>注意：当前并非所有网站均支持这些配置，某些网站的设置可能无效</p>',
             )
         )
         self.label_400.setText(_translate("MDCx", "自定义网址："))
         self.label_110.setText(
-            _translate("MDCx", "<html><head/><body><p>自定义指定网站的网址，刮削时将用其代替默认网址</p></body></html>")
+            _translate("MDCx", "<html><head/><body><p>自定义指定网站的网址，刮削时将使用自定义网址代替网站默认网址</p></body></html>")
         )
         self.groupBox_14.setTitle(_translate("MDCx", "API Token"))
         self.label_355.setText(_translate("MDCx", "ThePornDB："))
@@ -13916,8 +13915,7 @@ class Ui_MDCx(object):
                 '                                href="https://theporndb.net/"><span style="\n'
                 "                                text-decoration: underline;\n"
                 '                                color:#094fd1;">https://theporndb.net/</span></a>\n'
-                "                                注册登录后，点头像 - API Tokens - CREATE。复制生成的 API Token\n"
-                "                                填入此处。</p></body></html>",
+                "                                注册登录后，点击头像-API Tokens-CREATE，复制生成的API Token填入此处</p></body></html>",
             )
         )
         self.checkBox_theporndb_hash.setText(_translate("MDCx", "不使用Hash值匹配数据"))
@@ -13925,7 +13923,7 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "\n"
-                "                                    <html><head/><body><p>该网站的Hash值匹配结果可能错误</p></body></html>",
+                "                                    <html><head/><body><p>该网站的Hash值匹配结果有可能计算错误</p></body></html>",
             )
         )
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab3), _translate("MDCx", " 网络 "))

@@ -21071,7 +21071,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <x>30</x>
                         <y>641</y>
                         <width>701</width>
-                        <height>671</height>
+                        <height>601</height>
                       </rect>
                     </property>
                     <property name="styleSheet">
@@ -21394,9 +21394,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>60</x>
-                          <y>450</y>
+                          <y>435</y>
                           <width>611</width>
-                          <height>141</height>
+                          <height>121</height>
                         </rect>
                       </property>
                       <property name="sizePolicy">
@@ -21409,13 +21409,12 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p style='line-height:20px'&gt;Cookie 获取方法：&lt;br&gt;
-                          1，使用浏览器打开目标网站并登录，在页面空白位置点击鼠标右键，选择 「检查」 ；&lt;br&gt;
-                          2，右侧弹窗顶部选择：「网络」 -&gt; 「全部」，然后刷新当前页面；&lt;br&gt;
-                          3，点击「名称」栏新加载出来的第一个内容 -&gt; 「标头」 -&gt; 「请求表头」 -&gt; 「Cookie」；&lt;br&gt;
-                          4，复制 Cookie 对应的全部值填入上面输入框。（不要直接右键点「复制值」！！！！
-                          一定要先用鼠标「手动框选」要复制的全部文字，然后再右键点「复制」！！！不是「复制值」！！！！！！）&lt;br&gt;
-                          注意：Cookie 存在有效期，过期无效时需要重新获取。&lt;/p&gt;</string>
+                        <string>&lt;p style='line-height:20px'&gt;Cookie获取方法：&lt;br&gt;
+                          1，使用浏览器打开目标网站然后登录，在网站页面空白位置点击鼠标右键，选择 「检查」 ；&lt;br&gt;
+                          2，右侧弹窗顶部选择：「网络」-&gt;「全部」，然后刷新当前页面，在标头里查找「Cookie」；&lt;br&gt;
+                          3，点击「名称」栏新加载出来的第一个内容-&gt; 「标头」-&gt;「请求表头」-&gt;填入「Cookie」；&lt;br&gt;
+                          4，复制Cookie对应的全部值填入上面输入框，不要直接右键点击「复制值」填入「Cookie」；&lt;br&gt;
+                          注意：Cookie一般存在有效期，当Cookie过期无效时需要登录网站重新获取填入「Cookie」；&lt;/p&gt;</string>
                       </property>
                       <property name="scaledContents">
                         <bool>true</bool>
@@ -21434,7 +21433,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>130</x>
-                          <y>600</y>
+                          <y>560</y>
                           <width>430</width>
                           <height>21</height>
                         </rect>
@@ -21471,7 +21470,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="geometry">
                         <rect>
                           <x>60</x>
-                          <y>600</y>
+                          <y>560</y>
                           <width>71</width>
                           <height>21</height>
                         </rect>
@@ -22369,7 +22368,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>&lt;p&gt;可在下方设置选定网站的配置。&lt;span style=" color:#d9001f;"&gt;切换网站前需先保存，否则不会生效&lt;/span&gt;&lt;/p&gt;&lt;p&gt;注意：当前并非所有网站均支持这些配置，某些设置可能无效&lt;/p&gt;</string>
+                              <string>&lt;p&gt;可在下方设置选定网站的配置，&lt;span style=" color:#d9001f;"&gt;切换网站前需先保存，否则不会生效&lt;/span&gt;&lt;/p&gt;&lt;p&gt;注意：当前并非所有网站均支持这些配置，某些网站的设置可能无效&lt;/p&gt;</string>
                             </property>
                             <property name="openExternalLinks">
                               <bool>true</bool>
@@ -22413,7 +22412,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;自定义指定网站的网址，刮削时将用其代替默认网址&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;自定义指定网站的网址，刮削时将使用自定义网址代替网站默认网址&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                             </property>
                             <property name="openExternalLinks">
                               <bool>true</bool>
@@ -22608,8 +22607,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                 href="https://theporndb.net/"&gt;&lt;span style="
                                 text-decoration: underline;
                                 color:#094fd1;"&gt;https://theporndb.net/&lt;/span&gt;&lt;/a&gt;
-                                注册登录后，点头像 - API Tokens - CREATE。复制生成的 API Token
-                                填入此处。&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                                注册登录后，点击头像-API Tokens-CREATE，复制生成的API Token填入此处&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                             </property>
                             <property name="scaledContents">
                               <bool>true</bool>
@@ -22656,7 +22654,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                 </property>
                                 <property name="text">
                                   <string>
-                                    &lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;该网站的Hash值匹配结果可能错误&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                                    &lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;该网站的Hash值匹配结果有可能计算错误&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                                 </property>
                                 <property name="scaledContents">
                                   <bool>true</bool>
