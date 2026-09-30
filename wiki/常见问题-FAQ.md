@@ -1,6 +1,6 @@
 # 常见问题 FAQ
 
-按出现频率排序。问题没解决？欢迎[提议题](https://github.com/cdlongbow/mdcx-diy/issues/new/choose)。
+按出现频率排序。问题没解决？欢迎[提议题](https://github.com/z291173301/MDCx/issues/new/choose)。
 
 ---
 
@@ -70,7 +70,7 @@ v2.0.7 已修复三个根因：旧配置残留站点值导致校验失败、迁�
 
 ## 9. 刮削到的封面有水印/画质差
 
-优先调整站点优先级：JavDB 系（App 无水印通道）> DMM 高清 > 其他。设置 → 刮削网站 → 拖拽排序。详见主仓库 FEATURES.md「图源」章节。
+优先调整站点优先级：JavDB 系（App 无水印通道）> DMM 高清 > 其他。设置 → 刮削网站 → 拖拽排序。详见主仓库 Features.md「图源」章节。
 
 ## 10. 剧照下载失败 / 站点已删除剧照（议题 #131）
 
@@ -132,11 +132,11 @@ JavDb 网页版搜索 FC2 内容需要登录 Cookie。「软件设置 → 网络
 
 ## 20. 哪里找完整功能说明与配置详解
 
-- **全部功能**：主仓库 `docs/FEATURES.md`
-- **配置逐项说明**：主仓库 `docs/CONFIGURATION.md`
-- **快速上手**：主仓库 `docs/QUICKSTART.md`
+- **全部功能**：主仓库 `docs/Features.md`
+- **配置逐项说明**：主仓库 `docs/Configuration.md`
+- **快速上手**：主仓库 `docs/QuickStart.md`
 
-主仓库 = [cdlongbow/mdcx-diy](https://github.com/cdlongbow/mdcx-diy) 的 docs 目录。
+主仓库 = [z291173301/MDCx](https://github.com/z291173301/MDCx) 的 docs 目录。
 
 ## 21. 关闭演员管理器后主程序一起退出（议题 #159/#175）
 

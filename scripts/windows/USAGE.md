@@ -4,7 +4,7 @@
 
 ### 1. 下载
 
-从 [Releases](https://github.com/cdlongbow/mdcx-diy/releases) 下载最新版本的 `trawl-portable-*-windows.zip`
+从 [Releases](https://github.com/z291173301/MDCx/releases) 下载最新版本的 `trawl-portable-*-windows.zip`
 
 ### 2. 解压
 
@@ -165,4 +165,4 @@ trawl-portable-1.5.0-windows/
 ---
 
 原版项目: https://github.com/germondai/trawl
-打包维护: https://github.com/cdlongbow/mdcx-diy
+打包维护: https://github.com/z291173301/MDCx

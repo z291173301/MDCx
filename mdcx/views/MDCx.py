@@ -13722,7 +13722,7 @@ class Ui_MDCx(object):
         self.label_389.setText(_translate("MDCx", "注：同一字段多个名称可以兼容更多类型版本的媒体库"))
         self.pushButton_field_tips_nfo.setText(_translate("MDCx", "字段说明"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_7), _translate("MDCx", " NFO "))
-        self.groupBox_43.setTitle(_translate("MDCx", "Emby/Jellyfin 设置"))
+        self.groupBox_43.setTitle(_translate("MDCx", "Emby/Jellyfin设置"))
         self.label_104.setText(_translate("MDCx", "服务器地址："))
         self.label_105.setText(_translate("MDCx", "API密钥创建方法：控制台-高级-API密钥-添加，设置任何APP名称都行"))
         self.comboBox_pic_actor.setItemText(0, _translate("MDCx", "1 所有演员"))
@@ -13743,9 +13743,9 @@ class Ui_MDCx(object):
         self.label_108.setText(_translate("MDCx", "用户 ID："))
         self.label_107.setText(_translate("MDCx", "API 密钥："))
         self.label_109.setText(_translate("MDCx", "如果设置，将仅获取指定的Emby/Jellyfin服务器中用户媒体库中的演员"))
-        self.groupBox_41.setTitle(_translate("MDCx", "补全 Emby/Jellyfin 演员头像"))
+        self.groupBox_41.setTitle(_translate("MDCx", "补全Emby/Jellyfin演员头像"))
         self.pushButton_add_actor_pic.setText(_translate("MDCx", "开始补全"))
-        self.label_297.setText(_translate("MDCx", "使用网络头像库或本地头像库，补全 Emby/Jellyfin 演员头像。"))
+        self.label_297.setText(_translate("MDCx", "使用网络头像库或本地头像库，补全Emby/Jellyfin演员头像。"))
         self.checkBox_actor_photo_auto.setText(_translate("MDCx", "刮削结束后自动补全演员头像"))
         self.radioButton_actor_photo_all.setText(_translate("MDCx", "所有演员"))
         self.radioButton_actor_photo_miss.setText(_translate("MDCx", "仅缺少头像的演员"))
@@ -13767,11 +13767,11 @@ class Ui_MDCx(object):
                 "<p>支持优先使用Graphis.ne.jp的图片作为演员头像和演员背景图；<br>Graphis.ne.jp提供了演员不同时期的图片，默认请求早期图片。</p>",
             )
         )
-        self.label_gfriends_local.setText(_translate("MDCx", "Gfriends 本地仓库："))
+        self.label_gfriends_local.setText(_translate("MDCx", "Gfriends本地仓库："))
         self.pushButton_select_gfriends_local.setText(_translate("MDCx", "选择目录"))
         self.pushButton_sync_gfriends.setText(_translate("MDCx", "更新 Gfriends"))
         self.label_gfriends_update_time.setText(_translate("MDCx", "最后更新: -"))
-        self.groupBox_64.setTitle(_translate("MDCx", "补全 Emby/Jellyfin 演员信息"))
+        self.groupBox_64.setTitle(_translate("MDCx", "补全Emby/Jellyfin演员信息"))
         self.radioButton_actor_info_zh_cn.setText(_translate("MDCx", "中文简体"))
         self.radioButton_actor_info_zh_tw.setText(_translate("MDCx", "中文繁体"))
         self.radioButton_actor_info_ja.setText(_translate("MDCx", "日语"))
@@ -13792,7 +13792,7 @@ class Ui_MDCx(object):
         self.radioButton_actor_info_miss.setText(_translate("MDCx", "仅缺少信息的演员"))
         self.label_299.setText(_translate("MDCx", "补全范围："))
         self.checkBox_actor_info_photo.setText(_translate("MDCx", "补全完成后自动补全演员头像"))
-        self.groupBox_68.setTitle(_translate("MDCx", "补全 Kodi/Plex/Jvedio 演员头像"))
+        self.groupBox_68.setTitle(_translate("MDCx", "补全Kodi/Plex/Jvedio演员头像"))
         self.pushButton_add_actor_pic_kodi.setText(_translate("MDCx", "开始补全"))
         self.label_414.setText(
             _translate(
@@ -14045,7 +14045,7 @@ class Ui_MDCx(object):
                 "<h4>四、网站选择</h4>\n"
                 "<p>网站下拉框由已注册的爬虫自动生成（当前 36 个），可按需选用全部网站或指定网站。主要来源包括：</p>\n"
                 " <ul>\n"
-                "  <li><b>有码</b>：仅能有码——DMM、DMM-API、TheJavDB-API、LibreDMM、R18.dev、AVBase、Xcity、Prestige、MGStage、Getchu、JavLibrary、FreeJavBT、Lulubar、AVMOO；综合（有码+无码）——JavBus、JavDB 系、MissAV 系、Official、airav.cc、AVSex、JavDay、JavFree、IQQTV、7mmtv</li>\n"
+                "  <li><b>有码</b>：仅能有码：DMM、DMM-API、TheJavDB-API、LibreDMM、R18.dev、AVBase、Xcity、Prestige、MGStage、Getchu、JavLibrary、FreeJavBT、Lulubar、AVMOO；综合（有码+无码）：JavBus、JavDB 系、MissAV 系、Official、airav.cc、AVSex、JavDay、JavFree、IQQTV、7mmtv</li>\n"
                 "  <li><b>无码</b>：AVSOX、AVEntertainments 及综合站（JavBus、JavDB 系、MissAV 系、AVSex、Official、JavDay、IQQTV、7mmtv）</li>\n"
                 "  <li><b>素人</b>：MGStage（259LUXU 等）、Prestige、JavBus、JavDB 系、DMM、DMM-API、AVBase、MissAV 系、MyWife、IQQTV、7mmtv</li>\n"
                 "  <li><b>FC2</b>：FC2、FC2PPVDB、JavDB 系、JavFree、7mmtv</li>\n"
@@ -14053,9 +14053,9 @@ class Ui_MDCx(object):
                 "  <li><b>欧美</b>：THEPORNDB、AVHEAT</li>\n"
                 " </ul>\n"
                 " <p><b>Official（综合：有码+无码，按番号前缀自动路由到各官网，全部走代理）：</b><br/>\n"
-                "有码片商官网 30 家——S1（s1s1s1）、Moodyz（moodyz）、Madonna（madonna-av）、WANZ FACTORY（wanz-factory）、IdeaPocket（ideapocket）、Kirakira（kirakira-av）、E-Body（av-e-body）、Bi（bi-av）、Premium Beauty（premium-beauty）、MIMAN（miman）、Tameikegoro（tameikegoro）、Fitch（fitch-av）、Kawaiikawaii（kawaiikawaii）、BeeFree（befreebe）、Muku（muku.tv）、Attackers（attackers）、MKO-Labo（mko-labo）、Dasdas（dasdas）、MVG（mvg）、AV Opera（av-opera）、Oppai（oppai-av）、V-av（v-av）、To-Satsu（to-satsu）、Bibian（bibian-av）、Honnaka（honnaka）、Rookie（rookie-av）、Nanpa（nanpa-japan）、Hajime Kikaku（hajimekikaku）、HHH（hhh-av）、Prestige（prestige-av）<br/>\n"
-                "无码官网 5 站（JSON API 直连）——Caribbeancom、Heyzo、1Pondo、Pacopacomama、10Musume<br/>\n"
-                "番号前缀 DLDSS/FNS/JIMMY 还分别路由到 Dahlia/Faleno 官网。官网前缀表维护在代码 manual.py 的 OFFICIAL 字典中，增减不影响使用说明。</p>\n"
+                "有码片商官网30家：S1（s1s1s1）、Moodyz（moodyz）、Madonna（madonna-av）、WANZ FACTORY（wanz-factory）、IdeaPocket（ideapocket）、Kirakira（kirakira-av）、E-Body（av-e-body）、Bi（bi-av）、Premium Beauty（premium-beauty）、MIMAN（miman）、Tameikegoro（tameikegoro）、Fitch（fitch-av）、Kawaiikawaii（kawaiikawaii）、BeeFree（befreebe）、Muku（muku.tv）、Attackers（attackers）、MKO-Labo（mko-labo）、Dasdas（dasdas）、MVG（mvg）、AV Opera（av-opera）、Oppai（oppai-av）、V-av（v-av）、To-Satsu（to-satsu）、Bibian（bibian-av）、Honnaka（honnaka）、Rookie（rookie-av）、Nanpa（nanpa-japan）、Hajime Kikaku（hajimekikaku）、HHH（hhh-av）、Prestige（prestige-av）<br/>\n"
+                "无码官网5站，JSON API直连：Caribbeancom、Heyzo、1Pondo、Pacopacomama、10Musume<br/>\n"
+                "番号前缀 DLDSS/FNS/JIMMY 还分别路由到 Dahlia/Faleno 官网，官网前缀表维护在代码 manual.py 的 OFFICIAL 字典中，增减不影响使用说明。</p>\n"
                 "\n"
                 "<h4>五、Cloudflare 绕过（CF Bypass）</h4>\n"
                 "<p>MDCx 提供多种 Cloudflare 绕过能力，遇到受 Cloudflare 保护的站点时自动尝试绕过：</p>\n"
@@ -14115,22 +14115,22 @@ class Ui_MDCx(object):
                 "<p>刮削前尽量命名规范、不区分大小写：</p>\n"
                 "<ul>\n"
                 "<li><b>标准有码</b>：JavDB / JavBus: SSNI-111；DMM: ssni00111</li>\n"
-                "<li><b>无码</b>：JavDB / JavBus / Avsox: 111111-1111、111111_111、HEYZO-1111、n1111</li>\n"
-                " <li><b>素人</b>：MGStage: 259LUXU-1111；JavDB: LUXU-1111；FC2: FC2-111111、FC2-PPV-111111</li>\n"
-                "<li><b>欧美</b>：JavDB / JavBus: sexart.11.11.11（系列.年.月.日）</li>\n"
+                "<li><b>标准无码</b>：JavDB / JavBus / Avsox: 111111-1111、111111_111、HEYZO-1111、n1111</li>\n"
+                " <li><b>素人番号</b>：MGStage: 259LUXU-1111；JavDB: LUXU-1111；FC2: FC2-111111、FC2-PPV-111111</li>\n"
+                "<li><b>欧美番号</b>：JavDB / JavBus: sexart.11.11.11（系列.年.月.日）</li>\n"
                 "<li><b>字幕影片</b>：ssni-xxx-c.mp4 / -C.mp4（字幕标记靠近扩展名）</li>\n"
-                "<li><b>多分集影片</b>：ssni-xxx-cd1.mp4、ssni-xxx-cd2.mp4（默认支持 -cdN / -partN / -hdN / 单数字结尾 -1 等形式；如需 -A 字母分集或 -01 两位数字分集，可在设置 → 命名中勾选『允许识别分集』对应选项）</li>\n"
+                "<li><b>分集影片</b>：ssni-xxx-cd1.mp4、ssni-xxx-cd2.mp4（默认支持 -cdN / -partN / -hdN / 单数字结尾 -1 等形式；如需 -A 字母分集或 -01 两位数字分集，可在设置 → 命名中勾选『允许识别分集』对应选项）</li>\n"
                 "<li><b>外挂字幕</b>：字幕文件名需与影片一致，支持 srt / ass / sub，方可随影片一起移动</li>\n"
                 "</ul>\n"
                 "\n"
                 "<h4>十二、获取帮助</h4>\n"
                 "<ul>\n"
                 "<li>项目主页：https://github.com/z291173301/MDCx</li>\n"
-                "<li>Release 下载：https://github.com/z291173301/MDCx/releases</li>\n"
-                "<li>常见问题：docs/USER_GUIDE.md（使用手册）、docs/CONFIGURATION.md（配置参考）、docs/FEATURES.md（功能总览）</li>\n"
+                "<li>Releases：https://github.com/z291173301/MDCx/releases</li>\n"
+                "<li>常见问题：docs/User_Guide.md（使用手册）、docs/Configuration.md（配置参考）、docs/Features.md（功能总览）</li>\n"
                 "<li>问题反馈：GitHub Issues</li>\n"
                 "</ul>\n"
-                '<p style="color:#888888;">MDCx-diy 由 cdlongbow 基于开源社区项目（sqzw-x/mdcx → Hazard804/mdcx → ZiPenOk/mdcx）持续维护，仅供学习与技术交流。向相关开发者表示敬意！</p>\n'
+                '<p style="color:#888888;">MDCx由DADA  基于开源社区项目（sqzw-x/mdcx → Hazard804/mdcx → ZiPenOk/mdcx）持续维护，仅供学习与技术交流。向相关开发者表示敬意！</p>\n'
                 "</body></html>",
             )
         )

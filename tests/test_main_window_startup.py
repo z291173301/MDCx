@@ -69,7 +69,7 @@ def test_emby_actor_manager_dialog_startup_no_crash(app):
 
     dlg = EmbyActorManagerDialog()
     try:
-        assert dlg.windowTitle() == "Emby/Jellyfin 演员管理器"
+        assert dlg.windowTitle() == "Emby/Jellyfin演员管理器"
     finally:
         dlg.close()
         dlg.deleteLater()

@@ -37,6 +37,6 @@
 
 ## 接下来可以看
 
-- [FEATURES.md](FEATURES.md) — MDCx 还能做什么
-- [CONFIGURATION.md](CONFIGURATION.md) — 每个设置项是干什么的
-- [USER_GUIDE.md](USER_GUIDE.md) — 完整使用手册
+- [Features.md](Features.md) — MDCx 还能做什么
+- [Configuration.md](Configuration.md) — 每个设置项是干什么的
+- [User_Guide.md](User_Guide.md) — 完整使用手册

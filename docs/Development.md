@@ -436,14 +436,14 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 | `mdcx/consts.py` 的 `LOCAL_VERSION` | `YYYYMMDD` |
 | `mdcx/consts.py` 的 `VERSION_NAME` | `vX.Y.Z` |
 | `pyproject.toml` 的 `version` | `X.Y.Z`（`VERSION_NAME` 去掉 `v`） |
-| `docs/changelog.md` 首个版本段 `## vX.Y.Z (YYYY-MM-DD)` | 版本 = `VERSION_NAME`；日期 = `LOCAL_VERSION` 的日期 |
+| `docs/Changelog.md` 首个版本段 `## vX.Y.Z (YYYY-MM-DD)` | 版本 = `VERSION_NAME`；日期 = `LOCAL_VERSION` 的日期 |
 | `uv.lock` 根包 `mdcx` 的 `version` | `X.Y.Z`（与 `pyproject.toml` 一致；CI 全平台 `uv sync --locked` 强校验，脱节即构建失败） |
 
 **事故记录（2026-09-27）**：曾只升 `pyproject.toml` 到 2.1.4、漏同步 `uv.lock`（根包仍锁 2.1.3），发版工作流四个构建腿（windows-2025 / macos-latest / macos-15-intel / ubuntu-latest）齐刷刷在 `Install locked dependencies` 步 exit 1。教训：改版本号/日期必须走 `bump`（现已自动同步 lock），且以 `bump --check` + 版本一致性测试为准，不要手改单点。
 
 **改版流程**
 
-1. 在 `docs/changelog.md` 顶部新建目标版本段并写条目；已发版旧段保留，未发版段被后续议题取代时合并重写成最终形态。
+1. 在 `docs/Changelog.md` 顶部新建目标版本段并写条目；已发版旧段保留，未发版段被后续议题取代时合并重写成最终形态。
 2. `uv run bump --version <YYYYMMDD> --name X.Y.Z` 同步五处（`--dry-run` 预览、`--force` 免交互；`--name` 会连带同步 `uv.lock` 根包版本）；只校验用 `uv run bump --check`。
 3. 复核 `uv run pytest tests/test_version_consistency.py tests/test_version_metadata.py`。
 4. 打**纯数字** tag（= `LOCAL_VERSION`）触发 `.github/workflows/build-py314.yml`。「已发版」的判据是数字 tag 已推送，而非 changelog 有没有该段。同一版本号重复触发会覆盖更新同一条 Release（`overwrite: true`），不会多出第二条。
@@ -454,7 +454,7 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 
 使用 PyInstaller 打包，入口文件为 `main.py`。正式 Release 会构建 macOS ARM64 DMG、Windows x86_64 EXE 与 Linux x86_64 单文件程序。
 
-Linux 手动构建依赖 Ubuntu 的 Qt 图形运行库，完整列表见 [INSTALL.md](INSTALL.md#linux-额外步骤)。构建前安装锁定依赖，再执行：
+Linux 手动构建依赖 Ubuntu 的 Qt 图形运行库，完整列表见 [Install.md](Install.md#linux-额外步骤)。构建前安装锁定依赖，再执行：
 
 ```bash
 uv sync --locked --all-extras --dev

@@ -258,7 +258,7 @@
 ### 29. javdb_app 端点扩展：反图搜 + 收藏列表 ⬜（来源 FlanChanXwO/javdb-cli，MIT）
 - **价值：中**　**难度：中**（每端点 1-2 天）
 - javdb-cli 的 App API 端点地图远超我们 javdb_app 已用的搜索+详情：**反向图搜**（截图找番号，全新能力）、TOP250/排行榜、用户想看/看过列表、磁力（→ #9）
-- 落地前先按其 README 端点清单与我们的 `docs/JAVDB_APP_SIGNATURE.md` 对账，验证签名/设备参数是否同套
+- 落地前先按其 README 端点清单与我们的 `docs/Javdb_App_Signature.md` 对账，验证签名/设备参数是否同套
 - 反图搜可做"右键封面 → 识别番号"入口，补 FC2/素人无番号场景
 
 ### 30. 图片/视频 URL 存在性探测用 Range 加速 ✅（2026-09-20 实现：_validate_dmm_image_url Range+stream 探测，3 条回归测试）

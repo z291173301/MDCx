@@ -4,7 +4,7 @@
 1. `mdcx/consts.py` 的 `LOCAL_VERSION`（纯数字 YYYYMMDD，GitHub tag 也用它）
 2. `mdcx/consts.py` 的 `VERSION_NAME`（展示名 vX.Y.Z）
 3. `pyproject.toml` 的 `version`（去掉 v 前缀）
-4. `docs/changelog.md` 首个版本段标题 `## vX.Y.Z (YYYY-MM-DD)` 的版本与日期
+4. `docs/Changelog.md` 首个版本段标题 `## vX.Y.Z (YYYY-MM-DD)` 的版本与日期
 5. `uv.lock` 根包 `mdcx` 的 `version`（CI 全平台 `uv sync --locked` 强校验，脱节即构建失败）
 
 `scripts/bump.py --check` 与本测试覆盖同一不变量；此处用 pytest 让它进入常规回归。
@@ -28,7 +28,7 @@ def test_version_name_matches_pyproject():
 
 
 def test_changelog_head_matches_local_version_and_name():
-    changelog = (_ROOT / "docs" / "changelog.md").read_text(encoding="utf-8")
+    changelog = (_ROOT / "docs" / "Changelog.md").read_text(encoding="utf-8")
     head = re.search(r"(?m)^##\s+(v\d+\.\d+\.\d+)\s+\((\d{4})-(\d{2})-(\d{2})\)", changelog)
 
     assert head is not None, "changelog 首个版本段格式应为 '## vX.Y.Z (YYYY-MM-DD)'"

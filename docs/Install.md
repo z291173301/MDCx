@@ -8,7 +8,7 @@
 
 ## 方法一：用 Release 包（推荐）
 
-去 [GitHub Releases](https://github.com/cdlongbow/mdcx-diy/releases) 下载最新版：
+去 [GitHub Releases](https://github.com/z291173301/MDCx/releases) 下载最新版：
 
 | 系统 | 下载什么 |
 |------|---------|
@@ -38,7 +38,7 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 3. 下载代码
-git clone https://github.com/cdlongbow/mdcx-diy.git
+git clone https://github.com/z291173301/MDCx.git
 cd mdcx-diy
 
 # 4. 安装锁定版本的依赖
@@ -64,4 +64,4 @@ sudo apt install libglib2.0-0 libegl1 libgl1 libfontconfig1 \
 
 - 界面太大或太小：设置 → 高级 → 高分屏缩放
 - 网络不通：设置 → 网络 → 配置代理；左侧导航「检测网络」页可批量测试站点连通性
-- 其他：看 [USER_GUIDE.md](USER_GUIDE.md) 的常见问题部分
+- 其他：看 [User_Guide.md](User_Guide.md) 的常见问题部分

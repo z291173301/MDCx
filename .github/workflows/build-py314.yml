@@ -333,18 +333,18 @@ jobs:
         shell: bash
         run: |
           version_name=$(grep -oE 'VERSION_NAME[[:space:]]*=[[:space:]]*"[^"]+"' mdcx/consts.py | grep -oE '"[^"]+"' | tr -d '"')
-          if [ ! -s docs/changelog.md ] || [ -z "$version_name" ]; then
+          if [ ! -s docs/Changelog.md ] || [ -z "$version_name" ]; then
             echo "::error::无法读取当前版本 changelog。"
             exit 1
           fi
-          if ! grep -Eq "^## ${version_name}( |$)" docs/changelog.md; then
+          if ! grep -Eq "^## ${version_name}( |$)" docs/Changelog.md; then
             echo "::error::changelog 中缺少 ${version_name} 区段。"
             exit 1
           fi
           delimiter="__MDCX_CHANGELOG_EOF__"
           {
             echo "CHANGELOG<<$delimiter"
-            awk -v version="${version_name}" '$0 ~ "^## " version "( |$)" {found=1; print; next} found && /^## / {exit} found {print}' docs/changelog.md
+            awk -v version="${version_name}" '$0 ~ "^## " version "( |$)" {found=1; print; next} found && /^## / {exit} found {print}' docs/Changelog.md
             echo "$delimiter"
           } >> "$GITHUB_OUTPUT"
 

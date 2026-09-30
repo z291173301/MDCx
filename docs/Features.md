@@ -1,6 +1,6 @@
 # 功能总览
 
-MDCx 支持的功能全景。只想快速上手的话，先看 [QUICKSTART.md](QUICKSTART.md)。
+MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](QuickStart.md)。
 
 ## 一、刮削系统
 
@@ -26,7 +26,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QUICKSTART.md](Q
 | thejavdb_api | api.thejavdb.net | TheJavDB API 数据源（免 CF，仅能有码） |
 | javdb | javdb.com | JavDB 综合信息站（综合：有码+无码） |
 | javdb_api | JavDB 镜像站 | 镜像站 HTML 直连，带简繁转换和异体字修正（综合：有码+无码） |
-| javdb_app | JavDB 移动端 API | APK 逆向签名直连（综合：有码+无码；封面/海报/剧照走 App CDN 无水印原图，签名失效自动诊断，详见 docs/JAVDB_APP_SIGNATURE.md） |
+| javdb_app | JavDB 移动端 API | APK 逆向签名直连（综合：有码+无码；封面/海报/剧照走 App CDN 无水印原图，签名失效自动诊断，详见 docs/Javdb_App_Signature.md） |
 | javbus | javbus.com | 有码/无码分类搜索（综合：有码+无码） |
 | javlibrary | javlibrary.com | 老牌信息站（仅能有码） |
 | missav | missav.ws | 综合搜索（综合：有码+无码） |

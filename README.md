@@ -25,26 +25,26 @@ MDCx 是一个桌面工具，自动从 52 个网站抓取视频文件的元数�
 
 从 [GitHub Releases](https://github.com/cdlongbow/MDCx/releases) 下载对应系统的安装包或可执行文件。Linux 首次运行前执行 `chmod +x MDCx`，再运行 `./MDCx`。
 
-详细安装说明：[docs/INSTALL.md](docs/INSTALL.md)
+详细安装说明：[docs/Install.md](docs/Install.md)
 
 ## 第一次使用
 
-看这篇 5 分钟上手指南：[docs/QUICKSTART.md](docs/QUICKSTART.md)
+看这篇 5 分钟上手指南：[docs/QuickStart.md](docs/QuickStart.md)
 
 ## 文档导航
 
 | 文档 | 适合谁看 | 内容 |
 |------|---------|------|
 | **[使用 Wiki](https://github.com/cdlongbow/MDCx/wiki)** | **新用户先看这里** | 三分钟上手、常见问题 FAQ（90% 问题有答案） |
-| [QUICKSTART.md](docs/QUICKSTART.md) | 所有人 | 5 分钟上手，完成第一次刮削 |
-| [INSTALL.md](docs/INSTALL.md) | 需要安装的人 | 系统要求、Release/源码两种安装方式 |
-| [FEATURES.md](docs/FEATURES.md) | 想了解能做什么的人 | 全部功能、52 个网站列表、四种刮削模式 |
-| [USER_GUIDE.md](docs/USER_GUIDE.md) | 日常使用的人 | 完整使用手册、常见问题、实际场景 |
-| [CONFIGURATION.md](docs/CONFIGURATION.md) | 想调设置的人 | 每个配置项是干什么的 |
-| [changelog.md](docs/changelog.md) | 关注版本更新的人 | 每个版本改了啥 |
-| [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 想改代码的人 | 项目架构、爬虫开发、测试、代码规范 |
-| [JAVDB_APP_SIGNATURE.md](docs/JAVDB_APP_SIGNATURE.md) | 想改 JavDB App 爬虫的人 | JavDB App API 签名机制与逆向域知识 |
-| [male_actor_list.md](docs/male_actor_list.md) | 想维护男演员名单的人 | 男演员名单格式与维护说明 |
+| [QuickStart.md](docs/QuickStart.md) | 所有人 | 5 分钟上手，完成第一次刮削 |
+| [Install.md](docs/Install.md) | 需要安装的人 | 系统要求、Release/源码两种安装方式 |
+| [Features.md](docs/Features.md) | 想了解能做什么的人 | 全部功能、52 个网站列表、四种刮削模式 |
+| [User_Guide.md](docs/User_Guide.md) | 日常使用的人 | 完整使用手册、常见问题、实际场景 |
+| [Configuration.md](docs/Configuration.md) | 想调设置的人 | 每个配置项是干什么的 |
+| [Changelog.md](docs/Changelog.md) | 关注版本更新的人 | 每个版本改了啥 |
+| [Development.md](docs/Development.md) | 想改代码的人 | 项目架构、爬虫开发、测试、代码规范 |
+| [Javdb_App_Signature.md](docs/Javdb_App_Signature.md) | 想改 JavDB App 爬虫的人 | JavDB App API 签名机制与逆向域知识 |
+| [Male_Actor_List.md](docs/Male_Actor_List.md) | 想维护男演员名单的人 | 男演员名单格式与维护说明 |
 
 ## 核心特色
 

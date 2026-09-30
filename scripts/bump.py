@@ -43,7 +43,7 @@ def get_pyproject_file() -> Path:
 
 def get_changelog_file() -> Path:
     project_root = get_project_root()
-    return project_root / "docs" / "changelog.md"
+    return project_root / "docs" / "Changelog.md"
 
 
 def get_uv_lock_file() -> Path:

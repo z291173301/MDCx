@@ -6,7 +6,7 @@
 硬编码同一仓库地址。历史上出现过 `before_info` 的 emoji 被正则剥掉、
 跳转地址指向旧仓库的回归，本文件把图标规范与仓库地址固化为自动化测试。
 
-完整规范见 `docs/DEVELOPMENT.md`「左下角状态区图标规范」一节。
+完整规范见 `docs/Development.md`「左下角状态区图标规范」一节。
 """
 
 from pathlib import Path
@@ -30,7 +30,7 @@ OWN_REPO = "z291173301/MDCx"
 OLD_REPO = "cdlongbow/mdcx-diy"
 
 # show_scrape_info / new_version 中必须逐字存在的图标行（删任一即报红）。
-# 与 docs/DEVELOPMENT.md「左下角状态区图标规范」保持同步，改规范先改文档再改此处。
+# 与 docs/Development.md「左下角状态区图标规范」保持同步，改规范先改文档再改此处。
 _REQUIRED_ICON_LITERALS = (
     "💡 单文件刮削",
     "💠 {Flags.main_mode_text}",

@@ -11,7 +11,7 @@
 CI 里强校验 lock 是否与 manifest 一致，改依赖后忘了 `uv lock` 会直接 exit 1。
 其余依赖（`pyqt6` cp310-abi3、`opencv-contrib-python-headless` cp37-abi3、
 `curl-cffi` cp310-abi3、`oshash`/`zhconv` 纯 Python 等）无需设下限，见
-`docs/DEVELOPMENT.md`「构建」段。
+`docs/Development.md`「构建」段。
 """
 
 import re

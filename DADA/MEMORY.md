@@ -15,9 +15,9 @@
   - 提交前必看 `git status` 未跟踪文件：运行残留与中间产物不得 `git add -A` 入库，先 `.gitignore` 排除。
   - **提交信息不要手写 Co-authored-by trailer**：`prepare-commit-msg` 署名 hook 每次 commit/amend 从 git config 的 `coauthor.*` 无条件追加，手写会重复。**hooksPath 双向坑（2026-09-20 实证）**：署名 hook 原在 `.git/hooks/`（不在 .githooks/），一旦 `git config core.hooksPath .githooks` 启用 pre-push，`.git/hooks` 下全部 hook 即被重定向**静默失效**（当天连丢 3 个提交的署名才发现）——现已把 prepare-commit-msg 收编进 `.githooks/` 入库（b1a726a0），两 hook 同目录自洽；环境重置后补一条 `git config core.hooksPath .githooks` 即同时恢复署名与推送自检。
   - **"本地全绿≠CI 通过"三维度**：输出截断 / 版本语义差异（模块级带值注解 3.13 立即求值 vs 3.14 PEP 649 延迟，单例声明一律无注解赋值）/ 平台差异。Windows runner 三坑：①`subprocess.run(text=True)` 一律显式 `encoding="utf-8", errors="replace"`（默认 GBK 遇 UTF-8 字节炸链）；②**glob 模式里 `[XX]` 是字符类不是字面量**，而 Windows 下 `pathlib.glob` 默认大小写不敏感（`pathlib/__init__.py`: 非 posix 即 case_sensitive=False），`glob("*[SR]*")` 会命中 `poster.jpg`（含小写 s）造成假红——断言"临时产物已清理"一律用 `[p for p in tmp_path.rglob("*") if "[SR]" in p.name]` 形式，别用 glob 通配符；③**Qt 多主窗收尾段错误（定案 2026-09-21）**：同一 pytest 进程内构造 ≥2 个 MyMAinWindow（各含 QSystemTrayIcon）→ 全部用例通过后解释器收尾段错误（Linux SIGSEGV 139 / Windows 退码 1），与 stub/patch/show 时机无关，rerun 不可消除——管道里跑 pytest 时 `$?` 被 tail 吃掉会长期掩盖 Linux 侧 139，**判定退出码必须 `cmd > file; echo $?`**。已双修：①集成测试不得构造第二实例（复用 fixture 窗口）；②conftest.py `pytest_sessionfinish` 全绿时 `os._exit(0)` 跳过析构（失败路径正常退出，双向验证过）。CI 红/绿对照二分用诊断 PR 探针（push 分支+开 PR 触发同一 workflow），**每档至少采样 2 次再定性**（幸存者偏差教训：#185 二分结论曾全盘推翻重来）。
-  - **changelog/版本纪律**：提交前更新 `docs/changelog.md` 当前版本条目（版本号归属用户，不擅自开新段）；写法=用户视角发布说明（留议题号/现象/结果，删排查叙事与哈希）。版本同步用 `scripts/bump.py --version <YYYYMMDD> --name <X.Y.Z>`，`bump.py --check` 与 `tests/test_version_consistency.py` 兜底。**"已发版"判据 = 数字 tag 已推送（`git ls-remote --tags origin`），不是 changelog 有没有该段**；当前版本未发版时被后续议题取代的条目要合并重写成最终形态。
+  - **changelog/版本纪律**：提交前更新 `docs/Changelog.md` 当前版本条目（版本号归属用户，不擅自开新段）；写法=用户视角发布说明（留议题号/现象/结果，删排查叙事与哈希）。版本同步用 `scripts/bump.py --version <YYYYMMDD> --name <X.Y.Z>`，`bump.py --check` 与 `tests/test_version_consistency.py` 兜底。**"已发版"判据 = 数字 tag 已推送（`git ls-remote --tags origin`），不是 changelog 有没有该段**；当前版本未发版时被后续议题取代的条目要合并重写成最终形态。
   - 站点/爬虫/配置改动同步检查：UI 文案、README、docs、爬虫总数（`get_registered_crawler_sites()`）、**`config/migrations.py` 旧值清洗**（漏迁移 → pydantic 校验失败 → "保存不生效"）。
-  - **写死数字前 grep 代码核实**。高频漂移锚点：默认网站源顺序、代理域名列表、命名变量表、设置 Tab 名、字段优先级数、演员库列、指纹池、主窗口行数。README 爬虫数四处同步 + FEATURES.md 标题是独立第五处。**Wiki 维护纪律**：`wiki/` 目录是 GitHub Wiki 内容源；每次回帖议题后把通用答案回填 FAQ；Wiki 仓库需用户先网页建首页才能克隆。
+  - **写死数字前 grep 代码核实**。高频漂移锚点：默认网站源顺序、代理域名列表、命名变量表、设置 Tab 名、字段优先级数、演员库列、指纹池、主窗口行数。README 爬虫数四处同步 + Features.md 标题是独立第五处。**Wiki 维护纪律**：`wiki/` 目录是 GitHub Wiki 内容源；每次回帖议题后把通用答案回填 FAQ；Wiki 仓库需用户先网页建首页才能克隆。
   - **长时间任务标准做法**：① background_terminal 后台终端；② checkpoint 断点续传（state 落盘，后台终端 1 小时上限连 wrapper 一起回收，checkpoint 是唯一恢复手段）；③ 分批处理批间落盘；④ wrapper 45-50 分钟自重启；⑤ 进度看落盘文件不看终端日志（stdout 全缓冲可能 0 字节假象）。
   - **功能移除类需求先调研证据再答**：查活跃度、底层共享依赖、移除成本；用户转述与代码证据矛盾时以代码为准。
 
@@ -116,13 +116,13 @@
 - Instructions:
   - 各站探测番号与收录依据见爬虫类注释；javdb 仅搜 FC2 需要 Cookie。
   - 站点 API 坑：missav_api Recombee 仅 POST；DMM Affiliate v3 必需 site/service/floor 且 keyword 用 content_id 形态；madouqu 域名动态维护（24h 缓存）；madou_club 番号无横杠；parsel Selector.get() 纯 JSON 返回 dict，解析兼容 str/dict/Selector 三态。
-  - 站点增删史：2026-08 删 15 站（48→33），后增 javfree/aventertainments/madou_club、getchu_dmm 并入 getchu、7mmtv 回归；**当前注册爬虫 36**（FEATURES.md 同步）。数字开头模块名（7mmtv.py）用 `importlib.import_module` 加载。
+  - 站点增删史：2026-08 删 15 站（48→33），后增 javfree/aventertainments/madou_club、getchu_dmm 并入 getchu、7mmtv 回归；**当前注册爬虫 36**（Features.md 同步）。数字开头模块名（7mmtv.py）用 `importlib.import_module` 加载。
   - 无码官网五站由 official_uncensored.py 统一路由，均需代理；1pondo/pacopacomama/10musume 的 dyn/phpauto JSON API 直通。
   - 被墙站测试：`uv run python -m scripts.dev_proxy start|status|test <url>|stop`；日本 IP 限制站 `--port 7891 --regions "jp|日本"`。devbox 限制：超时≠站点死亡；连通性验证必须 curl_cffi impersonate；批量探测校验 data.title 防假阳性。
   - **HTTP 4xx/5xx 错误串必须携带截断响应体**（#88：Emby 400 根因在 body JSON），保留 `"HTTP {status}"` 前缀不破坏匹配；定位顺序先看客户端实际发了什么。
   - **番号归一化：前导单数字双重语义**（studio 名单数字保留 vs DMM 预约版 `9` 前缀剥掉），改正则前 grep 全部分支、改后跑相邻语义既有测试防双向误伤（#84）。
   - **站点域名优先级/删站属产品取舍，查证给方案不擅动**（#85：域名顺序常有实测依据注释）；删站影响面 = 注册表 + Website 枚举 + 默认 proxy 列表 + migrations.py 清洗 + UI 列表；单站死活须真机实测，别用 devbox 结果判定。
-  - **javdb 系三源**：javdb（网页）/javdb_api（镜像站）/javdb_app（App API 免 CF 最稳）；**thejavdb_api 与 javdb 无关**。App 签名机制见 `docs/JAVDB_APP_SIGNATURE.md`，排障锚点=三主机同时 4xx 或 InvalidSignature；环境变量 `MDCX_JAVDB_APP_SIG_*` 免改码覆盖；搜索 limit≤50、分页须 `movie_sort_by=release`。
+  - **javdb 系三源**：javdb（网页）/javdb_api（镜像站）/javdb_app（App API 免 CF 最稳）；**thejavdb_api 与 javdb 无关**。App 签名机制见 `docs/Javdb_App_Signature.md`，排障锚点=三主机同时 4xx 或 InvalidSignature；环境变量 `MDCX_JAVDB_APP_SIG_*` 免改码覆盖；搜索 limit≤50、分页须 `movie_sort_by=release`。
   - **javdb 图源无水印体系**：`tp.spfcas.com` App 专用（单字节 XOR，首字节 key）vs `c0.jdbstatic.com` 带水印；解密/变换集中在 `base/web.py`；加密流尺寸探测 (0,0) 属预期勿当图失效。
 
 ## Windows 打包与发布

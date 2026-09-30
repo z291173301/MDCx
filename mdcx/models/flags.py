@@ -153,7 +153,7 @@ class _Flags:
         self.log_txt = None
         # 注意：scrape_like_text / main_mode_text 是配置派生的展示文案
         # （load/save_config 从持久化配置写入），不是单次运行态，reset 不得清空——
-        # 否则刮削开始后左下角模式行只剩「💠 ·」光杆图标，没有文字说明（见 DEVELOPMENT.md 左下角规范）。
+        # 否则刮削开始后左下角模式行只剩「💠 ·」光杆图标，没有文字说明（见 Development.md 左下角规范）。
 
 
 Flags = _Flags()

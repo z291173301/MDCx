@@ -45,7 +45,7 @@
 - [x] 8. 文档与发布说明
    - [x] 8.1 跑 `uv run check --skip-hook-install`（含全量 pytest `-m "not network"`）
    - [x] 8.2 更新 `docs/`：说明 Windows/Linux 一体包内置版本来源与更新节奏、macOS 首次下载行为与手动放置路径
-   - [x] 8.3 更新 `docs/changelog.md`：并入 v2.1.1 未发版段的 #26 条目
+   - [x] 8.3 更新 `docs/Changelog.md`：并入 v2.1.1 未发版段的 #26 条目
 
 - [x] 9. 检查点 - 确保所有测试通过
    - 确保所有测试通过,如有疑问请询问用户
@@ -53,5 +53,5 @@
 - [x] 10. 阈值默认值定为 800 并同步文案
    - [x] 10.1 `poster_sr_max_dim` 默认 1200 → 800（`mdcx/config/models.py`）
    - [x] 10.2 `.ui` tooltip 文案改为「内置/按需下载」两态并同步重编译 `MDCx.py`
-   - [x] 10.3 `docs/CONFIGURATION.md` 阈值数值同步
+   - [x] 10.3 `docs/Configuration.md` 阈值数值同步
    - [x] 10.4 超分不可用时打印一次性结论行（含 Vulkan 缺失判定）与回归测试

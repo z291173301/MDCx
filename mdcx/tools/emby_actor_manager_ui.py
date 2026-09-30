@@ -513,7 +513,7 @@ class EmbyActorManagerDialog(QDialog):
         # 不传 parent：始终保持独立顶层窗口。议题 #61——以主窗口为 parent 时，
         # 主窗口 hide 会级联隐藏 dialog，最大化 dialog 又会把主窗口带出。
         super().__init__(None)
-        self.setWindowTitle("Emby/Jellyfin 演员管理器")
+        self.setWindowTitle("Emby/Jellyfin演员管理器")
         self.setMinimumSize(1100, 700)
         self.setWindowFlags(
             self.windowFlags()
@@ -1066,7 +1066,7 @@ class EmbyActorManagerDialog(QDialog):
         if total > 0:
             self.progress_bar.setMaximum(total)
             self.progress_bar.setValue(current)
-        self.setWindowTitle(f"Emby/Jellyfin 演员管理器 - {msg}")
+        self.setWindowTitle(f"Emby/Jellyfin演员管理器 - {msg}")
 
     def _on_fetch_finished(self, actors: list[ActorInfo], raw_count: int):
         if self._is_stale_session():
@@ -1281,7 +1281,7 @@ class EmbyActorManagerDialog(QDialog):
             return
         self.progress_bar.setMaximum(total)
         self.progress_bar.setValue(current)
-        self.setWindowTitle(f"Emby/Jellyfin 演员管理器 - {msg}")
+        self.setWindowTitle(f"Emby/Jellyfin演员管理器 - {msg}")
 
     def _on_sync_actor_done(self, actor_id: str, name: str, success: bool, msg: str):
         if self._is_stale_session():
