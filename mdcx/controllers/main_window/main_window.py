@@ -98,7 +98,15 @@ from mdcx.views.similar_window import SimilarDialog
 from ..cut_window import CutWindow
 from .handlers import show_netstatus
 from .health_check import run_startup_health_checks
-from .init import Init_QSystemTrayIcon, Init_Singal, Init_Ui, _adaptive_window_sizes, init_QTreeWidget
+from .init import (
+    DEFAULT_WINDOW_SIZE,
+    Init_QSystemTrayIcon,
+    Init_Singal,
+    Init_Ui,
+    _adaptive_window_sizes,
+    apply_ui_scale_option_limits,
+    init_QTreeWidget,
+)
 from .load_config import load_config
 from .save_config import save_config
 from .site_priority_dialog import apply_site_priority_theme
@@ -604,18 +612,51 @@ class MyMAinWindow(QMainWindow):
     def showEvent(self, a0):
         if not self._did_apply_initial_size:
             self._did_apply_initial_size = True
-            self._apply_adaptive_default_size()  # 首次显示时按屏幕自适应默认窗口大小
+            self._apply_adaptive_default_size()  # 首次显示时按屏幕自适应默认窗口大小并居中
+        # 拖到别的显示器 / 改分辨率后重算：放不下当前屏幕的高分屏缩放档位要重新隐藏
+        apply_ui_scale_option_limits(self.Ui.comboBox_ui_scale, self.screen())
         super().showEvent(a0)
 
     def _apply_adaptive_default_size(self) -> None:
-        """默认尺寸自适应（历史固定 1030x700 偏小，现按所在屏可用区缩放，大屏 1280x860）。"""
+        """默认尺寸按所在屏可用区自适应（min(1030, 可用宽×0.9) × min(700, 可用高×0.85)），并居中。
+
+        尺寸公式保持历史行为（用户在 80% 缩放下 1030×700 的默认初始宽高不能变），
+        改动只补上「居中」；界面缩放过大导致界面超出屏幕，由设置页高分屏缩放下拉
+        隐藏超限档位来防（见 init.UI_SCALE_OPTIONS）。
+        """
         screen = self.screen()
-        if screen is not None:
-            avail = screen.availableGeometry()
-            _, _, def_w, def_h = _adaptive_window_sizes(avail.width(), avail.height())
+        avail = screen.availableGeometry() if screen is not None else None
+        if avail is not None:
+            def_w, def_h = _adaptive_window_sizes(avail.width(), avail.height())[2:]
         else:
-            def_w, def_h = 1030, 700
+            def_w, def_h = DEFAULT_WINDOW_SIZE
         self.resize(def_w, def_h)
+        self._center_on_screen(avail)
+
+    def _center_on_screen(self, avail: QRect | None = None, *, allow_defer: bool = True) -> None:
+        """把窗口整体（含标题栏与边框）精确居中到所在屏可用区的正中央。
+
+        两个易错点（Qt 6 实测）：
+        1. 人眼看到的是 frameGeometry（含边框），而 geometry() 只是客户区——用客户区居中
+           会整体偏移半个标题栏/边框，故一律以 frameGeometry 为准；
+        2. QWidget.move() 收的是「边框左上角」（move(100,200) → frame 在 100,200、客户区
+           在 102,202），与 pos() 语义一致，故这里不需要再补偿边框厚度。
+        """
+        if avail is None:
+            screen = self.screen() or QApplication.primaryScreen()
+            if screen is None:
+                return
+            avail = screen.availableGeometry()
+        if allow_defer and self.windowHandle() is None:
+            # 原生窗口尚未创建，frameGeometry 退化为客户区（边框厚度不可知）：
+            # 推到下一事件循环（原生窗口已创建）再居中一次，否则会偏出半个标题栏。
+            QTimer.singleShot(0, lambda: self._center_on_screen(allow_defer=False))
+            return
+        frame = self.frameGeometry()
+        x = avail.x() + (avail.width() - frame.width()) // 2
+        y = avail.y() + (avail.height() - frame.height()) // 2
+        # 窗口比可用区还大时（极端小屏）至少让左上角留在屏内，标题栏不会跑到屏外抓不到
+        self.move(max(x, avail.x()), max(y, avail.y()))
 
     # 用于计算窗口各子页面初始设计尺寸，被 resizeEvent 用于按比例缩放
     _BASE_W = 1040
@@ -973,20 +1014,135 @@ class MyMAinWindow(QMainWindow):
             return
         width, height = self.width(), self.height()
         ui.widget_setting.setGeometry(0, 0, 210, height)
-        # 议题 #86：左侧状态区（正常模式/actor.json/MDCx 版本/点击检查最新版本）
-        # 与浮标数字图标原本固定设计 y 坐标，窗口拉高后滞留在上半区——贴 widget_setting
-        # 底部随窗口同步下移。label_show_version 设计 (0,489,210,201)：底部对齐的文本框
-        # 需保持底边与 widget_setting 底边贴齐；label_local_number 设计 (0,680,21,21)。
-        # 议题 #102：贴底预留 40px，避免状态区紧贴窗底"太靠下"，视觉上往上移一行。
-        # max(..., 489) 只是"不低于设计位置"的下限；窗口高度 < 730 时底边会超出窗口，
-        # 底对齐文字末行（配置文件名/版本号）被窗底裁掉——再用 min(..., height-h) 上限
-        # 保证 label 完整落在窗口内（最小高按屏幕自适应后仍可能低于 730，见 init.py）。
-        _STATUS_BOTTOM_PAD = 40
-        ui.label_show_version.move(0, min(max(height - 201 - _STATUS_BOTTOM_PAD, 489), height - 201))
-        ui.label_local_number.move(0, min(max(height - 21 - _STATUS_BOTTOM_PAD, 680), height - 21))
+        self._sync_dock_layout()  # 左侧导航坞 + 贴底状态区（议题 #86/#102/#181）
         ui.stackedWidget.setGeometry(210, 6, max(width - 210 - 2, 400), max(height - 8, 300))
         ui.progressBar_scrape.setGeometry(209, -1, max(width - 211, 100), 7)
         self._sync_page_layouts()  # 同步动态页面的内部尺寸
+
+    # ============ 左侧导航坞（widget_setting）自适应（议题 #86/#102/#181）============
+    # .ui 里侧栏是绝对定位：widget_buttons(0,50,210,390) 内 layoutWidget6(0,0,211,380)
+    # 由 QVBoxLayout(spacing 8) 竖排 8 个 40px 导航按钮（8*40+7*8=376），下方
+    # label_show_version(0,489,210,201) 是底对齐状态区（正常模式/配置文件名/版本号/
+    # 点击检查最新版本），label_local_number(0,680,21,21) 是左下角数字浮标。
+    # 设计态整列需 50+390+49+201+40(底距)=730 高；界面缩放很大时（用户 175% 反馈：
+    # 可用逻辑分辨率仅 1097x594，窗口高 ~500）贴底公式 min(..., height-201) 会把状态区
+    # 顶进导航区 → 状态文字压在「检测网络/使用说明」按钮上（叠字，见 _sync_dock_layout）。
+    _DOCK_NAV_BTNS = (
+        "pushButton_main",
+        "pushButton_log",
+        "pushButton_tool",
+        "pushButton_emby_manager_nav",
+        "pushButton_nfo_library",
+        "pushButton_setting",
+        "pushButton_net",
+        "pushButton_about",
+    )
+    _DOCK_NAV_BTN_H = 40  # 导航按钮设计高（.ui setMaximumHeight(…, 40)）
+    _DOCK_NAV_BTN_H_MIN = 36  # 压缩下限：border-width 9px×2 + 14px 字号仍能显示文字
+    _DOCK_NAV_SPACING = 8  # verticalLayout 设计间距
+    _DOCK_NAV_SPACING_MIN = 2  # 压缩下限（再小按钮会粘连）
+    _DOCK_NAV_H = 390  # widget_buttons 设计高（含 14px 底部余量）
+    _DOCK_STATUS_H = 201  # label_show_version 设计高
+    _DOCK_STATUS_H_MIN = 72  # 状态区压缩下限（13px 字号约 4 行，超出裁上方空行）
+    _DOCK_STATUS_GAP = 12  # 导航底与状态区顶的最小间距
+    _DOCK_STATUS_BOTTOM_PAD = 40  # 状态区贴底预留（议题 #102）
+    _DOCK_STATUS_Y_MIN = 489  # 状态区不低于设计 y
+    _DOCK_LOCAL_Y_MIN = 680  # label_local_number 不低于设计 y
+    _DOCK_LOCAL_H = 21  # label_local_number 设计高
+
+    def _dock_nav_buttons(self) -> list[QPushButton]:
+        """当前可见的导航按钮（配置可隐藏「演员管理/信息管理」两项）。"""
+        ui = self.Ui
+        return [b for b in (getattr(ui, name) for name in self._DOCK_NAV_BTNS) if not b.isHidden()]
+
+    def _layout_dock_nav(self, top: int, btn_h: int, spacing: int, container_h: int) -> None:
+        """按给定按钮高/间距重排导航按钮（每个按钮 min=max=btn_h，布局无自由度，
+        故内容高恒为 count*btn_h + (count-1)*spacing，调用方直接用公式值即可）。
+
+        按钮位置由 layoutWidget6 内的 QVBoxLayout 驱动（军规②：改完尺寸/间距必须
+        显式 invalidate+activate）。实测（最小脚本 + 离屏探针）：layoutWidget6 自身
+        高度不影响按钮落位——富余空间只堆在末尾（间距不被拉伸），且 SetMinimumSize
+        约束会用**缓存的** sizeHint 回写父几何，故此处不再 resize 它，只读不用写。
+        """
+        ui = self.Ui
+        for btn in self._dock_nav_buttons():
+            btn.setMinimumHeight(btn_h)
+            btn.setMaximumHeight(btn_h)
+        ui.verticalLayout.setSpacing(spacing)
+        ui.verticalLayout.invalidate()
+        ui.verticalLayout.activate()
+        ui.widget_buttons.setGeometry(0, top, ui.widget_buttons.width(), container_h)
+
+    def _sync_dock_layout(self) -> None:
+        """左侧导航坞 + 贴底状态区随窗口高度同步，窗口过矮时压缩而非重叠。
+
+        议题 #86：状态区原本固定设计 y 坐标，窗口拉高后滞留在上半区——改为贴 widget_setting
+        底边下移并预留 40px（#102）；min(..., height-h) 上限保证矮窗口下 label 完整可见。
+        议题 #181（用户 175% 界面缩放反馈截图）：上述公式只兜"底边不出窗"，没兜"顶边不撞
+        导航"——窗口高 < 730 时状态区顶边（height-201）会进入导航区（50..440），
+        「正常模式/actor.json/版本号」与「检测网络/使用说明」按钮叠字。
+        这里按"设计基准 + 剩余高度"重算（军规③：固定公式、双向幂等，窗口拉高即复原）：
+          ① 空间够（height ≥ 导航底 + 间距 + 状态设计高）：完全保持设计几何；
+          ② 不够：导航保持设计高，状态区吃掉剩余高度（底对齐裁上方空行，最小 72）；
+          ③ 仍不够：先压导航间距、再压按钮高（各自有下限），状态区仍不足 72 才隐藏；
+             极矮窗口（< 约 460）导航按设计尺寸排布、最下方按钮被窗底裁——此时
+             叠字比裁切更糟，不再继续压缩。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        height = self.height()
+        nav_top = ui.widget_buttons.y()  # 隐藏标题栏 50 / 显示标题栏 20（_windows_auto_adjust）
+        nav = self._dock_nav_buttons()
+        status = ui.label_show_version
+        local = ui.label_local_number
+        # ① 空间够：设计几何（议题 #86/#102 原公式，逐值不变）
+        status_y = min(
+            max(height - self._DOCK_STATUS_H - self._DOCK_STATUS_BOTTOM_PAD, self._DOCK_STATUS_Y_MIN),
+            height - self._DOCK_STATUS_H,
+        )
+        if status_y >= nav_top + self._DOCK_NAV_H + self._DOCK_STATUS_GAP:
+            self._layout_dock_nav(nav_top, self._DOCK_NAV_BTN_H, self._DOCK_NAV_SPACING, self._DOCK_NAV_H)
+            status.setGeometry(0, status_y, status.width(), self._DOCK_STATUS_H)
+            status.setVisible(True)
+            local.setVisible(True)
+            local.move(
+                0,
+                min(
+                    max(height - self._DOCK_LOCAL_H - self._DOCK_STATUS_BOTTOM_PAD, self._DOCK_LOCAL_Y_MIN),
+                    height - self._DOCK_LOCAL_H,
+                ),
+            )
+            return
+        # ② 窗口过矮：导航按设计高/间距排布，状态区吃剩余高度
+        avail = height - nav_top
+        btn_h, spacing = self._DOCK_NAV_BTN_H, self._DOCK_NAV_SPACING
+        count = len(nav)
+        content_h = count * btn_h + max(count - 1, 0) * spacing
+        status_h = min(self._DOCK_STATUS_H, max(0, avail - content_h - self._DOCK_STATUS_GAP))
+        if status_h < self._DOCK_STATUS_H_MIN and count:
+            # ③ 状态区放不下 72：先压间距、再压按钮高，腾出状态区所需高度
+            need = max(avail - self._DOCK_STATUS_H_MIN - self._DOCK_STATUS_GAP, 0)
+            if count > 1 and count * btn_h + (count - 1) * spacing > need:
+                spacing = max(self._DOCK_NAV_SPACING_MIN, min(spacing, (need - count * btn_h) // (count - 1)))
+            if count * btn_h + (count - 1) * spacing > need:
+                btn_h = max(self._DOCK_NAV_BTN_H_MIN, min(btn_h, (need - (count - 1) * spacing) // count))
+            content_h = count * btn_h + (count - 1) * spacing
+            status_h = min(self._DOCK_STATUS_H, max(0, avail - content_h - self._DOCK_STATUS_GAP))
+        hide_status = status_h < self._DOCK_STATUS_H_MIN
+        # 容器高度取 min(内容高, 可用高)：不够时最下方按钮被窗底裁（④，见 docstring）
+        self._layout_dock_nav(nav_top, btn_h, spacing, max(min(content_h, avail), 0))
+        if hide_status:
+            # ④ 极矮窗口：状态区让位，导航独占整列（叠字比裁切更糟）
+            status.setVisible(False)
+            local.setVisible(False)
+            return
+        status.setVisible(True)
+        local.setVisible(True)
+        status_y = nav_top + content_h + self._DOCK_STATUS_GAP
+        status.setGeometry(0, status_y, status.width(), status_h)
+        # 数字浮标贴状态区左下角，且不得超出窗底
+        local.move(0, min(status_y + status_h - self._DOCK_LOCAL_H, height - self._DOCK_LOCAL_H))
 
     # 议题 #154：「编辑 NFO」覆盖层内容区字段最小高度（设计值）
     _NFO_EDITOR_TEXT_MIN_H = 150

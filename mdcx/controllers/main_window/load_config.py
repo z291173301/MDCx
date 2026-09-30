@@ -34,6 +34,7 @@ from mdcx.models.flags import Flags
 from mdcx.signals import signal_qt
 
 from .bind_utils import set_checkboxes, set_radio_buttons
+from .init import ui_scale_index
 from .site_priority_dialog import apply_site_priority_theme, refresh_site_priority_ui
 
 if TYPE_CHECKING:
@@ -1116,23 +1117,8 @@ def load_config(self: "MyMAinWindow"):
                     )
             # 高分屏 PassThrough 缩放已默认启用（main.py），老配置中的 PASSTHROUGH 开关静默忽略
 
-        scale_factor: float = manager.config.ui_scale_factor
-        scale_index = 0
-        if scale_factor >= 1.95:
-            scale_index = 7
-        elif scale_factor >= 1.70:
-            scale_index = 6
-        elif scale_factor >= 1.45:
-            scale_index = 5
-        elif scale_factor >= 1.20:
-            scale_index = 4
-        elif scale_factor >= 0.98:
-            scale_index = 3
-        elif scale_factor >= 0.88:
-            scale_index = 2
-        elif scale_factor >= 0.78:
-            scale_index = 1
-        self.Ui.comboBox_ui_scale.setCurrentIndex(scale_index)
+        # 缩放档位与下拉项的对应关系集中在 init.UI_SCALE_OPTIONS（含 300% 档）
+        self.Ui.comboBox_ui_scale.setCurrentIndex(ui_scale_index(manager.config.ui_scale_factor))
 
         if Switch.HIDE_MENU in switch_on:
             self.Ui.checkBox_hide_menu_icon.setChecked(True)

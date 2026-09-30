@@ -899,26 +899,95 @@ def test_left_status_badges_follow_window_bottom(win, app):
 
 
 def test_left_status_badges_fully_visible_in_short_window(win, app):
-    """矮窗口（<730）下左侧状态区不得被窗底裁掉。
+    """矮窗口（<730）下左侧状态区不得被窗底裁掉，也不得压到导航按钮上。
 
     回归背景：贴底公式 max(height-241, 489) 的 489 下限只防"高于设计位置"，
     窗口高 <730 时 label 底边=690 超出窗口高度，底对齐文字的末行
     （config.json/MDCx 版本号）被父 widget 裁剪——用户反馈「config.json
     以下信息被截断」。修复后：label 底边必须 ≤ 窗口高度（完整落在窗口内）。
+    议题 #181：同一公式只兜底边不兜顶边，窗口更矮时状态区会顶进导航按钮区
+    （用户 175% 界面缩放截图：状态文字压在「检测网络/使用说明」上）。
+    修复后两种边界都要满足，且状态区高度按剩余空间自适应（不再恒为 201）。
     公式守卫应在任意高度成立（含生产最小高之下），故先放开动态最小尺寸。
     """
     _goto(win, app, "page_main")
     win.setMinimumSize(0, 0)
-    for h in (700, 680, 650, 550):
+    for h in (700, 680, 650, 550, 504, 450, 306):
         win.resize(1089, h)
         win.show()
         app.processEvents()
-        for label, label_h in (
-            (win.Ui.label_show_version, 201),
-            (win.Ui.label_local_number, 21),
-        ):
-            bottom = label.y() + label_h
+        nav_bottom = win.Ui.widget_buttons.y() + win.Ui.widget_buttons.height()
+        for label in (win.Ui.label_show_version, win.Ui.label_local_number):
+            if label.isHidden():
+                continue
+            bottom = label.y() + label.height()
             assert bottom <= win.height(), f"窗口高 {h} 时 {label.objectName()} 底边 {bottom} 超出窗口，末行被裁"
+            if label is win.Ui.label_show_version:
+                assert label.y() >= nav_bottom, (
+                    f"窗口高 {h} 时状态区顶边 {label.y()} 压进导航区（导航底 {nav_bottom}），文字与按钮叠字"
+                )
+
+
+def test_left_dock_adapts_to_large_ui_scale(win, app):
+    """议题 #181：界面缩放很大（用户 175% 反馈）时导航坞必须压缩，不得与状态区叠字。
+
+    根因：侧栏是绝对定位几何——导航固定占 50..440（8 个 40px 按钮 + 8px 间距），
+    状态区 label_show_version 高 201 且贴底。1920x1080@175% 的可用逻辑分辨率只有
+    1097x594，默认窗口高 ~500 < 730，贴底公式把状态区顶到 y≈303，压在最后两个
+    导航按钮上（截图：正常模式/actor.json 与 检测网络/使用说明 叠在一起）。
+    本测试锁定：①任意高度下导航区与状态区不相交；②状态区至少留 72（4 行 13px 文字）；
+    ③窗口拉高后逐值复原设计几何（双向幂等，军规③）；④隐藏导航项后按可见数排布。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    status = ui.label_show_version
+
+    def nav_bottom() -> int:
+        return ui.widget_buttons.y() + ui.widget_buttons.height()
+
+    def visible_nav() -> list:
+        return list(win._dock_nav_buttons())
+
+    # ① 175%（默认窗口 741x504）与 250%（450x306）下不重叠、状态区不小于 72
+    for w, h in ((741, 504), (450, 306), (1089, 620)):
+        win.resize(w, h)
+        win.show()
+        app.processEvents()
+        if status.isHidden():  # 极矮窗口：状态区让位给导航（叠字比裁切更糟）
+            continue
+        assert status.height() >= win._DOCK_STATUS_H_MIN, (
+            f"{w}x{h}: 状态区高 {status.height()} < {win._DOCK_STATUS_H_MIN}"
+        )
+        assert status.y() >= nav_bottom(), f"{w}x{h}: 状态区顶边 {status.y()} 压进导航区（导航底 {nav_bottom()}）"
+        assert status.y() + status.height() <= win.height(), f"{w}x{h}: 状态区底边超出窗口"
+        for btn in visible_nav():
+            assert btn.height() >= win._DOCK_NAV_BTN_H_MIN, f"{w}x{h}: 导航按钮被压到 {btn.height()}"
+            assert btn.height() <= win._DOCK_NAV_BTN_H, f"{w}x{h}: 导航按钮被拉高到 {btn.height()}"
+
+    # ③ 窗口拉高后逐值复原设计几何（1920x1170：状态区 y=929/高 201，导航 390）
+    win.resize(1920, 1170)
+    app.processEvents()
+    nav_top = ui.widget_buttons.y()
+    assert status.y() == 1170 - 201 - 40 and status.height() == 201
+    assert ui.widget_buttons.height() == win._DOCK_NAV_H
+    assert ui.verticalLayout.spacing() == 8
+    btns = visible_nav()
+    for index, btn in enumerate(btns):
+        assert btn.height() == 40 and btn.maximumHeight() == 40
+        assert btn.y() == index * 48, f"设计态第 {index} 个导航按钮 y={btn.y()}，期望 {index * 48}"
+    assert btns[-1].y() + btns[-1].height() <= nav_top + win._DOCK_NAV_H, "设计态按钮越出导航容器"
+    assert ui.label_local_number.y() == 1109
+
+    # ④ 隐藏「演员管理/信息管理」两项（配置项）后按可见数量排布，仍不重叠
+    ui.pushButton_emby_manager_nav.setVisible(False)
+    ui.pushButton_nfo_library.setVisible(False)
+    win.resize(741, 504)
+    app.processEvents()
+    btns = visible_nav()
+    assert len(btns) == 6
+    assert [b.y() for b in btns] == [0, 48, 96, 144, 192, 240], "隐藏导航项后间距未按设计重排"
+    assert status.y() >= nav_bottom()
 
 
 def test_adaptive_window_sizes_matrix():
@@ -929,10 +998,40 @@ def test_adaptive_window_sizes_matrix():
     assert _adaptive_window_sizes(1920, 1040) == (850, 650, 1030, 700)
     # 1080p 125% 缩放（逻辑 1536x864）：92ef2437 的原始诉求——不锁死 700，仍可缩到 648
     assert _adaptive_window_sizes(1536, 864) == (850, 648, 1030, 700)
-    # 小屏（1024x600 可用）：默认/最小均按比例收，首启不占满
+    # 小屏（1024x600 可用）：宽高各自独立收窄，不占满屏幕
     assert _adaptive_window_sizes(1024, 600) == (614, 450, 921, 510)
-    # 超小屏下限钳制：不得低于 400x300
+    # 超小屏下限钳制：不得低于 400x300（此时最小尺寸兜底）
     assert _adaptive_window_sizes(500, 350) == (400, 300, 450, 300)
+
+
+def test_adaptive_window_sizes_never_exceed_available_area():
+    """任意分辨率 / 任意界面缩放：默认尺寸不超出屏幕可用区，且不低于最小尺寸。
+
+    默认尺寸公式是历史行为（宽高各自独立收缩，80% 缩放下必须仍是 1030×700），
+    界面缩放档位超屏由设置页「高分屏缩放」下拉隐藏该档位来防，此处只保证
+    窗口本身完整落在屏幕内。
+    """
+    from mdcx.controllers.main_window.init import _adaptive_window_sizes
+
+    # 覆盖 4K/1080p/720p/竖屏与「界面缩放很大（可用逻辑区被压缩）」的典型档位
+    for avail_w, avail_h in (
+        (3840, 2000),
+        (2560, 1400),
+        (1920, 1040),
+        (1536, 864),
+        (1280, 1024),
+        (1280, 720),
+        (1024, 600),
+        (960, 540),
+        (1097, 594),  # 1080p @ 175% 缩放
+        (960, 520),  # 1080p @ 200% 缩放
+        (640, 360),  # 1080p @ 300% 缩放
+        (800, 600),
+        (500, 350),
+    ):
+        min_w, min_h, def_w, def_h = _adaptive_window_sizes(avail_w, avail_h)
+        assert def_w <= avail_w and def_h <= avail_h, f"默认尺寸 {def_w}x{def_h} 超出屏幕可用区 {avail_w}x{avail_h}"
+        assert def_w >= min_w and def_h >= min_h, f"默认尺寸 {def_w}x{def_h} 低于最小尺寸 {min_w}x{min_h}"
 
 
 def test_main_window_applies_adaptive_sizes(win, app):
@@ -956,6 +1055,33 @@ def test_main_window_applies_adaptive_sizes(win, app):
     assert (win.width(), win.height()) == (def_w, def_h), (
         f"首次显示未按屏自适应: {win.width()}x{win.height()} != {def_w}x{def_h}"
     )
+    # 首次显示必须同时居中（任何分辨率/缩放率下都应在可用区正中央）
+    frame = win.frameGeometry()
+    assert abs(frame.center().x() - avail.center().x()) <= 1 and abs(frame.center().y() - avail.center().y()) <= 1, (
+        f"首次显示未居中: frame={frame} avail={avail}"
+    )
+
+
+def test_main_window_recenter_after_manual_move(win, app):
+    """_center_on_screen 与用户手动摆放无关：任意位置调用都能拉回可用区正中。"""
+    from PyQt6.QtWidgets import QApplication
+
+    screen = QApplication.primaryScreen()
+    assert screen is not None, "前置失败：offscreen 平台应有虚拟屏"
+    avail = screen.availableGeometry()
+    win.show()
+    app.processEvents()
+    win.move(avail.x() + 7, avail.y() + 13)
+    win._center_on_screen()
+    frame = win.frameGeometry()
+    # 奇数像素余量无法整除，±1px 属整数取整的正常误差
+    assert abs(frame.center().x() - avail.center().x()) <= 1 and abs(frame.center().y() - avail.center().y()) <= 1, (
+        f"重新居中失败: frame={frame} avail={avail}"
+    )
+    # 窗口比可用区还大时（超小屏）至少保证左上角留在屏内，标题栏不会跑到屏外
+    win.resize(avail.width() + 400, avail.height() + 300)
+    win._center_on_screen()
+    assert win.frameGeometry().topLeft() == avail.topLeft(), "超尺寸时应贴可用区左上角"
 
 
 # ============ 议题 #102：四项 UI 交互模拟验证 ============

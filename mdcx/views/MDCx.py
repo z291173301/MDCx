@@ -11485,6 +11485,7 @@ class Ui_MDCx(object):
         self.comboBox_ui_scale.addItem("")
         self.comboBox_ui_scale.addItem("")
         self.comboBox_ui_scale.addItem("")
+        self.comboBox_ui_scale.addItem("")
         self.horizontalLayout_dock_2.addWidget(self.comboBox_ui_scale)
         self.label_427 = QtWidgets.QLabel(parent=self.gridLayoutWidget_20)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
@@ -13976,7 +13977,9 @@ class Ui_MDCx(object):
         self.label_246.setText(_translate("MDCx", "界面外观："))
         self.label_420.setText(_translate("MDCx", "选择对话框："))
         self.label_426.setText(_translate("MDCx", "高分屏缩放："))
-        self.comboBox_ui_scale.setToolTip(_translate("MDCx", "界面缩放比例，保存重启软件生效"))
+        self.comboBox_ui_scale.setToolTip(
+            _translate("MDCx", "界面缩放比例，保存重启软件生效；放不下当前屏幕的档位会自动隐藏")
+        )
         self.comboBox_ui_scale.setItemText(0, _translate("MDCx", "跟随系统"))
         self.comboBox_ui_scale.setItemText(1, _translate("MDCx", "80%"))
         self.comboBox_ui_scale.setItemText(2, _translate("MDCx", "90%"))
@@ -13985,6 +13988,7 @@ class Ui_MDCx(object):
         self.comboBox_ui_scale.setItemText(5, _translate("MDCx", "150%"))
         self.comboBox_ui_scale.setItemText(6, _translate("MDCx", "175%"))
         self.comboBox_ui_scale.setItemText(7, _translate("MDCx", "200%"))
+        self.comboBox_ui_scale.setItemText(8, _translate("MDCx", "300%"))
         self.label_427.setText(_translate("MDCx", "保存重启软件生效，可能会有点模糊"))
         self.label_nav_hide.setText(_translate("MDCx", "隐藏入口："))
         self.checkBox_hide_actor_nav.setToolTip(
@@ -14077,7 +14081,7 @@ class Ui_MDCx(object):
                 "\n"
                 "<h4>七、界面与高分屏</h4>\n"
                 "<ul>\n"
-                "<li><b>界面缩放</b>：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% 共 8 档，保存重启软件生效。</li>\n"
+                "<li><b>界面缩放</b>：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% / 300% 共 9 档，保存重启软件生效；会把界面撑出屏幕的档位会被自动隐藏。</li>\n"
                 "<li><b>非整数缩放</b>：PassThrough 高 DPI 非整数缩放已默认启用，无需手动开启，Windows 125%/150% 等缩放档位下界面不再模糊。</li>\n"
                 "<li><b>暗色模式</b>：内置暗色主题切换。</li>\n"
                 "</ul>\n"

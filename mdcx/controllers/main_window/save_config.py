@@ -39,6 +39,7 @@ from mdcx.signals import signal_qt
 from mdcx.tools.actress_db import ActressDB
 
 from .bind_utils import get_checkbox, get_checkboxes, get_radio_buttons
+from .init import ui_scale_value
 from .site_priority_dialog import refresh_site_priority_ui
 
 if TYPE_CHECKING:
@@ -772,9 +773,7 @@ def save_config(self: "MyMAinWindow"):
     manager.config.localdisk_path = self.Ui.lineEdit_localdisk_path.text()  # 本地磁盘路径
     manager.config.window_title = "hide" if self.Ui.checkBox_hide_window_title.isChecked() else "show"
 
-    scale_index = self.Ui.comboBox_ui_scale.currentIndex()
-    scale_values = {0: 0.0, 1: 0.8, 2: 0.9, 3: 1.0, 4: 1.25, 5: 1.5, 6: 1.75, 7: 2.0}
-    manager.config.ui_scale_factor = scale_values.get(scale_index, 0.0)
+    manager.config.ui_scale_factor = ui_scale_value(self.Ui.comboBox_ui_scale.currentIndex())
 
     # endregion
     manager.config.auto_link = get_checkbox(self.Ui.checkBox_create_link)  # 刮削中自动创建软链接

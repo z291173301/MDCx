@@ -4,7 +4,7 @@ import webbrowser
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QSize, Qt
-from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap, QScreen
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -122,6 +122,69 @@ def refresh_network_check_badges(self: "MyMAinWindow") -> None:
             combo.setItemData(i, _site_combo_item_tooltip(value, base), Qt.ItemDataRole.ToolTipRole)
 
 
+# 首启默认窗口尺寸（大屏保持此值；窗口实际尺寸另按可用区 90%/85% 收窄，见
+# _adaptive_window_sizes）。同时是「界面缩放档位是否超屏」的判定基准之一。
+DEFAULT_WINDOW_SIZE = (1030, 700)
+
+# 高分屏缩放档位：与 MDCx.ui 中 comboBox_ui_scale 的下拉项逐条对应（下标即索引），
+# 0.0 = 跟随系统，其余为写入 QT_SCALE_FACTOR 的实际倍率（main.py 启动时应用，
+# 保存后重启生效）。改这里必须同步改 .ui 的下拉项（tests/test_ui_scale_options.py 把关）。
+UI_SCALE_OPTIONS: tuple[float, ...] = (0.0, 0.8, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0)
+# 缩放档位的可用性下限：低于此逻辑尺寸时界面必然撑破屏幕（Qt 的 setMinimumSize
+# 也拦不住），该档位直接从下拉里隐藏。数值与 _adaptive_window_sizes 的 850/650 同源。
+UI_SCALE_MIN_AVAILABLE_SIZE = (850, 650)
+
+
+def ui_scale_index(value: float) -> int:
+    """配置里的缩放值 → comboBox_ui_scale 下拉索引（取不超过该值的最大档位）。
+
+    档位值取不到精确匹配时向下取档（如手改的 1.9 → 175%），再没有就是「跟随系统」。
+    """
+    if value in UI_SCALE_OPTIONS:
+        return UI_SCALE_OPTIONS.index(value)
+    lower = [i for i, option in enumerate(UI_SCALE_OPTIONS) if 0 < option <= value]
+    return max(lower) if lower else 0
+
+
+def ui_scale_value(index: int) -> float:
+    """下拉索引 → 缩放值；越界一律回落到「跟随系统」（0.0）。"""
+    if 0 <= index < len(UI_SCALE_OPTIONS):
+        return UI_SCALE_OPTIONS[index]
+    return 0.0
+
+
+def ui_scale_hidden_flags(avail_w: int, avail_h: int, dpr: float) -> list[bool]:
+    """逐档判定高分屏缩放是否要隐藏（True = 隐藏），依据是当前屏幕可用区。
+
+    判定式：该档位下窗口的最小逻辑尺寸（850×650）必须放得进屏幕可用区——放不下就
+    说明界面被撑出屏幕（用户 200% 反馈截图：设置页内容与左下角状态区互相挤压）。
+    avail_* 是 Qt 报告的逻辑尺寸（已被系统缩放与 QT_SCALE_FACTOR 除过），乘回 dpr
+    得物理像素再与「档位 × 最小尺寸」比较，故与当前实际缩放无关：80% 的机器上照样
+    能算出 200%/300% 会不会超屏。dpr ≤ 0（异常值）时按 1.0 兜底。
+    """
+    min_w, min_h = UI_SCALE_MIN_AVAILABLE_SIZE
+    ratio = dpr if dpr > 0 else 1.0
+    phys_w, phys_h = avail_w * ratio, avail_h * ratio
+    # 隐藏 = 真实档位且「档位 × 最小窗口尺寸」有一边超出屏幕可用区（0.0 跟随系统不隐藏）
+    return [option > 0 and (option * min_w > phys_w or option * min_h > phys_h) for option in UI_SCALE_OPTIONS]
+
+
+def apply_ui_scale_option_limits(combo: QComboBox, screen: QScreen | None) -> None:
+    """把当前屏幕放不下的高分屏缩放档位从下拉里隐藏（防误选后界面撑破屏幕）。
+
+    QComboBox 本身没有隐藏单项的接口，_setup_combo_boxes 已把所有下拉的 view 换成
+    QListView，用 setRowHidden 隐藏对应行即可（跟随系统永远保留）。
+    """
+    if screen is None:
+        return
+    view = combo.view()
+    if not isinstance(view, QListView):
+        return
+    avail = screen.availableGeometry()
+    for index, hidden in enumerate(ui_scale_hidden_flags(avail.width(), avail.height(), screen.devicePixelRatio())):
+        view.setRowHidden(index, hidden)
+
+
 def _adaptive_window_sizes(avail_w: int, avail_h: int) -> tuple[int, int, int, int]:
     """按屏幕可用区域计算窗口最小尺寸与默认尺寸，返回 (min_w, min_h, def_w, def_h)。
 
@@ -130,7 +193,9 @@ def _adaptive_window_sizes(avail_w: int, avail_h: int) -> tuple[int, int, int, i
       （1920x1080 → 逻辑 1536x864）下仍可缩小到 648，不回到锁死 700 的老问题。
     - 最小宽 min(850, 可用宽×0.6)：850 为历史值（92ef2437），小屏按比例收窄。
     - 默认尺寸 min(1030, 可用宽×0.9) × min(700, 可用高×0.85)：1030×700 为
-      历史实际默认（showEvent），大屏保持；小屏/高缩放首启不被占满。
+      历史实际默认（showEvent），大屏保持；小屏/高缩放首启不被占满。宽高各自
+      独立收缩是历史行为（用户 80% 缩放下的默认初始宽高不能变），界面缩放档位
+      超屏由「高分屏缩放」下拉隐藏该档位来防（见 UI_SCALE_OPTIONS）。
       默认尺寸只允许在 showEvent 首次显示时应用——Windows 在 Init_Ui 阶段
       （窗口未展示）resize 导致单测收尾崩溃（诊断 PR #185 实证）。
     """
@@ -253,6 +318,8 @@ def Init_Ui(self: "MyMAinWindow"):
     # 连接选择事件
     self.Ui.comboBox_no_proxy_sites.currentTextChanged.connect(self._add_no_proxy_site)
     _setup_combo_boxes(self)
+    # 高分屏缩放：放不下当前屏幕的档位直接从下拉隐藏（_setup_combo_boxes 换过 view，必须在其后）
+    apply_ui_scale_option_limits(self.Ui.comboBox_ui_scale, QApplication.primaryScreen())
     self.Ui.textBrowser_log_main.document().setMaximumBlockCount(6000)
     self.Ui.textBrowser_log_main_2.document().setMaximumBlockCount(3000)
     self.Ui.textBrowser_log_main.viewport().installEventFilter(self)  # 注册事件用于识别点击控件时隐藏失败列表面板
