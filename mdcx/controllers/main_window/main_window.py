@@ -214,6 +214,9 @@ class MyMAinWindow(QMainWindow):
         self._naming_design: dict | None = None  # 命名页模板预览区：首次登记的设计几何基准
         self._naming_resyncing = False  # 命名页模板预览区：重算中标志（防 label resize 递归触发）
         self._naming_last_width = -1  # 命名页说明文字上次同步所用的宽度
+        # 渲染扫描重入门闩：lbl.render() 会派发 Resize 重入 eventFilter 而 eventFilter
+        # 又同步调 _naming_label_painted_height，不设闩会无限递归爆栈（见其 docstring）。
+        self._naming_scanning = False
         self._naming_fix_tries = 0  # 同一宽度下的重算次数上限，防止布局压不下时反复排队
         self._fanyi_design: dict | None = None  # 翻译页两组：首次登记的设计几何基准
         self._fanyi_resyncing = False  # 翻译页两组：重算中标志（防标签 resize 递归触发）
@@ -638,7 +641,10 @@ class MyMAinWindow(QMainWindow):
         # 而宽度没再变过就再也不会触发 Resize 分支。故高度也要校验（重算次数封顶，
         # 避免布局真压不下时无限排队）。
         if a0 is getattr(self.Ui, "label_66", None) and a1.type() == QEvent.Type.Resize:
-            if not self._naming_resyncing:
+            # _naming_scanning 是 _naming_label_painted_height 的重入门闩：本分支会同步
+            # 调它，而它内部的 lbl.render() 又会派发 Resize 打回这里。不加这道判断时两者
+            # 互为递归直到栈溢出（0xC00000FD，无 Python 崩溃日志）。详见该方法 docstring。
+            if not self._naming_resyncing and not self._naming_scanning:
                 need = self._naming_label_painted_height(a0)
                 if a0.width() != self._naming_last_width:
                     self._naming_fix_tries = 0
@@ -2490,8 +2496,7 @@ class MyMAinWindow(QMainWindow):
         if btn.x() + btn.width() > limit:
             btn.move(limit - btn.width(), btn.y())
 
-    @staticmethod
-    def _naming_label_painted_height(lbl) -> int:
+    def _naming_label_painted_height(self, lbl) -> int:
         """标签实际绘制出来的高度（px）。
 
         QLabel 的 sizeHint()/heightForWidth() 对「整段 <br> 硬换行 + 长段落自动折行」
@@ -2501,7 +2506,31 @@ class MyMAinWindow(QMainWindow):
         件名」「示例字段」下方就会留出空白。
         所以改成把标签渲染到一张白底 pixmap 上，从底部逐行回扫第一个有墨迹的行——
         那就是文字真正的下沿。
+
+        门闩（必须）：本方法内部的 `lbl.render(pixmap)` 会向 label_66 派发
+        QEvent.Resize，而 __init__ 在 label_66 上装了本窗口做 eventFilter，
+        eventFilter 的 label_66 Resize 分支又会同步调用本方法 —— 两者互为递归，
+        没有任何标志拦得住，无限递归直接栈溢出（Windows 0xC00000FD）把进程打死，
+        而且**不是 Python 异常，crash 目录里连日志都不会留**（只有 sys.excepthook
+        写的 _py.log）。faulthandler 实测栈（探针 crashstress.py / so_repro.py）：
+            main_window.py:2509 in _naming_label_painted_height
+            main_window.py:642  in eventFilter
+            main_window.py:2509 in _naming_label_painted_height
+            main_window.py:642  in eventFilter            ← 无限重复直到爆栈
+        表现给用户就是「点软件设置-翻译/NFO 有几率直接退出」。故重入时直接返回标签
+        自身高度（中性值，不会误触发外层的重排判断），由外层那次调用负责收尾。
         """
+        if self._naming_scanning:
+            return lbl.height()
+        self._naming_scanning = True
+        try:
+            return self._measure_painted_height(lbl)
+        finally:
+            self._naming_scanning = False
+
+    @staticmethod
+    def _measure_painted_height(lbl) -> int:
+        """_naming_label_painted_height 的实际测量体（供门闩版调用，不要直接调）。"""
         width = max(lbl.width(), 1)
         probe_h = min(max(lbl.sizeHint().height(), 200) + 200, 2000)
         pixmap = QPixmap(width, probe_h)
