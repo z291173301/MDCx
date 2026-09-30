@@ -986,10 +986,12 @@ class Ui_MDCx(object):
         self.label_actor_db_sync_offset.setObjectName("label_actor_db_sync_offset")
         self.spinBox_actor_db_sync_offset = QtWidgets.QSpinBox(parent=self.groupBox_actor_db_maintenance)
         self.spinBox_actor_db_sync_offset.setGeometry(QtCore.QRect(100, 444, 90, 28))
+        self.spinBox_actor_db_sync_offset.setStyleSheet(
+            "QSpinBox::up-button { margin-right: 5px; }\nQSpinBox::down-button { margin-right: 5px; }"
+        )
         self.spinBox_actor_db_sync_offset.setMinimum(0)
         self.spinBox_actor_db_sync_offset.setMaximum(999999)
         self.spinBox_actor_db_sync_offset.setProperty("value", 0)
-        self.spinBox_actor_db_sync_offset.setStyleSheet("QSpinBox::up-button { margin-right: 5px; }\nQSpinBox::down-button { margin-right: 5px; }")
         self.spinBox_actor_db_sync_offset.setObjectName("spinBox_actor_db_sync_offset")
         self.label_actor_db_sync_limit = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_sync_limit.setGeometry(QtCore.QRect(210, 444, 56, 28))
@@ -997,11 +999,13 @@ class Ui_MDCx(object):
         self.label_actor_db_sync_limit.setObjectName("label_actor_db_sync_limit")
         self.spinBox_actor_db_sync_limit = QtWidgets.QSpinBox(parent=self.groupBox_actor_db_maintenance)
         self.spinBox_actor_db_sync_limit.setGeometry(QtCore.QRect(270, 444, 110, 28))
+        self.spinBox_actor_db_sync_limit.setStyleSheet(
+            "QSpinBox::up-button { margin-right: 5px; }\nQSpinBox::down-button { margin-right: 5px; }"
+        )
         self.spinBox_actor_db_sync_limit.setMinimum(0)
         self.spinBox_actor_db_sync_limit.setMaximum(999999)
         self.spinBox_actor_db_sync_limit.setSingleStep(100)
         self.spinBox_actor_db_sync_limit.setProperty("value", 5000)
-        self.spinBox_actor_db_sync_limit.setStyleSheet("QSpinBox::up-button { margin-right: 5px; }\nQSpinBox::down-button { margin-right: 5px; }")
         self.spinBox_actor_db_sync_limit.setObjectName("spinBox_actor_db_sync_limit")
         self.label_actor_db_sync_slice_hint = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
         self.label_actor_db_sync_slice_hint.setGeometry(QtCore.QRect(400, 444, 261, 28))
@@ -4870,7 +4874,7 @@ class Ui_MDCx(object):
         self.groupBox_51.setStyleSheet('font:"Courier New";')
         self.groupBox_51.setObjectName("groupBox_51")
         self.label_87 = QtWidgets.QLabel(parent=self.groupBox_51)
-        self.label_87.setGeometry(QtCore.QRect(60, 70, 641, 71))
+        self.label_87.setGeometry(QtCore.QRect(60, 70, 609, 71))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -5642,7 +5646,7 @@ class Ui_MDCx(object):
         self.label_285.setWordWrap(True)
         self.label_285.setObjectName("label_285")
         self.lineEdit_youma_style = QtWidgets.QLineEdit(parent=self.groupBox_46)
-        self.lineEdit_youma_style.setGeometry(QtCore.QRect(157, 312, 450, 30))
+        self.lineEdit_youma_style.setGeometry(QtCore.QRect(157, 312, 521, 30))
         self.lineEdit_youma_style.setMinimumSize(QtCore.QSize(450, 30))
         self.lineEdit_youma_style.setStyleSheet(
             ' font: "Courier New";\n'
@@ -5713,7 +5717,7 @@ class Ui_MDCx(object):
         )
         self.label_282.setObjectName("label_282")
         self.lineEdit_wuma_style = QtWidgets.QLineEdit(parent=self.groupBox_46)
-        self.lineEdit_wuma_style.setGeometry(QtCore.QRect(157, 220, 450, 30))
+        self.lineEdit_wuma_style.setGeometry(QtCore.QRect(157, 220, 521, 30))
         self.lineEdit_wuma_style.setMinimumSize(QtCore.QSize(450, 30))
         self.lineEdit_wuma_style.setStyleSheet(
             ' font: "Courier New";\n'
@@ -5738,7 +5742,7 @@ class Ui_MDCx(object):
         )
         self.label_175.setObjectName("label_175")
         self.lineEdit_umr_style = QtWidgets.QLineEdit(parent=self.groupBox_46)
-        self.lineEdit_umr_style.setGeometry(QtCore.QRect(157, 36, 450, 30))
+        self.lineEdit_umr_style.setGeometry(QtCore.QRect(157, 36, 521, 30))
         self.lineEdit_umr_style.setMinimumSize(QtCore.QSize(450, 30))
         self.lineEdit_umr_style.setStyleSheet(
             ' font: "Courier New";\n'
@@ -5838,7 +5842,7 @@ class Ui_MDCx(object):
         )
         self.label_174.setObjectName("label_174")
         self.lineEdit_leak_style = QtWidgets.QLineEdit(parent=self.groupBox_46)
-        self.lineEdit_leak_style.setGeometry(QtCore.QRect(157, 128, 450, 30))
+        self.lineEdit_leak_style.setGeometry(QtCore.QRect(157, 128, 521, 30))
         self.lineEdit_leak_style.setMinimumSize(QtCore.QSize(450, 30))
         self.lineEdit_leak_style.setStyleSheet(
             ' font: "Courier New";\n'
@@ -12573,9 +12577,7 @@ class Ui_MDCx(object):
         self.pushButton_move_mp4.setText(_translate("MDCx", "开始移动"))
         self.label_41.setText(_translate("MDCx", "刮削排除目录："))
         self.label_8.setText(
-            _translate(
-                "MDCx", "移动「待刮削视频目录」中的所有视频和字幕到「待刮削视频目录」下的「Movie_moved」目录"
-            )
+            _translate("MDCx", "移动「待刮削视频目录」中的所有视频和字幕到「待刮削视频目录」下的「Movie_moved」目录")
         )
         self.groupBox_21.setTitle(
             _translate("MDCx", "软链接助手（将挂载的网盘文件目录及子目录中的所有视频一键创建软链接到本地）")
@@ -13104,7 +13106,7 @@ class Ui_MDCx(object):
         self.label_87.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>复制预告片到视频下的backdrops目录，当在Emby浏览该番号时，预告片会作为背景视频播放。开启主题视频：Emby设置-显示-主题视频-开（PC 端可以打开，手机端不建议打开，会变成全屏播放...）</p>",
+                "<p style='line-height:20px'>复制预告片到视频的backdrops目录，当在Emby浏览该番号时，预告片会作为背景视频播放，需要开启主题视频：Emby设置-显示-主题视频-开，电脑端可以打开，手机端不建议打开，会变成全屏播放</p>",
             )
         )
         self.checkBox_theme_videos.setText(_translate("MDCx", "使用预告片作为主题视频"))
@@ -13193,7 +13195,7 @@ class Ui_MDCx(object):
             _translate("MDCx", "指在nfo文件中的标题(title)格式在Emby中作为视频标题显示，支持完整Jinja2语法")
         )
         self.label_67.setText(_translate("MDCx", "视频标题名："))
-        self.label_61.setText(_translate("MDCx", "指本地视频文件的文件名格式，命名字段同上，推荐 {{ number }}"))
+        self.label_61.setText(_translate("MDCx", "指本地视频文件的文件名格式，命名字段同上，推荐 {{number}}"))
         self.label_239.setText(_translate("MDCx", "视频文件命名时，可插入防屏蔽字符到文件名的每个字符之间"))
         self.label_name_template_preview.setText(_translate("MDCx", "模板预览："))
         self.plainTextEdit_name_template_preview.setPlaceholderText(
@@ -13229,8 +13231,7 @@ class Ui_MDCx(object):
         self.label_169.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>指目录名最长字符数（建议不要超过 100，太长时 Windows\n"
-                "                          可能报错）<br>\n"
+                "<p style='line-height:20px'>指目录名最长字符数，建议设置不要超过100个字符，太长时Windows可能会报错<br>\n"
                 "                          当超过最大长度时，将通过截短标题字段内容来缩短长度<br>\n"
                 "                          系列等目录级字段按固定预算截断，同系列影片始终归到同一文件夹</p>",
             )
@@ -13239,8 +13240,7 @@ class Ui_MDCx(object):
         self.label_172.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>指文件名最长字符数（建议不要超过 100，太长时 Windows\n"
-                "                          可能报错）<br>\n"
+                "<p style='line-height:20px'>指文件名最长字符数，建议设置不要超过100个字符，太长时Windows可能会报错<br>\n"
                 "                          当超过最大长度时，将通过截短标题字段内容来缩短长度</p>",
             )
         )
@@ -13325,7 +13325,9 @@ class Ui_MDCx(object):
         self.label_100.setText(_translate("MDCx", "当演员名不存在时，在使用演员命名字段命名时，使用以上字符替代"))
         self.label_320.setText(_translate("MDCx", "标题："))
         self.label_173.setText(_translate("MDCx", "未知演员："))
-        self.checkBox_actor_fc2_seller.setText(_translate("MDCx", "个人影片没有演员姓名时，将使用影片卖家名字作为影片演员名字，建议勾选"))
+        self.checkBox_actor_fc2_seller.setText(
+            _translate("MDCx", "个人影片没有演员姓名时，将使用影片卖家名字作为影片演员名字，建议勾选")
+        )
         self.label_actor_fc2.setText(_translate("MDCx", "FC2："))
         self.groupBox_65.setTitle(_translate("MDCx", "画质命名规则"))
         self.radioButton_definition_height.setText(_translate("MDCx", "720P、1080P、4K、8K"))
@@ -13370,8 +13372,7 @@ class Ui_MDCx(object):
         self.label_81.setText(_translate("MDCx", "翻译引擎："))
         self.label_baidu_hint.setText(
             _translate(
-                "MDCx",
-                "DeepL与DeepLX为独立选项，填写DeepL API/DeepLX URL/百度API凭据后才会生效，未填写时将会自动跳过",
+                "MDCx", "DeepL与DeepLX为独立选项，填写DeepL API/DeepLX URL/百度API凭据后才会生效，未填写时将会自动跳过"
             )
         )
         self.label_baidu_appid.setText(_translate("MDCx", "百度APP ID："))
@@ -13417,7 +13418,9 @@ class Ui_MDCx(object):
         self.label_244.setText(_translate("MDCx", "翻译方式："))
         self.groupBox_83.setTitle(_translate("MDCx", "简介"))
         self.label_133.setText(_translate("MDCx", "简介语言："))
-        self.label_176.setText(_translate("MDCx", "当字段语言选择中文，但只刮削到日语时，可以使用翻译引擎翻译为简体中文"))
+        self.label_176.setText(
+            _translate("MDCx", "当字段语言选择中文，但只刮削到日语时，可以使用翻译引擎翻译为简体中文")
+        )
         self.label_166.setText(_translate("MDCx", "翻译方式："))
         self.radioButton_outline_zh_cn.setText(_translate("MDCx", "中文简体"))
         self.radioButton_outline_zh_tw.setText(_translate("MDCx", "中文繁体"))
@@ -13901,7 +13904,10 @@ class Ui_MDCx(object):
         )
         self.label_400.setText(_translate("MDCx", "自定义网址："))
         self.label_110.setText(
-            _translate("MDCx", "<html><head/><body><p>自定义指定网站的网址，刮削时将使用自定义网址代替网站默认网址</p></body></html>")
+            _translate(
+                "MDCx",
+                "<html><head/><body><p>自定义指定网站的网址，刮削时将使用自定义网址代替网站默认网址</p></body></html>",
+            )
         )
         self.groupBox_14.setTitle(_translate("MDCx", "API Token"))
         self.label_355.setText(_translate("MDCx", "ThePornDB："))
