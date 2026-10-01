@@ -12834,9 +12834,11 @@ class Ui_MDCx(object):
         self.pushButton_check_and_clean_files.setText(_translate("MDCx", "点击检查待刮削目录并清理文件"))
         self.checkBox_auto_clean.setText(_translate("MDCx", "刮削时自动清理"))
         self.checkBox_i_agree_clean.setText(
-            _translate("MDCx", "我已同意：无论出现任何问题，均与开发者无关，后果自行承担。")
+            _translate("MDCx", "我已同意：无论出现任何问题，均与开发者无关，后果自行承担！")
         )
-        self.checkBox_i_understand_clean.setText(_translate("MDCx", "我已知晓：文件删除后无法恢复！操作须谨慎！"))
+        self.checkBox_i_understand_clean.setText(
+            _translate("MDCx", "我已知晓：文件删除后无法恢复！操作须谨慎！本人确认没问题！")
+        )
         self.label_271.setText(_translate("MDCx", "⚠️ 使用前请确认规则是否已启用！！！不启用不生效！！！"))
         self.groupBox_9.setTitle(_translate("MDCx", "文件格式设置"))
         self.label_78.setText(_translate("MDCx", "字幕格式："))
@@ -13092,13 +13094,12 @@ class Ui_MDCx(object):
         self.label_85.setText(
             _translate(
                 "MDCx",
-                "<p style='line-height:20px'>封面图：poster，当 Emby\n"
-                "                                视图选择封面图时，列表页会使用 poster（竖图）显示；<br>\n"
-                "                                缩略图：thumb，当 Emby 视图选择缩略图时，列表页会使用 Thumb（横图）显示；<br>\n"
-                "                                背景图：fanart，在 Emby 详情页作为背景图显示（复制缩略图得到背景图）；<br>\n"
-                "                                剧照图：extrafanart，在 Emby 详情页作为背景轮播显示（停留约 50s 后进入轮播状态）；<br>\n"
-                "                                预告片：trailer，在 Emby 详情页可以播放预告片；<br>\n"
-                "                                信息流：包含标题、简介、标签等信息，在 Emby 详情页展示。</p>",
+                "<p style='line-height:20px'>封面图：Poster，当Emby视图选择封面图时，列表页会使用Poster（竖图）显示；<br>\n"
+                "                                缩略图：Thumb，当Emby视图选择缩略图时，列表页将会使用Thumb（横图）显示；<br>\n"
+                "                                背景图：Fanart，在Emby详情页作为背景图显示，直接复制缩略图后得到背景图；<br>\n"
+                "                                剧照图：extrafanart，在Emby详情页作为背景轮播，停留约50s后进入轮播状态；<br>\n"
+                "                                预告片：Trailer，视频文件预告片，在Emby详情页可以播放预告片查看预告详情；<br>\n"
+                "                                信息流：包含标题、简介、标签等信息，标题、简介、标签等将在Emby详情页展示。</p>",
             )
         )
         self.label_310.setText(
@@ -13617,7 +13618,7 @@ class Ui_MDCx(object):
                 "MDCx",
                 "<p\n"
                 "                                style='line-height:20px'>水印分为字幕水印、马赛克水印、4K/8K水印几种<br>\n"
-                "                                马赛克水印有四个：有码、破解、流出、无码，将按优先级显示其中一种状态<br>\n"
+                "                                马赛克水印有四个：有码、破解、流出、无码四种<br>\n"
                 "                                马赛克水印优先级：有码 > 破解 > 流出 > 无码<br>\n"
                 "                                举例：如果视频是流出版本<br>\n"
                 "                                ·当流出和无码都勾选时，图片上会显示流出水印<br>\n"

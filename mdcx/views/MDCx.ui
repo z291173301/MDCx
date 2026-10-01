@@ -4704,7 +4704,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true" />
                       </property>
                       <property name="text">
-                        <string>我已同意：无论出现任何问题，均与开发者无关，后果自行承担。</string>
+                        <string>我已同意：无论出现任何问题，均与开发者无关，后果自行承担！</string>
                       </property>
                     </widget>
                     <widget class="QCheckBox" name="checkBox_i_understand_clean">
@@ -4735,7 +4735,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true" />
                       </property>
                       <property name="text">
-                        <string>我已知晓：文件删除后无法恢复！操作须谨慎！</string>
+                        <string>我已知晓：文件删除后无法恢复！操作须谨慎！本人确认没问题！</string>
                       </property>
                     </widget>
                     <widget class="QLabel" name="label_271">
@@ -10225,13 +10225,12 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>&lt;p style='line-height:20px'&gt;封面图：poster，当 Emby
-                                视图选择封面图时，列表页会使用 poster（竖图）显示；&lt;br&gt;
-                                缩略图：thumb，当 Emby 视图选择缩略图时，列表页会使用 Thumb（横图）显示；&lt;br&gt;
-                                背景图：fanart，在 Emby 详情页作为背景图显示（复制缩略图得到背景图）；&lt;br&gt;
-                                剧照图：extrafanart，在 Emby 详情页作为背景轮播显示（停留约 50s 后进入轮播状态）；&lt;br&gt;
-                                预告片：trailer，在 Emby 详情页可以播放预告片；&lt;br&gt;
-                                信息流：包含标题、简介、标签等信息，在 Emby 详情页展示。&lt;/p&gt;</string>
+                              <string>&lt;p style='line-height:20px'&gt;封面图：Poster，当Emby视图选择封面图时，列表页会使用Poster（竖图）显示；&lt;br&gt;
+                                缩略图：Thumb，当Emby视图选择缩略图时，列表页将会使用Thumb（横图）显示；&lt;br&gt;
+                                背景图：Fanart，在Emby详情页作为背景图显示，直接复制缩略图后得到背景图；&lt;br&gt;
+                                剧照图：extrafanart，在Emby详情页作为背景轮播，停留约50s后进入轮播状态；&lt;br&gt;
+                                预告片：Trailer，视频文件预告片，在Emby详情页可以播放预告片查看预告详情；&lt;br&gt;
+                                信息流：包含标题、简介、标签等信息，标题、简介、标签等将在Emby详情页展示。&lt;/p&gt;</string>
                             </property>
                             <property name="scaledContents">
                               <bool>false</bool>
@@ -16629,7 +16628,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="text">
                               <string>&lt;p
                                 style='line-height:20px'&gt;水印分为字幕水印、马赛克水印、4K/8K水印几种&lt;br&gt;
-                                马赛克水印有四个：有码、破解、流出、无码，将按优先级显示其中一种状态&lt;br&gt;
+                                马赛克水印有四个：有码、破解、流出、无码四种&lt;br&gt;
                                 马赛克水印优先级：有码 &gt; 破解 &gt; 流出 &gt; 无码&lt;br&gt;
                                 举例：如果视频是流出版本&lt;br&gt;
                                 ·当流出和无码都勾选时，图片上会显示流出水印&lt;br&gt;
