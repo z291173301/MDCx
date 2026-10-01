@@ -477,6 +477,25 @@ def test_scroll_content_follow_viewport(win, app):
         assert g.width() >= 700 + extra - 4, f"宽幅容器 {g.objectName()} 未跟随拉伸: {g.width()} (extra={extra})"
 
 
+def test_left_background_follows_sidebar_height(win, app):
+    """左侧背景条随侧栏同高：最大化后下方不得露出与上部不同的底色。
+
+    根因：left_backgroud_widget 是 widget_setting 的子项、设计高仅 700，
+    resizeEvent 只同步了父项高度，背景条滞留 700，窗口拉高后底部露出父项
+    底色、与各页配色断层。修复后两者同高。
+    """
+    ui = win.Ui
+    win.show()
+    app.processEvents()
+    for width, height in ((1030, 753), (1920, 1170), (1030, 753)):
+        win.resize(width, height)
+        app.processEvents()
+        assert ui.widget_setting.height() == height, "侧栏未跟随窗口高"
+        assert ui.left_backgroud_widget.height() == ui.widget_setting.height(), (
+            f"{width}x{height} 下背景条高 {ui.left_backgroud_widget.height()} 与侧栏 {ui.widget_setting.height()} 断层"
+        )
+
+
 def test_probe_main_tool_content(win, app):
     """软件界面/软件工具页内容随视口拉宽（与设置页同款自适应）。"""
 

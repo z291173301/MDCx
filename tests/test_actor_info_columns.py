@@ -700,3 +700,30 @@ def test_actor_narrow_kodi_aligns_to_a2(win, app):
     base_anchor = _abs(ui, ui.checkBox_actor_photo_ne_face)
     _resize(win, app, 1030, 753)
     assert _abs(ui, ui.checkBox_actor_photo_ne_face) == base_anchor, "窄态锚点被移动"
+
+
+def test_actor_kodi_button_matches_upper_width_when_wide(win, app):
+    """最下方「开始补全」按钮宽态与上方「开始补全」同宽，窄态保持设计宽 130 且往返复原。
+
+    背景：pushButton_add_actor_pic_kodi 设计宽 130，上方两枚「开始补全」
+    （pushButton_add_actor_info / pushButton_add_actor_pic）设计宽 261。
+    宽态把最下方按钮加宽到与上方一致；窄态一个像素不动。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    _resize(win, app, 1030, 753)
+    assert win._actor_page_stretch_extra() <= 0, "1030 宽下不是窄态，测试前提失效"
+    assert ui.pushButton_add_actor_pic_kodi.width() == 130, "窄态按钮宽被改动"
+    _resize(win, app, 1920, 1170)
+    assert win._actor_page_stretch_extra() > 0, "1920 宽下不是宽态，测试前提失效"
+    assert ui.pushButton_add_actor_pic_kodi.width() == ui.pushButton_add_actor_pic.width(), (
+        "宽态最下方「开始补全」未与上方同宽"
+    )
+    assert ui.pushButton_add_actor_pic.width() == 261, "上方按钮自身被改动"
+    # 复选框 checkBox_actor_photo_kodi 不得被连带加宽
+    assert ui.checkBox_actor_photo_kodi.width() == 141, "宽态复选框被连带加宽"
+    _resize(win, app, 1920, 1170)
+    assert ui.pushButton_add_actor_pic_kodi.width() == ui.pushButton_add_actor_pic.width(), "宽态重复同步后宽度漂移"
+    _resize(win, app, 1030, 753)
+    assert ui.pushButton_add_actor_pic_kodi.width() == 130, "还原窄态后按钮宽未复原 130"

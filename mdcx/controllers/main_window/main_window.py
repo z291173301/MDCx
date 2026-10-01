@@ -1512,6 +1512,22 @@ class MyMAinWindow(QMainWindow):
             # dx 为负，此时 kodi 必须原地不动，否则会被反向拖走。
             if dx > 0 and 0 <= kx and kx + kg.width() <= kodi.parentWidget().width() and kx != kg.x():
                 kodi.setGeometry(kx, kg.y(), kg.width(), kg.height())
+        # ④ 最大化态：最下方「开始补全」按钮(pushButton_add_actor_pic_kodi)宽度与
+        # 上方「开始补全」按钮(pushButton_add_actor_pic)一致，上方按钮自身不动；
+        # 最小化时本方法首步清干净即 return，按钮宽保持设计值 130。
+        # 注意：上面的 kodi 是复选框 checkBox_actor_photo_kodi，此处是同名后缀的按钮。
+        ref_btn = getattr(ui, "pushButton_add_actor_pic", None)
+        kodi_btn = getattr(ui, "pushButton_add_actor_pic_kodi", None)
+        if kodi_btn is not None and ref_btn is not None and kodi_btn.parentWidget() is not None:
+            target_w = ref_btn.width()
+            if target_w > 0 and kodi_btn.width() != target_w:
+                if 0 <= kodi_btn.x() and kodi_btn.x() + target_w <= kodi_btn.parentWidget().width():
+                    # 绝对定位件只锁 min/max 还原时不会自动缩回（无布局驱动），故连同
+                    # 几何一起登记，窄态 _clear_actor_wide_align 逆序写回即复原 130。
+                    self._actor_wide_restores.append(("geometry", kodi_btn, kodi_btn.geometry()))
+                    lock_width(kodi_btn, target_w)
+                    kg2 = kodi_btn.geometry()
+                    kodi_btn.setGeometry(kg2.x(), kg2.y(), target_w, kg2.height())
 
     def _clear_actor_info_spacers(self) -> None:
         """清掉 _sync_actor_info_columns 注入的间隔项与宽度锁（每遍同步先清后建，故幂等）。
@@ -2815,6 +2831,12 @@ class MyMAinWindow(QMainWindow):
             return
         width, height = self.width(), self.height()
         ui.widget_setting.setGeometry(0, 0, 210, height)
+        # 左侧背景条是 widget_setting 的子项、设计高仅 700：最大化后父项拉高而它
+        # 滞留原高，底部露出父项底色、与上部各页配色断层，故随父项同高同步。
+        try:
+            ui.left_backgroud_widget.setGeometry(0, 0, 210, height)
+        except Exception:
+            pass
         self._sync_dock_layout()  # 左侧导航坞 + 贴底状态区（议题 #86/#102/#181）
         ui.stackedWidget.setGeometry(210, 6, max(width - 210 - 2, 400), max(height - 8, 300))
         ui.progressBar_scrape.setGeometry(209, -1, max(width - 211, 100), 7)
