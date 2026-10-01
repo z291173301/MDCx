@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.1.8 (2026-10-01)
+
+### 修复
+
+- **软件设置-命名页最小化时视频文件名（上下两个）与空格左移到与「使用路径中包含的画质信息」严格上下对齐**：最小化（窄态，拉伸量 <= 0）时把 `checkBox_filename_mosaic`（马赛克组视频文件名）/`checkBox_cd_part_space`（分集分隔符空格）/`checkBox_filename_4k`（画质组视频文件名）向左移动到与 `radioButton_videosize_path`（使用路径中包含的画质信息）上下严格对齐的位置，锚点自身位置保持不变（窄态实测三项 `420→373`、abs `450→403` 与锚点 `403` 一致）；最大化时页面布局、控件、提示等均保持不变（宽态仍走原 `_sync_naming_definition_align` 把 path 右移到 `450` 与视频文件名列对齐，三项恢复设计位置，`_naming_narrow_restores` 为空）。三目标均为组框内绝对定位项，直接 `move(nx, y)` 只改 x 不碰 y/宽高，跨组 `mapTo` 经公共祖先 `scrollAreaWidgetContents_mingming` 中转，越界放弃；`_clear_naming_defn_align` 首行即清窄态登记，保证宽态量到设计锚点且基线为真设计，每遍先清后建、幂等往返自愈。`tests/test_naming_watermark_align.py::test_naming_leaves_narrow_untouched` 同步更新为新断言（三项对齐到 path 列、path 与基线一致、无宽态残留且有窄态登记），宽态对齐与往返用例不变
+- **版本号五处对齐到 2.1.8**：`LOCAL_VERSION` 20260930 → 20261001，`VERSION_NAME` v2.1.7 → v2.1.8，与 `pyproject.toml` / `uv.lock` 根包 / changelog 首段五处一致，`scripts/bump.py --check` 与 `test_version_consistency` 全过
+
 ## v2.1.7 (2026-09-30)
 
 ### 修复
