@@ -261,6 +261,16 @@ class MyMAinWindow(QMainWindow):
         # ("geometry", 控件, 原 QRect) / ("stretch", 布局, 原stretch元组)]，
         # 窄态第一步原样写回；同样与前两套登记分开，且必须逆序写回。
         self._actor_wide_restores = []
+        # 命名页画质行注入的间隔 [(布局, QSpacerItem)] + 容器加宽登记
+        # [("width", 容器, 原宽)]，每遍同步先清后建（幂等）。注意容器是绝对定位，
+        # 恢复 min/max 收不回宽度，必须按原宽写回。
+        self._naming_defn_spacers = []
+        self._naming_defn_restores = []
+        # 水印页网格列登记 [("colmin", 网格, (列, 原最小宽)) / ("colstretch", 网格, 列)]，
+        # stretch 无 getter，还原时一律写回 0（默认值，本仓库无他处改动该列 stretch）
+        self._watermark_col_restores = []
+        # 水印页 col1 四行尾部补的 Expanding 间隔 [(行布局名, QSpacerItem)]，还原时摘掉
+        self._watermark_tail_spacers = []
         self._zimu_dl_gap = -1  # 该间隔当前生效的宽度（-1 = 未安装/已拆除）
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
         self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
@@ -2086,6 +2096,50 @@ class MyMAinWindow(QMainWindow):
     # （实测其 sizeHint 宽 101），宁可不右移。窗口窄于约 960 时会触发该守卫。
     _GUAXIAOMULU_MIN_LEAD_W = 150
 
+    # ── 命名页画质命名规则行（最大化时「使用路径中包含的画质信息」右移到「视频文件名」列）──
+    # 行布局 horizontalLayout_112 在 layoutWidget_26 内，三项 Minimum/Minimum/Fixed、
+    # 总需求恰好等于容器宽（窄 471：197 + 196 + 66 + 2×6），与刮削目录 horizontalLayout_115
+    # 同构：既不能 setGeometry（会被下次 layout 激活覆盖），也不能只插间隔（总需求一旦
+    # 小于容器宽，Qt 把富余摊给其余 Minimum 项、目标弹回原位）。
+    # 做法是「容器加宽 + 固定间隔」：容器加宽 need、目标前插 need - spacing 宽的间隔，
+    # 行内总需求恒等于容器宽（多出的一项引入一个新间距，spacer = need - spacing），
+    # 三项自身宽度纹丝不动，「不获取分辨率」随行同步右移。锚点（自身不动）是
+    # checkBox_filename_4k「视频文件名」（绝对定位，窄宽两态 abs 恒 450）。
+    _NAMING_DEFN_ROW = (
+        "horizontalLayout_112",
+        "radioButton_videosize_video",
+        "radioButton_videosize_path",
+    )
+    # 行内第三个单选（Fixed 策略）：它的宽度不参与 need 计算，但必须一并钉死——
+    # 不同环境字体不同，它的 hint 也不同（实测 66 vs 99），行内总需求必须按三项实测
+    # 宽逐项加总，靠"估算"一定会对不上、挤压会吃掉间隔或目标自身的宽度。
+    _NAMING_DEFN_TAIL = "radioButton_videosize_none"
+    _NAMING_DEFN_ANCHOR = "checkBox_filename_4k"
+    _NAMING_DEFN_HOLDER = "layoutWidget_26"
+    _NAMING_DEFN_FRAME = "frame_6"
+
+    # ── 水印页水印设置组（最大化时四行左标签冒号左移到「首个水印位置：」冒号）──
+    # gridLayout_24 的 col0 在宽态被 QGridLayout 摊了 +272 富余（label_128 从 x0 被推到
+    # x272，右缘 180→452），而锚点所在 gridLayout_30 的 col0 恒 130（右缘恒 180）。
+    # 做法是把 col0 钉死 130 + stretch 全给 col1（演员页 gridLayout_14 的 col0 同款根因），
+    # 四行标签自动归位，右侧复选框/滑杆/提示词随 col1 同步左移。锚点（自身不动）是
+    # label_126「首个水印位置：」。
+    _WATERMARK_GRID = "gridLayout_24"
+    _WATERMARK_ANCHOR = "label_126"
+    _WATERMARK_COL = 0
+    _WATERMARK_COL_W = 130
+    # col1 四个内容行的布局名（与 _WATERMARK_GRID 同文件 .ui 内连续定义）：各在尾部补
+    # 一个水平 Expanding 间隔。col1 行内多为 Maximum 策略（capped 在 sizeHint）或
+    # Fixed 宽（滑杆 400~500、LCD 70），无处吸收富余时多出的宽度会溢回 col0，
+    # 光钉 col0/stretch 拉不动；尾部间隔让 col1 可以无界吸收，富余才全进 col1、
+    # col0 恒 130。行内原有项宽度纹丝不动（间隔吸收全部富余）。
+    _WATERMARK_CONTENT_ROWS = (
+        "horizontalLayout_7",
+        "horizontalLayout_15",
+        "horizontalLayout_14",
+        "horizontalLayout_5",
+    )
+
     def _sync_guaxiaomulu_checkbox_align(self, scroll=None) -> None:
         """刮削目录页：软链接行让位 +「刮削时自动清理」按态换列（三条需求）。
 
@@ -2188,6 +2242,205 @@ class MyMAinWindow(QMainWindow):
             limit = content.width() - box_x
             if nx != clean.x() and 0 <= nx and nx + clean.width() <= limit:
                 clean.move(nx, clean.y())
+
+    def _clear_naming_defn_align(self) -> None:
+        """清掉命名页画质行加宽/间隔（每遍同步先清后建，故幂等、往返自愈）。
+
+        holder（layoutWidget_26）是 frame_6 内绝对定位的容器：只恢复 min/max
+        不会收回宽度（widget 保持当前宽），必须按记录值把宽度写回去，否则加宽量
+        逐遍累积（实测 holder 471→554、窄态也要不回来）。
+        """
+        for row, spacer in self._naming_defn_spacers:
+            if row is not None and spacer is not None:
+                row.removeItem(spacer)
+        self._naming_defn_spacers = []
+        for kind, obj, saved in reversed(self._naming_defn_restores):
+            if obj is None:
+                continue
+            if kind == "width":
+                # 先真解锁：holder 加宽用的是 setFixedWidth（min == max == 加宽值），
+                # 不先恢复 min/max 的话 setGeometry 会被钳在加宽值、窄态也要不回来
+                # （实测 holder 471→559 越垒越高）。
+                obj.setMinimumWidth(0)
+                obj.setMaximumWidth(QWIDGETSIZE_MAX)
+                obj.setGeometry(obj.x(), obj.y(), saved, obj.height())
+                obj.updateGeometry()
+            elif kind == "unlock":
+                # 行内 Minimum 项的钉宽：行布局每遍从零重排，真解锁即可。
+                obj.setMinimumWidth(0)
+                obj.setMaximumWidth(QWIDGETSIZE_MAX)
+                obj.updateGeometry()
+        self._naming_defn_restores = []
+        ui = getattr(self, "Ui", None)
+        row = getattr(ui, self._NAMING_DEFN_ROW[0], None) if ui is not None else None
+        if row is not None and row.parentWidget() is not None:
+            row.invalidate()
+            row.activate()
+
+    def _sync_naming_definition_align(self, scroll=None) -> None:
+        """命名页画质命名规则：最大化时「使用路径中包含的画质信息」右移到「视频文件名」列。
+
+        用户需求：最大化时把「使用路径中包含的画质信息」向右移动到与下方「视频文件名」
+        严格上下对齐的位置，「不获取分辨率」同步向右移动，「视频文件名」位置保持不变；
+        最小化时界面、控件、组件等等均保持不变。
+
+        实测几何（abs = 相对滚动内容左缘；1030×753 窄态 / 1920×1170 宽态）：
+          video 200 / path 403 / none 605 / filename_4k 450（两态完全一致，通用宽幅同步
+          不碰 layoutWidget_26，frame_6 只被拉宽到 1510、内部 471 宽的行原地不动）。
+        故 need 恒为 47（= 450 - 403），仍运行时 mapTo 实测、不写死。
+
+        手法「容器加宽 + 固定间隔」（见类常量注释）：holder 加宽 need，目标前插
+        need - spacing 宽的 Fixed 间隔。行内总需求恒等于容器宽，间隔不会被挤瘦，
+        三项自身宽度纹丝不动。插完实测回读、按差值 changeSize 三轮收敛。
+        必须排在 _sync_definition_group_spacing 之后：后者每遍按 frame_layout 的
+        sizeHint 高度重钉 frame 高（只取高度，本间隔高为 0 不影响），且它用
+        setGeometry(..., frame_lw.width(), ...) 保留容器宽度——排前面会把本方法刚加的
+        宽度当成终态保留，逻辑仍自洽；但它 activate() 的是旧几何，排后面量到的 need
+        才是终态。窄态第一步清干净即 return，最小化逐像素不变。休眠页跳过。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_65", None)
+        if box is None or not box.isVisibleTo(self):
+            return
+        self._clear_naming_defn_align()
+        if scroll is None:
+            scroll = getattr(ui, "scrollArea_7", None)
+        if self._scroll_stretch_extra(scroll) <= 0:
+            return  # 窄态：一个像素不碰
+        content = box.parentWidget()
+        anchor = getattr(ui, self._NAMING_DEFN_ANCHOR, None)
+        holder = getattr(ui, self._NAMING_DEFN_HOLDER, None)
+        frame = getattr(ui, self._NAMING_DEFN_FRAME, None)
+        row_name, _lead_name, target_name = self._NAMING_DEFN_ROW
+        row = getattr(ui, row_name, None)
+        target = getattr(ui, target_name, None)
+        lead = getattr(ui, self._NAMING_DEFN_ROW[1], None)
+        tailfix = getattr(ui, self._NAMING_DEFN_TAIL, None)
+        if content is None or anchor is None or holder is None or frame is None:
+            return
+        if row is None or target is None or lead is None or tailfix is None:
+            return
+        if target.parentWidget() is not holder or row.parentWidget() is not holder:
+            return
+
+        def left_x(w):
+            return w.mapTo(content, w.rect().topLeft()).x()
+
+        row.invalidate()
+        row.activate()
+        anchor_x = left_x(anchor)
+        need = anchor_x - left_x(target)
+        if need <= 0:
+            return
+        spacing = row.spacing()
+        spacer_w = need - spacing
+        if spacer_w <= 0:
+            return
+        # 三个单选全钉死在当前宽（见类常量注释），再逐项加总定容器宽：
+        # 行内总需求恒等于容器宽，间隔既不会被挤瘦、富余也不会摊给行首。
+        # 恢复时真解锁（行布局每遍从零重排，不存在"拆掉上游锁"问题）。
+        for w in (lead, target, tailfix):
+            self._naming_defn_restores.append(("unlock", w, None))
+            w.setFixedWidth(w.width())
+        new_w = lead.width() + spacer_w + target.width() + tailfix.width() + spacing * row.count()
+        # 不越过所在 frame 右缘（否则内容最小宽被抬高、冒出水平滚动条）
+        if holder.x() + new_w > frame.width():
+            return
+        self._naming_defn_restores.append(("width", holder, holder.width()))
+        holder.setFixedWidth(new_w)
+        holder.updateGeometry()
+        idx = row.indexOf(target)
+        if idx < 0:
+            return
+        spacer = QSpacerItem(spacer_w, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        row.insertItem(idx, spacer)
+        self._naming_defn_spacers.append((row, spacer))
+        row.invalidate()
+        row.activate()
+        # 回读修正：spacer 与 holder 联动增减（行内总需求恒等于容器宽，间隔既不会被
+        # 挤瘦、富余也不会摊给行首的 Minimum 项），故一步即收敛；holder 加宽受 frame
+        # 右缘钳制，超界则放弃修正（保持近似值，下一遍再修）。
+        for _ in range(3):
+            d = anchor_x - left_x(target)
+            if not d:
+                break
+            if holder.x() + holder.width() + d > frame.width():
+                break
+            spacer.changeSize(max(0, spacer.sizeHint().width() + d), 0)
+            holder.setFixedWidth(holder.width() + d)
+            row.invalidate()
+            row.activate()
+
+    def _clear_watermark_colon_align(self) -> None:
+        """清掉水印页网格列钉死 + 四行尾部间隔（每遍同步先清后建，故幂等、往返自愈）。"""
+        ui = getattr(self, "Ui", None)
+        for row_name, spacer in self._watermark_tail_spacers:
+            row = getattr(ui, row_name, None) if ui is not None else None
+            if row is not None and spacer is not None:
+                row.removeItem(spacer)
+        self._watermark_tail_spacers = []
+        for kind, obj, saved in reversed(self._watermark_col_restores):
+            if obj is None:
+                continue
+            if kind == "colmin":
+                obj.setColumnMinimumWidth(saved[0], saved[1])
+            elif kind == "colstretch":
+                obj.setColumnStretch(saved, 0)
+        self._watermark_col_restores = []
+        ui = getattr(self, "Ui", None)
+        grid = getattr(ui, self._WATERMARK_GRID, None) if ui is not None else None
+        if grid is not None:
+            grid.invalidate()
+            grid.activate()
+
+    def _sync_watermark_colon_align(self, scroll=None) -> None:
+        """水印页水印设置：最大化时四行左标签冒号左移到「首个水印位置：」冒号。
+
+        用户需求：最大化时把「添加水印的图片」「水印大小」「水印类型」「水印位置」向左
+        移动到与「首个水印位置：」严格上下对齐的位置（注意是对齐冒号），「首个水印位置：」
+        的位置保持不变，右侧的复选框、提示词、组件等同步向左移动；最小化时界面、控件、
+        组件等等均保持不变。
+
+        实测几何（右缘 abs = 相对滚动内容左缘；1030×753 窄态 / 1920×1170 宽态）：
+          窄态四标签右缘全 180 == 锚点 180（天然对齐，col0 恒 130）；
+          宽态四标签右缘全 452 vs 锚点 180（col0 被 QGridLayout 摊了 +272 富余）。
+        做法见类常量注释：col0 钉死 130 + stretch 全给 col1。窄态第一步清干净即
+        return，最小化逐像素不变。休眠页跳过。判态用几何拉伸量而非 isMaximized()。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_31", None)
+        if box is None or not box.isVisibleTo(self):
+            return
+        self._clear_watermark_colon_align()
+        if scroll is None:
+            scroll = getattr(ui, "scrollArea_4", None)
+        if self._scroll_stretch_extra(scroll) <= 0:
+            return  # 窄态：一个像素不碰
+        grid = getattr(ui, self._WATERMARK_GRID, None)
+        if grid is None:
+            return
+        col = self._WATERMARK_COL
+        self._watermark_col_restores.append(("colmin", grid, (col, grid.columnMinimumWidth(col))))
+        self._watermark_col_restores.append(("colstretch", grid, col))
+        self._watermark_col_restores.append(("colstretch", grid, col + 1))
+        grid.setColumnMinimumWidth(col, self._WATERMARK_COL_W)
+        grid.setColumnStretch(col, 0)
+        grid.setColumnStretch(col + 1, 1)
+        # col1 四行尾部补 Expanding 间隔（类常量注释）：无处吸收富余时多出的宽度会
+        # 溢回 col0，尾部间隔让 col1 无界吸收，行内原有项宽度纹丝不动。
+        for row_name in self._WATERMARK_CONTENT_ROWS:
+            row = getattr(ui, row_name, None)
+            if row is None:
+                continue
+            tail = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+            row.addItem(tail)
+            self._watermark_tail_spacers.append((row_name, tail))
+        grid.invalidate()
+        grid.activate()
 
     # 字幕页「添加外挂字幕」组设计几何（MDCx.ui groupBox_45: x30 y310 w701 h425）。
     _ZIMU_BOX_DESIGN_Y = 310
@@ -3014,11 +3267,20 @@ class MyMAinWindow(QMainWindow):
         # 必须排在通用拉伸之后：网格列宽（从而说明文字折行数、需要的总高度）
         # 取决于拉伸后的终态宽度，-template/翻译两组同理。
         self._sync_definition_group_spacing()
+        # 命名页画质行右移对齐：必须排在 _sync_definition_group_spacing 之后——后者每遍
+        # activate() frame_layout 并按其 sizeHint 高度重钉 frame 高，排前面量到的 need
+        # 才是终态（本间隔高为 0，不影响它的 frame_h 计算）。
+        self._sync_naming_definition_align(getattr(ui, "scrollArea_7", None))
 
         # ============ page_setting / 翻译页: 简介组与演员组按内容收紧间距 ============
         # 必须排在通用拉伸之后：两个网格的列宽（从而提示文字折行数、说明文字需
         # 要的总高度）取决于拉伸后的终态宽度。
         self._sync_fanyi_group_spacing()
+
+        # ============ page_setting / 水印页: 四行左标签冒号左移到「首个水印位置：」冒号 ============
+        # 排在通用拉伸之后：gridLayoutWidget_24 的宽由通用宽幅同步铺开，内部列分配由本方法钉死。
+        # 窄态内部直接 return，最小化布局逐像素不变。
+        self._sync_watermark_colon_align(getattr(ui, "scrollArea_4", None))
 
         # ============ page_setting / NFO页: 宽幅组落定（先落定再量） ============
         # verify_gb 复验血案：tab 切换时 showEvent 的 wide-sync 跑在级联中途
