@@ -39,6 +39,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSizePolicy,
+    QSpacerItem,
     QSystemTrayIcon,
     QTableWidgetItem,
     QTreeWidgetItem,
@@ -242,6 +243,12 @@ class MyMAinWindow(QMainWindow):
         self._guaxiaomulu_scroll = None  # 设置-刮削目录页的 CustomScrollArea（文件清理提示对齐的钩子宿主）
         self._zimu_scroll = None  # 设置-字幕页的 CustomScrollArea（底部空白收缩的钩子宿主）
         self._zimu_dl_spacer = None  # 字幕页下载行插在 label_102 与「点击下载字幕包」之间的固定间隔
+        # 演员信息组三列对齐注入的间隔项 [(布局, QSpacerItem)]，每遍同步先清后建（幂等）
+        self._actor_info_spacers = []
+        # 钉位时为防 Minimum 策略被间隔挤瘦而 setFixedWidth 的控件 [(控件, 原宽)]，还原时解锁
+        self._actor_info_width_locks = []
+        # 钉位时归零的行左内边距 [(布局, 原 QMargins)]，还原时复位
+        self._actor_info_margin_restores = []
         self._zimu_dl_gap = -1  # 该间隔当前生效的宽度（-1 = 未安装/已拆除）
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
         self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
@@ -312,7 +319,7 @@ class MyMAinWindow(QMainWindow):
         for _sa in self.Ui.tabWidget.findChildren(CustomScrollArea):
             _content = _sa.widget()
             if _content is not None and _content.objectName() == "scrollAreaWidgetContents_yanyuan":
-                _sa._post_wide_sync_hook = self._sync_actor_page_align
+                _sa._post_wide_sync_hook = self._sync_actor_page_wide_hooks
                 self._actor_scroll = _sa
             elif _content is not None and _content.objectName() == "scrollAreaWidgetContents_nfo":
                 # NFO 页同病：右列（影评/导演/TMDB/标签）的列最小宽是在「拉伸前」的
@@ -902,6 +909,64 @@ class MyMAinWindow(QMainWindow):
     # 故单独记下它的设计几何（相对 groupBox_68，与 MDCx.ui 一致）。
     _ACTOR_PAGE_MISS_DESIGN = (300, 130, 141, 40)
 
+    # ── 演员信息组（groupBox_64）列对齐：行标签冒号 + 各行左缘对到 Graphis 列 ──
+    # 锚点是 groupBox_41（头像组）horizontalLayout_93 里三个 Graphis 复选框的左缘：
+    # 宽态实测 186 / 652 / 1119；窄态实测 186 / 346 / 505（此时 A1 恰与演员信息组
+    # col1 起点、「中文简体」同列，故窄态用 A1 当基准 = 用户要的「与中文简体对齐」）。
+    # 这里只存控件名，实际 x 一律运行时 mapTo 实测，不写死。
+    _ACTOR_INFO_A1_ANCHOR = "checkBox_actor_photo_ne_backdrop"  # 使用Graphis背景
+    _ACTOR_INFO_A2_ANCHOR = "checkBox_actor_photo_ne_face"  # 使用Graphis头像
+    _ACTOR_INFO_A3_ANCHOR = "checkBox_actor_photo_ne_new"  # 请求Graphis最新图片
+    # 演员信息组 gridLayout_14 的 col0（行标签列）设计宽
+    _ACTOR_INFO_LABEL_COL_W = 130
+    # 「补全范围：」行（绝对定位链路 frame_4/layoutWidget_15/horizontalLayout_101）
+    _ACTOR_INFO_SCOPE_ROW = ("radioButton_actor_info_all", "radioButton_actor_info_miss")
+    # layoutWidget_15 相对 frame_4 的设计几何（MDCx.ui 140,10,511,32）
+    _ACTOR_INFO_SCOPE_HOLDER_DESIGN = (140, 10, 511, 32)
+    # 把它左移到 136 = gridLayout_14 的 col1 起点（= content 186 = A1 列），
+    # 于是「所有演员」自然落在 A1 左缘，无需再插间隔。
+    _ACTOR_INFO_SCOPE_WIDE_X = 136
+    # 「补全范围：」两个单选的设计宽（窄态实测 253/252，511 = 253+6+252 恰好铺满
+    # layoutWidget_15 的设计宽）。宽态拉宽容器前必须先按这两值 setFixedWidth，否则
+    # Minimum 策略的单选会跟着容器长到 366，钉位间隔就没空间了。
+    _ACTOR_INFO_SCOPE_W = (253, 252)
+    # 宽态把容器拉宽后，「仅缺少信息的演员」右缘 + 内边距留白
+    _ACTOR_INFO_SCOPE_PAD = 20
+
+    # 宽态各行左缘目标（需求① + 上一轮的②③④）：「使用数据库补全演员信息」与
+    # 「不存在中文时，翻译日语为中文」连同同排后续控件一并对齐 A1；语言行维持
+    # 简/繁/日 = A1/A2/A3。「演员信息数据库：」路径行不在此表——它由需求② 单独
+    # 按「左缘 A1、右缘 A2」铺排（见 _sync_actor_info_columns）。
+    _ACTOR_INFO_WIDE_TARGETS = {
+        "horizontalLayout_92": (
+            ("radioButton_actor_info_zh_cn", "A1"),
+            ("radioButton_actor_info_zh_tw", "A2"),
+            ("radioButton_actor_info_ja", "A3"),
+        ),
+        "horizontalLayout_100": (("checkBox_actor_info_translate", "A1"),),
+        "horizontalLayout_159": (("checkBox_actor_db", "A1"),),
+    }
+    # 受控行的前导缩进（必须先归零，行起点才等于 col1 起点——间隔只能右推、不能左拉）：
+    # .ui 里 hl100 是 hl98 的**子布局**、hl159 是 hl158 的子布局，缩进来自「父布局的
+    # spacing + 前导控件」，不是子布局自己的 margin：
+    #   hl98 = [label_280(Fixed 10), hl100]  → spacing 6 + label 10 = 16px
+    #   hl158 = [hl159(leftMargin 20)]       → 20px
+    # 故对**父布局**归零 spacing、对 hl159 归零 leftMargin，并把 label_280 压到 0 宽。
+    # (父布局名, spacing, 左内边距, 行首占位控件名或 None)
+    _ACTOR_INFO_ROW_LEAD_INDENT = (
+        ("horizontalLayout_98", 0, "label_280"),
+        ("horizontalLayout_159", 0, None),
+    )
+    # 自身 leftMargin 非零、需归零的行布局（hl159 的 20px）
+    _ACTOR_INFO_ROW_ZERO_MARGIN = ("horizontalLayout_159",)
+    # 窄态（需求③）：语言行不动（「中文简体」自身保持原位），只把「不存在中文时，
+    # 翻译日语为中文」与「使用数据库补全演员信息」连同同排后续控件左移到 A1。
+    # 窄态 A1→A2 仅 160px，放不下第二列，故只用 A1。
+    _ACTOR_INFO_NARROW_TARGETS = {
+        "horizontalLayout_100": (("checkBox_actor_info_translate", "A1"),),
+        "horizontalLayout_159": (("checkBox_actor_db", "A1"),),
+    }
+
     def _sync_actor_db_tool_layout(self) -> None:
         """软件工具页演员库分组：紧凑排布 + 最大化拉宽。
 
@@ -1146,6 +1211,236 @@ class MyMAinWindow(QMainWindow):
             shift_to(name, graphis)
         for name in self._ACTOR_PAGE_MISS_TARGETS:
             shift_to(name, miss)
+
+    def _clear_actor_info_spacers(self) -> None:
+        """清掉 _sync_actor_info_columns 注入的间隔项与宽度锁（每遍同步先清后建，故幂等）。
+
+        宽度锁必须一并解除：钉位时给控件 setFixedWidth 防 Minimum 策略被间隔挤瘦，
+        还原态若不解锁，控件就永久钉在宽态的宽/窄上（演员数据库路径输入框尤其明显）。
+        """
+        for w, width in self._actor_info_width_locks:
+            if w is not None:
+                w.setFixedWidth(width)
+                w.updateGeometry()
+        self._actor_info_width_locks = []
+        for obj, saved, _kind in self._actor_info_margin_restores:
+            if obj is None:
+                continue
+            if isinstance(saved, int):
+                obj.setSpacing(saved)
+            else:
+                obj.setContentsMargins(saved)
+        self._actor_info_margin_restores = []
+        for row, spacer in self._actor_info_spacers:
+            if row is not None and spacer is not None:
+                row.removeItem(spacer)
+        self._actor_info_spacers = []
+
+    def _sync_actor_page_wide_hooks(self, actor_scroll=None) -> None:
+        """演员页宽幅拉伸后的两拍对齐（顺序敏感，勿调换）。
+
+        ① _sync_actor_page_align：把「补全完成后自动补全演员头像」等三控件对到
+           checkBox_actor_photo_ne_new（请求 Graphis 最新图片）。
+        ② _sync_actor_info_columns：演员信息组三列对齐，它的 A3 锚点正是同一个
+           checkBox_actor_photo_ne_new，必须在 ① 之后量才不会读到过期 x。
+        """
+        self._sync_actor_page_align(actor_scroll)
+        self._sync_actor_info_columns(actor_scroll)
+
+    def _sync_actor_info_columns(self, actor_scroll=None) -> None:
+        """演员信息组：行标签冒号对齐 + 各行左缘对齐到 Graphis 列 + 路径框宽度铺排。
+
+        锚点是 groupBox_41（头像组）三个 Graphis 复选框的左缘，运行时 mapTo 实测：
+          A1 = 使用Graphis背景、A2 = 使用Graphis头像、A3 = 请求Graphis最新图片。
+        窄态(1000) 实测 A1 = 186，与演员信息组 col1 起点同 x；宽态(1920) = 186/652/1119。
+        「中文简体」自身恒在 col1 起点（= A1），故窄态用 A1 当基准与用户要求的
+        「与中文简体严格上下对齐」完全等价。
+
+        行标签冒号对齐（窄宽双态）：「补全语言：」「演员信息数据库：」与「补全范围：」
+        的右缘严格一致。两标签是 Fixed 130 右对齐，只要 gridLayout_14 的 col0 从 x=0
+        起算就自然成立——.ui 已给 col1 各行加尾部 Expanding spacer 把 col0 钉到最左。
+        本方法把 col0 钉死 130px 下限：否则 QGridLayout 会把富余宽度摊给 col0
+        （实测宽态 col0 长到 762、col1 起点被推到 818），col1 内的行起点右移。
+
+        宽态（需求①、②）：
+          ① 「使用数据库补全演员信息」「不存在中文时，翻译日语为中文」及其同排后续
+             控件（点击下载链接 / 不勾选则无中文时使用日语）左缘对齐 A1；
+             「中文简体」同在 A1，「中文繁体」A2、「日语」A3 不变。
+          ② 「演员信息数据库：」路径输入框左缘扩到 A1、右缘缩到 A2（宽度 = A2-A1），
+             「选择文件」按钮随之左移到输入框右缘之后。窄态此行不动。
+        窄态（需求③）：「不存在中文时，翻译日语为中文」「使用数据库补全演员信息」
+          及其同排后续控件左缘对齐 A1（即「中文简体」所在列）；「所有演员」同左移到
+          A1。窄态下 A1 与 A2 间距仅 160px，放不下 A2，故只钉 A1。
+
+        共同手法（col1 内的行受 QGridLayout 管理，对子控件 setGeometry 会在下次
+        layout 激活时被覆盖，一律用 QSpacerItem 注入定位）：
+          - 间隔宽度取「目标绝对 x − 控件当前实测绝对 x」，天然含自身宽度与 spacing，
+            不会随同行控件增多而累积误差；
+          - 钉位时无条件 setFixedWidth 锁住当宽：这些控件是 Minimum 策略，插入固定宽
+            间隔后会被挤瘦（实测「所有演员」253→52），锁宽后同行控件各按设计宽排布；
+          - 每次插完 invalidate+activate 让 Qt 重排，下一目标才量得到新位置；
+          - 「补全范围：」行是绝对定位链路（frame_4 → layoutWidget_15 → hl101），与
+            gridLayout_14 无关：容器左移到 x=136（= col1 起点）后「所有演员」自然落在
+            A1；宽态再把容器拉宽到容得下 A2 并把「仅缺少信息的演员」钉到 A2。行内只剩
+            两个 Fixed 宽单选+固定间隔时 QHBoxLayout 会把富余宽度摊到**行首**（凭空
+            56px 空档），故尾部补一个 Expanding 间隔。
+          - setColumnMinimumWidth/setColumnStretch 是**持久**设置，窄态也必须钉住
+            col0=130，否则「先最大化再还原」窄态会被宽态的列宽污染。
+
+        判据用 _actor_page_stretch_extra() 的几何拉伸量而非 isMaximized()，理由见
+        _sync_actor_page_align docstring。休眠页跳过。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_64", None)
+        grid = getattr(ui, "gridLayout_14", None)
+        if box is None or grid is None or not box.isVisibleTo(self):
+            return
+        scope_holder = getattr(ui, "layoutWidget_15", None)
+        content = box.parentWidget()
+        if content is None:
+            return
+
+        wide = self._actor_page_stretch_extra() > 0
+        # 先无条件清干净上一遍留下的间隔/宽度锁/缩进，再按当前态重建。窄态同样要走完
+        # 重建流程（需求⑦ 窄态也要钉位），故不能在清理后提前 return。
+        self._clear_actor_info_spacers()
+        if wide and actor_scroll is not None and actor_scroll.isVisibleTo(self):
+            actor_scroll.sync_wide_children_width()  # 取终态 extra，勿量过期几何
+
+        # col0 钉 130 → col1 起点 = gridLayoutWidget_14.x + 130 + spacing = content 186。
+        # 窄态本就如此（无富余宽度可摊），此调用幂等；宽态是必需。
+        grid.setColumnMinimumWidth(0, self._ACTOR_INFO_LABEL_COL_W)
+        grid.setColumnStretch(0, 0)
+        grid.setColumnStretch(1, 1)
+        grid.invalidate()
+        grid.activate()
+
+        anchors = {}
+        for key, name in (
+            ("A1", self._ACTOR_INFO_A1_ANCHOR),
+            ("A2", self._ACTOR_INFO_A2_ANCHOR),
+            ("A3", self._ACTOR_INFO_A3_ANCHOR),
+        ):
+            anchor = getattr(ui, name, None)
+            if anchor is None:
+                return
+            anchors[key] = anchor.mapTo(content, anchor.rect().topLeft()).x()
+
+        def pin(row, name, target_x, width=None):
+            """把 row 内 name 的左缘推到 target_x；锁宽后按实测差值插前导间隔。
+
+            width 给定时同时把控件钉到该宽（「演员信息数据库：」输入框铺 A1→A2 用）。
+            """
+            w = getattr(ui, name, None)
+            if w is None or w.parentWidget() is None:
+                return
+            idx = row.indexOf(w)
+            if idx < 0:
+                return
+            row.invalidate()
+            row.activate()  # 先落定，才能量到本控件的当前真实 x
+            if not any(locked is w for locked, _ in self._actor_info_width_locks):
+                self._actor_info_width_locks.append((w, w.width()))
+                w.setFixedWidth(width if width is not None else w.width())
+                row.invalidate()
+                row.activate()
+            need = target_x - w.mapTo(content, w.rect().topLeft()).x()
+            if need <= 0:
+                return  # 已在目标列或更右，无需再插间隔
+            spacer = QSpacerItem(need, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+            row.insertItem(idx, spacer)
+            self._actor_info_spacers.append((row, spacer))
+            row.invalidate()
+            row.activate()  # 让下一目标量到插入后的新位置
+
+        # 受控行的前导缩进必须先清零，行起点才等于 col1 起点（A1）——间隔只能右推、
+        # 不能左拉。缩进来自「父布局 spacing + 行首占位控件」，见常量注释。
+        # 只动 spacing 与 leftMargin，不整组重设 contentsMargins：后者会连带清掉
+        # right/bottom，在 QHBoxLayout 里改动过多边距曾导致渲染期崩溃。
+        for parent_name, spacing, lead_widget in self._ACTOR_INFO_ROW_LEAD_INDENT:
+            parent = getattr(ui, parent_name, None)
+            if parent is None or parent.parentWidget() is None:
+                continue
+            if parent.spacing() != spacing:
+                self._actor_info_margin_restores.append((parent, parent.spacing(), None))
+                parent.setSpacing(spacing)
+            if lead_widget:
+                head = getattr(ui, lead_widget, None)
+                if head is not None and head.width() > 0:
+                    if not any(locked is head for locked, _ in self._actor_info_width_locks):
+                        self._actor_info_width_locks.append((head, head.width()))
+                        head.setFixedWidth(0)
+            parent.invalidate()
+            parent.activate()
+        for child_name in self._ACTOR_INFO_ROW_ZERO_MARGIN:
+            child = getattr(ui, child_name, None)
+            if child is None:
+                continue
+            margins = child.contentsMargins()
+            if margins.left() != 0:
+                self._actor_info_margin_restores.append((child, margins, None))
+                child.setContentsMargins(0, margins.top(), margins.right(), margins.bottom())
+        grid.invalidate()
+        grid.activate()
+
+        # 各行左缘对齐：宽态与窄态用不同的目标列集合。
+        targets = self._ACTOR_INFO_WIDE_TARGETS if wide else self._ACTOR_INFO_NARROW_TARGETS
+        for layout_name, rows in targets.items():
+            row = getattr(ui, layout_name, None)
+            if row is None or row.parentWidget() is None:
+                continue
+            for name, key in rows:
+                pin(row, name, anchors[key])
+
+        # 宽态需求②：路径输入框左缘 A1、右缘 A2，「选择文件」按钮随之左移。
+        if wide:
+            path_row = getattr(ui, "horizontalLayout_155", None)
+            if path_row is not None and path_row.parentWidget() is not None:
+                pin(
+                    path_row,
+                    "lineEdit_actor_db_path",
+                    anchors["A1"],
+                    width=anchors["A2"] - anchors["A1"],
+                )
+
+        # 「补全范围：」行：绝对定位链路。容器左移到 col1 起点后「所有演员」落在 A1，
+        # 宽态再拉宽容器并把「仅缺少信息的演员」钉到 A2。
+        row = getattr(ui, "horizontalLayout_101", None)
+        if row is None or scope_holder is None or row.parentWidget() is not scope_holder:
+            return
+        sx, sy, design_w, sh = self._ACTOR_INFO_SCOPE_HOLDER_DESIGN
+        holder_w = design_w
+        if wide:
+            origin_x = scope_holder.mapTo(content, scope_holder.rect().topLeft()).x()
+            holder_w = max(
+                anchors["A2"] - origin_x + self._ACTOR_INFO_SCOPE_W[1] + self._ACTOR_INFO_SCOPE_PAD,
+                design_w,
+            )
+        # 先把两个单选钉回设计宽（253/252），再决定容器宽：顺序不能反——容器一旦拉宽，
+        # Minimum 策略的单选会跟着长到 366，钉位间隔就没空间了。
+        for name, width in zip(self._ACTOR_INFO_SCOPE_ROW, self._ACTOR_INFO_SCOPE_W, strict=True):
+            w = getattr(ui, name, None)
+            if w is not None and not any(locked is w for locked, _ in self._actor_info_width_locks):
+                self._actor_info_width_locks.append((w, w.width()))
+                w.setFixedWidth(width)
+                w.updateGeometry()
+        scope_holder.setGeometry(self._ACTOR_INFO_SCOPE_WIDE_X, sy, holder_w, sh)
+        grid.invalidate()
+        grid.activate()
+        row.invalidate()
+        row.activate()
+        if wide:
+            # 尾部 Expanding 间隔：否则富余宽度摊到行首，两列整体偏 56px。
+            tail = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+            row.addItem(tail)
+            self._actor_info_spacers.append((row, tail))
+            row.invalidate()
+            row.activate()
+        pin(row, self._ACTOR_INFO_SCOPE_ROW[0], anchors["A1"])
+        if wide:
+            pin(row, self._ACTOR_INFO_SCOPE_ROW[1], anchors["A2"])
 
     # 刮削目录页文件清理提示的设计宽（MDCx.ui label_271 设计几何 140,490,381,16）。
     _GUAXIAOMULU_TIP_DESIGN_W = 381
@@ -2072,6 +2367,10 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / 演员页: 两行控件对齐到各自基准线 ============
         # 同样排在通用拉伸之后：本方法先落设计几何再按最大化分支覆盖。
         self._sync_actor_page_align(actor_scroll)
+        # 演员信息组三列对齐（行标签冒号 + 三个分隔符行对到 Graphis 三列）。
+        # 必须在 _sync_actor_page_align 之后：本方法要量 checkBox_actor_photo_ne_new
+        # 的左缘当 A3 锚点，而锚点位置由前者刚定下。
+        self._sync_actor_info_columns(actor_scroll)
 
         # ============ page_setting / 刮削目录页: 文件清理提示左移到按钮下方 ============
         # 排在通用拉伸之后：提示是 _STRETCH，最大化时先被拉宽右偏，本方法同拍拉回；

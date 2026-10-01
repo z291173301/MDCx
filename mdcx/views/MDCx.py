@@ -9760,6 +9760,10 @@ class Ui_MDCx(object):
         self.radioButton_actor_info_ja = QtWidgets.QRadioButton(parent=self.gridLayoutWidget_14)
         self.radioButton_actor_info_ja.setObjectName("radioButton_actor_info_ja")
         self.horizontalLayout_92.addWidget(self.radioButton_actor_info_ja)
+        spacerItem3 = QtWidgets.QSpacerItem(
+            20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
+        )
+        self.horizontalLayout_92.addItem(spacerItem3)
         self.gridLayout_14.addLayout(self.horizontalLayout_92, 0, 1, 1, 1)
         self.frame_8 = QtWidgets.QFrame(parent=self.gridLayoutWidget_14)
         self.frame_8.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
@@ -9807,6 +9811,10 @@ class Ui_MDCx(object):
         self.pushButton_select_actor_info_db.setMinimumSize(QtCore.QSize(110, 40))
         self.pushButton_select_actor_info_db.setObjectName("pushButton_select_actor_info_db")
         self.horizontalLayout_155.addWidget(self.pushButton_select_actor_info_db)
+        spacerItem4 = QtWidgets.QSpacerItem(
+            20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
+        )
+        self.horizontalLayout_155.addItem(spacerItem4)
         self.gridLayout_14.addLayout(self.horizontalLayout_155, 3, 1, 1, 1)
         self.frame_9 = QtWidgets.QFrame(parent=self.gridLayoutWidget_14)
         self.frame_9.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
@@ -9844,6 +9852,10 @@ class Ui_MDCx(object):
         self.horizontalLayout_160.setObjectName("horizontalLayout_160")
         self.horizontalLayout_159.addLayout(self.horizontalLayout_160)
         self.horizontalLayout_1581.addLayout(self.horizontalLayout_159)
+        spacerItem5 = QtWidgets.QSpacerItem(
+            20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
+        )
+        self.horizontalLayout_1581.addItem(spacerItem5)
         self.gridLayout_14.addLayout(self.horizontalLayout_1581, 4, 1, 1, 1)
         self.label_291 = QtWidgets.QLabel(parent=self.gridLayoutWidget_14)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
@@ -9901,6 +9913,10 @@ class Ui_MDCx(object):
         self.label_106.setObjectName("label_106")
         self.horizontalLayout_100.addWidget(self.label_106)
         self.horizontalLayout_98.addLayout(self.horizontalLayout_100)
+        spacerItem6 = QtWidgets.QSpacerItem(
+            20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
+        )
+        self.horizontalLayout_98.addItem(spacerItem6)
         self.gridLayout_14.addLayout(self.horizontalLayout_98, 2, 1, 1, 1)
         self.pushButton_add_actor_info = QtWidgets.QPushButton(parent=self.groupBox_64)
         self.pushButton_add_actor_info.setGeometry(QtCore.QRect(160, 320, 261, 40))
@@ -11946,10 +11962,10 @@ class Ui_MDCx(object):
         self.pushButton_nfo_lib_crop = QtWidgets.QPushButton(parent=self.nfo_lib_preview_panel)
         self.pushButton_nfo_lib_crop.setObjectName("pushButton_nfo_lib_crop")
         self.nfo_lib_preview_layout.addWidget(self.pushButton_nfo_lib_crop)
-        spacerItem3 = QtWidgets.QSpacerItem(
+        spacerItem7 = QtWidgets.QSpacerItem(
             20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
         )
-        self.nfo_lib_preview_layout.addItem(spacerItem3)
+        self.nfo_lib_preview_layout.addItem(spacerItem7)
         self.nfo_lib_content_layout.addWidget(self.nfo_lib_preview_panel)
         self.nfo_library_main_layout.addWidget(self.nfo_lib_content)
         self.stackedWidget.addWidget(self.page_nfo_library)
@@ -12034,10 +12050,10 @@ class Ui_MDCx(object):
         self.pushButton_about.setMaximumSize(QtCore.QSize(16777215, 40))
         self.pushButton_about.setObjectName("pushButton_about")
         self.verticalLayout.addWidget(self.pushButton_about)
-        spacerItem4 = QtWidgets.QSpacerItem(
+        spacerItem8 = QtWidgets.QSpacerItem(
             20, 0, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
         )
-        self.verticalLayout.addItem(spacerItem4)
+        self.verticalLayout.addItem(spacerItem8)
         self.left_backgroud_widget = QtWidgets.QWidget(parent=self.widget_setting)
         self.left_backgroud_widget.setGeometry(QtCore.QRect(0, 0, 210, 700))
         self.left_backgroud_widget.setObjectName("left_backgroud_widget")
