@@ -681,3 +681,22 @@ def test_actor_wide_a2_idempotent_and_round_trip(win, app, monkeypatch):
 
     _resize(win, app, 1920, 1170)
     assert _wide_snapshot(ui) == first, f"宽→窄→宽 往返未复原: {first} -> {_wide_snapshot(ui)}"
+
+
+def test_actor_narrow_kodi_aligns_to_a2(win, app):
+    """需求⑬：窄态「刮削结束后自动创建」向左移到与「使用Graphis头像」同列，锚点不动；宽态不变。"""
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    for width, height in ((1030, 753), (1000, 700)):
+        _resize(win, app, width, height)
+        assert win._actor_page_stretch_extra() <= 0, f"{width} 宽下不是窄态，测试前提失效"
+        anchor = _abs(ui, ui.checkBox_actor_photo_ne_face)
+        assert _abs(ui, ui.checkBox_actor_photo_kodi) == anchor, (
+            f"{width} 宽下「刮削结束后自动创建」未与「使用Graphis头像」对齐"
+        )
+    # 锚点自身在窄态不得被带动
+    _resize(win, app, 1030, 753)
+    base_anchor = _abs(ui, ui.checkBox_actor_photo_ne_face)
+    _resize(win, app, 1030, 753)
+    assert _abs(ui, ui.checkBox_actor_photo_ne_face) == base_anchor, "窄态锚点被移动"

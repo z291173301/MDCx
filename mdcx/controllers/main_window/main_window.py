@@ -1862,6 +1862,24 @@ class MyMAinWindow(QMainWindow):
             return
         anchor_x = anchor.mapTo(content, anchor.rect().topLeft()).x()
 
+        # 窄态新增：把「刮削结束后自动创建」(checkBox_actor_photo_kodi)向左移动到
+        # 与「使用Graphis头像」(A2锚点)严格上下对齐，锚点自身不动；宽态直接return，
+        # 最大化布局、控件、提示词纹丝不动。kodi是groupBox_68内绝对定位项、未进
+        # registry，直接setGeometry，只左移不右拉、越界则不动，幂等(二次dx=0)。
+        a2 = getattr(ui, self._ACTOR_PAGE_A2_ANCHOR, None)
+        kodi = getattr(ui, "checkBox_actor_photo_kodi", None)
+        if a2 is not None and kodi is not None and kodi.parentWidget() is not None:
+            try:
+                kodi_x = kodi.mapTo(content, kodi.rect().topLeft()).x()
+                a2_x = a2.mapTo(content, a2.rect().topLeft()).x()
+                if a2_x < kodi_x:
+                    kg = kodi.geometry()
+                    kx = kg.x() - (kodi_x - a2_x)
+                    if 0 <= kx and kx + kg.width() <= kodi.parentWidget().width() and kx != kg.x():
+                        kodi.setGeometry(kx, kg.y(), kg.width(), kg.height())
+            except Exception:
+                pass
+
         def left_x(w):
             return w.mapTo(content, w.rect().topLeft()).x()
 
