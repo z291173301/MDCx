@@ -21,6 +21,13 @@
      位置；最大化时的界面、布局、控件均保持不变。
   ⑩ 窄态把「Jellyfin」向右移动到与「补全完成后自动补全演员头像」上下对齐的位置，
      该锚点保持不变；最大化时的界面、布局、控件均保持不变。
+  ⑪ 最大化时把「Jellyfin」「补全完成后自动补全演员头像」「本地头像库」
+     「点击下载头像包」「刮削结束后自动补全演员头像」向左移动到与「使用 Graphis
+     头像」严格上下对齐的位置，「使用 Graphis 头像」位置保持不变；最小化/还原时
+     的页面布局、控件、组件等等均保持不变。
+  ⑫ 最大化时把「仅缺少头像的演员」「刮削结束后自动创建」向右移动到与「使用
+     Graphis 头像」严格上下对齐的位置，「使用 Graphis 头像」位置保持不变；最小化/
+     还原时的页面布局、控件、组件等等均保持不变。
 
 根因防线（任一回归都会让本文件失败）：
   - gridLayout_14 的 col0 必须钉死 130px，否则 QGridLayout 把富余宽度摊给 col0
@@ -46,6 +53,14 @@
   - ⑨ 的路径行尾部本就有一个 Expanding 间隔，故「路径框 + 按钮 + 间隔」恒等于行宽，
     把路径框钉到「选择目录」按钮左缘减行间距，按钮即落到那一列（两个按钮同宽 110px，
     左缘对齐与右缘对齐等价）。
+  - ⑪⑫ 的宽态方法必须排在 _sync_actor_info_columns **之后**：后者末尾会
+    grid.invalidate()+activate()，把 _DOCK_RIGHT 的绝对定位项重新钉回
+    「design_x + extra」的右缘（实测「补全完成后自动补全演员头像」被弹回 1348）。
+  - ⑪ 的三个布局行是「均分可用宽」，必须把 stretch 从前导项挪给尾部项，否则 Qt 把
+    行内余量摊回头一项、前导项钉窄失效；「点击下载头像包」不是独立目标，它在尾部
+    子布局 hl97 内、跟随「本地头像库」。
+  - ⑪ 的 hl96 容器 layoutWidget_12 是固定宽 511 的绝对定位件，塞不下 203px 的右移
+    量，须先按「2×目标相对位置 + spacing」加宽（不进任何 registry，窄态要显式复位）。
 """
 
 import os
@@ -353,24 +368,36 @@ def _narrow_snapshot(ui):
     return snap
 
 
-def _pristine_snapshot(win, app, monkeypatch):
-    """摘掉窄态右移对齐那一拍重新同步，返回「只有通用逻辑」的几何基线。"""
+def _baseline_without(win, app, monkeypatch, take, method, clear):
+    """把某一拍对齐置 noop 后重新同步，返回「只剩通用逻辑」的几何基线。
+
+    只摘**一拍**、另一拍保持生效：两个方法在不同宽窄态下本来就会互相影响
+    （宽态那一拍在窄态分支里要复位 layoutWidget_12 与 kodi），一起摘掉的话基线
+    里就没有另一拍的正常行为，比出来的差异反而会被误判成回归。
+    """
     from mdcx.controllers.main_window import main_window as mw_mod
 
     cls = mw_mod.MyMAinWindow
-    original = cls._sync_actor_page_narrow_align
-    monkeypatch.setattr(cls, "_sync_actor_page_narrow_align", lambda self, _scroll=None: None)
+    original = getattr(cls, method)
+    monkeypatch.setattr(cls, method, lambda self, _scroll=None: None)
     snap = None
     try:
-        win._clear_actor_narrow_align()  # 上一遍窄态留下的间隔/钉宽必须先清干净
+        clear()  # 上一遍留下的间隔/钉宽/容器几何必须先清干净
         win._sync_page_layouts()
         app.processEvents()
-        snap = _narrow_snapshot(win.Ui)
+        snap = take(win.Ui)
     finally:
-        monkeypatch.setattr(cls, "_sync_actor_page_narrow_align", original)
+        monkeypatch.setattr(cls, method, original)
     win._sync_page_layouts()  # 复位到带新逻辑的状态
     app.processEvents()
     return snap
+
+
+def _pristine_snapshot(win, app, monkeypatch):
+    """窄态基线：摘掉窄态那一拍（宽态那一拍保持生效）后的几何。"""
+    return _baseline_without(
+        win, app, monkeypatch, _narrow_snapshot, "_sync_actor_page_narrow_align", win._clear_actor_narrow_align
+    )
 
 
 def test_actor_narrow_miss_align_to_anchor_when_narrow(win, app, monkeypatch):
@@ -421,9 +448,11 @@ def test_actor_narrow_miss_align_leaves_wide_page_untouched(win, app, monkeypatc
     assert _narrow_snapshot(ui) == _pristine_snapshot(win, app, monkeypatch), "宽态被窄态右移逻辑改动"
     assert win._actor_narrow_spacers == [], "宽态残留来源行间隔"
     assert win._actor_narrow_restores == [], "宽态残留钉宽/间距登记"
-    # 宽态仍由 _sync_actor_info_columns 自己把「仅缺少信息的演员」钉在 A2 列
-    assert _abs(ui, ui.checkBox_actor_info_photo) != _abs(ui, ui.radioButton_actor_photo_miss), (
-        "宽态「仅缺少头像的演员」被误钉到锚点列"
+    # 宽态「仅缺少头像的演员」对的是 A2 列（使用 Graphis 头像）——需求⑫ 的目标，
+    # 与「补全完成后自动补全演员头像」同列只是二者都对到 A2 的结果，不是窄态逻辑
+    # 在宽态生效（窄态逻辑此时 spacers / restores 均已清空，见上面两行断言）。
+    assert _abs(ui, ui.radioButton_actor_photo_miss) == _abs(ui, ui.checkBox_actor_photo_ne_face), (
+        "宽态「仅缺少头像的演员」未对到 A2 列"
     )
 
 
@@ -512,3 +541,143 @@ def test_actor_narrow_jellyfin_aligns_to_anchor(win, app, monkeypatch):
         assert jellyfin.width() >= win._ACTOR_NARROW_MIN_DONOR_W, f"{width} 宽下「Jellyfin」窄到夹不住文字"
         # 锚点自身不动
         assert anchor == base["checkBox_actor_info_photo"][0], f"{width} 宽下锚点被移动"
+
+
+# ---------------------------------------------------------------------------
+# 需求⑪⑫：最大化态把各控件对齐到 A2 列（使用 Graphis 头像）
+# ---------------------------------------------------------------------------
+
+# 需求⑪：向左移动到 A2 列的四个目标（zip 是 local 的跟随者，单独断言）
+_WIDE_LEFT_TARGETS = (
+    ("radioButton_server_jellyfin", "Jellyfin"),
+    ("checkBox_actor_info_photo", "补全完成后自动补全演员头像"),
+    ("checkBox_actor_photo_auto", "刮削结束后自动补全演员头像"),
+    ("radioButton_actor_photo_local", "本地头像库"),
+)
+
+# 需求⑫：向右移动到 A2 列的两个目标
+_WIDE_RIGHT_TARGETS = (
+    ("radioButton_actor_photo_miss", "仅缺少头像的演员"),
+    ("checkBox_actor_photo_kodi", "刮削结束后自动创建"),
+)
+
+# 只让宽度、不让位置的前导项（左缘必须纹丝不动）
+_WIDE_LEAD_ITEMS = (
+    ("radioButton_server_emby", "Emby"),
+    ("radioButton_actor_photo_all", "所有演员（头像来源）"),
+    ("radioButton_actor_photo_net", "网络头像库（Gfriends）"),
+)
+
+# 宽态完全不该被动到的（锚点三兄弟 + 无关控件），x 与 width 都要一致
+_WIDE_REFS = (
+    ("checkBox_actor_photo_ne_backdrop", "使用Graphis背景"),
+    ("checkBox_actor_photo_ne_face", "使用Graphis头像（A2 锚点）"),
+    ("checkBox_actor_photo_ne_new", "请求Graphis最新图片"),
+    ("radioButton_actor_info_miss", "仅缺少信息的演员"),
+    ("pushButton_del_actor_folder", "清除所有.actors文件夹"),
+    ("label_299", "补全范围："),
+)
+
+_WIDE_WIDGETS = tuple(
+    dict.fromkeys(
+        [n for n, _ in _WIDE_LEFT_TARGETS]
+        + [n for n, _ in _WIDE_RIGHT_TARGETS]
+        + [n for n, _ in _WIDE_LEAD_ITEMS]
+        + [n for n, _ in _WIDE_REFS]
+        + ["label_download_actor_zip", "layoutWidget_12"]
+    )
+)
+
+
+def _wide_snapshot(ui):
+    """宽态 A2 对齐相关控件的 (绝对 x, 宽)。"""
+    return {name: (_abs(ui, getattr(ui, name)), getattr(ui, name).width()) for name in _WIDE_WIDGETS}
+
+
+def _wide_pristine(win, app, monkeypatch):
+    """宽态基线：摘掉宽态那一拍（窄态那一拍保持生效）后的同宽度几何。"""
+    return _baseline_without(
+        win, app, monkeypatch, _wide_snapshot, "_sync_actor_page_wide_a2_align", win._clear_actor_wide_align
+    )
+
+
+def test_actor_wide_a2_align_when_wide(win, app, monkeypatch):
+    """需求⑪⑫：最大化态六个控件对齐到 A2 列；锚点与让位项左缘纹丝不动。"""
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    for width, height in ((1920, 1170), (1600, 1000), (1030, 753), (1920, 1170)):
+        _resize(win, app, width, height)
+        wide = win._actor_page_stretch_extra() > 0
+        base = _wide_pristine(win, app, monkeypatch)
+        got = _wide_snapshot(ui)
+        anchor = got["checkBox_actor_photo_ne_face"][0]
+
+        if wide:
+            for name, desc in _WIDE_LEFT_TARGETS:
+                assert got[name][0] == anchor, (
+                    f"{width} 宽下最大化态 {desc} 未与「使用Graphis头像」对齐: x={got[name][0]} 期望={anchor}"
+                )
+            # 「点击下载头像包」在尾部子布局内，紧随「本地头像库」（非独立目标）
+            assert got["label_download_actor_zip"][0] > got["radioButton_actor_photo_local"][0], (
+                f"{width} 宽下「点击下载头像包」未紧随「本地头像库」"
+            )
+            for name, desc in _WIDE_RIGHT_TARGETS:
+                delta = got[name][0] - base[name][0]
+                assert delta >= 0, f"{width} 宽下最大化态 {desc} 被左拉: {base[name][0]} -> {got[name][0]}"
+                if delta > 0:
+                    assert got[name][0] == anchor, (
+                        f"{width} 宽下最大化态 {desc} 右移后未与「使用Graphis头像」对齐: x={got[name][0]} 期望={anchor}"
+                    )
+                # 前导项收窄到夹住自己文字时宁可不右移：此时必须原地不动
+                assert got["radioButton_actor_photo_miss"][1] >= win._ACTOR_PAGE_A2_MIN_LEAD_W
+
+            # 让位项只让宽度，左缘必须纹丝不动
+            for name, desc in _WIDE_LEAD_ITEMS:
+                assert got[name][0] == base[name][0], (
+                    f"{width} 宽下最大化态 {desc} 左缘被带偏: {base[name][0]} -> {got[name][0]}"
+                )
+            # 锚点与无关控件的 x、width 全不变
+            for name, desc in _WIDE_REFS:
+                assert got[name] == base[name], f"{width} 宽下最大化态 {desc} 被改动: {base[name]} -> {got[name]}"
+        else:
+            # 窄态逐像素不变：整份快照与「只有通用逻辑」的基线一致
+            assert got == base, f"{width} 宽下窄态被宽态 A2 对齐改动: {base} -> {got}"
+
+
+def test_actor_wide_a2_leaves_narrow_untouched(win, app, monkeypatch):
+    """需求⑪⑫：还原态页面保持不变——含被加宽的 layoutWidget_12 按设计几何复位。"""
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    for width, height in ((1920, 1170), (1030, 753), (1000, 700), (1030, 753)):
+        _resize(win, app, width, height)
+        if win._actor_page_stretch_extra() > 0:
+            continue
+        assert _wide_snapshot(ui) == _wide_pristine(win, app, monkeypatch), f"{width} 宽下窄态被宽态逻辑改动"
+        # layoutWidget_12 不进任何 registry，通用同步不会自愈，必须显式复位
+        assert ui.layoutWidget_12.width() == win._ACTOR_PAGE_HOLDER12_DESIGN[2], (
+            f"{width} 宽下还原态 layoutWidget_12 未按设计几何复位: {ui.layoutWidget_12.width()}"
+        )
+        assert win._actor_wide_restores == [], f"{width} 宽下还原态残留宽态钉宽登记"
+
+
+def test_actor_wide_a2_idempotent_and_round_trip(win, app, monkeypatch):
+    """需求⑪⑫：最大化态幂等；宽→窄→宽 往返后宽态几何逐项复原。"""
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    _resize(win, app, 1920, 1170)
+    assert win._actor_page_stretch_extra() > 0, "宽态前提失效"
+    first = _wide_snapshot(ui)
+    assert win._actor_wide_restores, "宽态未登记任何钉宽/stretch/容器几何"
+
+    _resize(win, app, 1920, 1170)  # 幂等：二次同步纹丝不动
+    assert _wide_snapshot(ui) == first, "宽态二次同步漂移"
+
+    _resize(win, app, 1030, 753)
+    assert win._actor_wide_restores == [], "还原态未清掉宽态钉宽/stretch 登记"
+    assert ui.layoutWidget_12.width() == win._ACTOR_PAGE_HOLDER12_DESIGN[2], "还原态容器未复位"
+
+    _resize(win, app, 1920, 1170)
+    assert _wide_snapshot(ui) == first, f"宽→窄→宽 往返未复原: {first} -> {_wide_snapshot(ui)}"

@@ -256,6 +256,10 @@ class MyMAinWindow(QMainWindow):
         # _sync_actor_info_columns 之后，若复用那边的列表并 setFixedWidth(0)「解锁」，
         # 会顺手拆掉那一拍刚钉好的 253/252 宽态铺排。
         self._actor_narrow_restores = []
+        # 最大化态 A2 列对齐改过的持久设置 [("size", 控件, (原min, 原max)) /
+        # ("geometry", 控件, 原 QRect) / ("stretch", 布局, 原stretch元组)]，
+        # 窄态第一步原样写回；同样与前两套登记分开，且必须逆序写回。
+        self._actor_wide_restores = []
         self._zimu_dl_gap = -1  # 该间隔当前生效的宽度（-1 = 未安装/已拆除）
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
         self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
@@ -901,15 +905,57 @@ class MyMAinWindow(QMainWindow):
     # 右列按钮固定宽度（与常态一致，只平移不拉宽）
     _ACTOR_DB_TOOL_COL_BTN_W = 200
 
-    # 需求①：三个控件与 checkBox_actor_photo_ne_new（请求 Graphis 最新图片）左缘对齐
-    _ACTOR_PAGE_GRAPHIS_TARGETS = (
+    # 「清除所有.actors 文件夹」与 checkBox_actor_photo_ne_new（请求 Graphis 最新
+    # 图片）左缘对齐——用户截图上它仍停在最右，未纳入后续对齐需求。
+    _ACTOR_PAGE_GRAPHIS_TARGETS = ("pushButton_del_actor_folder",)
+    # 与 checkBox_actor_photo_ne_face（使用 Graphis 头像，即 A2 列）左缘对齐的两个
+    # 右缘锚定项：「补全完成后自动补全演员头像」「刮削结束后自动补全演员头像」。
+    _ACTOR_PAGE_A2_TARGETS = (
         "checkBox_actor_photo_auto",
         "checkBox_actor_info_photo",
-        "pushButton_del_actor_folder",
     )
+    # A2 列锚点：使用 Graphis 头像
+    _ACTOR_PAGE_A2_ANCHOR = "checkBox_actor_photo_ne_face"
     # 需求②：checkBox_actor_photo_kodi 与 radioButton_actor_photo_miss
-    # （仅缺少头像的演员）左缘对齐
+    # （仅缺少头像的演员）左缘对齐——后者本就被移到 A2，故 kodi 随之到位。
     _ACTOR_PAGE_MISS_TARGETS = ("checkBox_actor_photo_kodi",)
+    # ── 最大化态：三个布局行把目标控件对到 A2 列 ──
+    # (行布局, 容器, 目标控件, 目标前的末项, 是否需要加宽容器)
+    # 「仅缺少头像的演员」所在 layoutWidget_12 是固定宽 511 的绝对定位件，塞不进
+    # 203px 的右移量，必须先把容器加宽（见 _ACTOR_INFO_SCOPE_HOLDER_DESIGN 注释
+    # 里 layoutWidget_15 的同款做法）；另两行的容器是随窗口变的一整列。
+    _ACTOR_PAGE_A2_ROWS = (
+        (
+            "horizontalLayout_96",
+            "layoutWidget_12",
+            "radioButton_actor_photo_miss",
+            "radioButton_actor_photo_all",
+            True,
+        ),
+        (
+            "horizontalLayout_103",
+            "gridLayoutWidget_25",
+            "radioButton_server_jellyfin",
+            "radioButton_server_emby",
+            False,
+        ),
+        (
+            "horizontalLayout_95",
+            "layoutWidget_8",
+            "radioButton_actor_photo_local",
+            "radioButton_actor_photo_net",
+            False,
+        ),
+    )
+    # 「点击下载头像包」（label_download_actor_zip，在 hl95 尾部子布局 hl97 内）与
+    # 「本地头像库」同行紧跟其后，用户要求二者一同对齐到 A2——它不是独立目标，
+    # 只需跟着尾部 stretch 走，故不在上表单列，此处仅供断言/文档引用。
+    _ACTOR_PAGE_A2_FOLLOWERS = (("radioButton_actor_photo_local", "label_download_actor_zip"),)
+    # layoutWidget_12 的设计几何（相对 frame_2，MDCx.ui 140,1,511,41）：宽态加宽、
+    # 窄态按此复位。它不进任何 registry，故窄态通用同步不会自愈，必须显式还原。
+    _ACTOR_PAGE_HOLDER12_DESIGN = (140, 1, 511, 41)
+    # 前导项收窄让位的下限：文字 + 单选指示器实测 ~130px，低于此值宁可不移
+    _ACTOR_PAGE_A2_MIN_LEAD_W = 150
     # checkBox_actor_photo_kodi 在 groupBox_68 内被 _classify_inner 判为 None
     # （既非 _STRETCH 也非右缘 ≥90%），压根没进 registry，于是通用宽幅同步
     # 既不会推它、也不会在还原时把它推回来。最大化被本方法挪走后只能靠自己复位，
@@ -1234,14 +1280,13 @@ class MyMAinWindow(QMainWindow):
         box = getattr(ui, "groupBox_41", None)
         if box is None or not box.isVisibleTo(self):
             return
-        # 还原态（页面未被拉宽）：除 checkBox_actor_photo_kodi 外一个像素都不碰，
-        # 几何完全交给通用宽幅同步（见 docstring）。kodi 未进 registry，通用逻辑
-        # 不会自愈，必须显式复位，否则拉宽挪走后会一直停在锚点线上。
-        # 判据是拉伸量而非 isMaximized()，理由见 _actor_page_stretch_extra。
-        if self._actor_page_stretch_extra() <= 0:
-            kodi = getattr(ui, "checkBox_actor_photo_kodi", None)
-            if kodi is not None:
-                kodi.setGeometry(*self._ACTOR_PAGE_MISS_DESIGN)
+            # 还原态（页面未被拉宽）：除 checkBox_actor_photo_kodi 外一个像素都不碰，
+            # 几何完全交给通用宽幅同步（见 docstring）。kodi 未进 registry，通用逻辑
+            # 不会自愈，必须显式复位，否则拉宽挪走后会一直停在锚点线上。
+            # 判据是拉伸量而非 isMaximized()，理由见 _actor_page_stretch_extra。
+            # ③「刮削结束后自动创建」（kodi）未进 registry，通用同步不会自愈，必须跟着
+            # 刚被移到 A2 的「仅缺少头像的演员」一起到位——故必须排在下面 hl96 循环
+            # **之后**：量到的是 miss 移动后的新 x。
             return
         if actor_scroll is not None and actor_scroll.isVisibleTo(self):
             actor_scroll.sync_wide_children_width()  # 取终态 extra，勿量过期几何
@@ -1274,6 +1319,186 @@ class MyMAinWindow(QMainWindow):
         for name in self._ACTOR_PAGE_MISS_TARGETS:
             shift_to(name, miss)
 
+    def _clear_actor_wide_align(self) -> None:
+        """清掉最大化态 A2 列对齐留下的钉宽/容器几何/stretch（先清后建，故幂等）。
+
+        与 _clear_actor_narrow_align 同款：钉宽「记录原 min/max、原样写回」，
+        不用 setFixedWidth(0) 真解锁——本方法与窄态那一对都会跑在
+        _sync_actor_info_columns 之后，真解锁会拆掉那一拍刚钉好的宽态铺排。
+        逆序写回的原因同上：同一控件一趟里可能被钉两次。
+        """
+        for kind, obj, saved in reversed(self._actor_wide_restores):
+            if obj is None:
+                continue
+            if kind == "size":
+                obj.setMinimumWidth(saved[0])
+                obj.setMaximumWidth(saved[1])
+                obj.updateGeometry()
+            elif kind == "geometry":
+                obj.setGeometry(saved)
+            elif kind == "stretch":
+                for i, value in enumerate(saved):
+                    obj.setStretch(i, value)
+        self._actor_wide_restores = []
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        for row_name, _, _, _, _ in self._ACTOR_PAGE_A2_ROWS:
+            row = getattr(ui, row_name, None)
+            if row is None or row.parentWidget() is None:
+                continue
+            row.invalidate()
+            row.activate()
+
+    def _sync_actor_page_wide_a2_align(self, actor_scroll=None) -> None:
+        """最大化态：把若干控件左缘对到 A2 列（使用 Graphis 头像），锚点自身不动。
+
+        用户需求（最大化时；最小化/还原态页面、布局、控件保持不变）：
+          ① 「Jellyfin」「补全完成后自动补全演员头像」「本地头像库」「点击下载头像包」
+             「刮削结束后自动补全演员头像」向左移动到与「使用 Graphis 头像」严格上下
+             对齐的位置，「使用 Graphis 头像」自身保持不变；
+          ② 「仅缺少头像的演员」「刮削结束后自动创建」向右移动到同一列。
+
+        A2 锚点是 checkBox_actor_photo_ne_face（使用 Graphis 头像，layoutWidget_8 内
+        的 _STRETCH 三等分项），实际 x 一律运行时 mapTo 实测，绝不写死——
+        1920 宽实测 652、1600 宽实测 546。
+
+        三类控件三种手法（与窄态那套互不重叠，各自登记、各自还原）：
+          - 右缘锚定的绝对定位项（「补全完成后自动补全演员头像」等）由
+            _sync_actor_page_align 的 shift_to 处理，本方法不碰。
+          - 只需「前导项收窄让位」的行：hl103（Jellyfin）与 hl95（本地头像库）。
+            两行都是「均分可用宽」，把目标前的末项钉窄，目标的左缘就落在
+            (行左缘 + 前导宽 + spacing) 上；行内总需求随之小于可用宽，**尾部项
+            吸收全部余量**（hl103 的 Jellyfin / hl95 的 hl97），故这里必须把
+            stretch 从头一项挪给尾一项——否则 Qt 会把余量摊回头一项，钉窄失效。
+          - 容器是固定宽绝对定位件的行：hl96（仅缺少头像的演员）所在的
+            layoutWidget_12 恒为 511，塞不下 203px 的右移量，先把容器加宽到
+            「2×(目标相对位置) + spacing」让两等分项各占一半，再钉住。
+
+        判据用 _actor_page_stretch_extra() 的几何拉伸量而非 isMaximized()，理由见
+        _actor_page_stretch_extra docstring。窄态第一步清干净即 return，
+        最小化态一个像素都不碰（layoutWidget_12 按设计几何复位，它不进任何
+        registry、通用同步不会自愈）。休眠页跳过。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_41", None)
+        if box is None or not box.isVisibleTo(self):
+            return
+        self._clear_actor_wide_align()
+        if self._actor_page_stretch_extra() <= 0:
+            # 窄态：只还原被加宽的容器（它不进任何 registry，通用同步不会自愈）。
+            # kodi 的窄态位置由 _sync_actor_page_align 的窄态分支负责（它把 kodi
+            # 按设计几何复位），本方法窄态一个像素都不碰它——否则会覆盖 ① 的结果。
+            holder = getattr(ui, "layoutWidget_12", None)
+            if holder is not None and holder.parentWidget() is not None:
+                holder.setGeometry(*self._ACTOR_PAGE_HOLDER12_DESIGN)
+            return
+        # 刻意**不**重跑 sync_wide_children_width()：它会把 ① 刚对好的右缘锚定项
+        # 重新 move(design_x + extra) 钉回右缘，把 ① 的成果整个抹掉。① 排在本方法
+        # 之前、同一拍里刚跑完宽幅同步，量到的几何已是终态。
+        content = box.parentWidget()
+        if content is None:
+            return
+        anchor = getattr(ui, self._ACTOR_PAGE_A2_ANCHOR, None)
+        if anchor is None:
+            return
+        anchor_x = anchor.mapTo(content, anchor.rect().topLeft()).x()
+
+        def left_x(w):
+            return w.mapTo(content, w.rect().topLeft()).x()
+
+        def lock_width(w, width):
+            if w is None:
+                return
+            if w.minimumWidth() == width and w.maximumWidth() == width:
+                return
+            self._actor_wide_restores.append(("size", w, (w.minimumWidth(), w.maximumWidth())))
+            w.setFixedWidth(width)
+            w.updateGeometry()
+
+        def lock_stretch(row, tail_idx):
+            self._actor_wide_restores.append(("stretch", row, [row.stretch(i) for i in range(row.count())]))
+            for i in range(row.count()):
+                row.setStretch(i, 1 if i == tail_idx else 0)
+            row.invalidate()
+            row.activate()
+
+        # ① 两个「自动补全演员头像」是右缘锚定的绝对定位项（groupBox_41 / groupBox_64
+        # 的直接子项），通用宽幅同步每遍都按 design_x + extra 把它们钉回右缘，故这里
+        # 与 _sync_actor_page_align 的 shift_to 同款：量出差值后 setGeometry 左移。
+        # 放在本方法而不是 _sync_actor_page_align 里，是因为 _sync_actor_info_columns
+        # 末尾的 grid.invalidate()+activate() 会把它们重新弹回右缘——本方法排在它
+        # 之后，才不会被覆盖（还原态则完全交给通用同步，本方法一个像素都不碰）。
+        for name in self._ACTOR_PAGE_A2_TARGETS:
+            w = getattr(ui, name, None)
+            if w is None or w.parentWidget() is None:
+                continue
+            dx = anchor_x - left_x(w)
+            g = w.geometry()
+            nx = g.x() + dx
+            if nx < 0 or nx + g.width() > w.parentWidget().width():
+                continue  # 越出父级：保持通用逻辑给出的位置
+            if dx:
+                w.setGeometry(nx, g.y(), g.width(), g.height())
+
+        # ③「刮削结束后自动创建」（kodi）未进 registry，通用同步不会自愈，必须跟着
+        # 刚被移到 A2 的「仅缺少头像的演员」一起到位——故必须排在下面 hl96 循环
+        # **之后**：量到的是 miss 移动后的新 x。
+        # 刚被移到 A2 的「仅缺少头像的演员」一起到位——故必须排在 ② 的 hl96 循环
+        # **之后**：量到的是 miss 移动后的新 x。
+        for row_name, holder_name, target_name, lead_name, widen in self._ACTOR_PAGE_A2_ROWS:
+            row = getattr(ui, row_name, None)
+            holder = getattr(ui, holder_name, None)
+            target = getattr(ui, target_name, None)
+            lead = getattr(ui, lead_name, None)
+            if row is None or holder is None or target is None or lead is None:
+                continue
+            if row.parentWidget() is not holder or target.parentWidget() is not holder:
+                continue
+            tidx = row.indexOf(target)
+            lidx = row.indexOf(lead)
+            if tidx < 0 or lidx < 0 or lidx >= tidx:
+                continue
+            if widen:
+                # 容器是固定宽绝对定位件：先按「两等分项各占一半」加宽，再钉住两半。
+                dx, dy, _, dh = self._ACTOR_PAGE_HOLDER12_DESIGN
+                target_rel = anchor_x - holder.mapTo(content, holder.rect().topLeft()).x()
+                width = 2 * target_rel + row.spacing()
+                if width <= self._ACTOR_PAGE_HOLDER12_DESIGN[2]:
+                    continue  # 容器已够宽（或目标反而更左）：交给下一轮/通用逻辑
+                self._actor_wide_restores.append(("geometry", holder, holder.geometry()))
+                holder.setGeometry(dx, dy, width, dh)
+                grid = getattr(ui, "gridLayout_14", None)
+                if grid is not None:
+                    grid.invalidate()
+                    grid.activate()
+            row.invalidate()
+            row.activate()
+            # 前导项钉到「让目标的左缘正好落在锚点上」的宽度
+            between = sum(
+                row.itemAt(i).widget().width() for i in range(lidx + 1, tidx) if row.itemAt(i).widget() is not None
+            )
+            need_w = anchor_x - left_x(lead) - row.spacing() * (tidx - lidx) - between
+            if need_w < self._ACTOR_PAGE_A2_MIN_LEAD_W:
+                continue  # 会把前导项自己的文字挤没：宁可不移
+            # 余量必须全部交给目标之后的尾部项，否则 Qt 会摊回头一项、钉窄失效
+            lock_stretch(row, tidx)
+            lock_width(lead, need_w)
+            row.invalidate()
+            row.activate()
+        kodi = getattr(ui, "checkBox_actor_photo_kodi", None)
+        miss = getattr(ui, "radioButton_actor_photo_miss", None)
+        if kodi is not None and miss is not None and kodi.parentWidget() is not None:
+            dx = anchor_x - left_x(miss)
+            kg = kodi.geometry()
+            kx = kg.x() + dx
+            # 只右移不左拉（需求②说的是「向右移动」）：miss 因让位下限不够而没动时
+            # dx 为负，此时 kodi 必须原地不动，否则会被反向拖走。
+            if dx > 0 and 0 <= kx and kx + kg.width() <= kodi.parentWidget().width() and kx != kg.x():
+                kodi.setGeometry(kx, kg.y(), kg.width(), kg.height())
+
     def _clear_actor_info_spacers(self) -> None:
         """清掉 _sync_actor_info_columns 注入的间隔项与宽度锁（每遍同步先清后建，故幂等）。
 
@@ -1299,18 +1524,24 @@ class MyMAinWindow(QMainWindow):
         self._actor_info_spacers = []
 
     def _sync_actor_page_wide_hooks(self, actor_scroll=None) -> None:
-        """演员页宽幅拉伸后的三拍对齐（顺序敏感，勿调换）。
+        """演员页宽幅拉伸后的四拍对齐（顺序敏感，勿调换）。
 
-        ① _sync_actor_page_align：把「补全完成后自动补全演员头像」等三控件对到
-           checkBox_actor_photo_ne_new（请求 Graphis 最新图片）。
+        ① _sync_actor_page_align：把「清除所有.actors 文件夹」对到 checkBox_actor_photo_ne_new
+           （请求 Graphis 最新图片），把两个「自动补全演员头像」对到 A2 列。
         ② _sync_actor_info_columns：演员信息组三列对齐，它的 A3 锚点正是同一个
            checkBox_actor_photo_ne_new，必须在 ① 之后量才不会读到过期 x。
-        ③ _sync_actor_page_narrow_align：窄态把「仅缺少信息的演员」「仅缺少头像
-           的演员」「本地头像库」右移到 ② 刚钉好的锚点列上——必须在 ② 之后，因为它
-           要量的正是 ② 顺带定下的那两个单选的当前 x。
+        ③ _sync_actor_page_wide_a2_align：最大化态把「Jellyfin」「本地头像库」「仅缺少
+           头像的演员」等对到 A2 列（使用 Graphis 头像）。排在 ② 之后是**必须的**：
+           ② 末尾 grid.invalidate()+activate() 会把 _DOCK_RIGHT 的绝对定位项重新
+           钉回右缘（design_x + extra），把 ① 刚对好的两个「自动补全演员头像」弹回
+           去（实测被弹回 1348）。
+        ④ _sync_actor_page_narrow_align：窄态把「仅缺少信息的演员」「仅缺少头像
+           的演员」「本地头像库」右移到「补全完成后自动补全演员头像」那一列上——
+           必须在 ② 之后，因为它要量的正是 ② 顺带定下的那两个单选的当前 x。
         """
         self._sync_actor_page_align(actor_scroll)
         self._sync_actor_info_columns(actor_scroll)
+        self._sync_actor_page_wide_a2_align(actor_scroll)
         self._sync_actor_page_narrow_align(actor_scroll)
 
     def _sync_actor_info_columns(self, actor_scroll=None) -> None:
@@ -2702,6 +2933,11 @@ class MyMAinWindow(QMainWindow):
         # 必须在 _sync_actor_page_align 之后：本方法要量 checkBox_actor_photo_ne_new
         # 的左缘当 A3 锚点，而锚点位置由前者刚定下。
         self._sync_actor_info_columns(actor_scroll)
+        # 最大化态 A2 列对齐。排在 ② 之后是**必须的**：② 末尾会 grid.invalidate()
+        # + activate() 整个 gridLayout_14，把 _DOCK_RIGHT 的绝对定位项重新钉回
+        # 「design_x + extra」的右缘（实测「补全完成后自动补全演员头像」被弹回
+        # 1348）；排在 ① 之后是为了 A2 锚点 x 已是终态。
+        self._sync_actor_page_wide_a2_align(actor_scroll)
         # 窄态右移对齐（最小化时把三个「仅缺少…/本地头像库」对到锚点列）：必须在
         # _sync_actor_info_columns 之后——它要量后者刚钉好的两个单选的当前 x。
         self._sync_actor_page_narrow_align(actor_scroll)
