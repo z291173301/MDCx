@@ -1,6 +1,6 @@
 """演员页「补全Emby/Jellyfin演员信息」组列对齐回归测试。
 
-用户需求（两轮共七条）：
+用户需求（共十三条）：
   ① 「补全语言：」「演员信息数据库：」与「补全范围：」的**冒号**严格上下对齐（窄宽双态）。
   ② 宽态「中文简体」「所有演员」左缘对齐「使用Graphis背景」。
   ③ 宽态「中文繁体」「使用数据库补全演员信息」左缘对齐「使用Graphis头像」。
@@ -28,6 +28,9 @@
   ⑫ 最大化时把「仅缺少头像的演员」「刮削结束后自动创建」向右移动到与「使用
      Graphis 头像」严格上下对齐的位置，「使用 Graphis 头像」位置保持不变；最小化/
      还原时的页面布局、控件、组件等等均保持不变。
+  ⑬ 窄态（最小化/还原）把「本地头像库」「点击下载头像包」向左移动到与「使用
+     Graphis 头像」严格上下对齐的位置，「使用 Graphis 头像」位置保持不变；最大化
+     时的页面布局、控件、提示词等等均保持不变。
 
 根因防线（任一回归都会让本文件失败）：
   - gridLayout_14 的 col0 必须钉死 130px，否则 QGridLayout 把富余宽度摊给 col0
@@ -61,6 +64,12 @@
     子布局 hl97 内、跟随「本地头像库」。
   - ⑪ 的 hl96 容器 layoutWidget_12 是固定宽 511 的绝对定位件，塞不下 203px 的右移
     量，须先按「2×目标相对位置 + spacing」加宽（不进任何 registry，窄态要显式复位）。
+  - ⑬ 的来源行 hl95 与 ⑪⑫ 三行结构不同，套不了「前导项收窄 + 行尾插 Expanding
+    间隔」：目标是 Fixed 宽单选（min==max==59）吸不走余量、必须插间隔，而行尾 hl97
+    是嵌套子布局（内含「点击下载头像包」一枚 QLabel），插间隔会与它争余量、把链接
+    文字夹没（实测被压到 49px）。只能「stretch 挪给行尾 + 前导项钉窄」。又不能直接
+    钉住行尾那枚 QLabel 的现宽——那会改变 hl95 的最小宽、连带把 layoutWidget_8 的
+    三等分挤偏（A2 由 356 漂到 362）。
 """
 
 import os
@@ -321,22 +330,50 @@ def test_actor_info_state_restored_after_round_trip(win, app):
 
 
 # ---------------------------------------------------------------------------
-# 需求⑧⑨⑩：窄态把各控件右移到各自锚点列
+# 需求⑧⑨⑩ + 本轮：窄态把各控件对齐到 A2 列（使用 Graphis 头像）
+#
+# 本轮方向由「右移到补全完成后自动补全演员头像」改为「左移到 A2 列」：窄态下
+# A2 列比那些控件更靠左，故一律是左移，只左移不右拉。
 # ---------------------------------------------------------------------------
 
-# 需要右移对齐锚点的目标（窄态）
-_NARROW_MOVE_TARGETS = (
+# 需要在窄态对到 A2 列（checkBox_actor_photo_ne_face 左缘）的目标
+_NARROW_A2_TARGETS = (
+    ("checkBox_actor_info_photo", "补全完成后自动补全演员头像"),
+    ("checkBox_actor_photo_auto", "刮削结束后自动补全演员头像"),
+    ("checkBox_actor_photo_kodi", "刮削结束后自动创建"),
     ("radioButton_actor_info_miss", "仅缺少信息的演员"),
     ("radioButton_actor_photo_miss", "仅缺少头像的演员"),
+    ("radioButton_server_jellyfin", "Jellyfin"),
     ("radioButton_actor_photo_local", "本地头像库"),
 )
 
-# 左缘与宽度都不得被窄态右移带动的参照控件
+# 需求⑬：与「本地头像库」同行、紧随其后的链接。它不是独立目标——它得对到 A2 列的
+# 「本地头像库」跟着左移，自己只是左缘右移到紧随其后的新位置，故不能断言 == 锚点。
+# 只断言「跟着左移」且「不窄于自己的文字」（否则链接文字会被夹掉）。
+_NARROW_SOURCE_LINK = ("label_download_actor_zip", "点击下载头像包")
+
+# 窄态需要收窄到与最下方按钮同宽的上方两枚「开始补全」
+_NARROW_ADD_BTNS = (
+    ("pushButton_add_actor_info", "开始补全（演员信息）"),
+    ("pushButton_add_actor_pic", "开始补全（头像）"),
+)
+
+# 窄态 A2 列锚点
+_NARROW_A2_ANCHOR = "checkBox_actor_photo_ne_face"
+
+# 左缘与宽度都不得被窄态对齐带动的参照控件
 _NARROW_REFS = (
-    ("checkBox_actor_info_photo", "补全完成后自动补全演员头像（锚点）"),
+    ("label_299", "补全范围："),
+    (_NARROW_A2_ANCHOR, "使用Graphis头像（A2 锚点）"),
+    ("pushButton_add_actor_pic_kodi", "开始补全（最下方，基准按钮）"),
+)
+
+# 为把目标左移到 A2 列而**收窄让位**的同行前导项：左缘必须纹丝不动，只许收窄
+_NARROW_LEADS = (
     ("radioButton_actor_info_all", "所有演员"),
     ("radioButton_actor_photo_all", "所有演员（头像来源）"),
-    ("label_299", "补全范围："),
+    ("radioButton_server_emby", "Emby"),
+    ("radioButton_actor_photo_net", "网络头像库Gfriends"),
 )
 
 # 涉及窄态右移的三行（记录 spacing / count / stretch，防「改完忘还原」）
@@ -349,13 +386,15 @@ _NARROW_ROWS = (
 )
 
 _NARROW_WIDGETS = tuple(
-    [name for name, _ in _NARROW_MOVE_TARGETS]
-    + ["label_download_actor_zip", "radioButton_actor_photo_net"]
-    + [name for name, _ in _NARROW_REFS]
-    # 需求①：路径框 + 「选择文件」按钮 + 「选择目录」基准按钮
-    + ["lineEdit_actor_db_path", "pushButton_select_actor_info_db", "pushButton_select_gfriends_local"]
-    # 需求②：「Emby」/「Jellyfin」
-    + ["radioButton_server_emby", "radioButton_server_jellyfin"]
+    dict.fromkeys(
+        [name for name, _ in _NARROW_A2_TARGETS]
+        + [name for name, _ in _NARROW_REFS]
+        + [name for name, _ in _NARROW_LEADS]
+        + [name for name, _ in _NARROW_ADD_BTNS]
+        + ["label_download_actor_zip", "radioButton_actor_photo_net", "radioButton_actor_photo_local"]
+        # 需求①：路径框 + 「选择文件」按钮 + 「选择目录」基准按钮
+        + ["lineEdit_actor_db_path", "pushButton_select_actor_info_db", "pushButton_select_gfriends_local"]
+    )
 )
 
 
@@ -400,42 +439,66 @@ def _pristine_snapshot(win, app, monkeypatch):
     )
 
 
-def test_actor_narrow_miss_align_to_anchor_when_narrow(win, app, monkeypatch):
-    """需求⑧：窄态三个控件右移到锚点列；锚点与同排参照控件纹丝不动；只右移不左拉。"""
+def test_actor_narrow_controls_land_on_a2_column(win, app, monkeypatch):
+    """窄态：七枚控件全部对到 A2 列（使用 Graphis 头像）左缘；锚点与参照控件纹丝不动。
+
+    方向是「左移」——窄态下 A2 列比这些控件更靠左；只左移不右拉，且不得被夹掉文字。
+    """
     ui = win.Ui
     win.show()
     _goto_actor_page(win, app)
     for width, height in ((940, 700), (1000, 700), (1030, 753)):
         assert win._actor_page_stretch_extra() <= 0, f"{width} 宽下演员页不是窄态，测试前提失效"
         _resize(win, app, width, height)
-        anchor = _abs(ui, ui.checkBox_actor_info_photo)
+        anchor = _abs(ui, getattr(ui, _NARROW_A2_ANCHOR))
         base = _pristine_snapshot(win, app, monkeypatch)
         got = _narrow_snapshot(ui)
 
+        # 锚点与参照控件：左缘和宽度都不得被带偏
         for name, desc in _NARROW_REFS:
-            assert got[name] == base[name], f"{width} 宽下 {desc} 被窄态右移带偏: {base[name]} -> {got[name]}"
+            assert got[name] == base[name], f"{width} 宽下 {desc} 被窄态对齐带偏: {base[name]} -> {got[name]}"
         # 「网络获取头像」把宽度让给了行尾标签（文字左对齐，视觉无变化），左缘不得动
         assert got["radioButton_actor_photo_net"][0] == base["radioButton_actor_photo_net"][0], (
             f"{width} 宽下「网络获取头像」左缘被带偏: {base['radioButton_actor_photo_net'][0]} -> {got['radioButton_actor_photo_net'][0]}"
         )
 
-        for name, desc in _NARROW_MOVE_TARGETS:
+        for name, desc in _NARROW_A2_TARGETS:
             now = got[name][0]
             before = base[name][0]
-            assert now >= before, f"{width} 宽下 {desc} 被左拉: {before} -> {now}"
-            need = anchor - before
-            if need <= 0:
-                # 窗口再窄一点时目标已在锚点列或更右：需求只要求右移，不得左拉
-                assert now == before, f"{width} 宽下 {desc} 本不需移动却被移动: {before} -> {now}"
-            else:
-                assert now == anchor, f"{width} 宽下 {desc} 未与锚点对齐: x={now} 期望={anchor}"
+            assert now <= before, f"{width} 宽下 {desc} 被右拉: {before} -> {now}"
+            assert now == anchor, f"{width} 宽下 {desc} 未与 A2 列对齐: x={now} 期望={anchor}"
 
-        # 「点击下载头像包」与「本地头像库」同行同进退
-        shift_zip = got["label_download_actor_zip"][0] - base["label_download_actor_zip"][0]
-        shift_local = got["radioButton_actor_photo_local"][0] - base["radioButton_actor_photo_local"][0]
-        assert shift_zip == shift_local, (
-            f"{width} 宽下「点击下载头像包」未随「本地头像库」同进退: {shift_zip} vs {shift_local}"
+        # 需求⑬：「点击下载头像包」不独立对齐，它随「本地头像库」一起左移；
+        # 且绝不能被窄到夹掉链接文字（这正是不能对它插 Expanding 间隔的原因）。
+        link_name, link_desc = _NARROW_SOURCE_LINK
+        assert got[link_name][0] <= base[link_name][0], (
+            f"{width} 宽下 {link_desc} 未随「本地头像库」左移: {base[link_name][0]} -> {got[link_name][0]}"
         )
+        link_text_w = (
+            getattr(ui, link_name).fontMetrics().horizontalAdvance(getattr(ui, link_name).text())
+            + getattr(ui, link_name).margin() * 2
+        )
+        assert got[link_name][1] >= link_text_w, (
+            f"{width} 宽下 {link_desc} 被窄到夹掉文字: w={got[link_name][1]} < 文字宽={link_text_w}"
+        )
+
+        # 收窄不得夹住自己的文字：可涨的行由布局给足宽度，钉死的行由 maxWidth 保底，
+        # 统一用 sizeHint（文字 + 单选指示器）当下限即可
+        for name, desc in _NARROW_A2_TARGETS:
+            assert got[name][1] >= getattr(ui, name).sizeHint().width(), (
+                f"{width} 宽下 {desc} 窄到夹住文字: w={got[name][1]} < sizeHint={getattr(ui, name).sizeHint().width()}"
+            )
+        # 前导项只许收窄让位：左缘不动、宽度不增、且不低于下限
+        for name, desc in _NARROW_LEADS:
+            assert got[name][0] == base[name][0], f"{width} 宽下 {desc} 左缘被带偏: {base[name][0]} -> {got[name][0]}"
+            assert got[name][1] <= base[name][1], f"{width} 宽下 {desc} 反被加宽: {base[name][1]} -> {got[name][1]}"
+            assert got[name][1] >= win._ACTOR_NARROW_MIN_LEAD_W, f"{width} 宽下 {desc} 收窄到下限以下: w={got[name][1]}"
+
+        # 上方两枚「开始补全」收窄到与最下方基准按钮同宽，基准按钮自身不动
+        ref_w = ui.pushButton_add_actor_pic_kodi.width()
+        for name, desc in _NARROW_ADD_BTNS:
+            assert got[name][1] == ref_w, f"{width} 宽下 {desc} 宽未与最下方按钮一致: {got[name][1]} != {ref_w}"
+            assert got[name][1] < base[name][1], f"{width} 宽下 {desc} 未被收窄: {base[name][1]} -> {got[name][1]}"
 
 
 def test_actor_narrow_miss_align_leaves_wide_page_untouched(win, app, monkeypatch):
@@ -516,31 +579,33 @@ def test_actor_narrow_select_file_aligns_to_select_folder(win, app, monkeypatch)
         assert _abs(ui, path) == base["lineEdit_actor_db_path"][0], f"{width} 宽下路径框左缘被移动"
 
 
-def test_actor_narrow_jellyfin_aligns_to_anchor(win, app, monkeypatch):
-    """需求②：窄态「Jellyfin」右移到与「补全完成后自动补全演员头像」同列，Emby 不动。"""
+def test_actor_narrow_jellyfin_aligns_to_a2_anchor(win, app, monkeypatch):
+    """需求②：窄态「Jellyfin」左移到与「使用 Graphis 头像」同列；「Emby」不动、不被右拉。"""
     ui = win.Ui
     win.show()
     _goto_actor_page(win, app)
-    for width, height in ((1030, 753), (1000, 700), (1030, 753)):
+    for width, height in ((940, 700), (1030, 753), (1000, 700), (1030, 753)):
         assert win._actor_page_stretch_extra() <= 0, f"{width} 宽下演员页不是窄态，测试前提失效"
         _resize(win, app, width, height)
         base = _pristine_snapshot(win, app, monkeypatch)
-        anchor = _abs(ui, ui.checkBox_actor_info_photo)
+        anchor = _abs(ui, getattr(ui, _NARROW_A2_ANCHOR))
         jellyfin = ui.radioButton_server_jellyfin
 
         assert _abs(ui, jellyfin) == anchor, (
-            f"{width} 宽下「Jellyfin」未与锚点对齐: x={_abs(ui, jellyfin)} 期望={anchor}"
+            f"{width} 宽下「Jellyfin」未与 A2 列对齐: x={_abs(ui, jellyfin)} 期望={anchor}"
         )
-        # 「Emby」保持 A1 原位（服务类型行的行首不得被让位挤走）
+        # 「Emby」保持 A1 原位（服务类型行的行首不得被让位挤走），宽度也不变
         assert _abs(ui, ui.radioButton_server_emby) == base["radioButton_server_emby"][0], (
             f"{width} 宽下「Emby」被带偏: {base['radioButton_server_emby'][0]} -> {_abs(ui, ui.radioButton_server_emby)}"
         )
-        # 只右移不左拉
-        assert _abs(ui, jellyfin) >= base["radioButton_server_jellyfin"][0], f"{width} 宽下「Jellyfin」被左拉"
+        # 只左移不右拉
+        assert _abs(ui, jellyfin) <= base["radioButton_server_jellyfin"][0], f"{width} 宽下「Jellyfin」被右拉"
         # 收窄不得夹住自己的文字
-        assert jellyfin.width() >= win._ACTOR_NARROW_MIN_DONOR_W, f"{width} 宽下「Jellyfin」窄到夹不住文字"
-        # 锚点自身不动
-        assert anchor == base["checkBox_actor_info_photo"][0], f"{width} 宽下锚点被移动"
+        assert jellyfin.width() >= jellyfin.sizeHint().width(), (
+            f"{width} 宽下「Jellyfin」窄到夹不住文字: w={jellyfin.width()}"
+        )
+        # A2 锚点自身不动
+        assert anchor == base[_NARROW_A2_ANCHOR][0], f"{width} 宽下 A2 锚点被移动"
 
 
 # ---------------------------------------------------------------------------
@@ -565,16 +630,18 @@ _WIDE_RIGHT_TARGETS = (
 _WIDE_LEAD_ITEMS = (
     ("radioButton_server_emby", "Emby"),
     ("radioButton_actor_photo_all", "所有演员（头像来源）"),
-    ("radioButton_actor_photo_net", "网络头像库（Gfriends）"),
+    ("radioButton_actor_photo_net", "网络头像库Gfriends"),
 )
 
-# 宽态完全不该被动到的（锚点三兄弟 + 无关控件），x 与 width 都要一致
+# 宽态完全不该被动到的（锚点三兄弟 + 无关控件），x 与 width 都要一致。
+# 注：「清除所有.actors文件夹」原在此表里锁死「宽态不得移动」，但最新需求正是要它
+# 宽态右移到与「选择目录」右缘对齐，故已移出，改由
+# test_actor_del_folder_button_right_edge_aligns_to_select_folder 专项覆盖。
 _WIDE_REFS = (
     ("checkBox_actor_photo_ne_backdrop", "使用Graphis背景"),
     ("checkBox_actor_photo_ne_face", "使用Graphis头像（A2 锚点）"),
     ("checkBox_actor_photo_ne_new", "请求Graphis最新图片"),
     ("radioButton_actor_info_miss", "仅缺少信息的演员"),
-    ("pushButton_del_actor_folder", "清除所有.actors文件夹"),
     ("label_299", "补全范围："),
 )
 
@@ -727,3 +794,91 @@ def test_actor_kodi_button_matches_upper_width_when_wide(win, app):
     assert ui.pushButton_add_actor_pic_kodi.width() == ui.pushButton_add_actor_pic.width(), "宽态重复同步后宽度漂移"
     _resize(win, app, 1030, 753)
     assert ui.pushButton_add_actor_pic_kodi.width() == 130, "还原窄态后按钮宽未复原 130"
+
+
+def test_actor_del_folder_button_right_edge_aligns_to_select_folder(win, app):
+    """宽态：「清除所有.actors文件夹」右缘对到「选择目录」按钮右缘；窄态一像素不动。
+
+    背景：pushButton_del_actor_folder 是 groupBox_68 内 _DOCK_RIGHT 绝对定位项，
+    宽态被通用宽幅同步钉到「design_x + extra」的右缘；而锚点 pushButton_select_actor_photo_folder
+    （本地头像库行的「选择目录」）随 layoutWidget_8 拉伸，两者右缘在宽态恒差 20px
+    （1920 1559 vs 1579 / 1600 1239 vs 1259 / 1366 1005 vs 1025 / 1100 739 vs 759），
+    窄态则反多 7px。需求：最大化时右移到与「选择目录」上下对齐，最小化时布局、页面、
+    组件、提示词等等均保持不变。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    del_btn = ui.pushButton_del_actor_folder
+    sel_btn = ui.pushButton_select_actor_photo_folder
+    gf_btn = ui.pushButton_select_gfriends_local
+
+    def right(w):
+        return _abs(ui, w) + w.width()
+
+    # ── 窄态：一个像素都不动 ──
+    _resize(win, app, 1030, 753)
+    assert win._actor_page_stretch_extra() <= 0, "1030 宽下不是窄态，测试前提失效"
+    narrow = (_abs(ui, del_btn), del_btn.width(), right(sel_btn))
+    _resize(win, app, 1030, 753)
+    assert (_abs(ui, del_btn), del_btn.width(), right(sel_btn)) == narrow, "窄态重复同步后发生漂移"
+
+    # ── 宽态：右缘对到「选择目录」右缘 ──
+    for width, height in ((1920, 1170), (1600, 1000), (1366, 900), (1100, 800)):
+        _resize(win, app, width, height)
+        assert win._actor_page_stretch_extra() > 0, f"{width} 宽下不是宽态，测试前提失效"
+        assert right(del_btn) == right(sel_btn), (
+            f"{width} 宽下「清除所有.actors文件夹」右缘 {right(del_btn)} 未与「选择目录」右缘 {right(sel_btn)} 对齐"
+        )
+        # 只平移不改宽度：两者设计宽本就不同（171 vs 110）
+        assert del_btn.width() == 171, f"{width} 宽下目标按钮被改宽: {del_btn.width()}"
+        assert sel_btn.width() == 110, f"{width} 宽下锚点按钮被改宽: {sel_btn.width()}"
+        # 另一个「选择目录」与之同列，若不等则锚点选取需要复核
+        assert right(gf_btn) == right(sel_btn), f"{width} 宽下两个「选择目录」按钮右缘不等，锚点选取需复核"
+
+    _resize(win, app, 1920, 1170)
+    first = right(del_btn)
+    _resize(win, app, 1920, 1170)
+    assert right(del_btn) == first, "宽态重复同步后右缘漂移"
+
+    # ── 往返：窄态基线复原 ──
+    _resize(win, app, 1030, 753)
+    got = (_abs(ui, del_btn), del_btn.width(), right(sel_btn))
+    assert got == narrow, f"窄→宽→窄 往返后窄态几何未复原: {got} != {narrow}"
+
+
+def test_actor_narrow_add_buttons_shrink_to_bottom_button(win, app):
+    """窄态：上方两枚「开始补全」收窄到与最下方同宽；宽态保持设计宽 261 不变；往返复原。
+
+    与 test_actor_kodi_button_matches_upper_width_when_wide 相反：那一测是宽态把
+    最下方按钮加宽到 261；这一测是窄态把上方两枚从 261 收窄到最下方的 130。
+    两测合起来保证窄态三枚同宽、宽态三枚同宽，且各自不越界。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    for width, height in ((940, 700), (1030, 753), (1000, 700), (1030, 753)):
+        _resize(win, app, width, height)
+        assert win._actor_page_stretch_extra() <= 0, f"{width} 宽下不是窄态，测试前提失效"
+        ref = ui.pushButton_add_actor_pic_kodi
+        assert ref.width() == 130, f"{width} 宽下最下方基准按钮被改动: {ref.width()}"
+        for name, desc in _NARROW_ADD_BTNS:
+            btn = getattr(ui, name)
+            assert btn.width() == ref.width(), f"{width} 宽下{desc}宽未与最下方一致: {btn.width()} != {ref.width()}"
+            assert btn.width() < 261, f"{width} 宽下{desc}未收窄: {btn.width()}"
+    # 左缘不因收窄而移动（收窄只向右让，右缘内缩）
+    _resize(win, app, 1030, 753)
+    narrow_left = {name: _abs(ui, getattr(ui, name)) for name, _ in _NARROW_ADD_BTNS}
+
+    _resize(win, app, 1920, 1170)
+    assert win._actor_page_stretch_extra() > 0, "1920 宽下不是宽态，测试前提失效"
+    for name, desc in _NARROW_ADD_BTNS:
+        btn = getattr(ui, name)
+        assert btn.width() == 261, f"宽态{desc}未被还原成设计宽 261: {btn.width()}"
+        assert _abs(ui, btn) == narrow_left[name], f"宽态{desc}左缘被带偏"
+
+    _resize(win, app, 1030, 753)
+    for name, desc in _NARROW_ADD_BTNS:
+        btn = getattr(ui, name)
+        assert btn.width() == 130, f"窄→宽→窄 往返后{desc}宽未复原: {btn.width()}"
+        assert _abs(ui, btn) == narrow_left[name], f"窄→宽→窄 往返后{desc}左缘未复原"

@@ -114,7 +114,9 @@ def pushButton_sync_gfriends_clicked(self):
 
     def _done(success: bool, msg: str):
         self.Ui.pushButton_sync_gfriends.setEnabled(True)
-        self.Ui.pushButton_sync_gfriends.setText("同步 Gfriends")
+        # 复原文案须与 MDCx.ui 的设计态文案一致（原文案硬编码的「同步 Gfriends」
+        # 与设计态的「更新 Gfriends」本就不一致，同步完一次就会跳字）
+        self.Ui.pushButton_sync_gfriends.setText("更新Gfriends Inputer")
         if success:
             signal_qt.show_scrape_info(f"✅ {msg}")
         else:

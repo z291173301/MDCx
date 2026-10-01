@@ -5250,7 +5250,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                                 </property>
                                                 <property name="text">
-                                                  <string>&lt;p&gt;按Emby标题、设置-翻译、NFO等设置利用本地nfo更新nfo信息&lt;/p&gt;</string>
+                                                  <string>&lt;p&gt;按Emby标题、设置-翻译、NFO页设置利用本地nfo更新&lt;/p&gt;</string>
                                                 </property>
                                               </widget>
                                             </item>
@@ -20089,7 +20089,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>网络头像库（Gfriends）</string>
+                                  <string>网络头像库Gfriends</string>
                                 </property>
                               </widget>
                             </item>
@@ -20322,7 +20322,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>更新 Gfriends</string>
+                                  <string>更新Gfriends Inputer</string>
                                 </property>
                               </widget>
                             </item>
@@ -20335,7 +20335,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>最后更新: -</string>
+                                  <string>最后更新: </string>
                                 </property>
                               </widget>
                             </item>
@@ -20930,7 +20930,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>将为待刮削目录的每个视频在同目录创建一个 .actors 文件夹，并将该视频的演员图片放在该文件夹中</string>
+                        <string>将为等待刮削目录的每个视频在同目录创建一个.actors文件夹，并将该视频的演员图片放在该文件夹中</string>
                       </property>
                         <property name="wordWrap">
                           <bool>true</bool>

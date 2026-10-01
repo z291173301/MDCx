@@ -12853,7 +12853,7 @@ class Ui_MDCx(object):
         self.checkBox_read_has_nfo_update.setText(_translate("MDCx", "本地刮削成功的文件，按更新模式规则重新整理分类"))
         self.label_345.setText(_translate("MDCx", "可无需联网重新整理"))
         self.checkBox_read_update_nfo.setText(_translate("MDCx", "允许更新nfo文件"))
-        self.label_37.setText(_translate("MDCx", "<p>按Emby标题、设置-翻译、NFO等设置利用本地nfo更新nfo信息</p>"))
+        self.label_37.setText(_translate("MDCx", "<p>按Emby标题、设置-翻译、NFO页设置利用本地nfo更新</p>"))
         self.checkBox_read_download_file_again.setText(_translate("MDCx", "本地nfo内有链接，重新下载图片等文件"))
         self.label_347.setText(_translate("MDCx", "将按「设置」-「下载」更新"))
         self.checkBox_read_no_nfo_scrape.setText(_translate("MDCx", "本地没有nfo的文件，按正常模式规则重新刮削"))
@@ -13786,7 +13786,7 @@ class Ui_MDCx(object):
         self.checkBox_actor_photo_ne_backdrop.setText(_translate("MDCx", "使用Graphis背景"))
         self.checkBox_actor_photo_ne_face.setText(_translate("MDCx", "使用Graphis头像"))
         self.checkBox_actor_photo_ne_new.setText(_translate("MDCx", "请求Graphis最新图片"))
-        self.radioButton_actor_photo_net.setText(_translate("MDCx", "网络头像库（Gfriends）"))
+        self.radioButton_actor_photo_net.setText(_translate("MDCx", "网络头像库Gfriends"))
         self.radioButton_actor_photo_local.setText(_translate("MDCx", "本地头像库"))
         self.label_download_actor_zip.setText(_translate("MDCx", "点击下载头像包"))
         self.pushButton_select_actor_photo_folder.setText(_translate("MDCx", "选择目录"))
@@ -13799,8 +13799,8 @@ class Ui_MDCx(object):
         )
         self.label_gfriends_local.setText(_translate("MDCx", "Gfriends本地仓库："))
         self.pushButton_select_gfriends_local.setText(_translate("MDCx", "选择目录"))
-        self.pushButton_sync_gfriends.setText(_translate("MDCx", "更新 Gfriends"))
-        self.label_gfriends_update_time.setText(_translate("MDCx", "最后更新: -"))
+        self.pushButton_sync_gfriends.setText(_translate("MDCx", "更新Gfriends Inputer"))
+        self.label_gfriends_update_time.setText(_translate("MDCx", "最后更新: "))
         self.groupBox_64.setTitle(_translate("MDCx", "补全Emby/Jellyfin演员信息"))
         self.radioButton_actor_info_zh_cn.setText(_translate("MDCx", "中文简体"))
         self.radioButton_actor_info_zh_tw.setText(_translate("MDCx", "中文繁体"))
@@ -13826,7 +13826,7 @@ class Ui_MDCx(object):
         self.pushButton_add_actor_pic_kodi.setText(_translate("MDCx", "开始补全"))
         self.label_414.setText(
             _translate(
-                "MDCx", "将为待刮削目录的每个视频在同目录创建一个 .actors 文件夹，并将该视频的演员图片放在该文件夹中"
+                "MDCx", "将为等待刮削目录的每个视频在同目录创建一个.actors文件夹，并将该视频的演员图片放在该文件夹中"
             )
         )
         self.checkBox_actor_pic_replace.setText(_translate("MDCx", "覆盖已存在的演员图片"))

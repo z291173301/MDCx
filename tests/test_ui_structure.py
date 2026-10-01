@@ -339,7 +339,7 @@ _READ_MODE_UI_TEXTS = {
     "label_48": "刮削排除目录：",
     "checkBox_read_has_nfo_update": "本地刮削成功的文件，按更新模式规则重新整理分类",
     "checkBox_read_update_nfo": "允许更新nfo文件",
-    "label_37": "<p>按Emby标题、设置-翻译、NFO等设置利用本地nfo更新nfo信息</p>",
+    "label_37": "<p>按Emby标题、设置-翻译、NFO页设置利用本地nfo更新</p>",
     "checkBox_read_download_file_again": "本地nfo内有链接，重新下载图片等文件",
     "label_347": "将按「设置」-「下载」更新",
     "checkBox_read_no_nfo_scrape": "本地没有nfo的文件，按正常模式规则重新刮削",
