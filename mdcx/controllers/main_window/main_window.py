@@ -3966,7 +3966,7 @@ class MyMAinWindow(QMainWindow):
             sane = [bar.width() for bar in bars if 8 <= bar.width() <= 48]
             if not sane:
                 return
-            target = max(sane)
+            target = min(sane)
             corrected = False
             for bar in bars:
                 if bar.width() != target:
