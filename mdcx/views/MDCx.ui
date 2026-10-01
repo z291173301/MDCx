@@ -3353,7 +3353,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::LeftToRight</enum>
                             </property>
                             <property name="text">
-                              <string>在以下目录为待刮削目录中的视频创建软链接，然后刮削以下目录（适合网盘用户）</string>
+                              <string>在以下目录为待刮削目录中的视频创建软链接，然后刮削以下目录，适合网盘用户</string>
                             </property>
                             <property name="tristate">
                               <bool>false</bool>
@@ -5161,7 +5161,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                       </size>
                                     </property>
                                     <property name="text">
-                                      <string>本地已刮削成功的文件，按更新模式规则重新整理分类</string>
+                                      <string>本地刮削成功的文件，按更新模式规则重新整理分类</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -5177,7 +5177,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                       <string notr="true">color: rgb(8, 128, 128);</string>
                                     </property>
                                     <property name="text">
-                                      <string>无需联网重新整理</string>
+                                      <string>可无需联网重新整理</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -5326,7 +5326,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                       <string notr="true">color: rgb(0, 0, 0);</string>
                                     </property>
                                     <property name="text">
-                                      <string>本地nfo合并策略</string>
+                                      <string>本地nfo合并及策略</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -10830,7 +10830,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string>对落盘海报做 AI 放大，仅当最长边低于阈值时触发（默认 800px）；Windows/Linux 打包版已内置工具，macOS 与源码运行首次使用时从 GitHub 下载（约 30-60MB，仅一次）；预设默认 Real-ESRGAN 4x，可在配置 json 用 poster_sr_preset / poster_sr_max_dim 调整</string>
                             </property>
                             <property name="text">
-                              <string>海报超分（实验）</string>
+                              <string>海报超分，实验性</string>
                             </property>
                           </widget>
                         </item>
@@ -16178,7 +16178,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::LeftToRight</enum>
                             </property>
                             <property name="text">
-                              <string>字幕文件目录：</string>
+                              <string>字幕文件存放目录：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -16203,7 +16203,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>刮削时自动添加字幕：</string>
+                              <string>刮削自动添加字幕：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -19691,7 +19691,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>API 密钥：</string>
+                              <string>API密钥：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>

@@ -12767,7 +12767,7 @@ class Ui_MDCx(object):
             _translate("MDCx", "可填一个或多个目录，多个目录用; 或；分隔，刮削各目录含子目录中的视频元数据")
         )
         self.checkBox_scrape_softlink_path.setText(
-            _translate("MDCx", "在以下目录为待刮削目录中的视频创建软链接，然后刮削以下目录（适合网盘用户）")
+            _translate("MDCx", "在以下目录为待刮削目录中的视频创建软链接，然后刮削以下目录，适合网盘用户")
         )
         self.label_47.setText(_translate("MDCx", "成功输出目录："))
         self.pushButton_select_media_folder_setting_page.setText(_translate("MDCx", "选择目录"))
@@ -12848,16 +12848,14 @@ class Ui_MDCx(object):
             _translate("MDCx", "不刮削，读取本地信息并显示，适合检查媒体库或媒体库文件重新整理和分类")
         )
         self.radioButton_mode_common.setText(_translate("MDCx", "正常模式"))
-        self.checkBox_read_has_nfo_update.setText(
-            _translate("MDCx", "本地已刮削成功的文件，按更新模式规则重新整理分类")
-        )
-        self.label_345.setText(_translate("MDCx", "无需联网重新整理"))
+        self.checkBox_read_has_nfo_update.setText(_translate("MDCx", "本地刮削成功的文件，按更新模式规则重新整理分类"))
+        self.label_345.setText(_translate("MDCx", "可无需联网重新整理"))
         self.checkBox_read_update_nfo.setText(_translate("MDCx", "允许更新nfo文件"))
         self.label_37.setText(_translate("MDCx", "<p>按Emby标题、设置-翻译、NFO等设置利用本地nfo更新nfo信息</p>"))
         self.checkBox_read_download_file_again.setText(_translate("MDCx", "本地nfo内有链接，重新下载图片等文件"))
         self.label_347.setText(_translate("MDCx", "将按「设置」-「下载」更新"))
         self.checkBox_read_no_nfo_scrape.setText(_translate("MDCx", "本地没有nfo的文件，按正常模式规则重新刮削"))
-        self.checkBox_nfo_merge_strategy.setText(_translate("MDCx", "本地nfo合并策略"))
+        self.checkBox_nfo_merge_strategy.setText(_translate("MDCx", "本地nfo合并及策略"))
         self.comboBox_nfo_merge_strategy.setItemText(0, _translate("MDCx", "全新数据优先"))
         self.comboBox_nfo_merge_strategy.setItemText(1, _translate("MDCx", "本地信息优先"))
         self.comboBox_nfo_merge_strategy.setItemText(2, _translate("MDCx", "合并数组去重"))
@@ -13168,7 +13166,7 @@ class Ui_MDCx(object):
                 "对落盘海报做 AI 放大，仅当最长边低于阈值时触发（默认 800px）；Windows/Linux 打包版已内置工具，macOS 与源码运行首次使用时从 GitHub 下载（约 30-60MB，仅一次）；预设默认 Real-ESRGAN 4x，可在配置 json 用 poster_sr_preset / poster_sr_max_dim 调整",
             )
         )
-        self.checkBox_super_resolution_poster.setText(_translate("MDCx", "海报超分（实验）"))
+        self.checkBox_super_resolution_poster.setText(_translate("MDCx", "海报超分，实验性"))
         self.label_super_resolution_poster.setText(
             _translate(
                 "MDCx",
@@ -13557,8 +13555,8 @@ class Ui_MDCx(object):
         )
         self.label_102.setText(_translate("MDCx", "下载字幕包解压，填写字幕文件目录的路径"))
         self.label_download_sub_zip.setText(_translate("MDCx", "点击下载字幕包"))
-        self.label_111.setText(_translate("MDCx", "字幕文件目录："))
-        self.label_112.setText(_translate("MDCx", "刮削时自动添加字幕："))
+        self.label_111.setText(_translate("MDCx", "字幕文件存放目录："))
+        self.label_112.setText(_translate("MDCx", "刮削自动添加字幕："))
         self.radioButton_add_sub_on.setText(_translate("MDCx", "开"))
         self.radioButton_add_sub_off.setText(_translate("MDCx", "关"))
         self.pushButton_select_subtitle_folder.setText(_translate("MDCx", "选择目录"))
@@ -13772,7 +13770,7 @@ class Ui_MDCx(object):
         self.label_121.setText(_translate("MDCx", "指你的Emby/Jellyfin服务器地址，比如：http://192.168.1.5:8096"))
         self.label_306.setText(_translate("MDCx", "服务器类型："))
         self.label_108.setText(_translate("MDCx", "用户 ID："))
-        self.label_107.setText(_translate("MDCx", "API 密钥："))
+        self.label_107.setText(_translate("MDCx", "API密钥："))
         self.label_109.setText(_translate("MDCx", "如果设置，将仅获取指定的Emby/Jellyfin服务器中用户媒体库中的演员"))
         self.groupBox_41.setTitle(_translate("MDCx", "补全Emby/Jellyfin演员头像"))
         self.pushButton_add_actor_pic.setText(_translate("MDCx", "开始补全"))
