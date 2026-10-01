@@ -266,6 +266,9 @@ class MyMAinWindow(QMainWindow):
         # 恢复 min/max 收不回宽度，必须按原宽写回。
         self._naming_defn_spacers = []
         self._naming_defn_restores = []
+        # 命名页窄态左移登记 [(控件, 原x)]：最小化时三个复选框左移到 path 列，
+        # 最大化时原样写回（宽态锚点即设计位置）。每遍先清后建，幂等往返自愈。
+        self._naming_narrow_restores = []
         # 水印页网格列登记 [("colmin", 网格, (列, 原最小宽)) / ("colstretch", 网格, 列)]，
         # stretch 无 getter，还原时一律写回 0（默认值，本仓库无他处改动该列 stretch）
         self._watermark_col_restores = []
@@ -2117,6 +2120,19 @@ class MyMAinWindow(QMainWindow):
     _NAMING_DEFN_ANCHOR = "checkBox_filename_4k"
     _NAMING_DEFN_HOLDER = "layoutWidget_26"
     _NAMING_DEFN_FRAME = "frame_6"
+    # ── 命名页窄态（最小化）三复选框左移到 path 列 ──
+    # 目标：checkBox_filename_mosaic（马赛克组视频文件名）/ checkBox_cd_part_space
+    # （分集分隔符空格）/ checkBox_filename_4k（画质组视频文件名），设计局部 x 均为
+    # 420（abs 450）；锚点 radioButton_videosize_path（使用路径中包含的画质信息，
+    # 自身不动，窄宽两态 abs 恒 403）。三目标均为组框内绝对定位项，直接 move(x)，
+    # 只改 x 不碰 y/宽高；经公共祖先 content 换算，严格上下对齐。最大化时本分支
+    # 不动手（先清干净即 return），宽态布局控件提示纹丝不动。
+    _NAMING_NARROW_ANCHOR = "radioButton_videosize_path"
+    _NAMING_NARROW_TARGETS = (
+        "checkBox_filename_mosaic",
+        "checkBox_cd_part_space",
+        "checkBox_filename_4k",
+    )
 
     # ── 水印页水印设置组（最大化时四行左标签冒号左移到「首个水印位置：」冒号）──
     # gridLayout_24 的 col0 在宽态被 QGridLayout 摊了 +272 富余（label_128 从 x0 被推到
@@ -2249,7 +2265,11 @@ class MyMAinWindow(QMainWindow):
         holder（layoutWidget_26）是 frame_6 内绝对定位的容器：只恢复 min/max
         不会收回宽度（widget 保持当前宽），必须按记录值把宽度写回去，否则加宽量
         逐遍累积（实测 holder 471→554、窄态也要不回来）。
+         seeing narrow restores here too: wide anchor is filename_4k design pos,
+        narrow moves it left — must restore before wide measures, and baseline
+        (method-disabled) must be true design.
         """
+        self._clear_naming_narrow_align()
         for row, spacer in self._naming_defn_spacers:
             if row is not None and spacer is not None:
                 row.removeItem(spacer)
@@ -2276,6 +2296,18 @@ class MyMAinWindow(QMainWindow):
         if row is not None and row.parentWidget() is not None:
             row.invalidate()
             row.activate()
+
+    def _clear_naming_narrow_align(self) -> None:
+        """清掉命名页窄态三复选框左移（每遍先清后建，幂等往返自愈）。"""
+        for obj, saved_x in reversed(self._naming_narrow_restores):
+            if obj is None:
+                continue
+            try:
+                if obj.x() != saved_x:
+                    obj.move(saved_x, obj.y())
+            except RuntimeError:
+                continue
+        self._naming_narrow_restores = []
 
     def _sync_naming_definition_align(self, scroll=None) -> None:
         """命名页画质命名规则：最大化时「使用路径中包含的画质信息」右移到「视频文件名」列。
@@ -2305,10 +2337,12 @@ class MyMAinWindow(QMainWindow):
         if box is None or not box.isVisibleTo(self):
             return
         self._clear_naming_defn_align()
+        self._clear_naming_narrow_align()
         if scroll is None:
             scroll = getattr(ui, "scrollArea_7", None)
         if self._scroll_stretch_extra(scroll) <= 0:
-            return  # 窄态：一个像素不碰
+            self._sync_naming_narrow_align(scroll)
+            return  # 窄态：只做三复选框左移，宽态分支不动
         content = box.parentWidget()
         anchor = getattr(ui, self._NAMING_DEFN_ANCHOR, None)
         holder = getattr(ui, self._NAMING_DEFN_HOLDER, None)
@@ -2372,6 +2406,56 @@ class MyMAinWindow(QMainWindow):
             holder.setFixedWidth(holder.width() + d)
             row.invalidate()
             row.activate()
+
+    def _sync_naming_narrow_align(self, scroll=None) -> None:
+        """命名页窄态：三复选框左移到 path 列，path 自身不动，宽态不动。
+
+        用户需求：最小化时把视频文件名（上下两个：checkBox_filename_mosaic /
+        checkBox_filename_4k）与空格（checkBox_cd_part_space）向左移动到与
+        「使用路径中包含的画质信息」（radioButton_videosize_path）上下严格对齐，
+        锚点位置保持不变；最大化时页面布局控件提示等均保持不变（本分支窄态才
+        动手，宽态调用方已提前 return）。
+
+        三目标均为组框内绝对定位项（设计局部 x 均为 420），直接 move(x)，只改 x
+        不碰 y/宽高；跨组 mapTo 必须经公共祖先 content 中转。越界则放弃该项。
+        休眠页跳过（切页 showEvent 会补齐）。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_65", None)
+        if box is None or not box.isVisibleTo(self):
+            return
+        content = box.parentWidget()
+        anchor = getattr(ui, self._NAMING_NARROW_ANCHOR, None)
+        if content is None or anchor is None:
+            return
+        try:
+            anchor_x = anchor.mapTo(content, anchor.rect().topLeft()).x()
+        except Exception:
+            return
+        for name in self._NAMING_NARROW_TARGETS:
+            target = getattr(ui, name, None)
+            if target is None:
+                continue
+            parent = target.parentWidget()
+            if parent is None or parent.parentWidget() is not content:
+                # 目标须是内容直属组框的子项，否则换算无意义
+                if parent is None:
+                    continue
+            try:
+                target_x = target.mapTo(content, target.rect().topLeft()).x()
+            except Exception:
+                continue
+            d = anchor_x - target_x
+            if not d:
+                continue
+            nx = target.x() + d
+            if nx < 0 or nx + target.width() > parent.width():
+                continue
+            if target.x() != nx:
+                self._naming_narrow_restores.append((target, target.x()))
+                target.move(nx, target.y())
 
     def _clear_watermark_colon_align(self) -> None:
         """清掉水印页网格列钉死 + 四行尾部间隔（每遍同步先清后建，故幂等、往返自愈）。"""

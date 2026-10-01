@@ -246,18 +246,31 @@ def test_naming_path_aligns_to_filename_when_wide(win, app, monkeypatch):
 
 
 def test_naming_leaves_narrow_untouched(win, app, monkeypatch):
-    """需求①：窄态与「摘掉新方法」的基线逐项一致，最小化逐像素不变。"""
+    """新需求：窄态三复选框左移到 path 列，path/宽态容器不动，最大化布局不变。
+
+    最小化时视频文件名（上下两个）+空格向左移动到与「使用路径中包含的画质信息」
+    上下严格对齐，锚点位置保持不变；最大化时的页面布局控件提示等均保持不变
+    （宽态分支另测，这里只锁定窄态）。
+    """
     ui = win.Ui
     win.show()
     _goto_tab(win, app, "tab_3")
     for width, height in _NARROW_SIZES:
         _resize(win, app, width, height)
         assert win._scroll_stretch_extra(ui.scrollArea_7) <= 0, f"{width} 宽下应处于窄态"
-        assert _naming_snapshot(ui) == _naming_baseline(win, app, monkeypatch, lambda: _naming_snapshot(ui)), (
-            f"{width} 宽下窄态被改动"
+        anchor = _abs_naming(ui, ui.radioButton_videosize_path)
+        for name in ("checkBox_filename_mosaic", "checkBox_cd_part_space", "checkBox_filename_4k"):
+            got = _abs_naming(ui, getattr(ui, name))
+            assert got == anchor, f"{width} 宽下 {name} 未对齐到 path 列: x={got} 期望={anchor}"
+        # 锚点 path 自身不动（与摘掉方法后的基线一致）
+        base = _naming_baseline(win, app, monkeypatch, lambda: _naming_snapshot(ui))
+        new = _naming_snapshot(ui)
+        assert new[_NAMING_TARGET] == base[_NAMING_TARGET], (
+            f"{width} 宽下锚点被带偏: {base[_NAMING_TARGET]} -> {new[_NAMING_TARGET]}"
         )
     assert win._naming_defn_spacers == [], "窄态残留画质行间隔"
     assert win._naming_defn_restores == [], "窄态残留容器加宽登记"
+    assert win._naming_narrow_restores != [], "窄态三复选框未登记左移"
 
 
 def test_naming_idempotent_and_round_trip(win, app):
