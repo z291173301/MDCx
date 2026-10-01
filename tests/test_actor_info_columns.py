@@ -13,6 +13,9 @@
   ⑦ 窄态「不存在中文时，翻译日语为中文」「不勾选则无中文时使用日语」「使用数据库补全
      演员信息」「点击下载演员数据库」左缘对齐「中文简体」（窄态下「使用Graphis背景」
      与「中文简体」同在 x=186，A1 锚点即等价），「所有演员」同样左移对齐。
+  ⑧ 窄态（最小化/还原）把「仅缺少信息的演员」「仅缺少头像的演员」「本地头像库」与同行
+     的「点击下载头像包」向右移动到与「补全完成后自动补全演员头像」上下严格对齐的位置，
+     该锚点自身保持不动；最大化态的页面保持不变。
 
 根因防线（任一回归都会让本文件失败）：
   - gridLayout_14 的 col0 必须钉死 130px，否则 QGridLayout 把富余宽度摊给 col0
@@ -24,6 +27,14 @@
   - 目标控件是 Minimum 策略，插固定宽间隔会被挤瘦（实测 253→52），故钉位时锁宽、还原解锁。
   - hl101 内只剩两个 Fixed 宽单选时 QHBoxLayout 会把富余宽度摊到行首（56px 空档），
     宽态需在尾部补 Expanding 间隔。
+  - ⑧ 的三行让位手法：QSpacerItem 的 minimumSize 是 (0,0)，行内需求超出可用宽时第一个
+    被压扁（实测 hl101 插 13px 间隔、目标只走了 6px），故 hl101 / hl96 用「目标收窄 +
+    同行 setSpacing 撑开」并让行内总需求恒等于容器宽（否则富余摊行首、「所有演员」漂 2px）；
+    hl95 的容器是随窗口变的一整列，改用「stretch 挪给行尾 hl97」把前导项收回自己的
+    sizeHint、腾出的宽度全给行尾，插入的固定间隔才不会被挤瘦。
+  - ⑧ 的登记/还原必须与 _actor_info_width_locks 分开且**逆序**写回：同一控件一趟里被钉两次
+    （先钉设计宽、再钉让位后的收窄宽），正序还原会让中间值覆盖原值、把控件永久钉死在窄态
+    的收窄宽上（实测 hl96 的「仅缺少头像的演员」卡在 237，宽态随之被带歪）。
 """
 
 import os
@@ -276,3 +287,137 @@ def test_actor_info_state_restored_after_round_trip(win, app):
     # 「锁定的是设计宽、不是宽态值」——路径输入框必须回到 300 而不是 466。
     assert ui.lineEdit_actor_db_path.width() == 300, f"还原态路径输入框宽度未复原: {ui.lineEdit_actor_db_path.width()}"
     assert ui.label_280.width() == base_indent[1], "还原态行首占位控件宽度未复原"
+
+
+# ---------------------------------------------------------------------------
+# 需求⑧：窄态把三个控件右移到「补全完成后自动补全演员头像」那一列
+# ---------------------------------------------------------------------------
+
+# 需要右移对齐锚点的目标（窄态）
+_NARROW_MOVE_TARGETS = (
+    ("radioButton_actor_info_miss", "仅缺少信息的演员"),
+    ("radioButton_actor_photo_miss", "仅缺少头像的演员"),
+    ("radioButton_actor_photo_local", "本地头像库"),
+)
+
+# 左缘与宽度都不得被窄态右移带动的参照控件
+_NARROW_REFS = (
+    ("checkBox_actor_info_photo", "补全完成后自动补全演员头像（锚点）"),
+    ("radioButton_actor_info_all", "所有演员"),
+    ("radioButton_actor_photo_all", "所有演员（头像来源）"),
+    ("label_299", "补全范围："),
+)
+
+# 涉及窄态右移的三行（记录 spacing / count / stretch，防「改完忘还原」）
+_NARROW_ROWS = ("horizontalLayout_101", "horizontalLayout_96", "horizontalLayout_95")
+
+_NARROW_WIDGETS = tuple(
+    [name for name, _ in _NARROW_MOVE_TARGETS]
+    + ["label_download_actor_zip", "radioButton_actor_photo_net"]
+    + [name for name, _ in _NARROW_REFS]
+)
+
+
+def _narrow_snapshot(ui):
+    """窄态右移相关控件的 (绝对 x, 宽) + 三行的 (spacing, count, stretch)。"""
+    snap = {name: (_abs(ui, getattr(ui, name)), getattr(ui, name).width()) for name in _NARROW_WIDGETS}
+    for name in _NARROW_ROWS:
+        row = getattr(ui, name)
+        snap[name] = (row.spacing(), row.count(), tuple(row.stretch(i) for i in range(row.count())))
+    return snap
+
+
+def _pristine_snapshot(win, app, monkeypatch):
+    """摘掉窄态右移对齐那一拍重新同步，返回「只有通用逻辑」的几何基线。"""
+    from mdcx.controllers.main_window import main_window as mw_mod
+
+    cls = mw_mod.MyMAinWindow
+    original = cls._sync_actor_page_narrow_miss_align
+    monkeypatch.setattr(cls, "_sync_actor_page_narrow_miss_align", lambda self, _scroll=None: None)
+    snap = None
+    try:
+        win._clear_actor_narrow_align()  # 上一遍窄态留下的间隔/钉宽必须先清干净
+        win._sync_page_layouts()
+        app.processEvents()
+        snap = _narrow_snapshot(win.Ui)
+    finally:
+        monkeypatch.setattr(cls, "_sync_actor_page_narrow_miss_align", original)
+    win._sync_page_layouts()  # 复位到带新逻辑的状态
+    app.processEvents()
+    return snap
+
+
+def test_actor_narrow_miss_align_to_anchor_when_narrow(win, app, monkeypatch):
+    """需求⑧：窄态三个控件右移到锚点列；锚点与同排参照控件纹丝不动；只右移不左拉。"""
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    for width, height in ((940, 700), (1000, 700), (1030, 753)):
+        assert win._actor_page_stretch_extra() <= 0, f"{width} 宽下演员页不是窄态，测试前提失效"
+        _resize(win, app, width, height)
+        anchor = _abs(ui, ui.checkBox_actor_info_photo)
+        base = _pristine_snapshot(win, app, monkeypatch)
+        got = _narrow_snapshot(ui)
+
+        for name, desc in _NARROW_REFS:
+            assert got[name] == base[name], f"{width} 宽下 {desc} 被窄态右移带偏: {base[name]} -> {got[name]}"
+        # 「网络获取头像」把宽度让给了行尾标签（文字左对齐，视觉无变化），左缘不得动
+        assert got["radioButton_actor_photo_net"][0] == base["radioButton_actor_photo_net"][0], (
+            f"{width} 宽下「网络获取头像」左缘被带偏: {base['radioButton_actor_photo_net'][0]} -> {got['radioButton_actor_photo_net'][0]}"
+        )
+
+        for name, desc in _NARROW_MOVE_TARGETS:
+            now = got[name][0]
+            before = base[name][0]
+            assert now >= before, f"{width} 宽下 {desc} 被左拉: {before} -> {now}"
+            need = anchor - before
+            if need <= 0:
+                # 窗口再窄一点时目标已在锚点列或更右：需求只要求右移，不得左拉
+                assert now == before, f"{width} 宽下 {desc} 本不需移动却被移动: {before} -> {now}"
+            else:
+                assert now == anchor, f"{width} 宽下 {desc} 未与锚点对齐: x={now} 期望={anchor}"
+
+        # 「点击下载头像包」与「本地头像库」同行同进退
+        shift_zip = got["label_download_actor_zip"][0] - base["label_download_actor_zip"][0]
+        shift_local = got["radioButton_actor_photo_local"][0] - base["radioButton_actor_photo_local"][0]
+        assert shift_zip == shift_local, (
+            f"{width} 宽下「点击下载头像包」未随「本地头像库」同进退: {shift_zip} vs {shift_local}"
+        )
+
+
+def test_actor_narrow_miss_align_leaves_wide_page_untouched(win, app, monkeypatch):
+    """需求⑧：最大化态页面保持不变——几何、宽度、行间距、stretch 全部逐像素一致。"""
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    _resize(win, app, 1920, 1170)
+    assert win._actor_page_stretch_extra() > 0, "宽态前提失效（1920 宽下拉伸量应 > 0）"
+    assert _narrow_snapshot(ui) == _pristine_snapshot(win, app, monkeypatch), "宽态被窄态右移逻辑改动"
+    assert win._actor_narrow_spacers == [], "宽态残留来源行间隔"
+    assert win._actor_narrow_restores == [], "宽态残留钉宽/间距登记"
+    # 宽态仍由 _sync_actor_info_columns 自己把「仅缺少信息的演员」钉在 A2 列
+    assert _abs(ui, ui.checkBox_actor_info_photo) != _abs(ui, ui.radioButton_actor_photo_miss), (
+        "宽态「仅缺少头像的演员」被误钉到锚点列"
+    )
+
+
+def test_actor_narrow_miss_align_idempotent_and_round_trip(win, app, monkeypatch):
+    """需求⑧：窄态幂等；窄→宽→窄 往返后窄态几何逐项复原，且回宽态仍是宽态原样。"""
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    _resize(win, app, 1030, 753)
+    first = _narrow_snapshot(ui)
+    assert win._actor_narrow_spacers, "窄态未在来源行注入固定间隔"
+    assert win._actor_narrow_restores, "窄态未登记任何钉宽/行间距"
+
+    _resize(win, app, 1030, 753)  # 幂等：二次同步纹丝不动
+    assert _narrow_snapshot(ui) == first, "窄态二次同步漂移"
+
+    _resize(win, app, 1920, 1170)
+    assert win._actor_narrow_spacers == [], "宽态未清掉来源行间隔"
+    assert win._actor_narrow_restores == [], "宽态未清掉钉宽/行间距登记"
+    assert _narrow_snapshot(ui) == _pristine_snapshot(win, app, monkeypatch), "往返后宽态被污染"
+
+    _resize(win, app, 1030, 753)
+    assert _narrow_snapshot(ui) == first, f"窄→宽→窄 往返未复原: {first} -> {_narrow_snapshot(ui)}"

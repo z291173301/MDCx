@@ -249,6 +249,13 @@ class MyMAinWindow(QMainWindow):
         self._actor_info_width_locks = []
         # 钉位时归零的行左内边距 [(布局, 原 QMargins)]，还原时复位
         self._actor_info_margin_restores = []
+        # 窄态右移对齐注入的间隔项 [(布局, QSpacerItem)]，每遍同步先清后建（幂等）
+        self._actor_narrow_spacers = []
+        # 窄态右移对齐改过的持久设置 [("size", 控件, (原min, 原max)) / ("stretch", 布局, 原stretch元组)]，
+        # 还原时原样写回。刻意与 _actor_info_width_locks 分开：本方法跑在
+        # _sync_actor_info_columns 之后，若复用那边的列表并 setFixedWidth(0)「解锁」，
+        # 会顺手拆掉那一拍刚钉好的 253/252 宽态铺排。
+        self._actor_narrow_restores = []
         self._zimu_dl_gap = -1  # 该间隔当前生效的宽度（-1 = 未安装/已拆除）
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
         self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
@@ -967,6 +974,42 @@ class MyMAinWindow(QMainWindow):
         "horizontalLayout_159": (("checkBox_actor_db", "A1"),),
     }
 
+    # ── 演员页窄态（最小化/还原）右移对齐 ──
+    # 锚点（自身保持不动）：checkBox_actor_info_photo「补全完成后自动补全演员头像」。
+    # 它是 groupBox_64 的绝对定位右缘锚定项，窄态 abs = 480 + extra，于是三行的
+    # need 全都随 extra 变化；实际 x 一律运行时 mapTo 实测，不写死。
+    _ACTOR_NARROW_ANCHOR = "checkBox_actor_info_photo"
+    # 两个「补全范围：」行（绝对定位链路 frame_4/layoutWidget_15、frame_2/layoutWidget_12）：
+    # (行布局, 目标控件, 容器, 需钉宽的项[(控件, 设计宽)])
+    # 容器宽恒为设计值（layoutWidget_15 每遍被 _sync_actor_info_columns 重设，
+    # layoutWidget_12 压根不进任何 registry），故让位由目标控件自身收窄完成，见方法注释。
+    _ACTOR_NARROW_SCOPE_ROWS = (
+        (
+            "horizontalLayout_101",
+            "radioButton_actor_info_miss",
+            "layoutWidget_15",
+            (("radioButton_actor_info_all", 253), ("radioButton_actor_info_miss", 252)),
+        ),
+        (
+            "horizontalLayout_96",
+            "radioButton_actor_photo_miss",
+            "layoutWidget_12",
+            (("radioButton_actor_photo_all", 253), ("radioButton_actor_photo_miss", 252)),
+        ),
+    )
+    # 「来源」行（layoutWidget_8 的 horizontalLayout_95）：目标是「本地头像库」，其右侧
+    # 「点击下载头像包」（hl97 子布局）与它同属一行、随之一起右移。
+    # (行布局, 目标控件, 前导项控件名, 行尾子布局名)
+    _ACTOR_NARROW_SOURCE_ROW = (
+        "horizontalLayout_95",
+        "radioButton_actor_photo_local",
+        "radioButton_actor_photo_net",
+        "horizontalLayout_97",
+    )
+    # 目标控件收窄让位的下限：文字 + 单选指示器实测 ~130px，低于此值宁可不右移，
+    # 也不让控件把自己的文字挤没（当前 need 上限 ~35px，实测不会触发，留作防线）。
+    _ACTOR_NARROW_MIN_DONOR_W = 150
+
     def _sync_actor_db_tool_layout(self) -> None:
         """软件工具页演员库分组：紧凑排布 + 最大化拉宽。
 
@@ -1237,15 +1280,19 @@ class MyMAinWindow(QMainWindow):
         self._actor_info_spacers = []
 
     def _sync_actor_page_wide_hooks(self, actor_scroll=None) -> None:
-        """演员页宽幅拉伸后的两拍对齐（顺序敏感，勿调换）。
+        """演员页宽幅拉伸后的三拍对齐（顺序敏感，勿调换）。
 
         ① _sync_actor_page_align：把「补全完成后自动补全演员头像」等三控件对到
            checkBox_actor_photo_ne_new（请求 Graphis 最新图片）。
         ② _sync_actor_info_columns：演员信息组三列对齐，它的 A3 锚点正是同一个
            checkBox_actor_photo_ne_new，必须在 ① 之后量才不会读到过期 x。
+        ③ _sync_actor_page_narrow_miss_align：窄态把「仅缺少信息的演员」「仅缺少头像
+           的演员」「本地头像库」右移到 ② 刚钉好的锚点列上——必须在 ② 之后，因为它
+           要量的正是 ② 顺带定下的那两个单选的当前 x。
         """
         self._sync_actor_page_align(actor_scroll)
         self._sync_actor_info_columns(actor_scroll)
+        self._sync_actor_page_narrow_miss_align(actor_scroll)
 
     def _sync_actor_info_columns(self, actor_scroll=None) -> None:
         """演员信息组：行标签冒号对齐 + 各行左缘对齐到 Graphis 列 + 路径框宽度铺排。
@@ -1441,6 +1488,212 @@ class MyMAinWindow(QMainWindow):
         pin(row, self._ACTOR_INFO_SCOPE_ROW[0], anchors["A1"])
         if wide:
             pin(row, self._ACTOR_INFO_SCOPE_ROW[1], anchors["A2"])
+
+    def _clear_actor_narrow_align(self) -> None:
+        """清掉窄态右移对齐留下的间隔/钉宽/stretch（每遍同步先清后建，故幂等、往返自愈）。
+
+        钉宽一律「记录原 min/max、原样写回」，不用 setFixedWidth(0) 真解锁：本方法跑在
+        _sync_actor_info_columns 之后，而后者刚把 hl101 的两个单选钉在 253/252
+        （_ACTOR_INFO_SCOPE_W），这里真解锁会顺手拆掉那一拍的锁、宽态铺排随即失准。
+        对 hl96 记录到的本就是 (0, QWIDGETSIZE_MAX)，写回即真解锁，同一套代码两边都对。
+
+        还原必须**逆序**（后记的先写回，最后写回的就是最早记下的那个原值）：同一控件
+        在一趟里往往被钉两次（先钉设计宽、再钉让位后的收窄宽），正序还原会让中间值
+        覆盖原值、把控件永久钉死在窄态的收窄宽上（实测 hl96 的「仅缺少头像的演员」
+        窄态钉到 237 后再也回不去，宽态随之被带歪）。
+        """
+        for row, spacer in self._actor_narrow_spacers:
+            if row is not None and spacer is not None:
+                row.removeItem(spacer)
+        self._actor_narrow_spacers = []
+        for kind, obj, saved in reversed(self._actor_narrow_restores):
+            if obj is None:
+                continue
+            if kind == "size":
+                obj.setMinimumWidth(saved[0])
+                obj.setMaximumWidth(saved[1])
+                obj.updateGeometry()
+            elif kind == "spacing":
+                obj.setSpacing(saved)
+            elif kind == "stretch":
+                for i, value in enumerate(saved):
+                    obj.setStretch(i, value)
+        self._actor_narrow_restores = []
+        ui = getattr(self, "Ui", None)
+        names = [row[0] for row in self._ACTOR_NARROW_SCOPE_ROWS] + [self._ACTOR_NARROW_SOURCE_ROW[0]]
+        for name in names:
+            row = getattr(ui, name, None)
+            if row is None or row.parentWidget() is None:
+                continue
+            row.invalidate()
+            row.activate()
+
+    def _sync_actor_page_narrow_miss_align(self, actor_scroll=None) -> None:
+        """演员页窄态（最小化/还原）：三个控件右移到「补全完成后自动补全演员头像」那一列。
+
+        用户需求：最小化时把「仅缺少信息的演员」「仅缺少头像的演员」「本地头像库」
+        与「点击下载头像包」向右移动到与「补全完成后自动补全演员头像」上下严格对齐的
+        位置；该锚点自身保持不动；最大化时的页面逐像素不变。
+
+        锚点是 checkBox_actor_info_photo —— groupBox_64 的绝对定位右缘锚定项，窄态
+        abs = 480 + extra，故三行的 need 全随 extra 变化，实际 x 一律运行时 mapTo
+        实测（不写死）。need <= 0（窗口比 extra < -35 的更窄、目标已在锚点右侧）一律
+        不动：需求只说「向右移动」，间隔只能右推、不能左拉。
+
+        三行三条不同的让位手法。共同点是「间隔只会被 Qt 挤瘦、不会撑大」：
+        QSpacerItem 的 minimumSize 是 (0,0)，行内需求超出可用宽时它第一个被压缩，
+        实测 hl101 插 13px 间隔、目标只走了 6px。故每行都必须先给目标右侧腾出等量宽度，
+        再插固定间隔：
+          ① hl101（frame_4/layoutWidget_15，「仅缺少信息的演员」）：容器宽恒为设计值
+             511（每遍被 _sync_actor_info_columns 重设），加宽它会溢出组框右缘，故
+             不动容器——把目标自身收窄 spacing+need（文字左对齐，视觉零变化），
+             再在它前面插 need 宽的固定间隔。
+          ② hl96（frame_2/layoutWidget_12，「仅缺少头像的演员」）：容器同样恒 511，
+             用 ① 的手法。
+          ③ hl95（layoutWidget_8 的来源行，「本地头像库」）：容器是 gridLayout 的
+             一整列、宽随窗口变，没有可收窄的固定容器，故把 stretch 挪给行尾 hl97
+             「点击下载头像包」——stretch=0 的 Minimum 项回到自己的 sizeHint
+             （「网络获取头像」129px），前导项与行尾标签同步收窄，行里凭空多出的宽度
+             全被 hl97 吸收；此时插入的固定间隔才不会被挤瘦。「点击下载头像包」右缘
+             停在原处、只有左缘右移，其文字实测为左对齐（.ui 里写的是 RTL 方向的
+             Qt::AlignLeading|Qt::AlignLeft，实测 AlignLeft 生效），故文字随左缘右移。
+
+        每行插完都实测回读一次并按差值修正（容器让位法与 stretch 让位法都只在 Qt
+        「有富余就分给可拉伸项」的模型下才精确，回读修正使其不依赖该模型的细节）。
+        状态登记在 _actor_narrow_spacers / _actor_narrow_restores，每遍同步先清后建，
+        幂等且窄↔宽往返自愈；宽态第一步清干净即 return，最大化态一个像素都不碰。
+        判据用 _actor_page_stretch_extra() 的几何拉伸量而非 isMaximized()，理由见
+        _actor_page_align docstring。休眠页跳过。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_64", None)
+        content = None if box is None else box.parentWidget()
+        if box is None or content is None or not box.isVisibleTo(self):
+            return
+        self._clear_actor_narrow_align()
+        if self._actor_page_stretch_extra() > 0:
+            return  # 宽态：几何全部由通用宽幅同步 + _sync_actor_info_columns 产出
+        anchor = getattr(ui, self._ACTOR_NARROW_ANCHOR, None)
+        if anchor is None:
+            return
+        anchor_x = anchor.mapTo(content, anchor.rect().topLeft()).x()
+
+        def left_x(w):
+            return w.mapTo(content, w.rect().topLeft()).x()
+
+        def set_fixed_width(w, width):
+            """只改钉宽、不再登记原值——供回读修正用（登记由先前的 lock_width 负责）。"""
+            w.setFixedWidth(width)
+            w.updateGeometry()
+
+        def lock_width(w, width):
+            """把 w 钉到 width，并记下原 min/max 供还原（已是该宽则不重复登记）。"""
+            if w is None:
+                return
+            if w.minimumWidth() == width and w.maximumWidth() == width:
+                return
+            self._actor_narrow_restores.append(("size", w, (w.minimumWidth(), w.maximumWidth())))
+            set_fixed_width(w, width)
+
+        def set_spacing(row, value):
+            """只改行间距、不再登记原值——供回读修正用（登记由 lock_spacing 负责）。"""
+            row.setSpacing(value)
+
+        def lock_spacing(row, value):
+            """把行间距改成 value，并记下原值供还原。"""
+            if row.spacing() == value:
+                return
+            self._actor_narrow_restores.append(("spacing", row, row.spacing()))
+            set_spacing(row, value)
+
+        # ①② 两个「补全范围：」行：容器不动，靠「目标收窄 + 同行间距撑开」右移。
+        for row_name, target_name, holder_name, locks in self._ACTOR_NARROW_SCOPE_ROWS:
+            row = getattr(ui, row_name, None)
+            target = getattr(ui, target_name, None)
+            holder = getattr(ui, holder_name, None)
+            if row is None or target is None or holder is None:
+                continue
+            if row.parentWidget() is not holder or target.parentWidget() is not holder:
+                continue
+            row.invalidate()
+            row.activate()  # 先落定，才能量到本控件的当前真实 x
+            need = anchor_x - left_x(target)
+            if need <= 0:
+                continue  # 已在锚点列或更右：需求只要求右移，不左拉
+            for name, width in locks:
+                lock_width(getattr(ui, name, None), width)
+            idx = row.indexOf(target)
+            count = row.count()
+            if idx < 0 or count < 2:
+                continue
+            margins = row.contentsMargins()
+            avail = holder.width() - margins.left() - margins.right()
+            # 除目标外其余项的实宽（都已被上面钉成固定宽，不会在行内伸缩）
+            others = sum(
+                getattr(ui, name).width() for name, _ in locks if getattr(ui, name, None) not in (None, target)
+            )
+            base = row.spacing()
+            # 目标让位量由「容器可用宽」反推，保证行内总需求恰好等于容器宽：
+            # 有富余时 QHBoxLayout 会把富余摊到行首（实测凭空多出 6px 空档，行首控件
+            # 整体右移），总需求一旦不等，行首的「所有演员」就会跟着漂。
+            donor = avail - others - (base + need) * (count - 1)
+            if donor < self._ACTOR_NARROW_MIN_DONOR_W:
+                continue  # 让位会挤掉目标自己的文字：宁可不右移
+            lock_width(target, donor)
+            lock_spacing(row, base + need)
+            row.invalidate()
+            row.activate()
+            d = anchor_x - left_x(target)
+            # 回读修正：间距与让位量同步增减，行内总需求恒定，绝不会被挤瘦/摊到行首；
+            # 修正后会让目标窄到夹住自己的文字则放弃（保持这一趟的近似值，下一遍再修）
+            if d and donor - d >= self._ACTOR_NARROW_MIN_DONOR_W:
+                set_fixed_width(target, donor - d)
+                set_spacing(row, base + need + d)
+                row.invalidate()
+                row.activate()
+
+        # ③ 来源行：stretch 让位法（详见 docstring）。
+        row_name, target_name, head_name, tail_name = self._ACTOR_NARROW_SOURCE_ROW
+        row = getattr(ui, row_name, None)
+        target = getattr(ui, target_name, None)
+        head = getattr(ui, head_name, None)
+        tail = getattr(ui, tail_name, None)
+        if row is None or target is None or head is None or tail is None:
+            return
+        row.invalidate()
+        row.activate()
+        need = anchor_x - left_x(target)
+        if need <= 0:
+            return
+        head_idx = row.indexOf(head)
+        tail_idx = row.indexOf(tail)
+        if head_idx < 0 or tail_idx < 0:
+            return
+        self._actor_narrow_restores.append(("stretch", row, [row.stretch(i) for i in range(row.count())]))
+        for i in range(row.count()):
+            row.setStretch(i, 1 if i == tail_idx else 0)
+        row.invalidate()
+        row.activate()
+        # 前导项已收窄让回了一部分，按实测差值补足（这里富余全在行尾 hl97，间隔不会被挤瘦）
+        idx = row.indexOf(target)
+        if idx < 0:
+            return
+        spacer = QSpacerItem(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        row.insertItem(idx, spacer)
+        self._actor_narrow_spacers.append((row, spacer))
+        row.invalidate()
+        row.activate()
+        lead = anchor_x - left_x(target)
+        for _ in range(3):
+            d = anchor_x - left_x(target)
+            if not d:
+                break
+            lead = max(0, lead + d)
+            spacer.changeSize(lead, 0)
+            row.invalidate()
+            row.activate()
 
     # 刮削目录页文件清理提示的设计宽（MDCx.ui label_271 设计几何 140,490,381,16）。
     _GUAXIAOMULU_TIP_DESIGN_W = 381
@@ -2371,6 +2624,9 @@ class MyMAinWindow(QMainWindow):
         # 必须在 _sync_actor_page_align 之后：本方法要量 checkBox_actor_photo_ne_new
         # 的左缘当 A3 锚点，而锚点位置由前者刚定下。
         self._sync_actor_info_columns(actor_scroll)
+        # 窄态右移对齐（最小化时把三个「仅缺少…/本地头像库」对到锚点列）：必须在
+        # _sync_actor_info_columns 之后——它要量后者刚钉好的两个单选的当前 x。
+        self._sync_actor_page_narrow_miss_align(actor_scroll)
 
         # ============ page_setting / 刮削目录页: 文件清理提示左移到按钮下方 ============
         # 排在通用拉伸之后：提示是 _STRETCH，最大化时先被拉宽右偏，本方法同拍拉回；
