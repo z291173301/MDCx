@@ -28,6 +28,7 @@ from PyQt6.QtGui import (
     QTextDocument,
 )
 from PyQt6.QtWidgets import (
+    QWIDGETSIZE_MAX,
     QApplication,
     QFileDialog,
     QHBoxLayout,
@@ -2008,16 +2009,20 @@ class MyMAinWindow(QMainWindow):
     _GUAXIAOMULU_TIP_DESIGN_W = 381
 
     def _sync_guaxiaomulu_page_align(self, _scroll=None) -> None:
-        """设置-刮削目录：把文件清理提示对齐入口整条重跑（钩子用，零参可调）。
+        """设置-刮削目录：把本页两处对齐入口整条重跑（钩子用，零参可调）。
 
         挂在刮削目录滚动区拉伸之后的钩子上
         （CustomScrollArea._post_wide_sync_hook），使「拉伸」与「对齐」在同一个
-        事件里做完，中间态（提示被拉宽后居中右偏）不会被绘制。休眠页直接返回，
-        由切 tab 的 showEvent 补齐。
+        事件里做完，中间态（提示被拉宽后居中右偏、「刮削时自动清理」先停在右缘）
+        不会被绘制。休眠页直接返回，由切 tab 的 showEvent 补齐。
+
+        顺序敏感：两处都要排在通用拉伸之后，且「刮削时自动清理」换列排在提示对齐
+        之后——前者的对齐位置依赖网格终态列宽，而提示对齐内部会重跑一次
+        sync_wide_children_width()（宽态），把它钉回右缘。
         """
-        self._sync_guaxiaomulu_clean_tip_align(
-            _scroll if _scroll is not None else getattr(self, "_guaxiaomulu_scroll", None)
-        )
+        scroll = _scroll if _scroll is not None else getattr(self, "_guaxiaomulu_scroll", None)
+        self._sync_guaxiaomulu_clean_tip_align(scroll)
+        self._sync_guaxiaomulu_checkbox_align(scroll)
 
     def _sync_guaxiaomulu_clean_tip_align(self, scroll=None) -> None:
         """设置-刮削目录：最大化时文件清理提示左移到按钮下方居中，最小化不动。
@@ -2057,6 +2062,132 @@ class MyMAinWindow(QMainWindow):
             return
         if g.x() != nx or g.width() != self._GUAXIAOMULU_TIP_DESIGN_W:
             tip.setGeometry(nx, g.y(), self._GUAXIAOMULU_TIP_DESIGN_W, g.height())
+
+    # ── 刮削目录页两处横向对齐（需求①软链接行让位 / ②③自动清理换列）──
+    # 「文件扫描设置」软链接行：行布局 / 前导项 / 目标。
+    # 目标是 horizontalLayout_19 里 gridLayout_19 第 (3,1) 格的子布局，
+    # 两项都是 Minimum 策略、总需求恰好等于 col1 宽（窄 504 / 宽 1394）。
+    _GUAXIAOMULU_SCAN_ROW = (
+        "horizontalLayout_115",
+        "checkBox_check_symlink",
+        "checkBox_check_symlink_definition",
+    )
+    # 两态锚点（自身保持不动）：「记录刮削成功的文件列表」，horizontalLayout_133 第二项。
+    _GUAXIAOMULU_SCAN_ANCHOR = "checkBox_record_success_file"
+    # 「文件清理设置」组里六个「启用」（gridLayout_52 各行末列 Fixed 110）左缘一致，
+    # 任取其一即代表该列竖线；组框内绝对定位的「刮削时自动清理」要对齐它。
+    _GUAXIAOMULU_ENABLE_ANCHOR = "checkBox_clean_file_ext"
+    # 「刮削时自动清理」是 groupBox_61 内的绝对定位项、不受任何布局管理，
+    # 通用宽幅同步按 _DOCK_RIGHT 只 move(设计x + extra)、宽高不动
+    # （设计几何 520,430,141,41），故宽态左移 / 窄态右移都由本方法在同一事件里
+    # move 回去（宽度 141 保持不变——需求只说左右移动）。
+    _GUAXIAOMULU_AUTO_CLEAN = "checkBox_auto_clean"
+    # 前导项收窄让位的下限：低于此值会夹住「检查并清理失效的软链接」自己的文字
+    # （实测其 sizeHint 宽 101），宁可不右移。窗口窄于约 960 时会触发该守卫。
+    _GUAXIAOMULU_MIN_LEAD_W = 150
+
+    def _sync_guaxiaomulu_checkbox_align(self, scroll=None) -> None:
+        """刮削目录页：软链接行让位 +「刮削时自动清理」按态换列（三条需求）。
+
+        用户需求（三条锚点自身均保持不动）：
+          ① 最大化/最小化时把「获取软链接指向的原文件的分辨率」左移到与「记录刮削成功
+             的文件列表」严格上下对齐——两态都做，实测两态都是 -58px。
+          ② 最大化时把「刮削时自动清理」左移到与「记录刮削成功的文件列表」严格上下对齐。
+          ③ 最小化时把「刮削时自动清理」右移到与「启用」严格上下对齐。
+
+        实测几何（abs = 相对滚动内容左缘；1030×753 窄态 / 1920×1170 宽态）：
+          窄态 record 383 / definition 441 / check_symlink 186 / auto_clean 528 / 启用 579
+          宽态 record 828 / definition 886 / check_symlink 186 / auto_clean 1418 / 启用 1469
+        需求①两态右移量同为 58px：锚点列随窗口右移，而软链接行的前导项恒钉在
+        col1 起点 186，两者之差与态无关。锚点 x 一律运行时 mapTo 实测、不写死。
+
+        两条手法（根因不同，勿混用）：
+          ① horizontalLayout_115 是 gridLayout_19 的子布局，两项都是 Minimum 策略
+             且总需求恰好等于 col1 宽，故既不能用 setGeometry（会被下次 layout 激活
+             覆盖）也不能只插间隔（行内总需求一旦小于容器宽，Qt 会把富余摊给其余
+             Minimum 项、目标又弹回原位）。做法是「前导项收窄让位」：把「检查并清理
+             失效的软链接」钉到 need_w = 锚点x - 前导项x - 行间距 - 中间项宽之和，
+             目标作为行内唯一的可拉伸项正好吃光剩余宽度，左缘即落在锚点上。
+             钉宽每遍先**真解锁**（setMinimumWidth(0) + setMaximumWidth(QWIDGETSIZE_MAX)）
+             再量——这正是 _actor_info_width_locks 用 setFixedWidth(saved) 永不真解锁
+             的坑：拿上一遍的钉宽去算，误差会逐遍累积。
+             need_w < 150 时保持解锁、不右移（宁可不满足也不夹住前导项自己的文字）。
+          ② 「刮削时自动清理」是 groupBox_61 内的绝对定位项，直接 move 即可；但通用
+             宽幅同步每遍会按 _DOCK_RIGHT 把它钉回「设计x + extra」（窄 498 / 宽
+             1388），所以本方法必须排在 sync_wide_children_width() 之后——滚动区的
+             _post_wide_sync_hook 与 _sync_page_layouts 尾部两处调用都满足这一点，
+             与 _sync_guaxiaomulu_clean_tip_align 同款排布。只改 x，y 与宽不动。
+
+        判态用几何拉伸量 _scroll_stretch_extra()（> 0 为宽态）而非 isMaximized()：
+        窗口管理器最大化时先发尺寸、后发状态标志，那一拍 isMaximized() 还是 False，
+        用户会看到「先在右边、再跳到左边」（同 _sync_actor_page_align 的理由）。
+        幂等：每遍先解锁再按当前几何重算，双向幂等、窄↔宽往返自愈。休眠页零成本。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box32 = getattr(ui, "groupBox_32", None)
+        box61 = getattr(ui, "groupBox_61", None)
+        anchor = getattr(ui, self._GUAXIAOMULU_SCAN_ANCHOR, None)
+        if box32 is None or box61 is None or anchor is None or not box32.isVisibleTo(self):
+            return
+        content = box32.parentWidget()
+        if content is None or box61.parentWidget() is not content:
+            return
+        if scroll is None:
+            scroll = getattr(self, "_guaxiaomulu_scroll", None)
+
+        def left_x(w):
+            return w.mapTo(content, w.rect().topLeft()).x()
+
+        # ① 软链接行：前导项收窄让位，目标左缘落到锚点列（两态都做）。
+        row_name, lead_name, target_name = self._GUAXIAOMULU_SCAN_ROW
+        row = getattr(ui, row_name, None)
+        lead = getattr(ui, lead_name, None)
+        target = getattr(ui, target_name, None)
+        if row is not None and lead is not None and target is not None:
+            if lead.parentWidget() is target.parentWidget():
+                lead.setMinimumWidth(0)
+                lead.setMaximumWidth(QWIDGETSIZE_MAX)
+                lead.updateGeometry()
+                row.invalidate()
+                row.activate()  # 先落定，才能量到本行的当前真实 x 与宽
+                lidx = row.indexOf(lead)
+                tidx = row.indexOf(target)
+                if lidx >= 0 and tidx > lidx:
+                    anchor_x = left_x(anchor)
+                    between = 0
+                    for i in range(lidx + 1, tidx):
+                        mid = row.itemAt(i).widget()
+                        if mid is not None:
+                            between += mid.width()
+                    need_w = anchor_x - left_x(lead) - row.spacing() * (tidx - lidx) - between
+                    if need_w >= self._GUAXIAOMULU_MIN_LEAD_W:
+                        lead.setFixedWidth(need_w)
+                        row.invalidate()
+                        row.activate()
+                        # 回读修正：上面已按构造式推出「目标x == 锚点x」，这里不依赖
+                        # Qt 分配细节再校一遍，残差就再让多少（仍以不夹住文字为界）。
+                        d = anchor_x - left_x(target)
+                        if d:
+                            fixed = max(need_w - d, self._GUAXIAOMULU_MIN_LEAD_W)
+                            lead.setFixedWidth(fixed)
+                            row.invalidate()
+                            row.activate()
+
+        # ②③ 「刮削时自动清理」：宽态对到「记录刮削成功的文件列表」列，窄态对到「启用」列。
+        clean = getattr(ui, self._GUAXIAOMULU_AUTO_CLEAN, None)
+        enable = getattr(ui, self._GUAXIAOMULU_ENABLE_ANCHOR, None)
+        if clean is not None and enable is not None and clean.parentWidget() is box61:
+            src = anchor if self._scroll_stretch_extra(scroll) > 0 else enable
+            # 跨分支 mapTo（record 在 groupBox_32、目标在 groupBox_61）是未定义行为，
+            # 必须经公共祖先 content 中转再换算回 groupBox_61 的局部坐标。
+            box_x = box61.mapTo(content, QPoint(0, 0)).x()
+            nx = src.mapTo(content, QPoint(0, 0)).x() - box_x
+            # 不越过滚动内容右缘（否则内容最小宽被抬高、冒出一条水平滚动条）
+            limit = content.width() - box_x
+            if nx != clean.x() and 0 <= nx and nx + clean.width() <= limit:
+                clean.move(nx, clean.y())
 
     # 字幕页「添加外挂字幕」组设计几何（MDCx.ui groupBox_45: x30 y310 w701 h425）。
     _ZIMU_BOX_DESIGN_Y = 310
@@ -2945,9 +3076,13 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / 刮削目录页: 文件清理提示左移到按钮下方 ============
         # 排在通用拉伸之后：提示是 _STRETCH，最大化时先被拉宽右偏，本方法同拍拉回；
         # 还原态（extra <= 0）内部直接 return，最小化布局逐像素不变。
-        self._sync_guaxiaomulu_clean_tip_align(
+        guaxiaomulu_scroll = (
             guaxiaomulu_scroll if guaxiaomulu_scroll is not None else getattr(self, "_guaxiaomulu_scroll", None)
         )
+        self._sync_guaxiaomulu_clean_tip_align(guaxiaomulu_scroll)
+        # 本页两处横向对齐（软链接行让位 +「刮削时自动清理」按态换列）：必须排在
+        # 上面那次宽态重跑之后，否则「刮削时自动清理」会被 _DOCK_RIGHT 钉回右缘。
+        self._sync_guaxiaomulu_checkbox_align(guaxiaomulu_scroll)
 
         # ============ page_setting / 字幕页: 底部填充收缩 + 两处左对齐 ============
         # 排在通用拉伸之后：必须走统一入口 _sync_zimu_page_align（先收缩后对齐）。
