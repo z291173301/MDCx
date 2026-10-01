@@ -13401,7 +13401,7 @@ class Ui_MDCx(object):
                 "MDCx", "DeepL与DeepLX为独立选项，填写DeepL API/DeepLX URL/百度API凭据后才会生效，未填写时将会自动跳过"
             )
         )
-        self.label_baidu_appid.setText(_translate("MDCx", "百度APP ID："))
+        self.label_baidu_appid.setText(_translate("MDCx", "百度 APP："))
         self.label_baidu_key.setText(_translate("MDCx", "百度密钥："))
         self.checkBox_google.setText(_translate("MDCx", "Google"))
         self.checkBox_deepl.setText(_translate("MDCx", "DeepL"))
@@ -13466,7 +13466,7 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p style='line-height:20px'>\n"
-                "                                素人和 FC2 番号演员可能是「素人」之类假名字，勾选「使用AV-wiki获取演员真实名字」，可以请求AV-Wiki获取演员真实日文名，之后可使用演员映射表翻译为中文！<br>\n"
+                "                                素人和  FC2 番号演员可能是「素人」之类假名字，勾选「使用AV-wiki获取演员真实名字」，可以请求AV-Wiki获取演员真实日文名，之后可以使用演员映射表翻译为中文<br>\n"
                 "                                演员名比较复杂，不能简单使用翻译引擎翻译。主要的问题：演员名翻译不准确、演员有多个名字、同一演员不同番号演员名不统一、各网站使用的演员名不统一等。不过通过演员名映射翻译表可以解决这些问题，使刮削后的演员名整齐统一。<br>\n"
                 "                                实现逻辑：网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译表文件名为：actor_database.xlsx。<br>\n"
                 "                                Windows：\\配置文件目录\\userdata\\actor_database.xlsx，配置文件的目录可以在「设置」-「高级」中设置。<br>\n"
