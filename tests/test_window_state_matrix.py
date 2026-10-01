@@ -809,6 +809,43 @@ def test_setting_all_tabs_wide_boxes_fill_viewport(win, app):
     assert checked >= 30, f"宽幅容器登记异常地少: {checked}"
 
 
+def test_fanyi_group_width_stable_across_resize_cycles(win, app):
+    """翻译页简介/演员组宽度在反复缩放窗口后必须恒为「设计宽 + extra」。
+
+    回归背景：`_sync_fanyi_group_spacing` 把「宽幅同步已拉伸后的当前宽」
+    （`intro.width()` / `actor.width()`）写回 `_wide_children_design` 的设计宽度，
+    下一轮宽幅同步再加一次 extra → 每轮缩放宽度无界增长（离屏实测每次窗口
+    缩放 +1216px，几轮后两个组框飞出窗口右缘）。设计宽度只能取登记值——
+    它是 `_register_design_geometry` 在 setupUi 时刻采集的唯一真值。
+    """
+    _goto(win, app, "page_setting")
+    ui = win.Ui
+    fanyi_tab = next(i for i in range(ui.tabWidget.count()) if ui.tabWidget.widget(i) is ui.tab_6)
+    ui.tabWidget.setCurrentIndex(fanyi_tab)
+    win.resize(1400, 900)
+    win.show()
+    app.processEvents()
+
+    scroll = ui.scrollArea_11
+    content = scroll.widget()
+    design_w = getattr(content, "_wide_children_design_width", 0)
+    for _ in range(3):
+        for width in (1920, 1400):
+            win.resize(width, 900)
+            app.processEvents()
+            extra = scroll.viewport().width() - design_w
+            for name in ("groupBox_83", "groupBox_84"):
+                box = getattr(ui, name)
+                entry_w = next(e.geometry[2] for e in content._wide_children_design if e.widget is box)
+                assert box.width() == entry_w + extra, (
+                    f"{name} 宽幅同步被污染: 窗宽={width} w={box.width()} "
+                    f"期望={entry_w + extra}（登记设计宽={entry_w} extra={extra}）"
+                )
+                assert box.width() <= scroll.viewport().width(), (
+                    f"{name} 宽度已溢出视口: w={box.width()} viewport={scroll.viewport().width()}"
+                )
+
+
 def test_setting_config_bar_all_children_docked(win, app):
     """浮框组全部子件（含「当前配置:」label_241）必须位于底部浮框带内。
 
@@ -2061,7 +2098,11 @@ def test_zimu_rows_align_to_filename_when_wide(win, app):
     for i in range(ui.tabWidget.count()):
         page = ui.tabWidget.widget(i)
         area = page.findChild(CustomScrollArea)
-        if area is not None and area.widget() is not None and area.widget().objectName() == "scrollAreaWidgetContents_zimu":
+        if (
+            area is not None
+            and area.widget() is not None
+            and area.widget().objectName() == "scrollAreaWidgetContents_zimu"
+        ):
             ui.tabWidget.setCurrentIndex(i)
             break
     app.processEvents()
@@ -2112,7 +2153,9 @@ def test_zimu_rows_align_to_filename_when_wide(win, app):
         assert grid.rowMinimumHeight(r) == base_rows[r] + unit, f"网格行{r}铺排异常: min={grid.rowMinimumHeight(r)}"
     assert grid27.height() == 186 + 4 * unit, f"网格容器未按铺排增高: h={grid27.height()}"
     assert ui.pushButton_add_sub_for_all_video.y() == 220 + 5 * unit, "长按钮未按铺排下移"
-    assert (rs.y(), rs.width(), rs.height()) == (272 + 5 * unit + gap, 236, 30), f"复选框行铺排异常: {rs.geometry().getRect()}"
+    assert (rs.y(), rs.width(), rs.height()) == (272 + 5 * unit + gap, 236, 30), (
+        f"复选框行铺排异常: {rs.geometry().getRect()}"
+    )
     assert ui.checkBox_sub_add_chs.y() == 272 + 5 * unit + gap, "同行复选框未同步铺排"
     # 绿色说明上提删掉下方多余底垫（与实现 _zimu_wide_rows 同式），
     # 组框按绿色说明底部贴合（只留 12px），且不越过复选框行。
@@ -2127,12 +2170,16 @@ def test_zimu_rows_align_to_filename_when_wide(win, app):
     assert ui.label_125.y() >= _checks_y + 38, "绿色说明越过复选框行"
     assert box.height() == _box_h, f"组框底边未同步上收: h={box.height()} 期望={_box_h}"
     assert box.height() - (ui.label_125.y() + ui.label_125.height()) == 12, "组框底垫未收至 12px"
-    assert link.x() == fn_cx - box.x() - grid27.x(), f"下载链接未对齐文件名: link.x={link.x()} 期望={fn_cx - box.x() - grid27.x()}"
+    assert link.x() == fn_cx - box.x() - grid27.x(), (
+        f"下载链接未对齐文件名: link.x={link.x()} 期望={fn_cx - box.x() - grid27.x()}"
+    )
     # 链接行被第 0 行铺排顶下 unit，叠加行内垂直居中多下沉 unit//2；
     # 用行布局几何推导期望（DPI 鲁棒），链接自身高度不变。
     lay_geom = lay.geometry().getRect()
     assert lay_geom[1] == base["lay"][1] + unit, f"下载行未跟随铺排: y={lay_geom[1]}"
-    assert link.y() == lay_geom[1] + (lay_geom[3] - link.height()) // 2, f"下载链接行内居中异常: {link.geometry().getRect()}"
+    assert link.y() == lay_geom[1] + (lay_geom[3] - link.height()) // 2, (
+        f"下载链接行内居中异常: {link.geometry().getRect()}"
+    )
     assert link.height() == base["link"][3], f"下载链接高度变化: {link.geometry().getRect()}"
     from PyQt6.QtCore import Qt as _Qt
 
@@ -2190,3 +2237,82 @@ def test_zimu_rows_align_to_filename_when_wide(win, app):
     assert (lead.minimumWidth(), lead.maximumWidth()) == base["lead_mm"], "窄态前导钉宽残留"
     assert lay.count() == base["count"], f"窄态间隔未拆除: count={lay.count()}"
     assert ui.groupBox_45.geometry().getRect() == base["box"], "窄态组框 y/高未复原"
+
+
+def _goto_naming_tab(win, app):
+    """切到软件设置-命名页（三个命名规则组所在 tab）。"""
+    ui = win.Ui
+    _goto(win, app, "page_setting")
+    for i in range(ui.tabWidget.count()):
+        if ui.tabWidget.widget(i).objectName() == "tab_3":
+            ui.tabWidget.setCurrentIndex(i)
+            break
+    else:
+        raise AssertionError("命名 tab_3 not found")
+    app.processEvents()
+
+
+@pytest.mark.parametrize("width", [1000, 1920])
+def test_naming_filename_checkboxes_column_align(win, app, width):
+    """命名页「视频文件名」三处（马赛克/画质/分隔符空格）左缘严格同列，小数点等距右随。
+
+    用户需求：马赛克命名规则的「视频文件名」右移到与画质命名规则「视频文件名」
+    上下严格对齐；分隔符行的「 空格」同样右移对齐，「. 小数点」同步右移相同距离；
+    窄态与宽态都必须生效。
+
+    三个组都是命名滚动区内容的直接子控件、设计 x 同为 30 且宽态只加宽不改 x，
+    故用「映射到滚动区内容的绝对 x」比对才是用户肉眼看到的对齐基准。
+    根因防线：小数点右移后右缘 560+110+1=671 ≥ 组宽 720*0.9=648，会被通用宽幅
+    同步判为 _DOCK_RIGHT 在宽态额外右移 extra，与「空格」拉开距离——故它必须留在
+    CustomScrollArea._MANUAL_WIDGET_NAMES 里不被登记。
+    """
+    from PyQt6.QtCore import QPoint
+
+    ui = win.Ui
+    win.show()
+    _goto_naming_tab(win, app)
+    win.resize(width, 1170 if width > 1200 else 700)
+    app.processEvents()
+    win._sync_page_layouts()
+    app.processEvents()
+
+    content = ui.scrollAreaWidgetContents_mingming
+    mosaic = ui.checkBox_filename_mosaic
+    hd = ui.checkBox_filename_4k
+    space = ui.checkBox_cd_part_space
+    point = ui.checkBox_cd_part_point
+    underline = ui.checkBox_cd_part_underline
+
+    abs_x = lambda w: w.mapTo(content, QPoint(0, 0)).x()  # noqa: E731
+    base_x = abs_x(hd)
+    for label, w in (("马赛克视频文件名", mosaic), ("分隔符空格", space)):
+        assert abs_x(w) == base_x, f"{width} 宽下 {label} 未与画质视频文件名同列: {abs_x(w)} vs {base_x}"
+    # 「. 小数点」与「空格」保持设计间距（等距右移），不因宽态锚定右缘而拉开
+    assert point.x() - space.x() == 140, f"{width} 宽下小数点与空格间距漂移: {point.x() - space.x()}"
+    assert abs_x(point) - abs_x(space) == 140, f"{width} 宽下小数点未按绝对距离等距右移"
+    # 「_ 下划线」保持原位（160），不受本次右移影响
+    assert abs_x(underline) - abs_x(space) == -260, "下划线相对位置被改动"
+
+    snap = {
+        n: getattr(ui, n).geometry().getRect()
+        for n in (
+            "checkBox_filename_mosaic",
+            "checkBox_filename_4k",
+            "checkBox_cd_part_underline",
+            "checkBox_cd_part_space",
+            "checkBox_cd_part_point",
+        )
+    }
+    win._sync_page_layouts()
+    app.processEvents()
+    after = {
+        n: getattr(ui, n).geometry().getRect()
+        for n in (
+            "checkBox_filename_mosaic",
+            "checkBox_filename_4k",
+            "checkBox_cd_part_underline",
+            "checkBox_cd_part_space",
+            "checkBox_cd_part_point",
+        )
+    }
+    assert snap == after, f"二次同步漂移: {snap} -> {after}"

@@ -176,8 +176,12 @@ class CustomScrollArea(QScrollArea):
 
     # 演员库维护三行由 MainWindow._sync_actor_db_tool_layout 接管（最大化才重排，
     # 还原恢复设计几何），此处不再自动拉伸/右缘锚定，避免通用逻辑覆盖定制布局。
+    # 命名页「. 小数点」也列入：右移对齐后右缘 560+110+1=671 ≥ 组宽 720*0.9=648，
+    # 会被通用逻辑误判为 _DOCK_RIGHT 而在宽态额外右移 extra，与同行的「空格」
+    # （420，右缘 531 → 不登记）拉开距离，破坏「同步等距右移」的诉求。
     _MANUAL_WIDGET_NAMES = frozenset(
         {
+            "checkBox_cd_part_point",
             "label_actor_db_fill_minnano_desc",
             "lineEdit_actor_db_nfo_dir",
             "pushButton_actor_db_pick_nfo_dir",

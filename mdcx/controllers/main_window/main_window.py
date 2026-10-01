@@ -1,4 +1,5 @@
 import html
+import math
 import os
 import platform
 import re
@@ -12,7 +13,20 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, cast
 
 from PyQt6.QtCore import QEvent, QItemSelectionModel, QPoint, QPointF, QRect, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QColor, QCursor, QFontMetrics, QGuiApplication, QHoverEvent, QIcon, QImage, QKeySequence, QPixmap, QShortcut
+from PyQt6.QtGui import (
+    QAction,
+    QColor,
+    QCursor,
+    QFontMetrics,
+    QGuiApplication,
+    QHoverEvent,
+    QIcon,
+    QImage,
+    QKeySequence,
+    QPixmap,
+    QShortcut,
+    QTextDocument,
+)
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -220,6 +234,8 @@ class MyMAinWindow(QMainWindow):
         self._naming_fix_tries = 0  # 同一宽度下的重算次数上限，防止布局压不下时反复排队
         self._fanyi_design: dict | None = None  # 翻译页两组：首次登记的设计几何基准
         self._fanyi_resyncing = False  # 翻译页两组：重算中标志（防标签 resize 递归触发）
+        self._defn_resyncing = False  # 命名页画质组：重算中标志（防标签 resize 递归触发）
+        self._defn_last_width = -1  # 命名页画质组说明文字上次同步所用宽度（宽度变了才重排）
         self._actor_scroll = None  # 设置-演员页的 CustomScrollArea（对齐判据要读它的视口宽）
         self._nfo_scroll = None  # 设置-NFO页的 CustomScrollArea（右列对齐的钩子宿主）
         self._adv_scroll = None  # 设置-高级页的 CustomScrollArea（四行对齐的钩子宿主）
@@ -334,8 +350,11 @@ class MyMAinWindow(QMainWindow):
         )
         # 翻译页同款：简介组/演员组的容器高度按实测内容算出，切 tab 引起的视口
         # 变化（滚动条占位）会改掉网格列宽 → 文字折行数变 → 需要重算。
+        self.Ui.tabWidget.currentChanged.connect(lambda _index: QTimer.singleShot(0, self._sync_fanyi_group_spacing))
+        # 命名页画质组同款：QHD 说明文字的折行数随网格拉伸后的终态宽度变化，
+        # 切 tab 下一拍按最新宽度重算收紧（见 _sync_definition_group_spacing）。
         self.Ui.tabWidget.currentChanged.connect(
-            lambda _index: QTimer.singleShot(0, self._sync_fanyi_group_spacing)
+            lambda _index: QTimer.singleShot(0, self._sync_definition_group_spacing)
         )
         # 设置页 tab 内各页同理：切 tab 下一拍只排队，真活留到再下一拍的全量同步。
         # 实测：切 NFO 页当拍布局 deferred 级联（scrollbar 出现约 14px、宽幅重拉）
@@ -371,6 +390,10 @@ class MyMAinWindow(QMainWindow):
         self.Ui.stackedWidget.currentChanged.connect(self._settle_settings_after_switch)
         # 说明文字宽度变化（滚动条占位、休眠页拉伸等）时自动补一次重算。
         self.Ui.label_66.installEventFilter(self)
+        # 命名页画质组 QHD 说明（label_331）：只按宽度触发，见 _sync_definition_group_spacing
+        # —— 高度由纯宽度函数算出，钉上后立刻自洽，无需「高度对不上」的重入门闩
+        # （painted 回扫法在非纯白背景下恒返回自身高度，那种比较只会造成 +2 漂移）。
+        self.Ui.label_331.installEventFilter(self)
         self._bind_system_theme_refresh()
         self.cutwindow = CutWindow(self)
         self.preview_image_loader = PreviewImageLoader(self)
@@ -669,6 +692,20 @@ class MyMAinWindow(QMainWindow):
                         self._naming_fix_tries += 1
                         self._naming_last_width = a0.width()
                         QTimer.singleShot(0, self._sync_naming_template_section)
+        # 命名页画质组 QHD 说明（label_331）：宽度一变（滚动条占位、窗口拉伸、切页）
+        # 就重算，否则上次钉死的高度残留成 HD 行与分辨率行之间的空白。折行数只由
+        # 宽度决定，_label_text_height_for_width 是纯函数：钉上后同宽度必得同高，
+        # 故只按宽度触发即可立即收敛，无需「高度对不上」的重试（label_66 的 painted
+        # 回扫法才需要那一套，见 _naming_label_painted_height 的 docstring）。
+        if a0 is getattr(self.Ui, "label_331", None) and a1.type() == QEvent.Type.Resize:
+            # 只按宽度触发（label_66 还要校验高度是因为它用 painted 回扫法，级联中途
+            # 量到陈旧折行；这里是纯宽度函数，钉上后同宽度必得同高，见方法 docstring）。
+            # 宽度变了才排一次队：_defn_last_width 记住上次同步所用宽度，同宽度重复
+            # Resize 直接跳过，天然封顶，不需要 label_66 那套重试计数。
+            w = a0.width()
+            if not self._defn_resyncing and w > 0 and w != self._defn_last_width:
+                self._defn_last_width = w
+                QTimer.singleShot(0, self._sync_definition_group_spacing)
         # 刮削缓存失败列表：表格/视口宽一变就按 4:2:6:3 重分布列宽，保持无横向滚动条。
         # setColumnWidth 不改变表格自身尺寸，只触发 header 几何变化，不会递归触发此处 Resize，
         # 故直接同步布局（若用 singleShot 延迟一拍，填入多行致视口收缩后断言时仍是旧列宽）。
@@ -885,9 +922,7 @@ class MyMAinWindow(QMainWindow):
         if box is None or not box.isVisibleTo(self):
             # 休眠页跳过（切页 showEvent 后 _sync_page_layouts 会补齐）
             return
-        widgets = {
-            name: getattr(ui, name, None) for name in self._ACTOR_DB_TOOL_DESIGN
-        }
+        widgets = {name: getattr(ui, name, None) for name in self._ACTOR_DB_TOOL_DESIGN}
         if any(w is None for w in widgets.values()):
             return
         # 链接缺项说明、打开库说明已删除（两态隐藏，均已并入顶部合并提示词）
@@ -967,7 +1002,9 @@ class MyMAinWindow(QMainWindow):
         prompt_w = max(box_w - prompt_x - 10, 200)
         tdesc.setWordWrap(True)  # 够宽一行显示，窄屏自动换行不断尾
         tdesc.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        tdesc.setGeometry(prompt_x, ui.pushButton_actor_db_link.y(), prompt_w, wrapped_label_height(tdesc, prompt_w, 32, 56))
+        tdesc.setGeometry(
+            prompt_x, ui.pushButton_actor_db_link.y(), prompt_w, wrapped_label_height(tdesc, prompt_w, 32, 56)
+        )
         minnano_desc.setWordWrap(True)
         minnano_desc.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         minnano_desc.setGeometry(prompt_x, mbtn.y(), prompt_w, wrapped_label_height(minnano_desc, prompt_w, 30, 56))
@@ -1083,7 +1120,9 @@ class MyMAinWindow(QMainWindow):
             actor_scroll.sync_wide_children_width()  # 取终态 extra，勿量过期几何
         graphis = getattr(ui, "checkBox_actor_photo_ne_new", None)
         miss = getattr(ui, "radioButton_actor_photo_miss", None)
-        widgets = {name: getattr(ui, name, None) for name in self._ACTOR_PAGE_GRAPHIS_TARGETS + self._ACTOR_PAGE_MISS_TARGETS}
+        widgets = {
+            name: getattr(ui, name, None) for name in self._ACTOR_PAGE_GRAPHIS_TARGETS + self._ACTOR_PAGE_MISS_TARGETS
+        }
         if graphis is None or miss is None or any(w is None for w in widgets.values()):
             return
         content = box.parentWidget()
@@ -1095,9 +1134,7 @@ class MyMAinWindow(QMainWindow):
             w = widgets[name]
             if w.parentWidget() is None or anchor.parentWidget() is None:
                 return
-            dx = anchor.mapTo(content, anchor.rect().topLeft()).x() - w.mapTo(
-                content, w.rect().topLeft()
-            ).x()
+            dx = anchor.mapTo(content, anchor.rect().topLeft()).x() - w.mapTo(content, w.rect().topLeft()).x()
             g = w.geometry()
             nx = g.x() + dx
             if nx < 0 or nx + g.width() > w.parentWidget().width():
@@ -1194,6 +1231,7 @@ class MyMAinWindow(QMainWindow):
         teal_y = spread_teal_y - up
         box_h = min(self._ZIMU_BOX_DESIGN_H + filler, teal_y + teal_h + self._ZIMU_TEAL_BOTTOM_PAD)
         return unit, btn_y, checks_y, teal_y, box_h
+
     # 组内复选框行 / 绿色说明 label_125 / 长按钮的设计 y（宽态铺排的归位基准）。
     _ZIMU_CHECKS_DESIGN_Y = 272
     _ZIMU_TEAL_DESIGN_Y = 309
@@ -1364,9 +1402,7 @@ class MyMAinWindow(QMainWindow):
         filler = 0
         if viewport is not None:
             filler = (
-                viewport.height()
-                - (self._ZIMU_BOX_DESIGN_Y + self._ZIMU_BOX_DESIGN_H)
-                - scroll.content_bottom_margin()
+                viewport.height() - (self._ZIMU_BOX_DESIGN_Y + self._ZIMU_BOX_DESIGN_H) - scroll.content_bottom_margin()
             )
         unit, btn_y, checks_y, teal_y, _box_h = self._zimu_wide_rows(filler, teal.height())
         if any(grid.rowMinimumHeight(r) != 0 for r in range(4)):
@@ -1401,18 +1437,10 @@ class MyMAinWindow(QMainWindow):
         tx_g27 = fn_cx - box.x() - grid27.x()
         lead_w = lead.sizeHint().width()
         want_gap = tx_g27 - lead.x() - lead_w - lay.spacing()
-        ok = (
-            want_gap >= 0
-            and tx_g27 <= link.x()
-            and tx_g27 + link.sizeHint().width() <= grid27.width()
-        )
+        ok = want_gap >= 0 and tx_g27 <= link.x() and tx_g27 + link.sizeHint().width() <= grid27.width()
         new_gap = want_gap if ok else 0
         changed = self._pin_row_lead_width(lead, lead_w if ok else None)
-        want_align = (
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-            if ok
-            else Qt.AlignmentFlag.AlignCenter
-        )
+        want_align = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter if ok else Qt.AlignmentFlag.AlignCenter
         if link.alignment() != want_align:
             link.setAlignment(want_align)
         spacer = self._zimu_dl_spacer
@@ -1425,9 +1453,7 @@ class MyMAinWindow(QMainWindow):
                 spacer = lay.itemAt(1)
                 self._zimu_dl_spacer = spacer
             if spacer is not None:
-                spacer.changeSize(
-                    new_gap, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum
-                )
+                spacer.changeSize(new_gap, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
                 self._zimu_dl_gap = new_gap
                 changed = True
         if not changed:
@@ -1996,6 +2022,11 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / 命名页: 模板预览固定高度 + 说明文字贴合 ============
         self._sync_naming_template_section()
 
+        # ============ page_setting / 命名页: 画质组按内容收紧 HD 行到分辨率行的间距 ============
+        # 必须排在通用拉伸之后：网格列宽（从而说明文字折行数、需要的总高度）
+        # 取决于拉伸后的终态宽度，-template/翻译两组同理。
+        self._sync_definition_group_spacing()
+
         # ============ page_setting / 翻译页: 简介组与演员组按内容收紧间距 ============
         # 必须排在通用拉伸之后：两个网格的列宽（从而提示文字折行数、说明文字需
         # 要的总高度）取决于拉伸后的终态宽度。
@@ -2054,9 +2085,7 @@ class MyMAinWindow(QMainWindow):
         # 若尾部只调 _sync_zimu_fill_blank，它内部的重跑宽幅同步会把钩子刚对好的
         # 复选框搬回右缘（钩子才是破坏者同款）；矮视口各分支内部直接 return，
         # 最小化布局逐像素不变。
-        self._sync_zimu_page_align(
-            zimu_scroll if zimu_scroll is not None else getattr(self, "_zimu_scroll", None)
-        )
+        self._sync_zimu_page_align(zimu_scroll if zimu_scroll is not None else getattr(self, "_zimu_scroll", None))
 
     def _sync_advanced_page_wide_hook(self) -> None:
         """滚动区宽幅拉伸之后立刻把高级页四行对回基准线（零参，钩子用）。
@@ -2148,8 +2177,7 @@ class MyMAinWindow(QMainWindow):
         stop_scrape = ui.checkBox_show_dialog_stop_scrape
         pin_a = anchor - row_x - lay_a.spacing()
         ok_a = (
-            pin_a >= lead_box.sizeHint().width()
-            and col_w - pin_a - lay_a.spacing() >= stop_scrape.sizeHint().width()
+            pin_a >= lead_box.sizeHint().width() and col_w - pin_a - lay_a.spacing() >= stop_scrape.sizeHint().width()
         )
         changed |= self._pin_row_lead_width(lead_box, pin_a if ok_a else None)
 
@@ -2174,9 +2202,7 @@ class MyMAinWindow(QMainWindow):
                 spacer = lay_b.itemAt(2)
                 self._adv_dock_spacer = spacer
             if spacer is not None:
-                spacer.changeSize(
-                    new_gap_b, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum
-                )
+                spacer.changeSize(new_gap_b, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
                 self._adv_dock_gap = new_gap_b
                 changed = True
 
@@ -2204,9 +2230,7 @@ class MyMAinWindow(QMainWindow):
         hint = ui.label_nav_hide_hint
         pin_d = anchor - row_x - lay_d.spacing()
         room = col_w - pin_d - 2 * lay_d.spacing()
-        ok_d = wide and pin_d >= actor.sizeHint().width() and room >= (
-            nfo.sizeHint().width() + hint.sizeHint().width()
-        )
+        ok_d = wide and pin_d >= actor.sizeHint().width() and room >= (nfo.sizeHint().width() + hint.sizeHint().width())
         changed |= self._pin_row_lead_width(actor, pin_d if ok_d else None)
         changed |= self._pin_row_lead_width(nfo, nfo.sizeHint().width() if ok_d else None)
 
@@ -2929,6 +2953,85 @@ class MyMAinWindow(QMainWindow):
                     return y + 1
         return 1
 
+    @staticmethod
+    def _label_text_height_for_width(lbl) -> int:
+        """按标签**当前宽度**算出文字真正需要的高度（px）——纯宽度函数，无高度自反馈。
+
+        为什么不用 _naming_label_painted_height：那个方法把标签 render 到白底
+        pixmap 上、从底部回扫第一个「非纯白」的行。但「白」是写死的 0xff，而
+        标签的实际背景由调色板/样式表决定，不是纯白就没有一行等于 0xff，方法
+        退化成恒等函数「返回标签自身高度」（offscreen 无 QSS 时背景是 0xef，
+        label_66 / label_331 / label_358 实测 painted 全部 == 标签高度）。恒等
+        函数配 `setFixedHeight(painted + 2)` 就是正反馈：每轮长 2px 永不收敛
+        （label_331 由 41 一路漂到 47+）。真机上恰好白底才量得准，属环境碰运气。
+
+        改用 QTextDocument（QLabel 富文本走的就是同款排版引擎）按当前宽度重新
+        排版取文档高：结果只由 字体 + 文本 + 宽度 决定，不掺入标签当前高度，
+        故同宽度必得同值（幂等、不累积漂移），也不受背景色影响。
+        高度取文档高（含上下 document margin）而非墨迹范围，保证绝不裁字；
+        实测 label_331 单行墨迹 13px / 文档高 22px，+2 余量后 24px。
+        """
+        doc = QTextDocument()
+        doc.setDefaultFont(lbl.font())
+        text = lbl.text() or ""
+        if "<" in text:
+            doc.setHtml(text)
+        else:
+            doc.setPlainText(text)
+        doc.setTextWidth(max(lbl.contentsRect().width(), 1))
+        return math.ceil(doc.size().height()) + 2
+
+    @staticmethod
+    def _label_ink_height_for_width(lbl) -> int:
+        """按标签**当前宽度**算出文字墨迹真正占多高（px）——纯宽度函数，无高度自反馈。
+
+        比 _label_text_height_for_width 更紧：后者取 QTextDocument 文档高，量的是
+        含上下 document margin 的**行盒**范围；本方法量**墨迹**范围，故省下的正是
+        用户截图里圈出的那两段空白（label_331 单行行盒 24px / 墨迹 18px）。
+
+        墨迹上沿用 Qt 字体度量直接算：QTextLine 没有 tightBoundingRect，
+        但「行盒顶到墨迹顶」的偏移有闭式解
+            ink_top = QFontMetrics(font).ascent() + QFontMetrics(font).tightBoundingRect(text).y()
+        （实测 label_331 → 12 + (-9) = 3，与其 AlignTop 下逐高度像素扫描得到的
+        ink top 恒为 3 完全吻合；label_357 / label_358 同样命中）。
+
+        行数靠 QTextDocument 文档高反推：`docH = 2×documentMargin + 行数×lineSpacing`
+        （实测 margin=4：w=620→38→2 行，w=400→53→3 行，w=200→98→6 行，全部对上）。
+        不能用 `QTextBlock.layout().lineCount()`：离屏下 layout 未激活恒返回 0；
+        也不能用 `QTextLayout.beginLayout()`：同样在未挂 paint device 时返回 0 行。
+
+        逐行**精确**墨迹高 Qt 给不出（QTextLine 只有行盒级 API），故按
+        `ink_top + (行数-1) × lineSpacing + 单行墨迹高` 近似，其中单行墨迹高
+        取 tightBoundingRect 高度按行数摊平。实测（真实 QSS 字体 asc=12 ls=15）：
+          label_331 单行 → 3 + 0 + 12 = 15（像素扫描实测墨迹恰为 y 3..18）；
+          label_331 两行 → 3 + 15 + 12 = 30（实测墨迹 y 3..27，不裁）；
+          label_357      → 4 + 0 +  8 = 12（墨迹仅 8px，垂直居中留 4px 余量）；
+          label_358      → 3 + 0 +  9 = 12（墨迹 9px）。
+        绝对不能用 `ink_top + 行数 × lineSpacing`：那样 label_357 会得 19px，
+        而它真实墨迹只有 8px，白白多留 7px 正是用户圈出的空隙。
+        """
+        text = lbl.text() or ""
+        if not text.strip():
+            return 0
+        fm = QFontMetrics(lbl.font())
+        # 富文本标签的 <p> 等包裹会污染断行宽度，先剥成纯文本（QLabel 显示的
+        # 也是剥掉后的字形）；纯文本标签原样返回。
+        doc = QTextDocument()
+        doc.setDefaultFont(lbl.font())
+        if "<" in text:
+            doc.setHtml(text)
+        else:
+            doc.setPlainText(text)
+        doc.setTextWidth(max(lbl.contentsRect().width(), 1))
+        spacing = fm.lineSpacing()
+        usable = max(doc.size().height() - 2 * doc.documentMargin(), spacing)
+        lines = max(1, round(usable / spacing))
+        tight = fm.tightBoundingRect(text)
+        ink_top = fm.ascent() + tight.y()
+        # tight.height() 对多行文本是整段包围盒，按行数摊平才回到「单行墨迹高」
+        ink_line = max(tight.height() / lines, 1)
+        return max(1, math.ceil(ink_top + (lines - 1) * spacing + ink_line))
+
     def _sync_naming_template_section(self) -> None:
         """命名页「视频命名规则」组（groupBox_8）按内容收缩，消除大片空白。
 
@@ -3137,28 +3240,219 @@ class MyMAinWindow(QMainWindow):
             # 4) 后续组按累计收缩量上移（设计基准 + 增量，反复调用不漂移）。
             for name in self._FANYI_FOLLOW_GROUPS[1:]:
                 group = getattr(ui, name)
-                group.move(group.x(),
-                           self._fanyi_design["groups"][name] - delta_intro - delta_actor)
+                group.move(group.x(), self._fanyi_design["groups"][name] - delta_intro - delta_actor)
 
             # 宽幅登记表里存的是设计几何，同步宽度时会按登记值复位这些控件，
-            # 这里把登记的高度/位置一并更新（与命名页同一处理）。
+            # 这里只把 y/h 写回登记（与命名页画质组同一处理）。
+            #
+            # 设计宽度必须原样取回登记值（entry.geometry[2]），绝不能写
+            # intro.width()/actor.width()：那读到的是「上一轮宽幅同步已拉伸后的
+            # 当前宽」，把它当设计宽存回去，下一轮宽幅同步就会再加一次 extra，
+            # 宽度无界增长（离屏实测：每次窗口缩放两组框宽 +1216px，几轮后
+            # 简介/演员框飞出窗口右缘，右侧大片空白）。设计宽度是登记表的唯一
+            # 真值来源，只在 setupUi 的 setWidget 时刻采集过一次。
             registry = getattr(ui.scrollAreaWidgetContents_fanyi, "_wide_children_design", None)
-            new_geom = {
-                intro: (intro.x(), intro.y(), intro.width(), intro_h),
-                actor: (actor.x(), actor_y, actor.width(), actor_h),
-                lw13: (lw13.x(), lw13.y(), lw13.width(), intro_lw_h),
-                lw20: (lw20.x(), lw20.y(), lw20.width(), actor_lw_h),
-                frame: (frame.x(), frame.y(), frame.width(), frame.height()),
-            }
             for entry in registry or ():
-                if entry.widget in new_geom:
-                    entry.geometry = new_geom[entry.widget]
+                if entry.widget is intro:
+                    ex, ey, ew, _eh = entry.geometry
+                    entry.geometry = (ex, ey, ew, intro_h)
+                    continue
+                if entry.widget is actor:
+                    ex, _ey, ew, _eh = entry.geometry
+                    entry.geometry = (ex, actor_y, ew, actor_h)
+                    continue
+                # 组内绝对定位的容器：登记 y/h，避免宽幅同步按设计值把收紧后的
+                # 高度又撑回去（那会让本方法与宽幅同步的先后顺序成为隐性依赖）。
+                for item in entry.inner:
+                    if item.widget is lw13:
+                        ix, _iy, iw, _ih = item.geometry
+                        item.geometry = (ix, lw13.y(), iw, intro_lw_h)
+                    elif item.widget is lw20:
+                        ix, _iy, iw, _ih = item.geometry
+                        item.geometry = (ix, lw20.y(), iw, actor_lw_h)
+                    elif item.widget is frame:
+                        ix, _iy, iw, _ih = item.geometry
+                        item.geometry = (ix, frame.y(), iw, frame.height())
 
             scroll = getattr(ui, "scrollArea_11", None)
             if scroll is not None:
                 scroll.sync_content_min_height()
         finally:
             self._fanyi_resyncing = False
+
+    # ============ 设置-命名页（画质组 groupBox_65）的间距收紧常量 ============
+    # 网格容器与 QHD 说明、说明与分辨率行、分辨率行与末端添加4K行、末端添加4K行与
+    # definition 说明之间的保留间距，以及组底留白。设计值里网格容器 77px
+    # （两行内容只要约 46px，多出的 30px 被 Qt 均分到顶/行间/底）、QHD 说明
+    # 固定 41px（窄态两行刚好，最大化时文字只占一行、剩下一半空白），HD 行到
+    # 分辨率行之间看着太松。运行时按内容收紧后组高同步收缩。
+    #
+    # 用户截图标注（最大化态）：QHD 说明「向上移动一行」、分辨率行及以下
+    # 「向上移动两行」、多出来的三行空间删掉。折成像素就是这三处预留间距
+    # （10 / 7 / 9）+ frame_6 的居中余量（设计 46 − 内容 32 = 14）
+    # = 40px ≈ 三行单行文字高，故全部归零：网格底与说明贴合、分辨率行与
+    # 末端添加4K行贴合、末端添加4K行与尾说明贴合。组底留白 25px 是用户明确要求
+    # 不动的（definition 说明下方空白不增加）。
+    #
+    # 随后用户改口：「分辨率获取方式：」及它下方的内容**向下移动一行**。故
+    # 说明与分辨率行之间恢复一整行行高（_DEFN_NOTE_GAP = -1 → 按 label_331
+    # 字体实测 lineSpacing 取值）。再后来要求尾说明（label_358）单独再下移
+    # 一行，于是末端添加4K行与尾说明之间也恢复一整行行高（_DEFN_TAIL_GAP = -1
+    # → 按 label_358 字体实测 lineSpacing 取值）。最后要求「末端添加4K字符」行
+    # 单独再下移一行，于是分辨率行与末端添加4K行之间同样恢复一整行行高
+    # （_DEFN_FRAME_GAP = -1 → 按 frame_6 内 radio 字体实测 lineSpacing 取值）。
+    # 三处都按字体实测而非写死，用户机器字号比离屏大，写死会少一半；组内自上
+    # 而下串联，故每一处下移会把其下方所有行一起带下去。
+    _DEFN_GRID_GAP = 0  # 网格容器底 → label_331 顶（说明紧贴 HD 行）
+    # label_331 底 → frame_6 顶：用户要求「分辨率获取方式：」及其下方内容整体
+    # 向下移动一行，故这里留一整行文字高（此前为 0，四处全贴合）。取 label_331
+    # 字体的实测行高而非写死数值——用户机器字号比离屏大，写死会少一半。
+    _DEFN_NOTE_GAP = -1  # -1 = 用 label_331 的一行行高（见下方 note_gap 解析）
+    # frame_6 底 → 末端添加4K行顶：用户要求「末端添加4K字符」行再向下移动一行，取
+    # frame_6 内 radio 的实测行高（与前两处同理按字体实测，不写死）。
+    _DEFN_FRAME_GAP = -1  # -1 = 用 radioButton_videosize_video 的一行行高
+    # 末端添加4K行底 → label_358 顶：用户要求尾说明（指命名时在番号后添加4K…）
+    # 「向下移动一行的宽度」= 也空出一整行文字高。与 _DEFN_NOTE_GAP 同理按
+    # label_358 字体实测 lineSpacing 取值，不写死。
+    _DEFN_TAIL_GAP = -1  # -1 = 用 label_358 的一行行高（见下方 tail_gap 解析）
+    _DEFN_BOX_BOT_PAD = 25  # label_358 底 → 组底（与设计一致，下方空白不增加）
+    _DEFN_GROUP_GAP = 19  # 组底 → groupBox_67 顶（命名页统一 19px 间距）
+    # 末端添加4K行内复选框相对行标签的下沉量（设计：标签 y218，复选框 y221）。
+    _DEFN_ROW_CHECK_DY = 3
+
+    def _sync_definition_group_spacing(self) -> None:
+        """设置-命名页：画质组按内容收紧 HD 行到分辨率获取方式的间距。
+
+        现象（用户截图）：「HD、FHD、QHD、UHD」行与「分辨率获取方式」行之间太松，
+        最大化与最小化都要收。静态改 .ui 只能顾一态：label_331 固定高度在窄态
+        两行刚好，最大化时文字只占一行就剩下一半空白。
+        做法（与 _sync_fanyi_group_spacing 同款：解除固定高度 → 量真实需要高度 →
+        重新钉上 → 其余行按固定间距串起来 → 组高同步收缩 → 后续组上移；全程按
+        当前几何与实测值推导，幂等不累积漂移）：
+          1) 网格容器钉到 sizeHint（不给 Qt 均分空间，两行单选贴紧）；
+          2) label_331 按**墨迹**高度贴合（最大化单行、最小化双行，各自刚好；
+             级联中途标签内部还是陈旧折行，eventFilter 的 label_331 分支会多跑
+             几遍直到收敛，label_66 同款）；
+          3) 组高 = definition 说明底 + 固定底留白（下方空白与设计一致不增加）；
+          4) groupBox_67（其他说明，组内唯一后续组）按新组底 + 19px 间距上移；
+          5) 同步更新宽幅登记表里的高度/位置（只换 y/h，设计宽度原样保留，
+             否则下一次宽幅同步会把 extra 加重），最后 sync_content_min_height
+             收紧内容（否则页尾留白）。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None or self._defn_resyncing:
+            return
+        box = ui.groupBox_65
+        # 休眠页零成本：命名 tab 不可见时视口宽度不是终态，量到的折行数不对，
+        # 切页 showEvent + beats 会补齐（翻译组同款）。
+        if not box.isVisibleTo(self):
+            return
+        grid = ui.gridLayout_43
+        lw = ui.gridLayoutWidget_35
+        note = ui.label_331
+        frame = ui.frame_6
+        row_label = ui.label_357
+        check_f = ui.checkBox_foldername_4k
+        check_n = ui.checkBox_filename_4k
+        tail = ui.label_358
+        follower = ui.groupBox_67
+        if note.width() <= 0:
+            return
+
+        self._defn_resyncing = True
+        try:
+            # 1) 解除固定高度 → 量真实需要高度 → 重新钉上。
+            #    量之前必须先解除上一轮的固定高度，否则标签仍被裁着，量到的只是
+            #    残缺高度（会越量越小、最后裁字，-template/翻译两组同款教训）。
+            note.setMinimumHeight(0)
+            note.setMaximumHeight(16777215)
+            grid.invalidate()
+            grid.activate()
+            grid_h = grid.sizeHint().height()
+            # 说明文字按当前宽度重排量出真实需要高度（_label_ink_height_for_width：
+            # 纯宽度函数、不掺标签自身高度，故不会每轮 +2 漂移；painted 回扫法在
+            # 非纯白背景下退化成恒等函数，不能用，见其 docstring）。量墨迹而非
+            # 行盒，用户圈出的两段空白正是「行盒底 - 墨迹底」的差。最大化单行、
+            # 最小化双行，各自刚好。
+            note_h = self._label_ink_height_for_width(note)
+            # 「末端添加4K字符：」行标签同样是垂直居中，30px 行里墨迹只有 8px、
+            # 上下各空 10px（用户圈的位置2/位置3）。钉到墨迹高 + 4px，
+            # 行高随后由单选/复选框的 minimumHeight（16px）决定。
+            row_h = self._label_ink_height_for_width(row_label) + 4
+            row_label.setFixedHeight(row_h)
+            lw.setGeometry(lw.x(), lw.y(), lw.width(), grid_h)
+            note.setFixedHeight(note_h)
+            grid.invalidate()
+            grid.activate()
+
+            # 2) 其余行按固定间距串起来（x/宽不动，只动 y；宽度归宽幅同步管）。
+            #    frame_6 是无布局的 QFrame（三个单选装在 layoutWidget_26 里），
+            #    设计 46px 里只有 32px 是内容、14px 是 Qt 垂直居中白给的余量。
+            #    按内部布局 sizeHint 钉死高度、内容贴顶、行标签垂直居中——量的是
+            #    布局而不是写死 32，窄态单选折行时不会裁字。
+            frame_lw = ui.layoutWidget_26
+            frame_layout = ui.horizontalLayout_112
+            frame_layout.invalidate()
+            frame_layout.activate()
+            frame_h = max(frame_layout.sizeHint().height(), frame_lw.sizeHint().height())
+            frame_lw.setGeometry(frame_lw.x(), 0, frame_lw.width(), frame_h)
+            frame_tag = ui.label_332
+            frame_tag.move(frame_tag.x(), max((frame_h - frame_tag.height()) // 2, 0))
+            note.move(note.x(), lw.y() + grid_h + self._DEFN_GRID_GAP)
+            # 「向下移动一行」= 在说明与分辨率行之间插一整行文字高。label_358
+            # （指命名时在番号后添加4K…）在 frame_6 下方，跟着 frame 一起下移，
+            # 用户第二条要求自动满足。
+            note_gap = self._DEFN_NOTE_GAP
+            if note_gap < 0:
+                note_gap = QFontMetrics(note.font()).lineSpacing()
+            frame.setGeometry(frame.x(), note.y() + note_h + note_gap, frame.width(), frame_h)
+            row_y = frame.y() + frame.height()
+            # 「末端添加4K字符」行同样下移一行，行高取 frame_6 内 radio 的实测行高。
+            frame_gap = self._DEFN_FRAME_GAP
+            if frame_gap < 0:
+                frame_gap = QFontMetrics(ui.radioButton_videosize_video.font()).lineSpacing()
+            row_y += frame_gap
+            row_label.move(row_label.x(), row_y)
+            check_f.move(check_f.x(), row_y + self._DEFN_ROW_CHECK_DY)
+            check_n.move(check_n.x(), row_y + self._DEFN_ROW_CHECK_DY)
+            tail_gap = self._DEFN_TAIL_GAP
+            if tail_gap < 0:
+                tail_gap = QFontMetrics(tail.font()).lineSpacing()
+            tail_y = row_y + max(row_h, check_f.height(), check_n.height()) + tail_gap
+            tail.move(tail.x(), tail_y)
+            box_h = tail_y + tail.height() + self._DEFN_BOX_BOT_PAD
+            box.setGeometry(box.x(), box.y(), box.width(), box_h)
+            follower.move(follower.x(), box.y() + box_h + self._DEFN_GROUP_GAP)
+
+            # 3) 宽幅登记表里存的是设计几何，同步宽度时会按登记值复位这些控件，
+            #    这里把登记的 y/h 一并更新（设计宽度原样保留，只换 y/h）。
+            registry = getattr(ui.scrollAreaWidgetContents_mingming, "_wide_children_design", None)
+            for entry in registry or ():
+                if entry.widget is box:
+                    ex, ey, ew, _eh = entry.geometry
+                    entry.geometry = (ex, ey, ew, box_h)
+                    continue
+                for item in entry.inner:
+                    if item.widget is lw:
+                        ix, _iy, iw, _ih = item.geometry
+                        item.geometry = (ix, lw.y(), iw, grid_h)
+                    elif item.widget is note:
+                        ix, _iy, iw, _ih = item.geometry
+                        item.geometry = (ix, note.y(), iw, note_h)
+                    elif item.widget is frame:
+                        ix, _iy, iw, _ih = item.geometry
+                        # 高度换成实测的 frame_h：宽幅同步会按登记高度复位 frame_6，
+                        # 留设计 46 的话每次缩放都会把收紧效果又撑回去 14px。
+                        item.geometry = (ix, frame.y(), iw, frame_h)
+                    elif item.widget is tail:
+                        ix, _iy, iw, ih = item.geometry
+                        item.geometry = (ix, tail.y(), iw, ih)
+
+            scroll = getattr(ui, "scrollArea_7", None)
+            if scroll is not None:
+                scroll.sync_content_min_height()
+        finally:
+            self._defn_resyncing = False
 
     # 当隐藏边框时，最小化后，点击任务栏时，需要监听事件，在恢复窗口时隐藏边框
     def changeEvent(self, a0):
