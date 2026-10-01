@@ -976,13 +976,15 @@ class MyMAinWindow(QMainWindow):
 
     # ── 演员页窄态（最小化/还原）右移对齐 ──
     # 锚点（自身保持不动）：checkBox_actor_info_photo「补全完成后自动补全演员头像」。
-    # 它是 groupBox_64 的绝对定位右缘锚定项，窄态 abs = 480 + extra，于是三行的
+    # 它是 groupBox_64 的绝对定位右缘锚定项，窄态 abs = 480 + extra，于是各行的
     # need 全都随 extra 变化；实际 x 一律运行时 mapTo 实测，不写死。
     _ACTOR_NARROW_ANCHOR = "checkBox_actor_info_photo"
-    # 两个「补全范围：」行（绝对定位链路 frame_4/layoutWidget_15、frame_2/layoutWidget_12）：
-    # (行布局, 目标控件, 容器, 需钉宽的项[(控件, 设计宽)])
-    # 容器宽恒为设计值（layoutWidget_15 每遍被 _sync_actor_info_columns 重设，
-    # layoutWidget_12 压根不进任何 registry），故让位由目标控件自身收窄完成，见方法注释。
+    # 走「目标收窄 + 同行间距撑开」让位的行（需求①②④）：
+    # (行布局, 目标控件, 容器, 需钉宽的项[(控件, 钉宽)])
+    # 前两行的容器宽恒为设计值 511（layoutWidget_15 每遍被 _sync_actor_info_columns
+    # 重设，layoutWidget_12 压根不进任何 registry），故钉宽值是常数 253/252；
+    # 服务类型行的容器宽随窗口变（col1 = 503/473/1393），两个单选是「均分」关系，
+    # 钉宽值必须取当前实宽，locks 里写 None 即表示「钉到当前宽」。
     _ACTOR_NARROW_SCOPE_ROWS = (
         (
             "horizontalLayout_101",
@@ -996,7 +998,24 @@ class MyMAinWindow(QMainWindow):
             "layoutWidget_12",
             (("radioButton_actor_photo_all", 253), ("radioButton_actor_photo_miss", 252)),
         ),
+        (
+            "horizontalLayout_103",
+            "radioButton_server_jellyfin",
+            "gridLayoutWidget_25",
+            (("radioButton_server_emby", None), ("radioButton_server_jellyfin", None)),
+        ),
     )
+    # 「演员信息数据库：」行（gridLayoutWidget_14/horizontalLayout_155）：
+    # 「选择文件」右移到与「选择目录」同列，路径框右缘同时撑到按钮左缘。
+    # (行布局, 路径框, 按钮, 对齐基准按钮)
+    _ACTOR_NARROW_PATH_ROW = (
+        "horizontalLayout_155",
+        "lineEdit_actor_db_path",
+        "pushButton_select_actor_info_db",
+        "pushButton_select_gfriends_local",
+    )
+    # 路径框收窄下限：低于此值宁可不右移（实测需求值 409 + extra，最低 ~297）
+    _ACTOR_NARROW_PATH_MIN_W = 200
     # 「来源」行（layoutWidget_8 的 horizontalLayout_95）：目标是「本地头像库」，其右侧
     # 「点击下载头像包」（hl97 子布局）与它同属一行、随之一起右移。
     # (行布局, 目标控件, 前导项控件名, 行尾子布局名)
@@ -1286,13 +1305,13 @@ class MyMAinWindow(QMainWindow):
            checkBox_actor_photo_ne_new（请求 Graphis 最新图片）。
         ② _sync_actor_info_columns：演员信息组三列对齐，它的 A3 锚点正是同一个
            checkBox_actor_photo_ne_new，必须在 ① 之后量才不会读到过期 x。
-        ③ _sync_actor_page_narrow_miss_align：窄态把「仅缺少信息的演员」「仅缺少头像
+        ③ _sync_actor_page_narrow_align：窄态把「仅缺少信息的演员」「仅缺少头像
            的演员」「本地头像库」右移到 ② 刚钉好的锚点列上——必须在 ② 之后，因为它
            要量的正是 ② 顺带定下的那两个单选的当前 x。
         """
         self._sync_actor_page_align(actor_scroll)
         self._sync_actor_info_columns(actor_scroll)
-        self._sync_actor_page_narrow_miss_align(actor_scroll)
+        self._sync_actor_page_narrow_align(actor_scroll)
 
     def _sync_actor_info_columns(self, actor_scroll=None) -> None:
         """演员信息组：行标签冒号对齐 + 各行左缘对齐到 Graphis 列 + 路径框宽度铺排。
@@ -1520,7 +1539,10 @@ class MyMAinWindow(QMainWindow):
                     obj.setStretch(i, value)
         self._actor_narrow_restores = []
         ui = getattr(self, "Ui", None)
-        names = [row[0] for row in self._ACTOR_NARROW_SCOPE_ROWS] + [self._ACTOR_NARROW_SOURCE_ROW[0]]
+        names = [row[0] for row in self._ACTOR_NARROW_SCOPE_ROWS] + [
+            self._ACTOR_NARROW_SOURCE_ROW[0],
+            self._ACTOR_NARROW_PATH_ROW[0],
+        ]
         for name in names:
             row = getattr(ui, name, None)
             if row is None or row.parentWidget() is None:
@@ -1528,12 +1550,17 @@ class MyMAinWindow(QMainWindow):
             row.invalidate()
             row.activate()
 
-    def _sync_actor_page_narrow_miss_align(self, actor_scroll=None) -> None:
-        """演员页窄态（最小化/还原）：三个控件右移到「补全完成后自动补全演员头像」那一列。
+    def _sync_actor_page_narrow_align(self, actor_scroll=None) -> None:
+        """演员页窄态（最小化/还原）：四个控件右移到各自锚点列，锚点自身保持不动。
 
-        用户需求：最小化时把「仅缺少信息的演员」「仅缺少头像的演员」「本地头像库」
-        与「点击下载头像包」向右移动到与「补全完成后自动补全演员头像」上下严格对齐的
-        位置；该锚点自身保持不动；最大化时的页面逐像素不变。
+        用户需求（两轮共四条）：
+          「仅缺少信息的演员」「仅缺少头像的演员」「本地头像库」与「点击下载头像包」
+          向右移动到与「补全完成后自动补全演员头像」上下严格对齐的位置；
+          「选择文件」右移到与「选择目录」上下对齐，「演员信息数据库」显示框右侧
+          拓展到右移后的「选择文件」按钮左侧；
+          「Jellyfin」右移到与「补全完成后自动补全演员头像」上下对齐。
+        锚点（checkBox_actor_info_photo 与「选择目录」按钮）自身保持不动；最大化时
+        的页面、布局、控件逐像素不变。
 
         锚点是 checkBox_actor_info_photo —— groupBox_64 的绝对定位右缘锚定项，窄态
         abs = 480 + extra，故三行的 need 全随 extra 变化，实际 x 一律运行时 mapTo
@@ -1557,6 +1584,16 @@ class MyMAinWindow(QMainWindow):
              全被 hl97 吸收；此时插入的固定间隔才不会被挤瘦。「点击下载头像包」右缘
              停在原处、只有左缘右移，其文字实测为左对齐（.ui 里写的是 RTL 方向的
              Qt::AlignLeading|Qt::AlignLeft，实测 AlignLeft 生效），故文字随左缘右移。
+          ④ hl103（groupBox_43/gridLayoutWidget_25 的服务类型行，「Jellyfin」）：行宽
+             随窗口变（col1 = 503/473/1393），两个单选是「均分可用宽」关系而非固定
+             设计宽，故钉宽值取当前实宽（locks 里写 None）。可用宽必须取**行自身**
+             的矩形宽而不是容器宽——容器 gridLayoutWidget_25 还有一整列给别的行
+             （容器 639 / 行 503），取容器宽会把「Emby」推出 136px。
+          ⑤ hl155（gridLayoutWidget_14 的路径行，「选择文件」）：这一行尾部本就有一个
+             Expanding 间隔，故「路径框 + 按钮 + 间隔」恒等于行宽——把路径框钉到
+             「选择目录」按钮左缘减去行间距，按钮即落到那一列。两者设计宽同为 110px，
+             「与选择目录左缘对齐」和「右缘对齐」在这里是同一件事。路径框收窄到
+             _ACTOR_NARROW_PATH_MIN_W 以下时宁可不右移。
 
         每行插完都实测回读一次并按差值修正（容器让位法与 stretch 让位法都只在 Qt
         「有富余就分给可拉伸项」的模型下才精确，回读修正使其不依赖该模型的细节）。
@@ -1589,9 +1626,14 @@ class MyMAinWindow(QMainWindow):
             w.updateGeometry()
 
         def lock_width(w, width):
-            """把 w 钉到 width，并记下原 min/max 供还原（已是该宽则不重复登记）。"""
+            """把 w 钉到 width（width 为 None 表示钉到当前宽），并记下原 min/max 供还原。
+
+            已是该宽则不重复登记：同一趟里对同一控件的二次调整走 set_fixed_width。
+            """
             if w is None:
                 return
+            if width is None:
+                width = w.width()
             if w.minimumWidth() == width and w.maximumWidth() == width:
                 return
             self._actor_narrow_restores.append(("size", w, (w.minimumWidth(), w.maximumWidth())))
@@ -1629,7 +1671,15 @@ class MyMAinWindow(QMainWindow):
             if idx < 0 or count < 2:
                 continue
             margins = row.contentsMargins()
-            avail = holder.width() - margins.left() - margins.right()
+            # 可用宽取「行自身被分到的矩形」而不是容器宽：前两行的行就是容器的唯一
+            # 布局（行宽 == 容器宽 - margins），服务类型行的容器 gridLayoutWidget_25
+            # 还有一整列给别的行（容器 639 / 行 503），取容器宽会把行首推出 136px。
+            row_w = row.geometry().width()
+            avail = (
+                (row_w - margins.left() - margins.right())
+                if row_w > 0
+                else holder.width() - margins.left() - margins.right()
+            )
             # 除目标外其余项的实宽（都已被上面钉成固定宽，不会在行内伸缩）
             others = sum(
                 getattr(ui, name).width() for name, _ in locks if getattr(ui, name, None) not in (None, target)
@@ -1692,6 +1742,34 @@ class MyMAinWindow(QMainWindow):
                 break
             lead = max(0, lead + d)
             spacer.changeSize(lead, 0)
+            row.invalidate()
+            row.activate()
+
+        # ④ 「演员信息数据库：」行：路径框右缘撑到「选择文件」左缘，按钮即落到
+        # 「选择目录」那一列。该行尾部本就有一个 Expanding 间隔，故行内总需求恒等于
+        # 行宽时按钮右缘正好等于 col1 右缘——与「选择目录」按钮同宽（110px 设计），
+        # 「左右缘对齐」在这里是同一件事。
+        row_name, path_name, btn_name, ref_name = self._ACTOR_NARROW_PATH_ROW
+        row = getattr(ui, row_name, None)
+        path = getattr(ui, path_name, None)
+        btn = getattr(ui, btn_name, None)
+        ref = getattr(ui, ref_name, None)
+        if row is None or path is None or btn is None or ref is None:
+            return
+        row.invalidate()
+        row.activate()
+        if row.indexOf(btn) < 0 or row.indexOf(path) < 0 or ref.parentWidget() is None:
+            return
+        want = left_x(ref) - row.spacing() - left_x(path)
+        if want < self._ACTOR_NARROW_PATH_MIN_W:
+            return  # 会把路径框压到夹不住文字：宁可不右移
+        lock_width(path, want)
+        row.invalidate()
+        row.activate()
+        d = left_x(ref) - left_x(btn)
+        if d:
+            # 回读修正：路径框是 Fixed 宽、按钮紧随其后，差多少补多少即可
+            set_fixed_width(path, want - d)
             row.invalidate()
             row.activate()
 
@@ -2626,7 +2704,7 @@ class MyMAinWindow(QMainWindow):
         self._sync_actor_info_columns(actor_scroll)
         # 窄态右移对齐（最小化时把三个「仅缺少…/本地头像库」对到锚点列）：必须在
         # _sync_actor_info_columns 之后——它要量后者刚钉好的两个单选的当前 x。
-        self._sync_actor_page_narrow_miss_align(actor_scroll)
+        self._sync_actor_page_narrow_align(actor_scroll)
 
         # ============ page_setting / 刮削目录页: 文件清理提示左移到按钮下方 ============
         # 排在通用拉伸之后：提示是 _STRETCH，最大化时先被拉宽右偏，本方法同拍拉回；

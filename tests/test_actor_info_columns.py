@@ -16,6 +16,11 @@
   ⑧ 窄态（最小化/还原）把「仅缺少信息的演员」「仅缺少头像的演员」「本地头像库」与同行
      的「点击下载头像包」向右移动到与「补全完成后自动补全演员头像」上下严格对齐的位置，
      该锚点自身保持不动；最大化态的页面保持不变。
+  ⑨ 窄态把「选择文件」向右移动到与「选择目录」上下对齐的位置（「选择目录」保持不
+     变），同时「演员信息数据库」显示框右侧向右拓展到右移后「选择文件」按钮的左侧
+     位置；最大化时的界面、布局、控件均保持不变。
+  ⑩ 窄态把「Jellyfin」向右移动到与「补全完成后自动补全演员头像」上下对齐的位置，
+     该锚点保持不变；最大化时的界面、布局、控件均保持不变。
 
 根因防线（任一回归都会让本文件失败）：
   - gridLayout_14 的 col0 必须钉死 130px，否则 QGridLayout 把富余宽度摊给 col0
@@ -35,6 +40,12 @@
   - ⑧ 的登记/还原必须与 _actor_info_width_locks 分开且**逆序**写回：同一控件一趟里被钉两次
     （先钉设计宽、再钉让位后的收窄宽），正序还原会让中间值覆盖原值、把控件永久钉死在窄态
     的收窄宽上（实测 hl96 的「仅缺少头像的演员」卡在 237，宽态随之被带歪）。
+  - ⑩ 的服务类型行（hl103）行宽随窗口变、两个单选是「均分可用宽」关系，钉宽值必须取
+    当前实宽；且可用宽要取**行自身**矩形宽而非容器宽（容器 639 / 行 503，取容器宽会把
+    「Emby」推出 136px）。
+  - ⑨ 的路径行尾部本就有一个 Expanding 间隔，故「路径框 + 按钮 + 间隔」恒等于行宽，
+    把路径框钉到「选择目录」按钮左缘减行间距，按钮即落到那一列（两个按钮同宽 110px，
+    左缘对齐与右缘对齐等价）。
 """
 
 import os
@@ -283,14 +294,19 @@ def test_actor_info_state_restored_after_round_trip(win, app):
     )
     assert now_indent == base_indent, f"还原态缩进/容器未复原: {base_indent} -> {now_indent}"
     assert win._actor_info_spacers == [], "还原态未清空间隔"
-    # 窄态本身也要钉位（需求⑦），故宽度锁在窄态非空是正常的；真正要保证的是
-    # 「锁定的是设计宽、不是宽态值」——路径输入框必须回到 300 而不是 466。
-    assert ui.lineEdit_actor_db_path.width() == 300, f"还原态路径输入框宽度未复原: {ui.lineEdit_actor_db_path.width()}"
+    # 窄态本身也要钉位（需求⑦/⑧），故宽度锁在窄态非空是正常的；真正要保证的是
+    # 「锁定的是窄态值、不是宽态值」——路径输入框不得停在宽态的 466。
+    assert ui.lineEdit_actor_db_path.width() != 466, (
+        f"还原态路径输入框宽度仍停在宽态值: {ui.lineEdit_actor_db_path.width()}"
+    )
+    # 窄态宽度由「选择目录」按钮位置反推（需求①）：右缘紧贴按钮左缘
+    path_right = _abs(ui, ui.lineEdit_actor_db_path) + ui.lineEdit_actor_db_path.width()
+    assert path_right < _abs(ui, ui.pushButton_select_actor_info_db), "还原态路径框右缘未与按钮留出间距"
     assert ui.label_280.width() == base_indent[1], "还原态行首占位控件宽度未复原"
 
 
 # ---------------------------------------------------------------------------
-# 需求⑧：窄态把三个控件右移到「补全完成后自动补全演员头像」那一列
+# 需求⑧⑨⑩：窄态把各控件右移到各自锚点列
 # ---------------------------------------------------------------------------
 
 # 需要右移对齐锚点的目标（窄态）
@@ -309,12 +325,22 @@ _NARROW_REFS = (
 )
 
 # 涉及窄态右移的三行（记录 spacing / count / stretch，防「改完忘还原」）
-_NARROW_ROWS = ("horizontalLayout_101", "horizontalLayout_96", "horizontalLayout_95")
+_NARROW_ROWS = (
+    "horizontalLayout_101",
+    "horizontalLayout_96",
+    "horizontalLayout_95",
+    "horizontalLayout_155",
+    "horizontalLayout_103",
+)
 
 _NARROW_WIDGETS = tuple(
     [name for name, _ in _NARROW_MOVE_TARGETS]
     + ["label_download_actor_zip", "radioButton_actor_photo_net"]
     + [name for name, _ in _NARROW_REFS]
+    # 需求①：路径框 + 「选择文件」按钮 + 「选择目录」基准按钮
+    + ["lineEdit_actor_db_path", "pushButton_select_actor_info_db", "pushButton_select_gfriends_local"]
+    # 需求②：「Emby」/「Jellyfin」
+    + ["radioButton_server_emby", "radioButton_server_jellyfin"]
 )
 
 
@@ -332,8 +358,8 @@ def _pristine_snapshot(win, app, monkeypatch):
     from mdcx.controllers.main_window import main_window as mw_mod
 
     cls = mw_mod.MyMAinWindow
-    original = cls._sync_actor_page_narrow_miss_align
-    monkeypatch.setattr(cls, "_sync_actor_page_narrow_miss_align", lambda self, _scroll=None: None)
+    original = cls._sync_actor_page_narrow_align
+    monkeypatch.setattr(cls, "_sync_actor_page_narrow_align", lambda self, _scroll=None: None)
     snap = None
     try:
         win._clear_actor_narrow_align()  # 上一遍窄态留下的间隔/钉宽必须先清干净
@@ -341,7 +367,7 @@ def _pristine_snapshot(win, app, monkeypatch):
         app.processEvents()
         snap = _narrow_snapshot(win.Ui)
     finally:
-        monkeypatch.setattr(cls, "_sync_actor_page_narrow_miss_align", original)
+        monkeypatch.setattr(cls, "_sync_actor_page_narrow_align", original)
     win._sync_page_layouts()  # 复位到带新逻辑的状态
     app.processEvents()
     return snap
@@ -421,3 +447,68 @@ def test_actor_narrow_miss_align_idempotent_and_round_trip(win, app, monkeypatch
 
     _resize(win, app, 1030, 753)
     assert _narrow_snapshot(ui) == first, f"窄→宽→窄 往返未复原: {first} -> {_narrow_snapshot(ui)}"
+
+
+def test_actor_narrow_select_file_aligns_to_select_folder(win, app, monkeypatch):
+    """需求①：窄态「选择文件」右移到与「选择目录」同列，路径框右缘拓展到按钮左缘。
+
+    「选择目录」自身保持不动；路径框只向右拓展（收窄下限 _ACTOR_NARROW_PATH_MIN_W）。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    for width, height in ((1030, 753), (1000, 700), (1030, 753)):
+        assert win._actor_page_stretch_extra() <= 0, f"{width} 宽下演员页不是窄态，测试前提失效"
+        _resize(win, app, width, height)
+        base = _pristine_snapshot(win, app, monkeypatch)
+        btn = ui.pushButton_select_actor_info_db
+        ref = ui.pushButton_select_gfriends_local
+        path = ui.lineEdit_actor_db_path
+
+        # 「选择目录」保持不动（基准按钮不被本需求移动）
+        assert _abs(ui, ref) == base["pushButton_select_gfriends_local"][0], f"{width} 宽下「选择目录」被移动"
+
+        # 「选择文件」与「选择目录」左缘严格对齐（同宽 110px，右缘对齐等价）
+        assert _abs(ui, btn) == _abs(ui, ref), (
+            f"{width} 宽下「选择文件」未与「选择目录」对齐: x={_abs(ui, btn)} 期望={_abs(ui, ref)}"
+        )
+
+        # 路径框右缘拓展到按钮左缘，行间距保持不变
+        spacing = ui.horizontalLayout_155.spacing()
+        assert _abs(ui, path) + path.width() + spacing == _abs(ui, btn), (
+            f"{width} 宽下路径框右缘未到按钮左缘: right={_abs(ui, path) + path.width()} +{spacing} 期望={_abs(ui, btn)}"
+        )
+        # 只向右拓展，不收窄
+        assert path.width() >= base["lineEdit_actor_db_path"][1], (
+            f"{width} 宽下路径框被左拉收窄: {base['lineEdit_actor_db_path'][1]} -> {path.width()}"
+        )
+        assert path.width() >= win._ACTOR_NARROW_PATH_MIN_W, f"{width} 宽下路径框窄到夹不住文字"
+        # 路径框左缘仍钉在 A1，不得左移
+        assert _abs(ui, path) == base["lineEdit_actor_db_path"][0], f"{width} 宽下路径框左缘被移动"
+
+
+def test_actor_narrow_jellyfin_aligns_to_anchor(win, app, monkeypatch):
+    """需求②：窄态「Jellyfin」右移到与「补全完成后自动补全演员头像」同列，Emby 不动。"""
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    for width, height in ((1030, 753), (1000, 700), (1030, 753)):
+        assert win._actor_page_stretch_extra() <= 0, f"{width} 宽下演员页不是窄态，测试前提失效"
+        _resize(win, app, width, height)
+        base = _pristine_snapshot(win, app, monkeypatch)
+        anchor = _abs(ui, ui.checkBox_actor_info_photo)
+        jellyfin = ui.radioButton_server_jellyfin
+
+        assert _abs(ui, jellyfin) == anchor, (
+            f"{width} 宽下「Jellyfin」未与锚点对齐: x={_abs(ui, jellyfin)} 期望={anchor}"
+        )
+        # 「Emby」保持 A1 原位（服务类型行的行首不得被让位挤走）
+        assert _abs(ui, ui.radioButton_server_emby) == base["radioButton_server_emby"][0], (
+            f"{width} 宽下「Emby」被带偏: {base['radioButton_server_emby'][0]} -> {_abs(ui, ui.radioButton_server_emby)}"
+        )
+        # 只右移不左拉
+        assert _abs(ui, jellyfin) >= base["radioButton_server_jellyfin"][0], f"{width} 宽下「Jellyfin」被左拉"
+        # 收窄不得夹住自己的文字
+        assert jellyfin.width() >= win._ACTOR_NARROW_MIN_DONOR_W, f"{width} 宽下「Jellyfin」窄到夹不住文字"
+        # 锚点自身不动
+        assert anchor == base["checkBox_actor_info_photo"][0], f"{width} 宽下锚点被移动"
