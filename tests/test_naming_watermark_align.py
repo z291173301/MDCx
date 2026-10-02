@@ -127,6 +127,23 @@ _NAMING_REFS = (
 _NAMING_BOXES = ("groupBox_65", "groupBox_67", "frame_6", "layoutWidget_26")
 
 # 水印页：四行左标签、锚点、右侧随动项
+# 水印类型行右移需求接管的五项：有码/破解/无码/4K8K 为目标，流出曾被破解连带
+# 跟随、现改为右上右下中间独立目标。旧的「右侧一律左移」断言不再适用于它们。
+_WM_TYPE_SHIFTED = ("checkBox_censored", "checkBox_umr", "checkBox_leak", "checkBox_uncensored", "checkBox_hd")
+_WM_TYPE_PAIRS = (
+    ("checkBox_umr", "radioButton_top_right"),
+    ("checkBox_uncensored", "radioButton_bottom_right"),
+    ("checkBox_hd", "radioButton_bottom_left"),
+)
+_WM_TYPE_ANCHORS = ("radioButton_top_right", "radioButton_bottom_right", "radioButton_bottom_left")
+# 中点目标：有码 → 左上右上中间，流出 → 右上右下中间（与实现同公式）
+_WM_MID_PAIRS = (
+    ("checkBox_censored", ("radioButton_top_left", "radioButton_top_right")),
+    ("checkBox_leak", ("radioButton_top_right", "radioButton_bottom_right")),
+)
+_WM_MID_ANCHORS = ("radioButton_top_left", "radioButton_top_right", "radioButton_bottom_right")
+# 新间隔全部插在字幕之后：字幕在其左，保持不动
+_WM_TYPE_STAY = ("checkBox_sub",)
 _WM_LABELS = ("label_128", "label_139", "label_135", "label_127")
 _WM_ANCHOR = "label_126"
 _WM_FOLLOWERS = (
@@ -297,7 +314,7 @@ def test_watermark_labels_align_to_first_position_when_wide(win, app, monkeypatc
     ui = win.Ui
     win.show()
     _goto_tab(win, app, "tab4")
-    moved = dict.fromkeys(_WM_FOLLOWERS, False)
+    moved = {n: False for n in _WM_FOLLOWERS if n not in _WM_TYPE_SHIFTED}
     for width, height in _WIDE_SIZES:
         _resize(win, app, width, height)
         assert win._scroll_stretch_extra(ui.scrollArea_4) > 0, f"{width} 宽下应处于宽态"
@@ -308,9 +325,12 @@ def test_watermark_labels_align_to_first_position_when_wide(win, app, monkeypatc
         # 右侧复选框/滑杆/提示词同步向左移动（相对基线左移）。宽度不断言相等：
         # 基线里 col1 的富余由 Minimum 项自己吃掉（checkbox 会被拉宽），本方法用尾部
         # Expanding 间隔吸收后它们回到 hint 宽——这是修复的应有之义，需求只要求位置左移。
+        # 水印类型行四项由右移需求接管（见 test_watermark_type_shift_aligns_when_wide），跳过。
         base = _wm_baseline(win, app, monkeypatch, lambda: _wm_snapshot(ui))
         new = _wm_snapshot(ui)
         for name in _WM_FOLLOWERS:
+            if name in _WM_TYPE_SHIFTED:
+                continue
             assert new[name][0] <= base[name][0], f"{width} 宽下 {name} 反而右移: {base[name]} -> {new[name]}"
             if new[name][0] < base[name][0]:
                 moved[name] = True
@@ -320,6 +340,115 @@ def test_watermark_labels_align_to_first_position_when_wide(win, app, monkeypatc
     assert all(moved.values()), (
         f"宽态下没有 follower 真正左移过，对齐机制可能根本没生效: {sorted(k for k, v in moved.items() if not v)}"
     )
+
+
+def test_watermark_shift_aligns_to_corners_when_wide(win, app, monkeypatch):
+    """新增需求：宽态 thumb/固定一个位置 → 右上，fanart/固定不同位置 → 右下，锚点不动。"""
+    ui = win.Ui
+    win.show()
+    _goto_tab(win, app, "tab4")
+    pairs = (
+        ("checkBox_thumb_mark", "radioButton_top_right"),
+        ("radioButton_fixed_corner", "radioButton_top_right"),
+        ("checkBox_fanart_mark", "radioButton_bottom_right"),
+        ("radioButton_fixed_position", "radioButton_bottom_right"),
+    )
+    anchors = ("radioButton_top_right", "radioButton_bottom_right")
+    for width, height in _WIDE_SIZES:
+        _resize(win, app, width, height)
+        assert win._scroll_stretch_extra(ui.scrollArea_4) > 0, f"{width} 宽下应处于宽态"
+        for target, anchor in pairs:
+            got = _abs_wm(ui, getattr(ui, target))
+            exp = _abs_wm(ui, getattr(ui, anchor))
+            assert got == exp, f"{width} 宽下 {target} 未对齐到 {anchor}: x={got} 期望={exp}"
+        take_anchors = lambda: {n: (_abs_wm(ui, getattr(ui, n)), getattr(ui, n).width()) for n in anchors}
+        new_anchors = take_anchors()
+        base_anchors = _baseline_without(
+            win, app, monkeypatch, take_anchors, "_sync_watermark_colon_align", win._clear_watermark_colon_align
+        )
+        for name in anchors:
+            _assert_ref_eq(new_anchors[name], base_anchors[name], width, name)
+    assert win._watermark_shift_spacers != [], "宽态未注入右移间隔"
+
+
+def test_watermark_type_shift_aligns_when_wide(win, app):
+    """再新增：宽态 破解→右上，无码→右下，4K/8K→左下；字幕/锚点不动。
+
+    基线是「去掉水印类型行全部右移项」的同步（冒号对齐与旧右移保留），从而精确
+    隔离出本需求的效果：插入点之前的字幕与三锚点必须逐项一致。
+    （流出原先被破解连带跟随，现改为独立中点目标，见下一个测试。）
+    """
+    from mdcx.controllers.main_window import main_window as mw_mod
+
+    cls = mw_mod.MyMAinWindow
+    ui = win.Ui
+    win.show()
+    _goto_tab(win, app, "tab4")
+    full_rows = cls._WATERMARK_SHIFT_ROWS
+    slim_rows = tuple(r for r in full_rows if r[0] != "horizontalLayout_14")
+    assert len(slim_rows) + 5 == len(full_rows), "水印类型行右移项缺失"
+    watched = _WM_TYPE_STAY + _WM_TYPE_ANCHORS
+    take = lambda: {n: (_abs_wm(ui, getattr(ui, n)), getattr(ui, n).width()) for n in watched}
+    try:
+        for width, height in _WIDE_SIZES:
+            cls._WATERMARK_SHIFT_ROWS = full_rows
+            _resize(win, app, width, height)
+            assert win._scroll_stretch_extra(ui.scrollArea_4) > 0, f"{width} 宽下应处于宽态"
+            for target, anchor in _WM_TYPE_PAIRS:
+                got = _abs_wm(ui, getattr(ui, target))
+                exp = _abs_wm(ui, getattr(ui, anchor))
+                assert got == exp, f"{width} 宽下 {target} 未对齐到 {anchor}: x={got} 期望={exp}"
+            new = take()
+            cls._WATERMARK_SHIFT_ROWS = slim_rows
+            win._sync_page_layouts()
+            app.processEvents()
+            base = take()
+            for name in watched:
+                _assert_ref_eq(new[name], base[name], width, name)
+    finally:
+        cls._WATERMARK_SHIFT_ROWS = full_rows
+        win._sync_page_layouts()
+        app.processEvents()
+
+
+def test_watermark_midpoint_shift_when_wide(win, app):
+    """又新增：宽态 有码→左上右上中间，流出→右上右下中间；字幕/锚点不动；
+    破解/无码/4K8K 的既有对齐保持不变。"""
+    from mdcx.controllers.main_window import main_window as mw_mod
+
+    cls = mw_mod.MyMAinWindow
+    ui = win.Ui
+    win.show()
+    _goto_tab(win, app, "tab4")
+    full_rows = cls._WATERMARK_SHIFT_ROWS
+    slim_rows = tuple(r for r in full_rows if r[0] != "horizontalLayout_14")
+    watched = _WM_TYPE_STAY + _WM_MID_ANCHORS
+    take = lambda: {n: (_abs_wm(ui, getattr(ui, n)), getattr(ui, n).width()) for n in watched}
+    try:
+        for width, height in _WIDE_SIZES:
+            cls._WATERMARK_SHIFT_ROWS = full_rows
+            _resize(win, app, width, height)
+            assert win._scroll_stretch_extra(ui.scrollArea_4) > 0, f"{width} 宽下应处于宽态"
+            for target, (a1, a2) in _WM_MID_PAIRS:
+                got = _abs_wm(ui, getattr(ui, target))
+                exp = (_abs_wm(ui, getattr(ui, a1)) + _abs_wm(ui, getattr(ui, a2))) // 2
+                assert got == exp, f"{width} 宽下 {target} 未到中点: x={got} 期望={exp}"
+            # 既有对齐不受影响
+            for target, anchor in _WM_TYPE_PAIRS:
+                got = _abs_wm(ui, getattr(ui, target))
+                exp = _abs_wm(ui, getattr(ui, anchor))
+                assert got == exp, f"{width} 宽下既有对齐被破坏 {target}: x={got} 期望={exp}"
+            new = take()
+            cls._WATERMARK_SHIFT_ROWS = slim_rows
+            win._sync_page_layouts()
+            app.processEvents()
+            base = take()
+            for name in watched:
+                _assert_ref_eq(new[name], base[name], width, name)
+    finally:
+        cls._WATERMARK_SHIFT_ROWS = full_rows
+        win._sync_page_layouts()
+        app.processEvents()
 
 
 def test_watermark_leaves_narrow_untouched(win, app, monkeypatch):
@@ -333,6 +462,8 @@ def test_watermark_leaves_narrow_untouched(win, app, monkeypatch):
         assert _wm_snapshot(ui) == _wm_baseline(win, app, monkeypatch, lambda: _wm_snapshot(ui)), (
             f"{width} 宽下窄态被改动"
         )
+    assert win._watermark_shift_spacers == [], "窄态残留右移间隔"
+    assert win._watermark_tail_spacers == [], "窄态残留尾部间隔"
 
 
 def test_watermark_idempotent_and_round_trip(win, app):

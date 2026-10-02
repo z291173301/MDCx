@@ -276,6 +276,8 @@ class MyMAinWindow(QMainWindow):
         self._watermark_col_restores = []
         # 水印页 col1 四行尾部补的 Expanding 间隔 [(行布局名, QSpacerItem)]，还原时摘掉
         self._watermark_tail_spacers = []
+        # 水印页宽态右移对齐注入的固定间隔 [(行布局名, QSpacerItem)]，还原时摘掉
+        self._watermark_shift_spacers = []
         self._zimu_dl_gap = -1  # 该间隔当前生效的宽度（-1 = 未安装/已拆除）
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
         self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
@@ -2611,6 +2613,31 @@ class MyMAinWindow(QMainWindow):
         "horizontalLayout_14",
         "horizontalLayout_5",
     )
+    # ── 水印页宽态右移对齐（新增需求）──
+    # thumb、固定一个位置 → 与右上严格上下对齐；fanart、固定不同位置 → 与右下
+    # 严格上下对齐；右上、右下（不固定位置组的 radioButton_top_right /
+    # radioButton_bottom_right）自身保持不动。最小化时不动。
+    # 再新增：破解 → 右上，无码 → 右下，4K/8K → 左下（锚点为不固定位置组的
+    # radioButton_top_right / radioButton_bottom_right / radioButton_bottom_left，
+    # 均保持不动）；有码保持不动。注意同行顺序是 有码-破解-流出-无码-4K/8K，
+    # 破解右移必然连带其后的流出同步右移（用户已确认：三项对齐、流出跟随）。
+    # 又新增：有码 → 左上右上中间，流出 → 右上右下中间（左上/右上/右下保持不动；
+    # 流出按字面要去左上右下中间，但会被钉在右上的破解挡住，用户改定为右上右下中间）。
+    # 锚点可写单个控件名（取其左缘），或写两个控件名的元组（取两者左缘的中点）。
+    _WATERMARK_SHIFT_ANCHOR_TOP = "radioButton_top_right"
+    _WATERMARK_SHIFT_ANCHOR_BOTTOM = "radioButton_bottom_right"
+    # 每行按从左到右顺序收敛：先推前一个目标（会连带后一个），再推后一个
+    _WATERMARK_SHIFT_ROWS = (
+        ("horizontalLayout_7", "checkBox_thumb_mark", "radioButton_top_right"),
+        ("horizontalLayout_7", "checkBox_fanart_mark", "radioButton_bottom_right"),
+        ("horizontalLayout_5", "radioButton_fixed_corner", "radioButton_top_right"),
+        ("horizontalLayout_5", "radioButton_fixed_position", "radioButton_bottom_right"),
+        ("horizontalLayout_14", "checkBox_censored", ("radioButton_top_left", "radioButton_top_right")),
+        ("horizontalLayout_14", "checkBox_umr", "radioButton_top_right"),
+        ("horizontalLayout_14", "checkBox_leak", ("radioButton_top_right", "radioButton_bottom_right")),
+        ("horizontalLayout_14", "checkBox_uncensored", "radioButton_bottom_right"),
+        ("horizontalLayout_14", "checkBox_hd", "radioButton_bottom_left"),
+    )
 
     def _sync_guaxiaomulu_checkbox_align(self, scroll=None) -> None:
         """刮削目录页：软链接行让位 +「刮削时自动清理」按态换列（三条需求）。
@@ -2964,8 +2991,13 @@ class MyMAinWindow(QMainWindow):
         self._move_naming_point_to_none(content)
 
     def _clear_watermark_colon_align(self) -> None:
-        """清掉水印页网格列钉死 + 四行尾部间隔（每遍同步先清后建，故幂等、往返自愈）。"""
+        """清掉水印页网格列钉死 + 四行尾部间隔 + 宽态右移间隔（每遍先清后建，幂等）。"""
         ui = getattr(self, "Ui", None)
+        for row_name, spacer in self._watermark_shift_spacers:
+            row = getattr(ui, row_name, None) if ui is not None else None
+            if row is not None and spacer is not None:
+                row.removeItem(spacer)
+        self._watermark_shift_spacers = []
         for row_name, spacer in self._watermark_tail_spacers:
             row = getattr(ui, row_name, None) if ui is not None else None
             if row is not None and spacer is not None:
@@ -2986,18 +3018,33 @@ class MyMAinWindow(QMainWindow):
             grid.activate()
 
     def _sync_watermark_colon_align(self, scroll=None) -> None:
-        """水印页水印设置：最大化时四行左标签冒号左移到「首个水印位置：」冒号。
+        """水印页水印设置：最大化时四行左标签冒号左移到「首个水印位置：」冒号 + 右移对齐。
 
         用户需求：最大化时把「添加水印的图片」「水印大小」「水印类型」「水印位置」向左
         移动到与「首个水印位置：」严格上下对齐的位置（注意是对齐冒号），「首个水印位置：」
         的位置保持不变，右侧的复选框、提示词、组件等同步向左移动；最小化时界面、控件、
         组件等等均保持不变。
 
+        新增需求（宽态，锚点均保持不动）：thumb、固定一个位置向右移动到与右上严格
+        上下对齐；fanart、固定不同位置向右移动到与右下严格上下对齐。右上/右下指
+        不固定位置组的 radioButton_top_right / radioButton_bottom_right。
+        再新增（宽态）：破解 → 右上，无码 → 右下，4K/8K → 左下（左下指同组的
+        radioButton_bottom_left）。有码保持不动；流出被破解连带同步右移（同行
+        顺序有码-破解-流出-…，已与用户确认）。
+        又新增（宽态）：有码 → 左上与右上中间，流出 → 右上与右下中间（左上指
+        同组的 radioButton_top_left）。此时有码/流出各自拥有独立间隔，破解/
+        无码/4K8K 的对齐保持不变。
+
         实测几何（右缘 abs = 相对滚动内容左缘；1030×753 窄态 / 1920×1170 宽态）：
           窄态四标签右缘全 180 == 锚点 180（天然对齐，col0 恒 130）；
           宽态四标签右缘全 452 vs 锚点 180（col0 被 QGridLayout 摊了 +272 富余）。
         做法见类常量注释：col0 钉死 130 + stretch 全给 col1。窄态第一步清干净即
         return，最小化逐像素不变。休眠页跳过。判态用几何拉伸量而非 isMaximized()。
+
+        右移手法：col1 两行（horizontalLayout_7/5）目标前插 Fixed 间隔。行尾已有
+        Expanding 间隔吸收富余，故固定间隔只会把目标向右推、行内其余项宽度不动；
+        每行按顺序收敛（先推前一个目标、再推后一个），插完回读三轮收敛。只允许
+        右移（need <= 0 则该项保持 0 宽间隔），越界则放弃。
         """
         ui = getattr(self, "Ui", None)
         if ui is None:
@@ -3031,6 +3078,59 @@ class MyMAinWindow(QMainWindow):
             self._watermark_tail_spacers.append((row_name, tail))
         grid.invalidate()
         grid.activate()
+        # ── 宽态右移对齐：thumb/固定一个位置 → 右上，fanart/固定不同位置 → 右下 ──
+        content = box.parentWidget()
+        if content is None:
+            return
+        for row_name, target_name, anchor_name in self._WATERMARK_SHIFT_ROWS:
+            row = getattr(ui, row_name, None)
+            target = getattr(ui, target_name, None)
+            if isinstance(anchor_name, tuple):
+                anchors = [getattr(ui, n, None) for n in anchor_name]
+                anchor = anchors[0]
+                if row is None or target is None or any(a is None for a in anchors):
+                    continue
+            else:
+                anchor = getattr(ui, anchor_name, None)
+                anchors = None
+                if row is None or target is None or anchor is None:
+                    continue
+            if target.parentWidget() is None:
+                continue
+            idx = row.indexOf(target)
+            if idx < 0:
+                continue
+            spacer = QSpacerItem(0, 0, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+            row.insertItem(idx, spacer)
+            self._watermark_shift_spacers.append((row_name, spacer))
+            row.invalidate()
+            row.activate()
+            for _ in range(3):
+                try:
+                    if anchors is not None:
+                        xs = [a.mapTo(content, a.rect().topLeft()).x() for a in anchors]
+                        anchor_x = (xs[0] + xs[1]) // 2
+                    else:
+                        anchor_x = anchor.mapTo(content, anchor.rect().topLeft()).x()
+                    target_x = target.mapTo(content, target.rect().topLeft()).x()
+                except Exception:
+                    break
+                d = anchor_x - target_x
+                if not d:
+                    break
+                new_w = spacer.sizeHint().width() + d
+                if new_w < 0:
+                    break  # 只允许右移：锚点在左则保持 0 宽间隔
+                try:
+                    target_parent = target.parentWidget()
+                    limit = content.width() - target_parent.mapTo(content, target_parent.rect().topLeft()).x()
+                except Exception:
+                    break
+                if target.width() + new_w > limit and d > 0:
+                    break
+                spacer.changeSize(new_w, 0)
+                row.invalidate()
+                row.activate()
 
     # 字幕页「添加外挂字幕」组设计几何（MDCx.ui groupBox_45: x30 y310 w701 h425）。
     _ZIMU_BOX_DESIGN_Y = 310
