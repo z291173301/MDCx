@@ -96,11 +96,11 @@ class TranslateConfig(BaseModel):
     )
     baidu_appid: str = Field(default="", title="百度 APP ID")
     baidu_key: str = Field(default="", title="百度密钥")
-    deepl_key: str = Field(default="", title="DeepL API Key")
+    deepl_key: str = Field(default="", title="DeepL API KEY")
     deeplx_url: str = Field(default="", title="DeepLX URL")
     llm_url: HttpUrl = Field(default=HttpUrl("https://api.llm.com/v1"), title="LLM API Host")
     llm_model: str = Field(default="gpt-3.5-turbo", title="模型 ID")
-    llm_key: str = Field(default="", title="LLM API Key")
+    llm_key: str = Field(default="", title="LLM API KEY")
     llm_prompt_title: str = Field(
         default="Please translate the following text to {lang}. Output only the translation without any explanation.\n{content}",
         title="LLM 标题提示词",
@@ -793,8 +793,8 @@ class Config(BaseModel):
     timeout: int = Field(default=30, title="超时")
     retry: int = Field(default=3, title="重试")
     theporndb_api_token: str = Field(default="", title="Theporndb API令牌")
-    tmdb_api_base: str = Field(default="api.tmdb.org", title="TMDB API地址")
-    tmdb_api_key: str = Field(default="", title="TMDB API Key")
+    tmdb_api_base: str = Field(default="api.tmdb.org", title="TMDB API URL")
+    tmdb_api_key: str = Field(default="", title="TMDB API KEY")
     javdb: str = Field(default="", title="Javdb")
     fc2ppvdb: str = Field(default="", title="FC2PPVDB")
     javbus: str = Field(default="", title="Javbus")

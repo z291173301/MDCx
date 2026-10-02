@@ -12643,7 +12643,7 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_verify_tmdbid.setToolTip(
             _translate(
                 "MDCx",
-                "校验库中所有 tmdbid 是否仍有效。TMDB 是公开平台，person id 可能被删除/重建，失效 id 会被清除，并自动按名字重新搜索补回新 id（搜索不到则保持无 id，刮削按名字兜底搜索）。需配置 TMDB API Key。",
+                "校验库中所有 tmdbid 是否仍有效。TMDB 是公开平台，person id 可能被删除/重建，失效 id 会被清除，并自动按名字重新搜索补回新 id（搜索不到则保持无 id，刮削按名字兜底搜索）。需配置 TMDB API KEY。",
             )
         )
         self.pushButton_actor_db_verify_tmdbid.setText(_translate("MDCx", "校验TMDB ID有效性"))
@@ -12663,7 +12663,7 @@ class Ui_MDCx(object):
         self.pushButton_actor_db_fill_zh_javdb.setToolTip(
             _translate(
                 "MDCx",
-                "从 JavDB 移动端 API 查询演员的中文名/繁体名。仅处理「中文名 == 日文原名」的行（即未做中文化、且日文原名含汉字的条目），用 JavDB 的 name_zht/name 字段补全正式中文名，繁体转简体写入中文名列、繁体写入繁体名列。无需 TMDB API Key，按日文原名搜索。配合「起始行/限量」可分片续跑。",
+                "从 JavDB 移动端 API 查询演员的中文名/繁体名。仅处理「中文名 == 日文原名」的行（即未做中文化、且日文原名含汉字的条目），用 JavDB 的 name_zht/name 字段补全正式中文名，繁体转简体写入中文名列、繁体写入繁体名列。无需 TMDB API KEY，按日文原名搜索。配合「起始行/限量」可分片续跑。",
             )
         )
         self.pushButton_actor_db_fill_zh_javdb.setText(_translate("MDCx", "JavDB中文名"))
@@ -12714,7 +12714,7 @@ class Ui_MDCx(object):
         self.label_actor_db_sync_aliases_desc.setText(
             _translate(
                 "MDCx",
-                "来源TMDB需配置TMDB API Key；Minnano直接抓取みんなのAV，默认仅补缺别名的行，勾选「全量更新」则并入全部行，用「起始行/限量」可分片续跑",
+                "来源TMDB需配置TMDB API KEY；Minnano直接抓取みんなのAV，默认仅补缺别名的行，勾选「全量更新」则并入全部行，用「起始行/限量」可分片续跑",
             )
         )
         self.groupBox_cover_backfill.setTitle(
@@ -13099,7 +13099,7 @@ class Ui_MDCx(object):
                 "                                背景图：Fanart，在Emby详情页作为背景图显示，直接复制缩略图后得到背景图；<br>\n"
                 "                                剧照图：extrafanart，在Emby详情页作为背景轮播，停留约50s后进入轮播状态；<br>\n"
                 "                                预告片：Trailer，视频文件预告片，在Emby详情页可以播放预告片查看预告详情；<br>\n"
-                "                                信息流：包含标题、简介、标签等信息，标题、简介、标签等将在Emby详情页展示。</p>",
+                "                                信息流：包含标题、简介、标签等信息，标题、简介、标签等将在Emby详情页展示；</p>",
             )
         )
         self.label_310.setText(
@@ -13410,13 +13410,13 @@ class Ui_MDCx(object):
         self.checkBox_bing.setText(_translate("MDCx", "Bing"))
         self.checkBox_baidu.setText(_translate("MDCx", "百度"))
         self.label_164.setText(_translate("MDCx", "当勾选多个时，将随机使用所勾选的其中任一翻译引擎，可降低被封几率"))
-        self.label_deepl_api_key.setText(_translate("MDCx", "DeepL API Key："))
+        self.label_deepl_api_key.setText(_translate("MDCx", "DeepL API KEY："))
         self.label_80.setText(_translate("MDCx", "DeepLX URL："))
         self.groupBox_llm.setTitle(_translate("MDCx", "LLM 翻译"))
         self.label_llm_url.setText(_translate("MDCx", "API URL:"))
         self.label_llm_url_desc.setText(_translate("MDCx", "示例: https://api.openai.com/v1"))
         self.label_llm_model.setText(_translate("MDCx", "Model:"))
-        self.label_llm_key.setText(_translate("MDCx", "API Key:"))
+        self.label_llm_key.setText(_translate("MDCx", "API KEY:"))
         self.label_llm_prompt_title.setText(_translate("MDCx", "标题 Prompt:"))
         self.label_llm_prompt_outline.setText(_translate("MDCx", "简介 Prompt:"))
         self.label_llm_prompt_desc.setText(_translate("MDCx", "提示词模板. 可用变量: {content} 原文 {lang} 目标语言"))
@@ -13900,7 +13900,7 @@ class Ui_MDCx(object):
         )
         self.comboBox_cf_bypass_backend.setItemText(0, _translate("MDCx", "trawl"))
         self.comboBox_cf_bypass_backend.setItemText(1, _translate("MDCx", "flaresolverr"))
-        self.label_cf_bypass_trusted_hosts.setText(_translate("MDCx", "Bypass落地白名单："))
+        self.label_cf_bypass_trusted_hosts.setText(_translate("MDCx", "Bypass 白名单："))
         self.lineEdit_cf_bypass_trusted_hosts.setPlaceholderText(
             _translate("MDCx", "逗号分隔，如 javbus.com,*.javdb.com（留空不校验）")
         )
@@ -13918,8 +13918,8 @@ class Ui_MDCx(object):
         )
         self.label_65.setText(_translate("MDCx", "重试次数："))
         self.label_64.setText(_translate("MDCx", "代理地址："))
-        self.label_verify_ssl.setText(_translate("MDCx", "HTTPS 证书校验："))
-        self.checkBox_verify_ssl.setText(_translate("MDCx", "启用 HTTPS 证书校验（自签名代理 / MITM 调试时关闭）"))
+        self.label_verify_ssl.setText(_translate("MDCx", "HTTPS证书校验："))
+        self.checkBox_verify_ssl.setText(_translate("MDCx", "启用HTTPS证书校验，自签名代理/MITM调试时关闭"))
         self.groupBox_44.setTitle(_translate("MDCx", "网站设置"))
         self.label_401.setText(_translate("MDCx", "当前网站："))
         self.label_132.setText(
@@ -13936,10 +13936,10 @@ class Ui_MDCx(object):
             )
         )
         self.groupBox_14.setTitle(_translate("MDCx", "API Token"))
-        self.label_355.setText(_translate("MDCx", "ThePornDB："))
-        self.label_423_wl.setText(_translate("MDCx", "TMDB API地址："))
+        self.label_355.setText(_translate("MDCx", "ThePornDB KEY："))
+        self.label_423_wl.setText(_translate("MDCx", "TMDB API URL："))
         self.lineEdit_tmdb_api_base.setText(_translate("MDCx", "api.tmdb.org"))
-        self.label_424_wl.setText(_translate("MDCx", "TMDB API Key："))
+        self.label_424_wl.setText(_translate("MDCx", "TMDB API KEY："))
         self.label_356.setText(
             _translate(
                 "MDCx",

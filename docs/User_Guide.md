@@ -126,7 +126,7 @@ export QT_QPA_PLATFORM=xcb
 
 **数据库在哪**：`userdata/actor_database.xlsx`
 
-**软件工具页操作**：软件工具页「演员库维护」区域有十一个操作——补全中文名（按 TMDB ID 补翻译）、补全 LibreDMM 链接、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的行，勾选「全量更新」则并入全部行且不覆盖本地已有别名；配套「起始行/限量」分片续跑——中断后日志输出"将起始行填入 N-1 即可续跑"，处理日志带 [行N] 前缀便于人工定位，长任务无需从头重发请求）、JavDB 中文名（从 JavDB 移动端 API 查询演员中文名/繁体名，仅处理「中文名 == 日文原名」的行，用 name_zht 转简体补全，无需 TMDB API Key，支持分片续跑）、minnano 补全（从 minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，tmdb 项给人工修复步骤）、剔除男演员、校验 tmdbid 有效性、更新 nfo tmdbid、打开演员数据库、停止当前维护任务。前九个自动扫描数据库并批量处理，打开用系统默认程序打开 xlsx 供手工编辑，停止按钮独立于软件界面刮削停止、一键请求停止当前维护任务（会保存已处理部分，可再次运行继续）。每个联网维护工具默认限量 5000 条逐片处理，配合幂等可多次运行完成全部 2 万+ 行。进度实时显示在日志页。
+**软件工具页操作**：软件工具页「演员库维护」区域有十一个操作——补全中文名（按 TMDB ID 补翻译）、补全 LibreDMM 链接、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的行，勾选「全量更新」则并入全部行且不覆盖本地已有别名；配套「起始行/限量」分片续跑——中断后日志输出"将起始行填入 N-1 即可续跑"，处理日志带 [行N] 前缀便于人工定位，长任务无需从头重发请求）、JavDB 中文名（从 JavDB 移动端 API 查询演员中文名/繁体名，仅处理「中文名 == 日文原名」的行，用 name_zht 转简体补全，无需 TMDB API KEY，支持分片续跑）、minnano 补全（从 minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，tmdb 项给人工修复步骤）、剔除男演员、校验 tmdbid 有效性、更新 nfo tmdbid、打开演员数据库、停止当前维护任务。前九个自动扫描数据库并批量处理，打开用系统默认程序打开 xlsx 供手工编辑，停止按钮独立于软件界面刮削停止、一键请求停止当前维护任务（会保存已处理部分，可再次运行继续）。每个联网维护工具默认限量 5000 条逐片处理，配合幂等可多次运行完成全部 2 万+ 行。进度实时显示在日志页。
 
 **数据库坏了**：有备份就用备份恢复。可以定期备份这个文件。
 
@@ -146,7 +146,7 @@ export QT_QPA_PLATFORM=xcb
 
 ### 网络
 
-**怎么拿 TMDB API Key**：
+**怎么拿 TMDB API KEY**：
 1. 打开 https://www.themoviedb.org/
 2. 注册账号
 3. 在设置里申请 API Key
@@ -154,7 +154,7 @@ export QT_QPA_PLATFORM=xcb
 
 **配置代理**：设置 → 网络 → 代理，支持 HTTP/HTTPS/SOCKS5。只对"走代理网站"域名列表中的站点走代理，其他默认直连；默认列表包含 `amazon.co.jp, m.media-amazon.com, xcity.jp, minnano-av.com, avbase.net, javbus.com, javdb.com, javlibrary.com, r18.dev, mgstage.com, prestige-av.com, seesaawiki.jp, avsox.click, avsox.com, avmoo.shop, avmoo.com, avheat.shop, avheat.com, heyzo.com, caribbeancom.com, 1pondo.tv, pacopacomama.com, 10musume.com, mywife.cc, github.com, raw.githubusercontent.com, google.com, missav.ws, missav.ai, missav.live, aventertainments.com, javfree.me, 7mmtv.sx, 7tv022.com, avsex.cc, getchu.com, dl.getchu.com`，可按需追加。
 
-**CF Bypass 落地白名单**：设置 → 网络 →「Bypass落地白名单」可填写可信落地域名（逗号分隔，支持 `*.example.com` 子域通配，如 `javbus.com,*.javdb.com`）。用于校验 Bypass 服务落地/重定向后的最终域名，防止第三方 Bypass 服务被劫持时把恶意页面当数据写入 NFO；留空表示不校验（默认）。
+**CF Bypass 落地白名单**：设置 → 网络 →「Bypass 白名单」可填写可信落地域名（逗号分隔，支持 `*.example.com` 子域通配，如 `javbus.com,*.javdb.com`）。用于校验 Bypass 服务落地/重定向后的最终域名，防止第三方 Bypass 服务被劫持时把恶意页面当数据写入 NFO；留空表示不校验（默认）。
 
 **刮削中途退出，重开要重新刮一遍吗**：不用。刮削进度会自动保存到本地数据库（`userdata/scrape_state.db`，WAL 模式 SQLite），重启后再次刮削会自动跳过已完成且未变化的文件、恢复上次失败的文件（最多自动重试 3 次），从上次进度继续。数据库损坏时会自动回退到全量刮削，不影响使用。**读取模式不受断点续刮缓存干扰**，始终处理全部选中文件。如需清除缓存重新全量刮削，可使用「软件工具」页的「刮削缓存管理」功能重置或清空。
 

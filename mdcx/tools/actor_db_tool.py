@@ -359,7 +359,7 @@ async def run(
 
     base_url, tmdb_api_key = _resolve_tmdb_config()
     if not tmdb_api_key:
-        _log_line(" ⚠️ [演员库维护] 未配置 TMDB API Key，仅能执行链接补全（如需翻译补全请先配置 TMDB API）")
+        _log_line(" ⚠️ [演员库维护] 未配置 TMDB API KEY，仅能执行链接补全（如需翻译补全请先配置 TMDB API）")
 
     db_path = _get_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1303,7 +1303,7 @@ async def run_actor_db_xlsx(
     ws = get_actor_db_sheet(wb)
     base_url, tmdb_api_key = _resolve_tmdb_config()
     if not tmdb_api_key:
-        _log_line(" ⚠️ 未配置 TMDB API Key，部分功能不可用")
+        _log_line(" ⚠️ 未配置 TMDB API KEY，部分功能不可用")
 
     rows_to_process = []
     for row_idx, row in enumerate(ws.iter_rows(min_row=2, max_col=9, values_only=True), start=2):
@@ -1930,9 +1930,9 @@ async def sync_from_avdb(
         tmdb_base_url, tmdb_api_key = _resolve_tmdb_config()
         if not tmdb_api_key:
             if filter_male:
-                _log_line(" ⚠️ [AVdb同步] 未配置 TMDB API Key，仅使用内置名单过滤男优")
+                _log_line(" ⚠️ [AVdb同步] 未配置 TMDB API KEY，仅使用内置名单过滤男优")
             if verify_tmdbid:
-                _log_line(" ⚠️ [AVdb同步] 未配置 TMDB API Key，跳过 tmdbid 身份校验")
+                _log_line(" ⚠️ [AVdb同步] 未配置 TMDB API KEY，跳过 tmdbid 身份校验")
     tmdb_session: aiohttp.ClientSession | None = None
 
     async def _tmdb_client() -> aiohttp.ClientSession:
@@ -2204,7 +2204,7 @@ async def clean_male_actors(*, limit: int = 5000, concurrency: int = 5) -> Clean
     db_path = _get_db_path()
     base_url, tmdb_api_key = _resolve_tmdb_config()
     if not tmdb_api_key:
-        _log_line(" ℹ️ [剔除男演员] 未配置 TMDB API Key，仅按内置名单清理男优")
+        _log_line(" ℹ️ [剔除男演员] 未配置 TMDB API KEY，仅按内置名单清理男优")
     if not db_path.exists():
         _log_line(" ❌ [剔除男演员] actor_database.xlsx 不存在")
         return result
@@ -2408,7 +2408,7 @@ async def verify_tmdb_ids(*, limit: int = 5000, concurrency: int = 5) -> VerifyT
     db_path = _get_db_path()
     base_url, tmdb_api_key = _resolve_tmdb_config()
     if not tmdb_api_key:
-        _log_line(" ❌ [校验tmdbid] 未配置 TMDB API Key")
+        _log_line(" ❌ [校验tmdbid] 未配置 TMDB API KEY")
         return result
     if not db_path.exists():
         _log_line(" ❌ [校验tmdbid] actor_database.xlsx 不存在")

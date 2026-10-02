@@ -24,7 +24,7 @@ def test_tmdb_key_empty_warns(monkeypatch):
     msgs = _collect_messages(monkeypatch)
     monkeypatch.setattr(hc.manager.config, "tmdb_api_key", "")
     health_check.run_tmdb_key_check()
-    assert any("未配置 TMDB API Key" in m for m in msgs)
+    assert any("未配置 TMDB API KEY" in m for m in msgs)
 
 
 def test_tmdb_key_configured_no_warning(monkeypatch):

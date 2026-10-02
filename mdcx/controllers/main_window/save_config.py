@@ -694,8 +694,8 @@ def save_config(self: "MyMAinWindow"):
     manager.config.fc2ppvdb = self.Ui.plainTextEdit_cookie_fc2ppvdb.toPlainText()  # fc2ppvdb cookie
     manager.config.javbus = self.Ui.plainTextEdit_cookie_javbus.toPlainText()  # javbus cookie
     manager.config.theporndb_api_token = self.Ui.lineEdit_api_token_theporndb.text()  # api token
-    manager.config.tmdb_api_base = self.Ui.lineEdit_tmdb_api_base.text().strip()  # TMDB API 地址
-    manager.config.tmdb_api_key = self.Ui.lineEdit_tmdb_api_key.text().strip()  # TMDB API Key
+    manager.config.tmdb_api_base = self.Ui.lineEdit_tmdb_api_base.text().strip()  # TMDB API URL
+    manager.config.tmdb_api_key = self.Ui.lineEdit_tmdb_api_key.text().strip()  # TMDB API KEY
     if manager.config.javdb:
         manager.config.javdb = manager.config.javdb.replace("locale=en", "locale=zh")
     # endregion

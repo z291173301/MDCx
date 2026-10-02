@@ -36,7 +36,7 @@ DB_PATH = ROOT / "resources" / "userdata" / "actor_database.xlsx"
 PROGRESS_PATH = Path("/tmp/opencode/clean_nonav_progress.json")
 RESULT_PATH = Path("/tmp/opencode/clean_nonav_result.jsonl")
 
-# TMDB API Key 读取：环境变量 MCAI_TMDB_KEY 或默认值
+# TMDB API KEY 读取：环境变量 MCAI_TMDB_KEY 或默认值
 TMDB_KEY = "0b01619322f8002bddf32f680fb55ed2"
 TMDB_HEADERS = {"Host": "api.themoviedb.org"}
 

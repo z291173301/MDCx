@@ -2504,7 +2504,7 @@
                     </rect>
                   </property>
                   <property name="toolTip">
-                    <string>校验库中所有 tmdbid 是否仍有效。TMDB 是公开平台，person id 可能被删除/重建，失效 id 会被清除，并自动按名字重新搜索补回新 id（搜索不到则保持无 id，刮削按名字兜底搜索）。需配置 TMDB API Key。</string>
+                    <string>校验库中所有 tmdbid 是否仍有效。TMDB 是公开平台，person id 可能被删除/重建，失效 id 会被清除，并自动按名字重新搜索补回新 id（搜索不到则保持无 id，刮削按名字兜底搜索）。需配置 TMDB API KEY。</string>
                   </property>
                   <property name="text">
                     <string>校验TMDB ID有效性</string>
@@ -2576,7 +2576,7 @@ ID，搜索不到则保持无ID刮削兜底</string>
                     </rect>
                   </property>
                   <property name="toolTip">
-                    <string>从 JavDB 移动端 API 查询演员的中文名/繁体名。仅处理「中文名 == 日文原名」的行（即未做中文化、且日文原名含汉字的条目），用 JavDB 的 name_zht/name 字段补全正式中文名，繁体转简体写入中文名列、繁体写入繁体名列。无需 TMDB API Key，按日文原名搜索。配合「起始行/限量」可分片续跑。</string>
+                    <string>从 JavDB 移动端 API 查询演员的中文名/繁体名。仅处理「中文名 == 日文原名」的行（即未做中文化、且日文原名含汉字的条目），用 JavDB 的 name_zht/name 字段补全正式中文名，繁体转简体写入中文名列、繁体写入繁体名列。无需 TMDB API KEY，按日文原名搜索。配合「起始行/限量」可分片续跑。</string>
                   </property>
                   <property name="text">
                     <string>JavDB中文名</string>
@@ -2837,7 +2837,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <string notr="true">color: rgb(8, 128, 128); font-size: 12px;</string>
                   </property>
                   <property name="text">
-                    <string>来源TMDB需配置TMDB API Key；Minnano直接抓取みんなのAV，默认仅补缺别名的行，勾选「全量更新」则并入全部行，用「起始行/限量」可分片续跑</string>
+                    <string>来源TMDB需配置TMDB API KEY；Minnano直接抓取みんなのAV，默认仅补缺别名的行，勾选「全量更新」则并入全部行，用「起始行/限量」可分片续跑</string>
                   </property>
                     <property name="wordWrap">
                       <bool>true</bool>
@@ -10230,7 +10230,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                 背景图：Fanart，在Emby详情页作为背景图显示，直接复制缩略图后得到背景图；&lt;br&gt;
                                 剧照图：extrafanart，在Emby详情页作为背景轮播，停留约50s后进入轮播状态；&lt;br&gt;
                                 预告片：Trailer，视频文件预告片，在Emby详情页可以播放预告片查看预告详情；&lt;br&gt;
-                                信息流：包含标题、简介、标签等信息，标题、简介、标签等将在Emby详情页展示。&lt;/p&gt;</string>
+                                信息流：包含标题、简介、标签等信息，标题、简介、标签等将在Emby详情页展示；&lt;/p&gt;</string>
                             </property>
                             <property name="scaledContents">
                               <bool>false</bool>
@@ -14096,7 +14096,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>DeepL API Key：</string>
+                              <string>DeepL API KEY：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -14269,7 +14269,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </size>
                             </property>
                             <property name="text">
-                              <string>API Key:</string>
+                              <string>API KEY:</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -22127,7 +22127,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>Bypass落地白名单：</string>
+                              <string>Bypass 白名单：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -22255,7 +22255,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>HTTPS 证书校验：</string>
+                              <string>HTTPS证书校验：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -22271,7 +22271,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </sizepolicy>
                             </property>
                             <property name="text">
-                              <string>启用 HTTPS 证书校验（自签名代理 / MITM 调试时关闭）</string>
+                              <string>启用HTTPS证书校验，自签名代理/MITM调试时关闭</string>
                             </property>
                           </widget>
                         </item>
@@ -22493,7 +22493,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>ThePornDB：</string>
+                              <string>ThePornDB KEY：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -22540,7 +22540,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>TMDB API地址：</string>
+                              <string>TMDB API URL：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -22590,7 +22590,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>TMDB API Key：</string>
+                              <string>TMDB API KEY：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
