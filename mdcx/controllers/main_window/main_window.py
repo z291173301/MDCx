@@ -58,7 +58,7 @@ from mdcx.base.file import (
 )
 from mdcx.base.image import add_del_extrafanart_copy
 from mdcx.base.video import add_del_extras, add_del_theme_videos
-from mdcx.base.web import check_theporndb_api_token, check_version
+from mdcx.base.web import RemoteVersion, check_theporndb_api_token, check_version, is_remote_version_newer
 from mdcx.base.web_sync import get_text_sync
 from mdcx.config.enums import NfoInclude, Switch, Website
 from mdcx.config.extend import deal_url, get_movie_path_setting, parse_media_paths
@@ -204,8 +204,8 @@ class MyMAinWindow(QMainWindow):
         self.localversion = LOCAL_VERSION  # 当前版本号(数值, 用于版本比较)
         self.version_display = f"{VERSION_NAME} ({LOCAL_VERSION})"  # 展示用: v2.0.0 (220260712)
         self.new_version = "\n🔍 点击检查最新版本"  # 有版本更新时在左下角显示的新版本信息
-        self._notified_new_version: int | None = (
-            None  # 已提示过的新版本号：12h 定时复查仅在发现更新的版本时再提示，避免同一版本重复刷屏
+        self._notified_new_version: RemoteVersion | None = (
+            None  # 已提示过的远端版本：12h 定时复查仅在发现更新的版本时再提示，避免同一版本重复刷屏
         )
         self.show_data: ShowData | None = None  # 当前树状图选中文件的数据
         self.img_path = None  # 当前树状图选中文件的图片地址
@@ -5375,16 +5375,18 @@ class MyMAinWindow(QMainWindow):
         has_new_version = False
         latest_version = check_version()
         if latest_version:
-            if int(self.localversion) < int(latest_version):
+            # 版本号(vX.Y.Z)与日期(YYYYMMDD tag)同时对比：任一更新即视为有新版本，
+            # 版本号相等时由日期决出。详见 is_remote_version_newer。
+            if is_remote_version_newer(latest_version, self.localversion, VERSION_NAME):
                 has_new_version = True
                 # 定时复查与启动自检共用本函数：仅在首次发现该新版本时提示
                 # （红字日志、下载链接与左下角标签刷新），同一版本重复检查
                 # 不再刷屏；出现更新的版本时会自动再次提示。
                 if latest_version != self._notified_new_version:
                     self._notified_new_version = latest_version
-                    self.new_version = f"\n🍉 有新版本了！（{latest_version}）"
+                    self.new_version = f"\n🍉 有新版本了！（{latest_version.display}）"
                     signal_qt.show_scrape_info()
-                    version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="red" >最新版本是: {latest_version}，请及时更新！🚀 </font>）'
+                    version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="red" >最新版本是: {latest_version.display}，请及时更新！🚀 </font>）'
                     download_link = f' ⬇️ <a href="{GITHUB_RELEASES_URL}">下载新版本</a>'
             else:
                 version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="green">你使用的是最新版本！🎉 </font>）'

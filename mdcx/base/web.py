@@ -6,7 +6,7 @@ import time
 from concurrent.futures import CancelledError
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Literal, overload
+from typing import Any, Literal, NamedTuple, overload
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import aiofiles
@@ -1037,7 +1037,58 @@ async def get_dmm_trailer(trailer_url: str) -> str:
     return trailer_url
 
 
-def check_version() -> int | None:
+class RemoteVersion(NamedTuple):
+    """GitHub 上的最新 release。
+
+    `tag` 是纯数字日期版本号（YYYYMMDD，比较的主依据）；`name` 是展示用标题
+    （发版工作流写入的 `vX.Y.Z (YYYYMMDD)`），仅用于版本号比较与提示文案。
+    """
+
+    tag: int
+    name: str
+
+    @property
+    def display(self) -> str:
+        """提示文案用的版本标识：无标题时退回纯数字 tag。"""
+        return self.name or str(self.tag)
+
+
+_RELEASE_VERSION_RE = re.compile(r"v?(\d+)\.(\d+)\.(\d+)")
+
+
+def parse_release_version(name: str) -> tuple[int, int, int] | None:
+    """从 release 标题（如 `v2.1.8 (20261001)`）解析展示版本号；解析不出返回 None。"""
+    matched = _RELEASE_VERSION_RE.search(str(name or ""))
+    if matched is None:
+        return None
+    return int(matched[1]), int(matched[2]), int(matched[3])
+
+
+def is_remote_version_newer(remote: RemoteVersion, local_tag: int, local_name: str) -> bool:
+    """远端是否比本地新：**版本号优先，版本号相等时对比日期**。
+
+    - 两侧版本号都能解析：版本号不同则由版本号决出（远端更高即有新版本），**版本号
+      相等才比日期**（远端日期更新即有新版本）。
+    - 任一侧版本号解析不出来（标题非 `vX.Y.Z` 形态，如 nightly / 空标题）：退回**只比
+      日期**。
+
+    版本号优先而非日期优先，是为了让「版本号更高」这条真正独立生效——同一天发两版
+    （当天先发 v2.1.8 再发 v2.1.9，两个 tag 都是同一天）纯日期比较永远认不出第二版。
+    反过来不让「日期更新」在版本号更低时也触发，是为了避免提示用户降级：仓库里
+    `LOCAL_VERSION` 常先于线上发布 bump（源码已 20261002 而线上还是 20261001），若
+    日期优先，开发版会对着已发布的历史版本反复提示「请及时更新」。
+    """
+    remote_version = parse_release_version(remote.name)
+    local_version = parse_release_version(local_name)
+    if remote_version is None or local_version is None:
+        # 版本号认不出，只能靠日期（tag 是唯一可靠来源）
+        return remote.tag > int(local_tag)
+    if remote_version != local_version:
+        return remote_version > local_version
+    return remote.tag > int(local_tag)
+
+
+def check_version() -> RemoteVersion | None:
     if manager.config.update_check:
         url = GITHUB_RELEASES_API_LIST
         headers = {
@@ -1082,10 +1133,19 @@ def check_version() -> int | None:
                 if not isinstance(releases, list):
                     last_error = "响应格式异常（非数组）"
                     continue
+                # 取 **tag 最大** 的那条，而不是列表第一条：/releases 按 created_at 倒序
+                # 而非 tag 倒序，而发版工作流四个平台用同一 tag + overwrite（先删后建）
+                # 重建 release，补发/重跑旧 tag 会把它的 created_at 刷成当前时间、顶到
+                # 第一条——取第一条会让已发布的新版本整体被遮住，用户永远看不到更新提示。
+                remote: RemoteVersion | None = None
                 for release in releases:
                     tag = str(release.get("tag_name", "")).strip()
-                    if tag.isdigit():
-                        return int(tag)
+                    if not tag.isdigit():
+                        continue
+                    if remote is None or int(tag) > remote.tag:
+                        remote = RemoteVersion(tag=int(tag), name=str(release.get("name", "")).strip())
+                if remote is not None:
+                    return remote
                 tags = [str(r.get("tag_name", "?")) for r in releases[:5]]
                 signal.add_log(f"❌ 未找到 MDCx 版本发布（最近发布: {', '.join(tags)}）")
                 return None

@@ -12,9 +12,14 @@ name: Build and Release Python3.14
 #   - `workflow_dispatch` → 手动补发；`tag` 输入留空则取 `mdcx/consts.py` 的 LOCAL_VERSION
 # prerelease 只对手动触发有效（tag 推送一律发正式版）。
 #
-# tag 必须纯数字：`mdcx/base/web.py` 的 `check_version()` 遍历 releases 取第一个
-# `tag_name.isdigit()` 的值（`per_page=10`），非纯数字 tag 会被跳过，客户端自动更新
-# 永久失效。`Resolve release metadata` 里会硬校验，填错直接 exit 1。
+# tag 必须纯数字：`mdcx/base/web.py` 的 `check_version()` 遍历 releases（`per_page=10`）
+# 取全部 `tag_name.isdigit()` 的值中**最大**的一个，非纯数字 tag 会被跳过，客户端自动
+# 更新永久失效。`Resolve release metadata` 里会硬校验，填错直接 exit 1。
+#
+# 附注：正因为本工作流四个平台用**同一 tag + `overwrite: true`**（先删后建）重建 release，
+# 任何一次补发/重跑都会把那条 release 的 `created_at` 刷成当前时间、顶到 `/releases`
+# 列表第一条（该接口按 created_at 而非 tag 倒序）。客户端因此不能取第一条，必须取
+# tag 最大值——否则手动补发一次旧 tag 就会让所有用户从此看不到新版本提示。
 #
 # 三处护栏（发半成品 Release 比不发更糟）：
 #   1. `build-app` 带 continue-on-error，某平台翻车不阻塞其余平台

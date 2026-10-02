@@ -132,6 +132,7 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 - 根因：定时器直连 `check_version`（`main_window.py:235`），阻塞主线程做网络 I/O，返回的版本号无处消费；真正会提示的只有启动 `show_version()` 那一次（工作线程 + 比较 + 红字/下载链接/标签刷新全链路）。
 - 修复：定时器改连 `self.show_version`（网络回工作线程，结果走比较+提示链）；`_show_version_thread` 内用 `_notified_new_version` 做 transition 去重——仅首次发现该新版本时执行提示块（红字日志、下载链接、左下角标签刷新），同一版本重复检查不再刷屏，出现更新的版本自动再次提示；`version_check_done` 原样发射（cursor 设置幂等，cookie 检查顺带保鲜）。注意 E3 初版曾把 gate 只套在 `_notified` 赋值上、红字与下载链接露在外面，被回归测试当场抓获——提示副作用必须整体进 gate。
 - 回归测试：`tests/test_version_check_notify.py`（fixture 照 matrix 配方，另桩 `show_version` 禁启动线程抢读桩、`check_theporndb_api_token`/`ActressDB.init_db`/三 cookie 检查禁网络，`signal_qt.show_log_text` 计数红字）：新版本提示一次→同版本复查零新增→更新的版本再提示→已是最新走绿色；另锁定定时器周期仍为 12h。
+- 后续（2026-10-02，v2.1.9）：`check_version` 改为取 tag 最大的 release 并返回 `RemoteVersion`，比较改为版本号+日期双维度，本文件的桩与断言同步换成 `RemoteVersion`，另加两项（提示文案展示 release 标题、同 tag 更高版本号仍须提示）。比较规则与「取 max 而非取第一条」的完整理由见下文「更新检查（客户端自动更新）」一节。
 
 **设置-NFO 左标签冒号与组标题冒号对齐**（用户窄/宽两态截图：标题：/简介：/发行日期：/国家/分级：/年份/时长/想看：/评分：/演员/导演：/系列/标签：/风格/合集：/片商/发行商：/封面/背景/预告片：11 个左标签整体左移、冒号与「写入NFO的字段：」组标题的冒号上下对齐）
 
@@ -447,8 +448,8 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 
 **两处定义（`mdcx/consts.py`）**
 
-- `LOCAL_VERSION`：纯数字 `YYYYMMDD`，用于版本比较、更新检查与构建；**GitHub release 的 Tag 必须是同值纯数字**（`check_version` 对 `tag_name` 做 `int()`，`vX.Y.Z` 形态的标签会被直接跳过）。两个发版工作流（3.13 / 3.14）都遵守这一条，没有非纯数字 tag 的例外，详见「构建」一节。
-- `VERSION_NAME`：展示名 `vX.Y.Z`，界面/日志统一显示为 `VERSION_NAME (LOCAL_VERSION)`。
+- `LOCAL_VERSION`：纯数字 `YYYYMMDD`，用于版本比较、更新检查与构建；**GitHub release 的 Tag 必须是同值纯数字**（`check_version` 对 `tag_name` 做 `int()`，`vX.Y.Z` 形态的标签会被直接跳过）。唯一发版工作流 `build-py314.yml` 遵守这一条，没有非纯数字 tag 的例外，详见「构建」一节。
+- `VERSION_NAME`：展示名 `vX.Y.Z`，界面/日志统一显示为 `VERSION_NAME (LOCAL_VERSION)`；更新检查时它也作为**版本号维度**参与比较（见下节），不再纯装饰。
 
 **五个同步点**
 
@@ -470,6 +471,20 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 4. 打**纯数字** tag（= `LOCAL_VERSION`）触发 `.github/workflows/build-py314.yml`。「已发版」的判据是数字 tag 已推送，而非 changelog 有没有该段。同一版本号重复触发会覆盖更新同一条 Release（`overwrite: true`），不会多出第二条。
 
 版本号归属维护者，不擅自开新段。`scripts/build.py` 与主窗口不留版本常量：build 从 `consts.py` 读 `LOCAL_VERSION`（`--version` 可覆盖），界面统一展示 `VERSION_NAME (LOCAL_VERSION)`。
+
+### 更新检查（客户端自动更新）
+
+代码在 `mdcx/base/web.py` 的 `check_version()`（拉取）与 `is_remote_version_newer()`（比较），主窗口侧是 `main_window.py` 的 `_show_version_thread()`。有三条不变量，改任一处都要连带另两处。
+
+**① 取 tag 最大的 release，不是列表第一条。** `/releases?per_page=10` 按 `created_at` 倒序返回，**不按 tag 倒序**；而本工作流四个 `Create Release` 步骤用同一 tag + `overwrite: true`（`svenstaro/upload-release-action` 先删后建），任何一次补发/重跑都会把那条 release 的 `created_at` 刷成"当前时间"、顶到第一位。原实现取第一条，于是**手动补发一次旧 tag 就让所有用户从此看不到新版本提示且无任何报错**。修法是遍历全部条目收集所有 `tag_name.isdigit()` 的值取 `max`（`tests/test_version_check_pick_latest.py` 守卫）。tag 必须纯数字这条硬约束不变，非纯数字 tag 照旧跳过。
+
+**② 版本号优先，版本号相等才比日期。** 两侧版本号都能解析时：不同 → 由版本号决出（远端更高即有新版本）；相等 → 比日期（远端更新即有新版本）。任一侧解析不出（标题非 `vX.Y.Z` 形态）→ 退回只比日期。两条并列才覆盖得住：只比日期则"当天发两版、两个 tag 同一天"认不出第二版；只比版本号则"同版本号跨日期补发"会漏判。
+
+刻意**不做字面 OR**（不让"日期更新"在版本号更低时也触发）：那会提示用户**降级**，且 `LOCAL_VERSION` 常先于线上发布 bump（源码已 20261002 而线上还是 20261001），开发版会对着已发布的历史版本反复提示「请及时更新」。
+
+**③ 源码版本号高于线上时不提示。** `LOCAL_VERSION` 是发版日，通常先于线上 release bump，故拿当前源码打包自测**永远不会**看到新版本提示——这是正确的，不是 bug。要测提示链得拿**上一个已发布 tag** 的包去比线上最新。
+
+`check_version()` 的返回值是 `RemoteVersion(tag, name)` NamedTuple（带 `display` 属性：无标题时退回纯数字 tag），不是裸 `int`；调用方与测试桩都要跟着换。主窗口侧 `_notified_new_version` 也存 `RemoteVersion`，用于 12h `timer_update` 复查的 transition 去重。改返回类型时注意 `tests/` 下另有 12 处 `lambda: None` 桩（桩成 `None` 的不受影响，桩成版本号数值的会挂）。
 
 ## 构建
 

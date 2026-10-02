@@ -7,9 +7,11 @@
 或客户端自动更新：
 
 1. **tag 必须是纯数字**（= `mdcx/consts.py` 的 `LOCAL_VERSION`）：`mdcx/base/web.py` 的
-   `check_version()` 遍历 releases 取第一个 `tag_name.isdigit()` 的值（`per_page=10`），
-   非纯数字 tag 会被跳过，自动更新就永久失效。故不得回退到早期版本的 `py314-<版本号>`
-   预览 tag 方案。
+   `check_version()` 遍历 releases（`per_page=10`）收集全部 `tag_name.isdigit()` 的值并
+   取其中**最大**的一个，非纯数字 tag 会被跳过，自动更新就永久失效。故不得回退到早期
+   版本的 `py314-<版本号>` 预览 tag 方案。（取最大而非取第一条的理由见
+   `tests/test_version_check_pick_latest.py`：`/releases` 按 `created_at` 倒序，本工作流
+   四个平台用同一 tag + `overwrite` 重建 release，补发旧 tag 会把它顶到第一条。）
 2. **必须监听 tag `2*`**：3.13 流程删除后，本工作流是唯一监听 tag 的地方；丢了
    `push.tags` 就再没有自动发版路径了。同时保留 `workflow_dispatch` 供手动补发。
 3. **输入只有 tag 与 prerelease**：平台固定四平台（无 `platforms` 开关）、发版不再有
