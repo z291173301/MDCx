@@ -31,6 +31,7 @@ from PyQt6.QtWidgets import (
     QWIDGETSIZE_MAX,
     QApplication,
     QFileDialog,
+    QFormLayout,
     QHBoxLayout,
     QHeaderView,
     QInputDialog,
@@ -45,6 +46,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QTreeWidgetItem,
     QVBoxLayout,
+    QWidget,
 )
 
 from mdcx.base.file import (
@@ -426,6 +428,9 @@ class MyMAinWindow(QMainWindow):
         # —— 高度由纯宽度函数算出，钉上后立刻自洽，无需「高度对不上」的重入门闩
         # （painted 回扫法在非纯白背景下恒返回自身高度，那种比较只会造成 +2 漂移）。
         self.Ui.label_331.installEventFilter(self)
+        # 信息管理页右侧两个预览框：左键单击弹出大图窗口，见 eventFilter 分支
+        self.Ui.label_nfo_lib_poster_preview.installEventFilter(self)
+        self.Ui.label_nfo_lib_thumb_preview.installEventFilter(self)
         self._bind_system_theme_refresh()
         self.cutwindow = CutWindow(self)
         self.preview_image_loader = PreviewImageLoader(self)
@@ -700,6 +705,17 @@ class MyMAinWindow(QMainWindow):
                         time.time() - self.start_click_time < 0.05
                     ):
                         self._pic_main_clicked()
+        # 信息管理页右侧预览框：左键单击弹出大图窗口（← → 切同组图片，Esc 关闭）。
+        # QLabel 默认不处理鼠标事件，但事件过滤器先于控件自身收到事件，所以照样能接。
+        _nfo_preview_kind = None
+        if a0 is getattr(self.Ui, "label_nfo_lib_poster_preview", None):
+            _nfo_preview_kind = "poster"
+        elif a0 is getattr(self.Ui, "label_nfo_lib_thumb_preview", None):
+            _nfo_preview_kind = "thumb"
+        if _nfo_preview_kind and a1.type() == QEvent.Type.MouseButtonRelease:
+            a1 = cast("QMouseEvent", a1)
+            if a1.button() == Qt.MouseButton.LeftButton:
+                self.nfo_lib_preview_clicked(_nfo_preview_kind)
         if a0 is self.Ui.textBrowser_log_main.viewport() or a0 is self.Ui.textBrowser_log_main_2.viewport():
             if not self.Ui.textBrowser_log_main_3.isHidden() and a1.type() == QEvent.Type.MouseButtonPress:
                 self.Ui.textBrowser_log_main_3.hide()
@@ -824,6 +840,20 @@ class MyMAinWindow(QMainWindow):
     _NFO_LIB_FIELD_FULL_H = 60
     _NFO_LIB_FIELD_MIN_H = 40
 
+    # 最大化时「简介/标签」多行框吸收视口富余高度的上限。再高就会把两行
+    # 内容拉成一大片空白（1440p 上尤其明显），超出部分留在表单下方。
+    _NFO_LIB_FIELD_MAX_H = 300
+
+    # 信息管理页「筛选番号/演员/标题」输入框：设计上限（MDCx.py 里
+    # maximumSize(180, QWIDGETSIZE_MAX)）与最小化时必须还原到的值。
+    _NFO_LIB_FILTER_MAX_W = 180
+    # 最大化时按目录框实测宽换算筛选框宽度的比例，以及换算后的取值区间。
+    # 1920 窗宽下目录框实测约 1030px，0.5 倍 ≈ 516px，与目录框宽度协调；
+    # 再宽就会挤掉「共 N 个」和刷新按钮。
+    _NFO_LIB_FILTER_SCALE = 0.5
+    _NFO_LIB_FILTER_MIN_W = 180
+    _NFO_LIB_FILTER_MAX_W_CAP = 620
+
     # 命名页「视频命名规则」组（groupBox_8）：模板预览框的高度。默认模板只有一行，
     # 128px 会在框内留出大片空白，这里按用户要求取其一半。
     _NAMING_PREVIEW_H = 64
@@ -841,14 +871,128 @@ class MyMAinWindow(QMainWindow):
         "groupBox_67",
     )
 
+    def _sync_nfo_lib_top_bar(self) -> None:
+        """最大化时按「选择目录」显示框的实测宽度等比例加宽筛选框。
+
+        现象：最大化后筛选框仍钉死在设计值 180px，与旁边被拉宽的目录框比例
+        严重失调（用户截图批注「最大化时等比例加宽」）。
+        做法：把筛选框临时按设计宽度复位后量出目录框的可拉伸宽度（不这样量会
+        自反馈——上一遍加宽的筛选框已经把目录框挤窄，反复 resizeEvent 会让两个
+        框宽度来回抖），乘 _NFO_LIB_FILTER_SCALE 换算筛选框上限并守住下限；
+        未最大化时原样复位 180，最小化态逐像素不变。
+        """
+        ui = self.Ui
+        dir_edit = ui.lineEdit_nfo_lib_dir
+        filter_edit = ui.lineEdit_nfo_lib_filter
+        bar = ui.nfo_lib_top_bar
+        bar_layout = bar.layout()
+        if not self.isMaximized():
+            if filter_edit.maximumWidth() != self._NFO_LIB_FILTER_MAX_W:
+                filter_edit.setMaximumWidth(self._NFO_LIB_FILTER_MAX_W)
+            return
+        # 先按设计宽度量基准目录宽，避免量到被自己挤窄后的值
+        previous_max = filter_edit.maximumWidth()
+        if previous_max != self._NFO_LIB_FILTER_MAX_W:
+            filter_edit.setMaximumWidth(self._NFO_LIB_FILTER_MAX_W)
+            bar_layout.invalidate()
+            bar_layout.activate()
+        base = dir_edit.width()
+        if base <= 0:
+            return
+        width = int(base * self._NFO_LIB_FILTER_SCALE)
+        width = max(self._NFO_LIB_FILTER_MIN_W, min(width, self._NFO_LIB_FILTER_MAX_W_CAP))
+        if filter_edit.maximumWidth() != width:
+            filter_edit.setMaximumWidth(width)
+        bar_layout.invalidate()
+        bar_layout.activate()
+
+    def _sync_nfo_lib_action_buttons(self) -> None:
+        """复位「批量保存」「保存当前nfo文件」的宽度上限，并把「裁剪封面」对齐批量保存的高度。
+
+        两个保存按钮在布局里都是跨列的，宽度由布局撑满；这里解除可能残留的
+        maximumWidth 限制，让它们重新铺满所在边框（groupBox / 表单跨列区域）。
+        「裁剪封面」改用批量保存同款样式后，把高度对齐，保证上下留白一致。
+        """
+        ui = self.Ui
+        batch = ui.pushButton_nfo_lib_batch_save
+        for button in (batch, ui.pushButton_nfo_lib_save):
+            button.setMinimumWidth(0)
+            if button.maximumWidth() != QWIDGETSIZE_MAX:
+                button.setMaximumWidth(QWIDGETSIZE_MAX)
+            owner = button.parentWidget()
+            if owner is not None and owner.layout() is not None:
+                owner.layout().invalidate()
+                owner.layout().activate()
+        # 「裁剪封面」与「批量保存」同高：批量保存的固定高度来自 minimumHeight 36
+        height = max(batch.minimumHeight(), batch.sizeHint().height())
+        crop = ui.pushButton_nfo_lib_crop
+        if crop.minimumHeight() != height:
+            crop.setMinimumHeight(height)
+
+    def _nfo_lib_form_rows(self) -> list[tuple[QWidget | None, QWidget | None]]:
+        """列出信息管理表单 QFormLayout 每一行的 (标签控件, 字段控件)。
+
+        第 15 行「保存当前nfo文件」是跨列按钮，只有字段没有标签。
+        """
+        layout = self.Ui.formLayout_nfo_lib
+        rows: list[tuple[QWidget | None, QWidget | None]] = []
+        for row in range(layout.rowCount()):
+            label_item = layout.itemAt(row, QFormLayout.ItemRole.LabelRole)
+            field_item = layout.itemAt(row, QFormLayout.ItemRole.FieldRole)
+            rows.append(
+                (
+                    label_item.widget() if label_item is not None else None,
+                    field_item.widget() if field_item is not None else None,
+                )
+            )
+        return rows
+
+    def _pin_nfo_lib_form_rows(self, pinned: bool) -> None:
+        """钉住/还原信息管理表单各行的最大高度（最大化时消除行间空白）。
+
+        现象：窗口最大化后内容 widget 被拉高到视口高，QFormLayout 把多出来的
+        高度平均分给所有「还能长高」的行——单行输入框的 sizeHint 只有 22px，
+        分到的却是 54px，于是每一行下面凭空多出约一行宽的空白（用户截图：
+        发行日/年份之间）。
+
+        做法：除「简介/标签」两个多行框外，把每行控件的最大高度钉到各自自然
+        高（sizeHint 与 minimumHeight 取大者，保存按钮 36px 不受影响），富余
+        高度就只会流向那两个多行框，行距回到设计的 4px。
+        pinned=False 时按钉住前记下的值原样还原，最小化态布局不受影响。
+        """
+        flex_fields = (
+            self.Ui.plainTextEdit_nfo_lib_outline,
+            self.Ui.plainTextEdit_nfo_lib_tag,
+        )
+        saved: dict = self.__dict__.setdefault("_nfo_lib_row_max_heights", {})
+        if not pinned and not saved:
+            return
+        for label, field in self._nfo_lib_form_rows():
+            if field in flex_fields:
+                continue
+            for widget in (label, field):
+                if widget is None:
+                    continue
+                if not pinned:
+                    widget.setMaximumHeight(saved.pop(widget, QWIDGETSIZE_MAX))
+                    continue
+                if widget not in saved:
+                    saved[widget] = widget.maximumHeight()
+                natural = max(widget.sizeHint().height(), widget.minimumHeight())
+                widget.setMaximumHeight(natural)
+
     def _sync_nfo_lib_form_fields(self) -> None:
         """小窗时压缩信息管理页「简介/标签」高度，让保存按钮免滚动可见（议题 #117）。
 
         现象：窗口缩到默认尺寸以下时，15 行表单 + 底部余量总高超出滚动视口，
         出现垂直滚动条，「保存当前nfo文件」被推到视口外，用户以为按钮丢了。
         做法：按视口可用高动态定这两个多行框的高——全高放得下就保持设计高
-        （最大化时布局完全不变），放不下就按缺口在两个框之间等分压缩，
+        （最小化时布局完全不变），放不下就按缺口在两个框之间等分压缩，
         最低压到 _NFO_LIB_FIELD_MIN_H。
+
+        最大化时额外消除行间空白（见 _pin_nfo_lib_form_rows）：各行钉到自然高，
+        视口的富余高度全部交给「简介/标签」两个多行框（各自封顶
+        _NFO_LIB_FIELD_MAX_H），超出封顶的部分留在表单下方而不是摊到行间。
         """
         ui = self.Ui
         scroll = ui.scrollArea_nfo_lib_form
@@ -871,12 +1015,30 @@ class MyMAinWindow(QMainWindow):
             content.updateGeometry()
             return layout.sizeHint().height() + scroll.content_bottom_margin()
 
-        deficit = apply_box_height(full) - viewport_h
+        maxed = self.isMaximized()
+        self._pin_nfo_lib_form_rows(maxed)
+        if not maxed:
+            content.setMaximumHeight(QWIDGETSIZE_MAX)
+
+        base = apply_box_height(full)
+        deficit = base - viewport_h
         if deficit > 0:
             # 缺口在两个框之间均摊（向上取整保证压够），并守住可读下限
             shrink = min(-(-deficit // len(boxes)), full - floor)
             if shrink > 0:
                 apply_box_height(full - shrink)
+        elif maxed:
+            slack = viewport_h - base
+            grow = min(slack // len(boxes), self._NFO_LIB_FIELD_MAX_H - full)
+            if grow > 0:
+                apply_box_height(full + grow)
+            if slack > 2 * grow:
+                # 两框已到封顶高度：把内容 widget 也钉到紧凑高，富余高度留在
+                # 表单下方（否则 QFormLayout 会把它摊回行间，行距又不紧凑了）
+                content.setMaximumHeight(layout.sizeHint().height() + scroll.content_bottom_margin())
+                layout.invalidate()
+                layout.activate()
+                content.updateGeometry()
         scroll.sync_content_min_height()
 
     # 软件工具页演员库分组内部常态几何（紧凑排布）：
@@ -3622,6 +3784,10 @@ class MyMAinWindow(QMainWindow):
         # ============ page_nfo_library: 简介/标签高度自适应（议题 #117）============
         self._sync_nfo_lib_form_fields()
 
+        # ============ page_nfo_library: 最大化时筛选框按目录框宽度等比例加宽 ============
+        self._sync_nfo_lib_top_bar()
+        self._sync_nfo_lib_action_buttons()
+
         # ============ page_setting / 命名页: 模板预览固定高度 + 说明文字贴合 ============
         self._sync_naming_template_section()
 
@@ -5925,6 +6091,17 @@ class MyMAinWindow(QMainWindow):
         from .nfo_library import pushButton_nfo_lib_crop_clicked
 
         pushButton_nfo_lib_crop_clicked(self)
+
+    def nfo_lib_preview_clicked(self, kind: str):
+        """单击信息管理页右侧预览图（kind = poster / thumb）：弹出大图窗口。"""
+        from .nfo_library import nfo_lib_preview_clicked
+
+        nfo_lib_preview_clicked(self, kind)
+
+    def _on_nfo_lib_preview_nfo_index_changed(self, index: int):
+        from .nfo_library import _on_nfo_lib_preview_nfo_index_changed
+
+        _on_nfo_lib_preview_nfo_index_changed(self, index)
 
     def pushButton_nfo_lib_batch_actor_clicked(self):
         from .nfo_library import pushButton_nfo_lib_batch_actor_clicked

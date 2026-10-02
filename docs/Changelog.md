@@ -1,5 +1,31 @@
 # Changelog
 
+## v2.2.0 (2026-10-02)
+
+### 新增
+
+- **信息管理页点击右侧图片弹出大图预览窗口**：左键单击「海报预览」/「缩略图预览」即弹出与主窗口**完全重合**的预览窗口（`mdcx/views/nfo_preview_window.py`，`NfoPreviewWindow(QDialog)`）。三条交互需求：① **窗口状态跟随主窗口**——主窗口最小化则弹窗 `showMinimized()`、最大化则 `showMaximized()`、普通则 `showNormal()` 后 `setGeometry(parent.geometry())`；② **← / → 在同一个番号内切换封面图与缩略图**，**↑ / ↓ 在不同番号之间切换**且**保留当前图片类型**（在 ABP-123 的缩略图上按 ↓，切到 ABP-456 后仍显示缩略图），切换番号时同步左侧列表选中行；③ **Esc 关闭**。图片按窗口尺寸自适应缩放，底部信息行显示 `图片 i/n　文件名（WxH）　番号 k/m`。数据层从「扁平图片列表」改为**按番号分组**（`_nfo_lib_image_entries()` → `[(nfo_path, [poster?, thumb?])]`，按左侧列表行序排列、跳过隐藏项，列表为空时回退到目录 `rglob`，只保留有图的番号），切番号时用 `nfo_index_changed` 信号回写列表选中行
+- **信息管理页最大化时「筛选番号/演员/标题」输入框等比例加宽**：新增 `_sync_nfo_lib_top_bar()`（`main_window.py`），以「选择目录」显示框的实测宽度 × `_NFO_LIB_FILTER_SCALE`(0.5) 换算筛选框上限，钳制在 `_NFO_LIB_FILTER_MIN_W`(180) ~ `_NFO_LIB_FILTER_MAX_W_CAP`(620)；未最大化时原样复位 180，**最小化态逐像素不变**。**关键坑：必须先把筛选框临时按设计宽度复位再量目录框**——上一遍加宽的筛选框已经把目录框挤窄，直接量会自反馈成震荡（实测 552→534→545→538→543→540 循环抖动，复位后稳定）。**刻意不加 `setStretch(0, 1)`**：那会让最大化时的加宽饿死，筛选框正是靠「剩余空间瓜分」实现的
+- **信息管理页选择目录确定后（或刷新后）自动展示目录内第一个番号的信息**：`_scan_nfo_directory(..., select_first=True)` 新增参数 + 新增 `_select_first_nfo()`（选中第 0 行并 `scrollToItem`，靠已有的 `itemSelectionChanged` → `listWidget_nfo_lib_item_clicked` → 异步 `get_nfo_data` 链路填满 15 个字段和两张预览图；选中状态未生效时兜底直接调一次加载）。刷新同样需要重选，否则表单里留着上一个番号的陈旧数据。目录为空时仍只显示「未找到 NFO 文件」提示行，不会误选
+
+### 修复
+
+- **信息管理页最大化时表单 16 行之间凭空多出约一行宽的空白**：根因是 `QFormLayout` 把内容区富余高度**平均分给所有「还能长高」的行**——单行输入框 `sizeHint` 只有 22px 却分到 54px，于是发行日/年份之间出现一整行空白（1030×700 时行距 32，1920×1080 时被撑到 54）。「简介/标签」两个多行框的 `maximumHeight` 被钉在 60px 吸收不了，剩下的全被其他行分走。修法：`_pin_nfo_lib_form_rows(pinned)` 在最大化时把除「简介/标签」外每行控件的 `maximumHeight` 钉死为 `max(sizeHint().height(), minimumHeight())`（原值缓存在 `_nfo_lib_row_max_heights`，退出最大化时还原），富余高度全交给「简介/标签」（`_NFO_LIB_FIELD_MAX_H` = 300 上限）；仍有余量时给 `scrollAreaWidgetContents_nfo_lib` 设 `maximumHeight`，把剩余空间收成底部一条空白而非行间空隙（**只钉多行框上限不行**，实测行距会反弹到 40、缝隙 14~18px）。实测最大化后每行行距恒为 **26px**（22 字段 + 4 间距），1920×1080 时简介/标签各 300px、1366×768 时各 146px、2560×1440 时内容高锁在 990；**最小化态逐像素不变**（1030×700 仍 32、1920×1080 非最大化仍 54、简介/标签仍 60），最大化↔还原往返后与全新小窗快照完全一致
+- **信息管理页选中 NFO 后点「裁剪封面」毫无反应（功能已实现，是静默异常）**：`nfo_library.py` 里 `self.cutwindow.showimage(str(poster_path), None)` 把 **str** 传给了签名要求 `Path` 的 `CutWindow.showimage()`（内部按 `img_path.as_posix()` / `.parent` / `.stem` 使用），抛 `AttributeError: 'str' object has no attribute 'as_posix'`；而 PyQt6 里槽函数抛出的异常只打到 **stderr**，打包成 exe 后用户完全看不到 —— 表现为「点了没反应」，连提示框都没有。同一函数在 `main_window.py` 另外两处调用（`pushButton_pic_main_clicked`、成功列表重开）传的都是 `Path`，只有信息管理这一处传错。修法：改传 `poster_path`，并补 `raise_()` + `activateWindow()` 保证裁剪窗口盖到主窗口前面（主窗口是 frameless 的，`show()` 有时会被压在后面）
+- **QSS 逗号选择器列表丢前缀会让 hover 样式退化成常态生效**：本轮给信息管理顶栏「选择目录」「刷新」统一样式时写成 `QPushButton:hover#a,#b`，Qt 会把 `:hover` 当成整组共用条件，于是「刷新」按钮**常态显示 hover 的蓝底**（截图里一眼可见）。修法：每个选择器都写全前缀（`QPushButton:hover#a,\nQPushButton:hover#b`），并在测试里加了一条**直接比对两个按钮渲染出的像素底色**的用例锁死该回归
+
+### 界面调整
+
+- **信息管理页顶栏顺序改为「目录显示框 → 选择目录 → 共 N 个 → 筛选 → 刷新」**：只改 `mdcx/views/MDCx.ui` 里 `nfo_lib_top_layout` 的两个 `<item>` 块顺序，再用 `python -m PyQt6.uic.pyuic` 重新生成 `MDCx.py` 并 `ruff format`（**`MDCx.py` 绝不能手改**——`tests/test_ui_structure.py::test_mdcx_py_in_sync_with_ui` 会重新编译 `.ui` 并逐字节比对，最终 diff 只有控件创建顺序与 `_translate` 顺序两处各 5 行）。按钮紧贴显示框右侧、再紧贴「共 N 个」左侧；显示框排在最左自动吃满余量宽度（1030×700 时 359px、1920×1080 最大化时 809px，左缘恒为布局边距 9）。**刻意不加 `setStretch`**：加了会让最大化的筛选框加宽饿死
+- **信息管理页顶栏「选择目录」「刷新」改用「软件设置-高级-选择目录」同款样式，宽高不变**：新增 `style_mod._nfo_lib_top_button_qss(dark)` + `apply_nfo_lib_top_button_style(self, dark)`（`mdcx/controllers/main_window/style.py`），规则与 `pushButton_select_config_folder` 所在规则组完全一致（浅色底 `rgba(220,220,220,255)` / 暗色 `...50`、`font-size:14px`、`border-width:8px`、`border-radius:20px`，含同款 hover / pressed），分别由 `set_style()` / `set_dark_style()` 末尾下发。**为什么单独下发而不直接加进全局规则组**：QSS 的 `padding` 会改控件 `sizeHint`（实测收窄约 8px），直接套用会让整个顶栏重新排版；helper 先量出原始尺寸 `max(sizeHint, minimumSize)`、套完样式再 `setFixedSize()` 钉回。实测两个按钮恒为 **80x32、顶栏高 50**，明暗主题来回切三轮不漂移。顺带实测确认：QSS 的 `border-width` 不带 `border-style` 时**根本不绘制**（按钮渲染成普通灰色圆角块）
+- **信息管理页「批量保存」「保存当前nfo文件」改用软件设置主页面保存按钮的蓝底，「裁剪封面」同款且上下高度对齐**：三个按钮都加进 `QPushButton#pushButton_save_config` 的规则组（明暗两套，含 hover / pressed），`color: white` + `background-color:#4C6EFF` + `border-radius:25px`。两个保存按钮在布局里本就跨列，宽度由布局撑满（一度尝试按「文字宽度 + 左右各一个汉字宽度」收窄到 48/88px，用户要求改回铺满边框，已复位 `maximumWidth` 为 `QWIDGETSIZE_MAX`）；「裁剪封面」原本没有最小高度，现由新增的 `_sync_nfo_lib_action_buttons()`（`main_window.py`，在 `_sync_page_layouts()` 里紧跟顶栏同步调用）把 `minimumHeight` 对齐到「批量保存」的 36px，保证上下留白一致
+- **大图预览窗口的按键提示改用图标键帽而非文字**：底部信息行改为 `← →` 相同番号图片　`↑ ↓` 不同番号图片　`Esc` 关闭，键帽用 `QFrame.Box` + `Sunken` 的原生边框做立体效果（不额外写样式表），**不再出现「左右键 / 上下键」这类文字**
+
+### 测试
+
+- 新增 `tests/test_nfo_library_maximize_preview.py`（28 项）：覆盖最大化行距（无行间空白、表单不溢出滚动视口、最小化态逐像素不变且往返复原）、筛选框等比加宽、顶栏控件顺序与相邻关系、大图窗口（几何完全覆盖主窗口、状态跟随、← → 同番号切换、↑ ↓ 切番号并保留图片类型、环绕、Esc 关闭、提示用图标、缩略图优先、无选中时不开窗、图片随窗口缩放）、按钮样式与尺寸（选择目录/刷新同款且宽高不变、两按钮渲染底色一致、保存按钮铺满边框、裁剪封面与批量保存同高、蓝底规则入表）、选择目录/刷新自动展示第一个番号、裁剪窗口能弹出且未选中时给出提示。配套 `tests/test_window_state_matrix.py` / `test_ui_structure.py` / `test_ui_geometry.py` / `test_ui_scale_options.py` / `test_cover_info_maximize.py` / `test_nfo_save_roundtrip.py` 共 **121 项通过**，唯一失败 `test_naming_filename_checkboxes_column_align[1000]` 为改动前既有失败
+- 记录两条测试侧踩坑：① 离屏测试环境无 CJK 字体且 `QFontDatabase.families()` 被桩成 0，NFO 测试数据**必须带 `<title>`**——`mdcx/core/nfo.py:462` 在缺 title 时返回 `(None, None)`，表单永远填不上内容；② **NFO 加载是异步的**（`executor.submit` → `nfo_lib_data_loaded` 信号），断言前要用轮询 `processEvents()` 等到数据落地，不能只 `processEvents()` 一次
+
 ## v2.1.9 (2026-10-02)
 
 ### 修复

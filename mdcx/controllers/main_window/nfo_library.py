@@ -28,6 +28,7 @@ from mdcx.models.model_types import CrawlersResult, FileInfo
 from mdcx.signals import signal_qt
 from mdcx.utils import executor, get_current_time
 from mdcx.utils.file import delete_file_sync, open_file_thread
+from mdcx.views.nfo_preview_window import NfoPreviewWindow
 
 if TYPE_CHECKING:
     from .main_window import MyMAinWindow
@@ -110,12 +111,15 @@ def pushButton_nfo_library_clicked(self: MyMAinWindow) -> None:
 
 
 def pushButton_nfo_lib_select_dir_clicked(self: MyMAinWindow) -> None:
-    """选择目录并扫描 NFO 文件。"""
+    """选择目录并扫描 NFO 文件。
+
+    确定目录后自动展示目录内第一个番号的信息（表单 + 预览图 + 海报 URL 等），
+    免得右侧整片空白还要手动点一次列表。"""
     folder = self._get_select_folder_path(None)
     if not folder:
         return
     self.Ui.lineEdit_nfo_lib_dir.setText(folder)
-    _scan_nfo_directory(self, Path(folder))
+    _scan_nfo_directory(self, Path(folder), select_first=True)
 
 
 def pushButton_nfo_lib_select_all_clicked(self: MyMAinWindow) -> None:
@@ -131,16 +135,19 @@ def pushButton_nfo_lib_select_none_clicked(self: MyMAinWindow) -> None:
 
 
 def pushButton_nfo_lib_refresh_clicked(self: MyMAinWindow) -> None:
-    """刷新当前目录的 NFO 列表。"""
+    """刷新当前目录的 NFO 列表，并重新展示第一个番号的信息。"""
     dir_text = self.Ui.lineEdit_nfo_lib_dir.text().strip()
     if not dir_text:
         signal_qt.show_log_text("请先选择目录")
         return
-    _scan_nfo_directory(self, Path(dir_text))
+    _scan_nfo_directory(self, Path(dir_text), select_first=True)
 
 
-def _scan_nfo_directory(self: MyMAinWindow, folder: Path) -> None:
-    """扫描目录下所有 .nfo 文件并填充列表。"""
+def _scan_nfo_directory(self: MyMAinWindow, folder: Path, select_first: bool = True) -> None:
+    """扫描目录下所有 .nfo 文件并填充列表。
+
+    `select_first` 为真时（选择目录、刷新）自动选中并加载第一项，
+    让右侧表单与预览图默认显示目录内第一个番号的信息。"""
     self.Ui.listWidget_nfo_lib.clear()
     if not folder.is_dir():
         signal_qt.show_log_text(f"目录不存在: {folder}")
@@ -158,8 +165,30 @@ def _scan_nfo_directory(self: MyMAinWindow, folder: Path) -> None:
     self.Ui.label_nfo_lib_count.setText(f"共 {count} 个")
     if count == 0:
         _add_empty_hint(self, "该目录下未找到 NFO 文件")
-    else:
-        signal_qt.show_log_text(f"NFO 库管理: 扫描到 {count} 个 NFO 文件")
+        return
+    signal_qt.show_log_text(f"NFO 库管理: 扫描到 {count} 个 NFO 文件")
+    if select_first:
+        _select_first_nfo(self)
+
+
+def _select_first_nfo(self: MyMAinWindow) -> None:
+    """选中列表第一项并加载其 NFO。
+
+    正常会由 `itemSelectionChanged` 信号触发 `listWidget_nfo_lib_item_clicked`；
+    万一信号没触发（如列表未获得选择权）则兜底手动调用一次，避免重复加载。"""
+    list_widget = self.Ui.listWidget_nfo_lib
+    if list_widget.count() == 0:
+        return
+    item = list_widget.item(0)
+    if not (item.flags() & Qt.ItemFlag.ItemIsSelectable):
+        return
+
+    list_widget.setCurrentItem(item)
+    list_widget.scrollToItem(item)
+    if not item.isSelected():
+        item.setSelected(True)
+    if not list_widget.selectedItems():
+        listWidget_nfo_lib_item_clicked(self)
 
 
 def _add_empty_hint(self: MyMAinWindow, text: str) -> None:
@@ -420,13 +449,112 @@ def pushButton_nfo_lib_crop_clicked(self: MyMAinWindow) -> None:
         QMessageBox.warning(self, "提示", "未找到可裁剪的封面图文件")
         return
 
-    self.cutwindow.showimage(str(poster_path), None)
+    # showimage 内部按 Path 使用（img_path.as_posix()/parent/stem），传 str 会抛
+    # AttributeError，而 PyQt 只把异常打到 stderr，界面上就表现为「点了没反应」
+    self.cutwindow.showimage(poster_path, None)
     self.cutwindow.show()
+    self.cutwindow.raise_()
+    self.cutwindow.activateWindow()
 
 
 def _get_selected_nfo_paths(self: MyMAinWindow) -> list[Path]:
     """获取列表中所有选中的 NFO 路径。"""
     return [Path(item.data(NFO_PATH_ROLE)) for item in self.Ui.listWidget_nfo_lib.selectedItems()]
+
+
+# ============= 右侧预览图大图窗口 =============
+
+# 图片类型 -> core/nfo.py 里的图片命名（同名优先，其次目录内的通用名）
+_NFO_LIB_IMAGE_SUFFIX = {"poster": "-poster.jpg", "thumb": "-thumb.jpg"}
+_NFO_LIB_IMAGE_FALLBACK = {"poster": "poster.jpg", "thumb": "thumb.jpg"}
+_NFO_LIB_IMAGE_LABEL = {"poster": "封面", "thumb": "缩略图"}
+
+
+def _resolve_nfo_image(nfo_path: Path, kind: str) -> Path | None:
+    """按 core/nfo.py 的命名规则定位 nfo 同目录下的封面 / 缩略图。"""
+    named = nfo_path.with_name(nfo_path.stem + _NFO_LIB_IMAGE_SUFFIX.get(kind, "-poster.jpg"))
+    fallback = nfo_path.parent / _NFO_LIB_IMAGE_FALLBACK.get(kind, "poster.jpg")
+    for candidate in (named, fallback):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _nfo_lib_image_entries(self: MyMAinWindow) -> list[tuple[Path, list[Path]]]:
+    """按 NFO 列表顺序组装 [(nfo 路径, 该番号的 [封面, 缩略图])]，只保留有图的番号。
+
+    上下键要「按番号切换」，所以顺序取 NFO 列表（跳过被筛选隐藏的行）；
+    列表为空时退回扫描目录。封面在前、缩略图在后，与 core/nfo.py 的判定一致。
+    """
+    widget = self.Ui.listWidget_nfo_lib
+    candidates: list[Path] = []
+    for row in range(widget.count()):
+        item = widget.item(row)
+        if item.isHidden():
+            continue
+        nfo_path = item.data(NFO_PATH_ROLE)
+        if nfo_path:
+            candidates.append(Path(nfo_path))
+    if not candidates:
+        dir_text = self.Ui.lineEdit_nfo_lib_dir.text().strip()
+        root = Path(dir_text) if dir_text else None
+        if root is not None and root.is_dir():
+            candidates = sorted(root.rglob("*.nfo"), key=lambda path: str(path).lower())
+
+    entries: list[tuple[Path, list[Path]]] = []
+    for nfo_path in candidates:
+        images = [image for kind in ("poster", "thumb") if (image := _resolve_nfo_image(nfo_path, kind))]
+        if images:
+            entries.append((nfo_path, images))
+    return entries
+
+
+def _get_nfo_lib_preview_window(self: MyMAinWindow) -> NfoPreviewWindow:
+    """惰性创建大图预览窗口（挂在主窗口下，随主窗口一起隐藏）。"""
+    window = getattr(self, "nfo_lib_preview_window", None)
+    if window is None:
+        window = NfoPreviewWindow(self)
+        window.nfo_index_changed.connect(self._on_nfo_lib_preview_nfo_index_changed)
+        self.nfo_lib_preview_window = window
+    return window
+
+
+def nfo_lib_preview_clicked(self: MyMAinWindow, kind: str) -> None:
+    """单击右侧预览图：按主窗口当前状态弹出大图。
+
+    ← / → 切换同一番号的封面与缩略图，↑ / ↓ 切换不同番号，Esc 关闭。
+    """
+    entries = _nfo_lib_image_entries(self)
+    current: Path | None = getattr(self, "_nfo_lib_current_path", None)
+    if current is None or not entries:
+        signal_qt.show_log_text("没有可预览的图片")
+        return
+    index = next((i for i, (nfo_path, _) in enumerate(entries) if nfo_path == current), 0)
+    # 优先打开被单击的那类图（点海报框看封面、点缩略图框看缩略图），没有就退回第一张
+    images = entries[index][1]
+    image_index = next((i for i, image in enumerate(images) if kind in image.name.lower()), 0)
+    window = _get_nfo_lib_preview_window(self)
+    window.title_prefix = f"{_NFO_LIB_IMAGE_LABEL.get(kind, '图片')}预览"
+    window.show_entries(entries, index, image_index)
+    window.show_matching(self)
+
+
+def _on_nfo_lib_preview_nfo_index_changed(self: MyMAinWindow, index: int) -> None:
+    """大图窗口用上下键换番号后，把 NFO 列表选中项跟着切过去。"""
+    window = getattr(self, "nfo_lib_preview_window", None)
+    paths: list[Path] = list(getattr(window, "nfo_paths", [])) if window else []
+    if not (0 <= index < len(paths)):
+        return
+    target = str(paths[index])
+    widget = self.Ui.listWidget_nfo_lib
+    for row in range(widget.count()):
+        item = widget.item(row)
+        if item.data(NFO_PATH_ROLE) != target:
+            continue
+        if item.isHidden():  # 被筛选掉的行不动，避免筛选结果被按键打乱
+            return
+        widget.setCurrentRow(row)
+        return
 
 
 def _parse_tags(text: str) -> list[str]:

@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from PyQt6.QtCore import QSize
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication
 
@@ -252,6 +253,59 @@ def _apply_log_document_style(self: "MyMAinWindow", dark: bool) -> None:
         self.Ui.textBrowser_show_tips,
     ):
         text_browser.document().setDefaultStyleSheet(document_style)
+
+
+def _nfo_lib_top_button_qss(dark: bool) -> str:
+    """信息管理顶栏「选择目录」「刷新」按钮样式。
+
+    外观与「软件设置 → 高级 → 选择目录」（pushButton_select_config_folder）保持一致，
+    单独下发是为了在套用样式前后按控件原始尺寸钉死宽高，避免顶栏整体位移。
+    """
+    background = "rgba(220, 220,220, 50)" if dark else "rgba(220, 220,220, 255)"
+    # 注意：每个选择器都要带上完整前缀，`#a,#b:hover` 会让 hover 状态作用在整组上
+    return f"""
+        QPushButton#pushButton_nfo_lib_select_dir,
+        QPushButton#pushButton_nfo_lib_refresh{{
+            font-size:14px;
+            background-color: {background};
+            border-color:black;
+            border-width:8px;
+            border-radius:20px;
+            padding: 2px, 2px;
+        }}
+        QPushButton:hover#pushButton_nfo_lib_select_dir,
+        QPushButton:hover#pushButton_nfo_lib_refresh{{
+            color: white;
+            background-color: rgba(76,110,255,240);
+            font-weight:bold;
+        }}
+        QPushButton:pressed#pushButton_nfo_lib_select_dir,
+        QPushButton:pressed#pushButton_nfo_lib_refresh{{
+            background-color:#4C6EE0;
+            border-color:black;
+            border-width:14px;
+            font-weight:bold;
+        }}
+        """
+
+
+def apply_nfo_lib_top_button_style(self: "MyMAinWindow", dark: bool) -> None:
+    """套用信息管理顶栏按钮样式，并把宽高钉死在套用前的尺寸上。
+
+    QSS 里的 padding/边框会改变控件的 sizeHint，直接套用会让顶部栏重新排版；
+    这里先量出原始尺寸再固定，保证「选择目录」「刷新」按钮的宽高与加样式前完全一致。
+    """
+    sheet = _nfo_lib_top_button_qss(dark)
+    for name in ("pushButton_nfo_lib_select_dir", "pushButton_nfo_lib_refresh"):
+        button = getattr(self.Ui, name, None)
+        if button is None:
+            continue
+        button.ensurePolished()
+        hint = button.sizeHint()
+        minimum = button.minimumSize()
+        natural = QSize(max(hint.width(), minimum.width()), max(hint.height(), minimum.height()))
+        button.setStyleSheet(sheet)
+        button.setFixedSize(natural)
 
 
 def set_style(self: "MyMAinWindow"):
@@ -648,19 +702,19 @@ def set_style(self: "MyMAinWindow"):
             border-width:14px;
             font-weight:bold;
         }}
-        QPushButton#pushButton_save_config{{
+        QPushButton#pushButton_save_config,#pushButton_nfo_lib_save,#pushButton_nfo_lib_batch_save,#pushButton_nfo_lib_crop{{
             color: white;
             font-size:14px;
             background-color:#4C6EFF;
             border-radius:25px;
             padding: 2px, 2px;
         }}
-        QPushButton:hover#pushButton_save_config,:hover#pushButton_save_new_config,:hover#pushButton_init_config,:hover#pushButton_success_list_close,:hover#pushButton_success_list_save,:hover#pushButton_success_list_clear,:hover#pushButton_show_tips_close,:hover#pushButton_nfo_close,:hover#pushButton_nfo_save,:hover#pushButton_scraper_failed_list{{
+        QPushButton:hover#pushButton_save_config,:hover#pushButton_save_new_config,:hover#pushButton_init_config,:hover#pushButton_success_list_close,:hover#pushButton_success_list_save,:hover#pushButton_success_list_clear,:hover#pushButton_show_tips_close,:hover#pushButton_nfo_close,:hover#pushButton_nfo_save,:hover#pushButton_nfo_lib_save,:hover#pushButton_nfo_lib_batch_save,:hover#pushButton_nfo_lib_crop,:hover#pushButton_scraper_failed_list{{
             color: white;
             background-color: rgba(76,110,255,240);
             font-weight:bold;
             }}
-        QPushButton:pressed#pushButton_save_config,:pressed#pushButton_save_new_config,:pressed#pushButton_init_config,:pressed#pushButton_success_list_close,:pressed#pushButton_success_list_save,:pressed#pushButton_success_list_clear,:pressed#pushButton_show_tips_close,:pressed#pushButton_nfo_close,:pressed#pushButton_nfo_save,:pressed#pushButton_scraper_failed_list{{
+        QPushButton:pressed#pushButton_save_config,:pressed#pushButton_save_new_config,:pressed#pushButton_init_config,:pressed#pushButton_success_list_close,:pressed#pushButton_success_list_save,:pressed#pushButton_success_list_clear,:pressed#pushButton_show_tips_close,:pressed#pushButton_nfo_close,:pressed#pushButton_nfo_save,:pressed#pushButton_nfo_lib_save,:pressed#pushButton_nfo_lib_batch_save,:pressed#pushButton_nfo_lib_crop,:pressed#pushButton_scraper_failed_list{{
             background-color:#4C6EE0;
             border-color:black;
             border-width:14px;
@@ -719,6 +773,7 @@ def set_style(self: "MyMAinWindow"):
         """)
     )
     self.Ui.treeWidget_number.setStyleSheet(build_tree_widget_style(False))
+    apply_nfo_lib_top_button_style(self, False)
 
 
 def set_dark_style(self: "MyMAinWindow"):
@@ -1073,19 +1128,19 @@ def set_dark_style(self: "MyMAinWindow"):
             border-width:14px;
             font-weight:bold;
         }}
-        QPushButton#pushButton_save_config{{
+        QPushButton#pushButton_save_config,#pushButton_nfo_lib_save,#pushButton_nfo_lib_batch_save,#pushButton_nfo_lib_crop{{
             color: white;
             font-size:14px;
             background-color:#4C6EFF;
             border-radius:25px;
             padding: 2px, 2px;
         }}
-        QPushButton:hover#pushButton_save_config,:hover#pushButton_save_new_config,:hover#pushButton_init_config,:hover#pushButton_success_list_close,:hover#pushButton_success_list_save,:hover#pushButton_success_list_clear,:hover#pushButton_show_tips_close,:hover#pushButton_nfo_close,:hover#pushButton_nfo_save{{
+        QPushButton:hover#pushButton_save_config,:hover#pushButton_save_new_config,:hover#pushButton_init_config,:hover#pushButton_success_list_close,:hover#pushButton_success_list_save,:hover#pushButton_success_list_clear,:hover#pushButton_show_tips_close,:hover#pushButton_nfo_close,:hover#pushButton_nfo_save,:hover#pushButton_nfo_lib_save,:hover#pushButton_nfo_lib_batch_save,:hover#pushButton_nfo_lib_crop{{
             color: white;
             background-color: rgba(76,110,255,240);
             font-weight:bold;
         }}
-        QPushButton:pressed#pushButton_save_config,:pressed#pushButton_save_new_config,:pressed#pushButton_init_config,:pressed#pushButton_success_list_close,:pressed#pushButton_success_list_save,:pressed#pushButton_success_list_clear,pressed#pushButton_show_tips_close,:pressed#pushButton_nfo_close,:pressed#pushButton_nfo_save{{
+        QPushButton:pressed#pushButton_save_config,:pressed#pushButton_save_new_config,:pressed#pushButton_init_config,:pressed#pushButton_success_list_close,:pressed#pushButton_success_list_save,:pressed#pushButton_success_list_clear,pressed#pushButton_show_tips_close,:pressed#pushButton_nfo_close,:pressed#pushButton_nfo_save,pressed#pushButton_nfo_lib_save,pressed#pushButton_nfo_lib_batch_save,pressed#pushButton_nfo_lib_crop{{
             background-color:#4C6EE0;
             border-color:black;
             border-width:14px;
@@ -1188,3 +1243,4 @@ def set_dark_style(self: "MyMAinWindow"):
         """)
     )
     self.Ui.treeWidget_number.setStyleSheet(build_tree_widget_style(True))
+    apply_nfo_lib_top_button_style(self, True)

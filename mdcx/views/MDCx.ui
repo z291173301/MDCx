@@ -24501,19 +24501,6 @@ p, li { white-space: pre-wrap; }
                     <number>8</number>
                   </property>
                   <item>
-                    <widget class="QPushButton" name="pushButton_nfo_lib_select_dir">
-                      <property name="minimumSize">
-                        <size>
-                          <width>0</width>
-                          <height>32</height>
-                        </size>
-                      </property>
-                      <property name="text">
-                        <string>选择目录</string>
-                      </property>
-                    </widget>
-                  </item>
-                  <item>
                     <widget class="QLineEdit" name="lineEdit_nfo_lib_dir">
                       <property name="minimumSize">
                         <size>
@@ -24526,6 +24513,19 @@ p, li { white-space: pre-wrap; }
                       </property>
                       <property name="placeholderText">
                         <string>点击"选择目录"选择 NFO 所在文件夹</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QPushButton" name="pushButton_nfo_lib_select_dir">
+                      <property name="minimumSize">
+                        <size>
+                          <width>0</width>
+                          <height>32</height>
+                        </size>
+                      </property>
+                      <property name="text">
+                        <string>选择目录</string>
                       </property>
                     </widget>
                   </item>
