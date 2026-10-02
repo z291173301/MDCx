@@ -812,6 +812,12 @@ class MyMAinWindow(QMainWindow):
     # 该控制器每一态都会按实测列宽重算，此常量仅作「放弃对齐」时的回退值。
     _ADV_FRAME_LW_W = 550
 
+    # 高级页「隐藏窗口」行的 layoutWidget_17 设计宽度（MDCx.ui 里
+    # QRect(0,0,551,32)）。最大化时该容器要加宽以把「点最小化按钮」「无」推到
+    # 各自锚点，见 _sync_advanced_page_tail_align；该方法每态都按实测锚点重算，
+    # 此常量仅作「放弃对齐 / 最小化态复位」时的设计态对照值。
+    _ADV_HIDE_LW_W = 551
+
     # 议题 #117：信息管理页「简介/标签」多行框的设计高度（.ui 中 min=max=60）。
     # 视口放不下整表时按缺口压缩这两个框，压缩下限 40（再矮就没法看内容，
     # 宁可保留滚动条）。
@@ -3727,7 +3733,26 @@ class MyMAinWindow(QMainWindow):
         self._sync_advanced_page_align(self._adv_scroll, wide_synced=True)
 
     def _sync_advanced_page_align(self, adv_scroll=None, wide_synced=False) -> None:
-        """设置-高级：四行复选框对齐到「刮削结束后自动退出软件」同一条竖线。
+        """设置-高级：六行控件对齐到「显示字段来源信息」同一条竖线（最大化态）。
+
+        v2.1.9 之前这页的竖线是「刮削结束后自动退出软件」，本次需求把竖线换成
+        用户指定的 `checkBox_show_from_log`（显示字段来源信息），并把竖线本身
+        （「刮削结束后自动退出软件」）也纳入要左移的目标——它原来既是基准又是
+        目标，基准不能自己动，故拆成「阶段一先搬基准、阶段二再按基准对齐其余
+        四行」两步。七项目标（截图红框 1~5，其中第 3 框是两枚「关」）：
+        checkBox_auto_exit / checkBox_show_dialog_stop_scrape /
+        checkBox_hide_menu_icon / checkBox_dark_mode / checkBox_hide_nfo_nav /
+        radioButton_log_off / radioButton_update_off。前五项在本方法内处理，
+        后两项（两枚「关」）由 _sync_advanced_page_tail_align 跟随
+        checkBox_hide_nfo_nav 自动到位——它量的是 nfo 的实时 x，nfo 换竖线它
+        就跟着换，无需改动。
+
+        竖线取法分两态（这是「最小化时页面、布局、控件、提示词等等均保持不变」
+        的唯一保证）：最大化取 `checkBox_show_from_log`；还原态仍取
+        `checkBox_auto_exit` 的自然位——它在 1030×753 下是 x=412，而新锚点只有
+        x=292，若还原态也用新锚点，这五项会从 412 被左移到 292，正好违反需求。
+        逐项试过「还原态一律解除钉宽」同样不行：解除后第 8 行「隐藏菜单栏图标」
+        会掉到 353、第 9 行「暗黑模式」会掉到 393，与改动前的 412 都不等。
 
         用户截图（先最大化态、后还原态两轮）：「停止刮削时」「隐藏菜单栏图标
         （Mac）」「暗黑模式」「隐藏 NFO 库管理」四个复选框的左缘都挤在第1列起
@@ -3745,10 +3770,14 @@ class MyMAinWindow(QMainWindow):
         既不能靠 margin 也不能靠撑宽前导项（等分会推着目标项一起走）。
 
         做法（量基准 + 钉死前导项，纯函数、双向幂等）：
-        基准锚点取 checkBox_auto_exit（「刮削结束后自动退出软件」，第2行末位），
-        本方法**从不触碰 horizontalLayout_102**，所以基准自身恒定；每遍现量
-        现用，不写死像素。令 pin = anchor - row_x - spacing，钉死该行前导控件
-        为 pin 宽后剩余空间全部归末位项，目标项的绝对 x 恒等于 anchor：
+        阶段一搬基准：checkBox_auto_exit 与 checkBox_auto_start 同在
+        horizontalLayout_102 里两均分，故钉死前导项 checkBox_auto_start 为
+        `pin_2 = 竖线 - row_x - spacing`，末位即精确落竖线。阶段二量到的
+        `anchor = col_x(checkBox_auto_exit)` 在最大化态恒等于
+        col_x(checkBox_show_from_log)（实测 1100×800 = 201、1920×1170 = 474），
+        在还原态就是自然位，两态共用下面同一份代码。每遍现量现用，不写死像素。
+        令 pin = anchor - row_x - spacing，钉死该行前导控件为 pin 宽后剩余空间
+        全部归末位项，目标项的绝对 x 恒等于 anchor：
           弹窗确认行  钉「退出软件时」            -> 「停止刮削时」        落 anchor
           隐藏图标行  在 label_42 之后插固定间隔  -> 「隐藏菜单栏图标（Mac）」落 anchor，
                       前两项保持贴 col1 左缘（改用整行左 margin 会把「隐藏Dock图标
@@ -3756,6 +3785,8 @@ class MyMAinWindow(QMainWindow):
           界面外观行  把 layoutWidget5 加宽到 2*(anchor-row_x)-spacing（两项均分）
                       -> 「暗黑模式」落 anchor；该容器是 frame 的普通子 QWidget
                       （frame 无 layout），故用 setGeometry 而非 layout 属性
+                      竖线前移后该容器会**收窄**（1100×800 由 658 收到 396），
+                      下界 lw.sizeHint()=152 与上界 frame.width() 都仍成立
           隐藏入口行  钉「隐藏 Emby 演员管理」    -> 「隐藏 NFO 库管理」落 anchor，
                       并把它自己钉回 sizeHint 宽（QCheckBox 可拉伸，不钉会被余量
                       撑到 658px，左对齐绘制时字形只占 152，与说明标签之间空出
@@ -3777,12 +3808,14 @@ class MyMAinWindow(QMainWindow):
             adv_scroll.sync_wide_children_width()
         anchor_box = ui.checkBox_auto_exit
         lead_box = ui.checkBox_show_dialog_exit
-        if not anchor_box.isVisibleTo(self) or not lead_box.isVisibleTo(self):
-            return
-        anchor = anchor_box.mapTo(host, anchor_box.rect().topLeft()).x()
-        row_x = lead_box.mapTo(host, lead_box.rect().topLeft()).x()
-        col_w = host.width() - row_x
-        if anchor <= row_x or col_w <= 0:
+        auto_start = ui.checkBox_auto_start
+        src_from = ui.checkBox_show_from_log
+        if not (
+            anchor_box.isVisibleTo(self)
+            and lead_box.isVisibleTo(self)
+            and auto_start.isVisibleTo(self)
+            and src_from.isVisibleTo(self)
+        ):
             return
         # 「该对齐隐藏入口行」的判据同样改成几何量而非 isMaximized()：窗口管理器
         # 最大化时先发尺寸、后发状态标志，那一拍 isMaximized() 还是 False，于是
@@ -3790,9 +3823,55 @@ class MyMAinWindow(QMainWindow):
         # 「隐藏NFO库管理先在右侧、再向左漂移」。还原态拉伸量为负，与原先
         # 「非最大化不钉」的行为一致。
         wide = self._scroll_stretch_extra(self._adv_scroll) > 0
+        # 新锚点「显示字段来源信息」在 groupBox_3（调试模式）里、不是 host 的
+        # 后代，mapTo(host, ...) 无效（Qt 只在祖先链上定义），须经公共祖先
+        # scrollAreaWidgetContents_gaoji 中转再减去 host 的 content 坐标。
+        content = ui.scrollAreaWidgetContents_gaoji
+        host_x = host.mapTo(content, QPoint(0, 0)).x()
+
+        def col_x(widget) -> int:
+            """控件左缘换算到 gridLayoutWidget_20 的局部坐标（跨分支经 content 中转）。"""
+            return widget.mapTo(content, QPoint(0, 0)).x() - host_x
+
+        row_x = col_x(lead_box)
+        col_w = host.width() - row_x
+
+        # ---- 阶段一：先把需求①自己的目标「刮削结束后自动退出软件」搬到新竖线上 ----
+        # 它与「自动启动后自动开始刮削」同在 horizontalLayout_102 里两均分、x 随
+        # 列宽漂移，本方法原先从不触碰该行；要让它左移只能先钉死前导项（钉宽 =
+        # 目标列坐标 - row_x - spacing，末位即精确落目标）。竖线取法分两态：
+        #   最大化：取需求指定的新锚点 checkBox_show_from_log；
+        #   还原态：取「刮削结束后自动退出软件」的自然位（＝本方法进入前的旧基准）。
+        # 还原态必须如此——新锚点在 1030×753 下只有 x=292，而旧基准自然位 412，
+        # 若沿用新锚点，这五项会从 412 被左移到 292，直接违反「最小化时逐像素不变」。
+        # 钉完立刻 activate（改约束不重排）再统一按 col_x(anchor_box) 量竖线：
+        # 宽态此时它恰等于新锚点，于是后面四段两种窗宽状态共用同一份代码、天然
+        # 幂等、互不依赖，也避免了「还原时先量到上一次宽态钉宽」的一帧错位。
+        target = col_x(src_from) if wide else col_x(anchor_box)
+        lay_2 = ui.horizontalLayout_102  # 自动启动后自动开始刮削 / 刮削结束后自动退出软件
+        pin_2 = target - row_x - lay_2.spacing()
+        ok_2 = (
+            wide
+            and pin_2 >= auto_start.sizeHint().width()
+            and col_w - pin_2 - lay_2.spacing() >= anchor_box.sizeHint().width()
+        )
+        changed = self._pin_row_lead_width(auto_start, pin_2 if ok_2 else None)
+        if changed:
+            lay_2.invalidate()
+            lay_2.activate()
+            ui.gridLayout_20.invalidate()
+            ui.gridLayout_20.activate()
+            row_x = col_x(lead_box)
+            col_w = host.width() - row_x
+        # ok_2 为真时它恰在 target 上，为假时是自然位——两种情形都直接量它即可
+        anchor = col_x(anchor_box)
+        if anchor <= row_x or col_w <= 0:
+            return
         lay_a = ui.horizontalLayout_55  # 退出软件时 / 停止刮削时
         lay_b = ui.horizontalLayout_dock  # 隐藏Dock图标 / 保存重启软件生效 / 隐藏菜单栏图标
         lay_d = ui.horizontalLayout_nav_hide  # 隐藏Emby演员管理 / 隐藏NFO库管理 / 说明
+        # 阶段一已就位（改了就当场 activate），此处重新起算：下面四段共用行末
+        # 那批 invalidate+activate
         changed = False
 
         # ---- 弹窗确认行：钉「退出软件时」，「停止刮削时」即落 anchor（两态生效） ----
@@ -3856,13 +3935,155 @@ class MyMAinWindow(QMainWindow):
         changed |= self._pin_row_lead_width(actor, pin_d if ok_d else None)
         changed |= self._pin_row_lead_width(nfo, nfo.sizeHint().width() if ok_d else None)
 
+        if changed:
+            for lay in (lay_a, lay_b, lay_d, lay_c):
+                lay.invalidate()
+                lay.activate()
+            ui.gridLayout_20.invalidate()
+            ui.gridLayout_20.activate()
+
+        # ---- 下半页三处右移对齐：必须排在 gridLayout_20.activate() 之后 ----
+        # 需求①的锚点「隐藏NFO库管理」正是上面这批 activate 才定下的最终 x，
+        # 提前量到的是它被等分推到右缘的旧值（用户截图红框里那两个「关」就是这么
+        # 被钉歪的）。changed 为假时网格几何本就是终态，照量不误。
+        self._sync_advanced_page_tail_align()
+
+    def _sync_advanced_page_tail_align(self) -> None:
+        """高级页下半三处右移对齐（仅最大化态），三个锚点自身一律不动。
+
+        用户需求（三条锚点均保持不动，且只要求最大化态做、最小化态整页逐像素
+        不变——包括提示词、控件提示、间隔）：
+          ① 「保存日志」「检查更新」两行的「关」右移到与「隐藏NFO库管理」严格
+             上下对齐；
+          ② 「隐藏窗口」行的「点最小化按钮」右移到与「显示字段来源信息」严格
+             上下对齐；
+          ③ 同一行最右侧的「无」右移到与「显示字段内容信息」严格上下对齐。
+
+        三处根因不同，手法也不同，勿互相套用：
+          ① 两行的容器（horizontalLayoutWidget_11 / _7）是 groupBox_17 / _4 的
+             **直接子项**，被通用宽幅同步判成 _STRETCH、每遍按「设计宽+extra」
+             拉宽并 invalidate+activate 内部行布局；行内两个单选均分余量（实测
+             宽态 742/741），于是「关」的左缘随窗宽漂移。锚点自身也在同一次
+             拉伸里被摆好，故只需**钉死前导项「开」**：行内只剩末位「关」可拉伸，
+             它的左缘恒等于「容器左缘 + 钉宽 + spacing」，取钉宽 = 锚点x -
+             「开」x - spacing 即严格对齐（与 _pin_row_lead_width 同一套）。
+          ②③ 「隐藏窗口」行的容器 layoutWidget_17 **完全不参与拉伸**——它是
+             frame_3 的子控件、frame_3 又是 gridLayoutWidget_20 的子控件，而
+             通用同步只登记「顶层组框的直接子项」，故它四个尺寸下恒为 551x32、
+             行内三个单选按 551 均分（实测 180/179/180，宽窄两态一模一样）。
+             两个锚点却在另一个组框（groupBox_3）里、随该组一起被拉伸，行内位置
+             与锚点位置之间没有任何联动。只能**钉死前两项 + 把容器加宽**：
+             设 m/n 为「点最小化按钮」「无」的落点（相对容器左缘），钉
+             「点关闭按钮」= m-spacing、钉「点最小化按钮」= n-m-spacing，则
+             两者左缘分别恰为 m、n；容器宽须 ≥ n + 「无」sizeHint，否则末位被
+             压到裁字（这一条与界面外观行加宽 layoutWidget5 是同款手法）。
+
+        锚点与落点全部运行时 mapTo 实测，不写死像素。宽态实测（竖线换到
+        checkBox_show_from_log 之后）：1920 为 nfo=589 / from=589 / data=1088、
+        关=589、mini=589、none=1088；1100 最小的一档为 nfo=316 / from=316 /
+        data=541、关=316、mini=316、none=541——七项同落一条竖线，故 ① 里
+        `need` 在最小宽态也只有 220（316 − 90 − 6），仍 ≥ 「关」的 sizeHint 31。
+        窄态 1030 则是 nfo=313 / from=292 / data=495 而 关=393、mini=301、
+        none=486——正因为
+        窄态下「关」反而在锚点右侧 80px，wide 判据是必需的，否则会把需求「向右
+        移动」反向实现成左移）。mapTo 一律经公共祖先
+        scrollAreaWidgetContents_gaoji 中转：三处目标分属 groupBox_17/_4
+        （groupBox_12 的兄弟）与 frame_3（groupBox_12 的孙子），跨分支 mapTo 是
+        未定义行为（同 _sync_guaxiaomulu_checkbox_align 的教训）。
+        """
+        ui = self.Ui
+        content = ui.scrollAreaWidgetContents_gaoji
+        if not content.isVisibleTo(self):
+            return
+        # 判态用几何拉伸量而非 isMaximized()：窗口管理器最大化时先发尺寸、后发
+        # 状态标志，那一拍 isMaximized() 还是 False，用户会看到「先在原位、再
+        # 跳到对齐位」，与本页既有的隐藏NFO库管理/暗黑模式同款理由。
+        wide = self._scroll_stretch_extra(self._adv_scroll) > 0
+        nfo = ui.checkBox_hide_nfo_nav
+        src_from = ui.checkBox_show_from_log
+        src_data = ui.checkBox_show_data_log
+        if not (nfo.isVisibleTo(self) and src_from.isVisibleTo(self) and src_data.isVisibleTo(self)):
+            return
+
+        def cx(widget) -> int:
+            """控件左缘映射到滚动内容的绝对 x（跨分支必须经 content 中转）。"""
+            return widget.mapTo(content, QPoint(0, 0)).x()
+
+        changed = False
+        lays: list = []
+
+        # ---- ① 两个「关」-> 「隐藏NFO库管理」 ----
+        nfo_x = cx(nfo)
+        for cont, lay, lead, tail in (
+            (ui.horizontalLayoutWidget_11, ui.horizontalLayout_13, ui.radioButton_log_on, ui.radioButton_log_off),
+            (ui.horizontalLayoutWidget_7, ui.horizontalLayout_9, ui.radioButton_update_on, ui.radioButton_update_off),
+        ):
+            if not cont.isVisibleTo(self):
+                continue
+            need = nfo_x - cx(lead) - lay.spacing()
+            room = cont.width() - need - lay.spacing()
+            ok = wide and need >= lead.sizeHint().width() and room >= tail.sizeHint().width()
+            if self._pin_row_lead_width(lead, need if ok else None):
+                changed = True
+                lays.append(lay)
+
+        # ---- ②③ 「点最小化按钮」-> 「显示字段来源信息」，「无」-> 「显示字段内容信息」 ----
+        lw = ui.layoutWidget_17
+        lay_h = ui.horizontalLayout_106
+        frame3 = ui.frame_3
+        close_r = ui.radioButton_hide_close
+        mini_r = ui.radioButton_hide_mini
+        none_r = ui.radioButton_hide_none
+        if lw.isVisibleTo(self) and frame3.isVisibleTo(self):
+            base = cx(lw)
+            sp = lay_h.spacing()
+            m = cx(src_from) - base
+            n = cx(src_data) - base
+            w_close = m - sp
+            w_mini = n - m - sp
+            # 容器宽度只需「恰好放下「无」」，两个下界语义不同、勿混：
+            #   下界取 lw.sizeHint()（168 = 三个单选 hint 之和 + 两个间隔），
+            #     低于它末位必被压、裁字；
+            #   上界取 frame3.width()，超出即越出 frame_3（frame 无布局，
+            #     越界子控件会被父控件绘制区裁掉）。
+            # 刻意**不**拿设计宽 551 当下界：n 随 extra 增长，extra 刚转正时
+            # want_w 只有 400 出头（1100 宽实测 457 < 551），拿 551 卡门会让
+            # 「刚过最大化线的那一大段窗宽」全部对不上（实测 1100x800 漏排）。
+            # 宽态下把容器收窄到 457 不裁字：三项已各自钉到 ≥ sizeHint 的宽度。
+            want_w = n + none_r.sizeHint().width()
+            ok_h = (
+                wide
+                and m > sp
+                and n > m
+                and w_close >= close_r.sizeHint().width()
+                and w_mini >= mini_r.sizeHint().width()
+                and lw.sizeHint().width() <= want_w <= frame3.width()
+            )
+            if ok_h:
+                if self._pin_row_lead_width(close_r, w_close) | self._pin_row_lead_width(mini_r, w_mini):
+                    changed = True
+                if lw.width() != want_w:
+                    lw.setGeometry(lw.x(), lw.y(), want_w, lw.height())
+                    changed = True
+                if lay_h not in lays:
+                    lays.append(lay_h)
+            else:
+                # 放不下 / 非宽态：逐项解除并把容器按设计宽复位，最小化态零改动
+                if self._pin_row_lead_width(close_r, None) | self._pin_row_lead_width(mini_r, None):
+                    changed = True
+                if lw.width() != self._ADV_HIDE_LW_W:
+                    lw.setGeometry(lw.x(), lw.y(), self._ADV_HIDE_LW_W, lw.height())
+                    changed = True
+                if lay_h not in lays:
+                    lays.append(lay_h)
+
         if not changed:
             return
-        for lay in (lay_a, lay_b, lay_d, lay_c):
+        # 钉宽只改约束、不会立刻重排：必须显式 activate，否则要等下一轮事件，
+        # 而那之前 resizeEvent 已经画完（用户看到「先在原位、再跳过去」）。
+        for lay in lays:
             lay.invalidate()
             lay.activate()
-        ui.gridLayout_20.invalidate()
-        ui.gridLayout_20.activate()
 
     @staticmethod
     def _pin_row_lead_width(box, width) -> bool:
