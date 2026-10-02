@@ -3810,6 +3810,7 @@ class MyMAinWindow(QMainWindow):
         lead_box = ui.checkBox_show_dialog_exit
         auto_start = ui.checkBox_auto_start
         src_from = ui.checkBox_show_from_log
+        src_data = ui.checkBox_show_data_log
         if not (
             anchor_box.isVisibleTo(self)
             and lead_box.isVisibleTo(self)
@@ -3836,6 +3837,11 @@ class MyMAinWindow(QMainWindow):
         row_x = col_x(lead_box)
         col_w = host.width() - row_x
 
+        # ---- 先摆平调试模式行（本批需求①），它一动下面量到的 data_log 锚点就变 ----
+        # 详见 _sync_advanced_page_debug_row：那里的钉宽会改变「显示字段内容信息」
+        # 的坐标，而本方法紧接着就要用它当还原态锚点，顺序反了会量到旧值。
+        self._sync_advanced_page_debug_row(wide)
+
         # ---- 阶段一：先把需求①自己的目标「刮削结束后自动退出软件」搬到新竖线上 ----
         # 它与「自动启动后自动开始刮削」同在 horizontalLayout_102 里两均分、x 随
         # 列宽漂移，本方法原先从不触碰该行；要让它左移只能先钉死前导项（钉宽 =
@@ -3847,15 +3853,22 @@ class MyMAinWindow(QMainWindow):
         # 钉完立刻 activate（改约束不重排）再统一按 col_x(anchor_box) 量竖线：
         # 宽态此时它恰等于新锚点，于是后面四段两种窗宽状态共用同一份代码、天然
         # 幂等、互不依赖，也避免了「还原时先量到上一次宽态钉宽」的一帧错位。
-        target = col_x(src_from) if wide else col_x(anchor_box)
+        # 最大化：照旧，钉前导项把「刮削结束后自动退出软件」搬到「显示字段来源信息」
+        # 那条竖线（目标即新锚点）。还原态的目标是「隐藏菜单栏图标（Mac）」，而
+        # 它的坐标要等下面第 8 行那批 activate 才定下来，故窄态那一半挪到方法末尾
+        # （见下方「窄态阶段一」），此处只处理宽态。
         lay_2 = ui.horizontalLayout_102  # 自动启动后自动开始刮削 / 刮削结束后自动退出软件
-        pin_2 = target - row_x - lay_2.spacing()
-        ok_2 = (
-            wide
-            and pin_2 >= auto_start.sizeHint().width()
-            and col_w - pin_2 - lay_2.spacing() >= anchor_box.sizeHint().width()
-        )
-        changed = self._pin_row_lead_width(auto_start, pin_2 if ok_2 else None)
+        if wide:
+            target = col_x(src_from)
+            pin_2 = target - row_x - lay_2.spacing()
+            ok_2 = (
+                pin_2 >= auto_start.sizeHint().width()
+                and col_w - pin_2 - lay_2.spacing() >= anchor_box.sizeHint().width()
+            )
+            changed = self._pin_row_lead_width(auto_start, pin_2 if ok_2 else None)
+        else:
+            # 窄态：先解除上一遍可能残留的宽态钉宽，否则下面量到的是带钉宽的坐标
+            changed = self._pin_row_lead_width(auto_start, None)
         if changed:
             lay_2.invalidate()
             lay_2.activate()
@@ -3865,6 +3878,15 @@ class MyMAinWindow(QMainWindow):
             col_w = host.width() - row_x
         # ok_2 为真时它恰在 target 上，为假时是自然位——两种情形都直接量它即可
         anchor = col_x(anchor_box)
+        # 下面三行（弹窗确认行 / 隐藏图标行 / 界面外观行）的竖线分两态取：
+        #   最大化：沿用上一批需求，仍是「显示字段来源信息」那条竖线（= 阶段一钉完
+        #     后 auto_exit 的坐标，故上面量到的 anchor 在宽态恒等于新锚点）；
+        #   还原态：换成「显示字段内容信息」（本批需求②）。实测 1030×753 是 495、
+        #     1000×700 是 475，都在那条旧基准（auto_exit 自然位 412~430）的右侧，
+        #     所以本批在还原态是**右移**；上一批需求说的「向左」是相对最大化态而言，
+        #     两批方向相反但落点一致（都精确对齐到锚点左缘），互不冲突。
+        if not wide:
+            anchor = col_x(src_data)
         if anchor <= row_x or col_w <= 0:
             return
         lay_a = ui.horizontalLayout_55  # 退出软件时 / 停止刮削时
@@ -3907,14 +3929,28 @@ class MyMAinWindow(QMainWindow):
                 self._adv_dock_gap = new_gap_b
                 changed = True
 
-        # ---- 界面外观行：layoutWidget5 加宽，两项均分后「暗黑模式」落 anchor ----
-        # want_w 恒等于 col_w（anchor = row_x + col_w/2 + 3，两项均分同式），
-        # 即最多填满 frame，绝不溢出。
+        # ---- 界面外观行：「暗黑模式」落 anchor，两条路子按「容器装不装得下」二选一 ----
+        # 路子甲（最大化）：layoutWidget5 加宽到 2*(anchor-row_x)-spacing，行内两项
+        #   均分，末位即落 anchor。want_w 恒等于 col_w（anchor = row_x + col_w/2 + 3，
+        #   两项均分同式），即最多填满 frame，绝不溢出。
+        # 路子乙（还原态，需求②）：anchor 换成了更靠右的「显示字段内容信息」，
+        #   2*(anchor-row_x) 实测 644~684，而 frame 只有 523~553，甲路必然越界。
+        #   改钉死前导项「隐藏窗口标题栏」为 anchor - lw左缘 - spacing，容器保持
+        #   设计宽 _ADV_FRAME_LW_W，末位「暗黑模式」照样精确落 anchor，且容器右缘
+        #   与还原态现状完全一致（不新增任何越界/裁字）。
         lw = ui.layoutWidget5
         lay_c = ui.horizontalLayout_62
+        lead_c = ui.checkBox_hide_window_title
+        dark_c = ui.checkBox_dark_mode
         want_w = 2 * (anchor - row_x) - lay_c.spacing()
-        ok_c = want_w <= ui.frame.width() and want_w >= lw.sizeHint().width()
-        new_w = want_w if ok_c else self._ADV_FRAME_LW_W
+        ok_even = want_w <= ui.frame.width() and want_w >= lw.sizeHint().width()
+        pin_c = anchor - col_x(lw) - lay_c.spacing()
+        ok_pin = (
+            pin_c >= lead_c.sizeHint().width() and lw.width() - pin_c - lay_c.spacing() >= dark_c.sizeHint().width()
+        )
+        new_w = want_w if ok_even else self._ADV_FRAME_LW_W
+        pin_w = None if ok_even or not ok_pin else pin_c
+        changed |= self._pin_row_lead_width(lead_c, pin_w)
         if lw.width() != new_w:
             lw.setGeometry(lw.x(), lw.y(), new_w, lw.height())
             changed = True
@@ -3942,22 +3978,122 @@ class MyMAinWindow(QMainWindow):
             ui.gridLayout_20.invalidate()
             ui.gridLayout_20.activate()
 
+        # ---- 窄态阶段一（本批需求）：「刮削结束后自动退出软件」右移到「隐藏菜单栏图标」----
+        # 必须排在上面那批 activate 之后：窄态下「隐藏菜单栏图标」的左缘是由第 8 行
+        # 的 gap_b 决定的，而 gap_b 又由本方法的 anchor 算出——只有这批 activate 跑完
+        # 它才是终态坐标（实测 1030×753 为 435），提前量到的是上一遍的旧值。
+        # 反过来本方法也不受这一段影响：第 2 行是 (2,1) 那格，与第 8 行不同格，
+        # 钉 auto_start 只改它自己的格内几何，不会把第 8 行的坐标再推走。
+        # 宽态不需要这一段：那时「隐藏菜单栏图标」与「刮削结束后自动退出软件」
+        # 本来就同在「显示字段来源信息」那条竖线上（实测 1100×800 起四档全等），
+        # 阶段一已在上方把它对到位。
+        if not wide:
+            menu_x = col_x(menu_icon)
+            pin_m = menu_x - row_x - lay_2.spacing()
+            room_m = col_w - pin_m - lay_2.spacing()
+            ok_m = pin_m >= auto_start.sizeHint().width() and room_m >= anchor_box.sizeHint().width() and menu_x > row_x
+            if self._pin_row_lead_width(auto_start, pin_m if ok_m else None):
+                lay_2.invalidate()
+                lay_2.activate()
+                ui.gridLayout_20.invalidate()
+                ui.gridLayout_20.activate()
+
         # ---- 下半页三处右移对齐：必须排在 gridLayout_20.activate() 之后 ----
         # 需求①的锚点「隐藏NFO库管理」正是上面这批 activate 才定下的最终 x，
         # 提前量到的是它被等分推到右缘的旧值（用户截图红框里那两个「关」就是这么
         # 被钉歪的）。changed 为假时网格几何本就是终态，照量不误。
         self._sync_advanced_page_tail_align()
 
-    def _sync_advanced_page_tail_align(self) -> None:
-        """高级页下半三处右移对齐（仅最大化态），三个锚点自身一律不动。
+    def _sync_advanced_page_debug_row(self, wide: bool) -> None:
+        """还原态：调试模式行「显示字段来源信息」右移到与「隐藏NFO库管理」上下对齐。
 
-        用户需求（三条锚点均保持不动，且只要求最大化态做、最小化态整页逐像素
-        不变——包括提示词、控件提示、间隔）：
+        本批需求①。这一处在 groupBox_3（调试模式）自己的 horizontalLayout_29 里，
+        与 _sync_advanced_page_align 处理的那几行不在同一个 grid，且**必须排在它
+        之前**：那边量「显示字段内容信息」当锚点，钉宽一动这一项的坐标就变。
+
+        行内三项（显示刮削过程信息 / 显示字段来源信息 / 显示字段内容信息）
+        **等分余量**（实测 1030×753 各 196/197/196、1920×1170 各 493），所以钉住
+        任何一项都会把后面几项一起挪动。需求要「显示字段来源信息」右移 21px 落到
+        nfo 上，而「显示字段内容信息」**位置保持不变**：只钉前导项「显示刮削过程
+        信息」的话，末位会被重新等分推着右移 ~10px（495 → 505），违反需求。故
+        **前两项一起钉**：
+          钉 web  = nfo_x - 行左缘 - spacing ->「显示字段来源信息」左缘 = nfo_x
+          钉 from = data_x - nfo_x - spacing ->「显示字段来源信息」右缘紧贴末位的
+                                                原左缘，末位因此原地不动
+        末位不设任何钉宽、只吃余量，它的左缘恒等于「行左缘 + 钉web + 间隔 + 钉from
+        + 间隔」= data_x，与容器宽无关（容器宽的增减全被末位吸收），故改变窗宽也
+        不会让末位漂移；两条钉宽也只由两个锚点决定，反复同步幂等。
+
+        **量 data_x 之前必须先把两段钉宽解除并重排**，否则量到的是上一遍自己钉出
+        来的落点、不是自然位：pin_from = data_x - nfo_x - spacing 与 data_x =
+        nfo_x + pin_from + spacing 互为反函数，带着旧钉宽迭代会自我强化成一个错值
+        （实测会把「显示字段内容信息」从 495 一路拉到 408、钉宽缩到 89px）。
+        故这里无条件「解除 → activate → 量 → 钉 → activate」，代价是本行两次重排
+        （行内只有 3 项，可忽略），且全程在绘制之前完成、看不到中间态。
+        最大化态本方法**只做解除**：那时「显示字段来源信息」与「隐藏NFO库管理」
+        本来就同在一条竖线上（实测 1100×800 起四档全部相等），钉不钉都一样。
+        """
+        ui = self.Ui
+        content = ui.scrollAreaWidgetContents_gaoji
+        if not content.isVisibleTo(self):
+            return
+        lay_web = ui.horizontalLayout_29
+        lw3 = ui.layoutWidget_3
+        web_log = ui.checkBox_show_web_log
+        src_from = ui.checkBox_show_from_log
+        src_data = ui.checkBox_show_data_log
+        nfo = ui.checkBox_hide_nfo_nav
+        if not (lay_web is not None and lw3.isVisibleTo(self) and web_log.isVisibleTo(self)):
+            return
+        if not (src_from.isVisibleTo(self) and src_data.isVisibleTo(self) and nfo.isVisibleTo(self)):
+            return
+
+        def cx(widget) -> int:
+            """控件左缘映射到滚动内容的绝对 x（跨分支必须经 content 中转）。"""
+            return widget.mapTo(content, QPoint(0, 0)).x()
+
+        # ---- 第一步：回到自然态，量末位的自然左缘（见上文「自我强化」那段）----
+        self._pin_row_lead_width(web_log, None)
+        self._pin_row_lead_width(src_from, None)
+        lay_web.invalidate()
+        lay_web.activate()
+        data_x = cx(src_data)
+
+        # ---- 第二步：按两个锚点算出两条钉宽，放得下才钉，放不下保持自然态 ----
+        sp = lay_web.spacing()
+        pin_web = cx(nfo) - cx(lw3) - sp
+        pin_from = data_x - cx(nfo) - sp
+        room = lw3.width() - pin_web - pin_from - 2 * sp
+        ok = (
+            not wide
+            and pin_web >= web_log.sizeHint().width()
+            and pin_from >= src_from.sizeHint().width()
+            and room >= src_data.sizeHint().width()
+        )
+        if not ok:
+            return
+        if self._pin_row_lead_width(web_log, pin_web) | self._pin_row_lead_width(src_from, pin_from):
+            lay_web.invalidate()
+            lay_web.activate()
+
+    def _sync_advanced_page_tail_align(self) -> None:
+        """高级页下半三处对齐（三条需求分属最大化 / 最小化两态），锚点一律不动。
+
+        需求分两批、方向相反，实现上按「落点取哪个锚点」区分：
+          最大化态（第一批）：
           ① 「保存日志」「检查更新」两行的「关」右移到与「隐藏NFO库管理」严格
              上下对齐；
           ② 「隐藏窗口」行的「点最小化按钮」右移到与「显示字段来源信息」严格
              上下对齐；
           ③ 同一行最右侧的「无」右移到与「显示字段内容信息」严格上下对齐。
+          最小化态（第二批，「最大化时页面、布局、控件、提示词等均保持不变」）：
+          ① 同上的两行「关」**向左**移到与「隐藏NFO库管理」严格上下对齐；
+          ② 「点最小化按钮」**向左**移到与「隐藏NFO库管理」严格上下对齐
+             （注意最小化态的锚点是 nfo 而非 from_log，两态不同）；
+          ③ 「无」**向左**移到与「显示字段内容信息」严格上下对齐（与最大化态
+             同一锚点，故这一条两态共用同一份代码）。
+        锚点自身（「隐藏NFO库管理」「显示字段来源信息」「显示字段内容信息」
+        「显示刮削过程信息」）全程不动。
 
         三处根因不同，手法也不同，勿互相套用：
           ① 两行的容器（horizontalLayoutWidget_11 / _7）是 groupBox_17 / _4 的
@@ -3981,12 +4117,12 @@ class MyMAinWindow(QMainWindow):
         锚点与落点全部运行时 mapTo 实测，不写死像素。宽态实测（竖线换到
         checkBox_show_from_log 之后）：1920 为 nfo=589 / from=589 / data=1088、
         关=589、mini=589、none=1088；1100 最小的一档为 nfo=316 / from=316 /
-        data=541、关=316、mini=316、none=541——七项同落一条竖线，故 ① 里
-        `need` 在最小宽态也只有 220（316 − 90 − 6），仍 ≥ 「关」的 sizeHint 31。
-        窄态 1030 则是 nfo=313 / from=292 / data=495 而 关=393、mini=301、
-        none=486——正因为
-        窄态下「关」反而在锚点右侧 80px，wide 判据是必需的，否则会把需求「向右
-        移动」反向实现成左移）。mapTo 一律经公共祖先
+        data=541、关=316、mini=316、none=541。窄态 1030 实测 nfo=313 /
+        from=292 / data=495，关=393（→nfo，钉宽 217）、mini=301（→nfo，
+        钉 close=192 / mini=176、容器 411）、none=486（→data，容器收窄）。
+        窄态之所以也要做：nfo 在窄态是这半页最靠右的那条竖线（313 > from=292），
+        且两枚「关」的窄态自然位 393 恰在它右侧 80px——不钉住就会一直歪着。
+        mapTo 一律经公共祖先
         scrollAreaWidgetContents_gaoji 中转：三处目标分属 groupBox_17/_4
         （groupBox_12 的兄弟）与 frame_3（groupBox_12 的孙子），跨分支 mapTo 是
         未定义行为（同 _sync_guaxiaomulu_checkbox_align 的教训）。
@@ -4012,22 +4148,28 @@ class MyMAinWindow(QMainWindow):
         changed = False
         lays: list = []
 
-        # ---- ① 两个「关」-> 「隐藏NFO库管理」 ----
         nfo_x = cx(nfo)
+        data_x = cx(src_data)
+
+        # ---- 需求②：两个「关」-> 宽态跟「隐藏NFO库管理」，窄态跟「显示字段内容信息」 ----
+        # 两态锚点不同，故按态取。宽态 need 与既有实现逐位相同；窄态把落点从上一批
+        # 需求的 nfo（1030×753 = 313）换成本批指定的「显示字段内容信息」（实测
+        # 1030×753 = 495、1000×700 = 475，是这半页最靠右的那条竖线）。
+        off_x = nfo_x if wide else data_x
         for cont, lay, lead, tail in (
             (ui.horizontalLayoutWidget_11, ui.horizontalLayout_13, ui.radioButton_log_on, ui.radioButton_log_off),
             (ui.horizontalLayoutWidget_7, ui.horizontalLayout_9, ui.radioButton_update_on, ui.radioButton_update_off),
         ):
             if not cont.isVisibleTo(self):
                 continue
-            need = nfo_x - cx(lead) - lay.spacing()
+            need = off_x - cx(lead) - lay.spacing()
             room = cont.width() - need - lay.spacing()
-            ok = wide and need >= lead.sizeHint().width() and room >= tail.sizeHint().width()
+            ok = need >= lead.sizeHint().width() and room >= tail.sizeHint().width()
             if self._pin_row_lead_width(lead, need if ok else None):
                 changed = True
                 lays.append(lay)
 
-        # ---- ②③ 「点最小化按钮」-> 「显示字段来源信息」，「无」-> 「显示字段内容信息」 ----
+        # ---- ②③ 「点最小化按钮」/「无」；落点按态取，判据仍要防「放不下」 ----
         lw = ui.layoutWidget_17
         lay_h = ui.horizontalLayout_106
         frame3 = ui.frame_3
@@ -4037,7 +4179,11 @@ class MyMAinWindow(QMainWindow):
         if lw.isVisibleTo(self) and frame3.isVisibleTo(self):
             base = cx(lw)
             sp = lay_h.spacing()
-            m = cx(src_from) - base
+            # 「点最小化按钮」：宽态对齐「显示字段来源信息」，窄态对齐「隐藏NFO库
+            # 管理」。两者在窄态分处 292 / 313，取错会让它在还原后停在 292 而非
+            # 313（这正是需求②与需求①在窄态要求落到同一条竖线上的用意）。
+            m = (cx(src_from) if wide else nfo_x) - base
+            # 「无」：两态同一锚点「显示字段内容信息」。
             n = cx(src_data) - base
             w_close = m - sp
             w_mini = n - m - sp
@@ -4050,10 +4196,10 @@ class MyMAinWindow(QMainWindow):
             # want_w 只有 400 出头（1100 宽实测 457 < 551），拿 551 卡门会让
             # 「刚过最大化线的那一大段窗宽」全部对不上（实测 1100x800 漏排）。
             # 宽态下把容器收窄到 457 不裁字：三项已各自钉到 ≥ sizeHint 的宽度。
+            # 窄态容器同样会收窄（551 → 411），这一条是需求③要的「向左移动」。
             want_w = n + none_r.sizeHint().width()
             ok_h = (
-                wide
-                and m > sp
+                m > sp
                 and n > m
                 and w_close >= close_r.sizeHint().width()
                 and w_mini >= mini_r.sizeHint().width()
@@ -4068,7 +4214,9 @@ class MyMAinWindow(QMainWindow):
                 if lay_h not in lays:
                     lays.append(lay_h)
             else:
-                # 放不下 / 非宽态：逐项解除并把容器按设计宽复位，最小化态零改动
+                # 真放不下（钉宽会裁字或越出 frame_3）：逐项解除并按设计宽复位。
+                # 窄态实测 w_close/w_mini 均 ≥ sizeHint、want_w=411 落在
+                # [168, 588] 内，故窄态不走这条分支。
                 if self._pin_row_lead_width(close_r, None) | self._pin_row_lead_width(mini_r, None):
                     changed = True
                 if lw.width() != self._ADV_HIDE_LW_W:
