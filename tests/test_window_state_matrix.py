@@ -1507,6 +1507,9 @@ def test_nfo_resyncs_after_dormant_resize_on_page_back(win, app):
     goto_nfo_tab()
     pump_until_stable()
     assert opl.x() == pr.x(), "前置条件：宽态原简介应对齐上映日期"
+    # 宽态钉宽（目标列对齐接管前缀：值约 340，不再是标题控制器的旧大前缀），
+    # 休眠 resize 不得改动，记下来当比对基准。
+    wide_mins = tuple(cb.minimumWidth() for cb in (st, outline, plot))
 
     # A. 休眠后返回窄态：钩子必须跑过（清掉宽态残留），但不断言严格对齐
     _goto(win, app, "page_log")
@@ -1514,7 +1517,7 @@ def test_nfo_resyncs_after_dormant_resize_on_page_back(win, app):
     win.resize(1000, 760)
     app.processEvents()
     stale = tuple(cb.minimumWidth() for cb in (st, outline, plot))
-    assert all(v > 400 for v in stale), "前置条件：休眠 resize 后宽态前缀应残留"
+    assert stale == wide_mins, f"前置条件：休眠 resize 后宽态前缀应原样残留 {stale} vs {wide_mins}"
     _goto(win, app, "page_setting")  # NFO tab 索引不变，无 tab 钩子
     pump_until_stable()
     post = tuple(cb.minimumWidth() for cb in (st, outline, plot))
@@ -1689,15 +1692,21 @@ def test_nfo_country_year_align_to_release_when_narrow(win, app):
         after = {cb: (cb.x(), cb.y()) for cb in (release, country, mpaa, year, runtime, rd)}
         assert before == after, f"{w}宽 二次同步漂移"
 
-    # 宽态（1900）：天然对齐，条件式无触发、约束零残留
+    # 宽态（1900）：mpaa/runtime 仍与 rd 同列（目标列控制器把整列搬到演员列，
+    # 相对关系不变）；country/year 的钉宽改由目标列控制器写入（min=max 到演员列），
+    # 故旧“零残留”断言改为新契约断言。
     win.resize(1900, 1050)
     goto_nfo_tab()
     app.processEvents()
     assert mpaa.x() == rd.x() == runtime.x(), f"宽态三者应对齐: mpaa={mpaa.x()} rd={rd.x()} runtime={runtime.x()}"
-    assert country.minimumWidth() == 0, "宽态 country 不应残留最小宽"
-    assert country.maximumWidth() == 16777215, "宽态 country 不应残留最大宽"
-    assert year.minimumWidth() == 0, "宽态 year 不应残留最小宽"
-    assert year.maximumWidth() == 16777215, "宽态 year 不应残留最大宽"
+    gap141 = ui.horizontalLayout_141.spacing()
+    gap40 = ui.horizontalLayout_40.spacing()
+    assert country.minimumWidth() == country.maximumWidth() == ui.checkBox_tag_actor.x() - country.x() - gap141, (
+        f"宽态 country 未钉到演员列: min={country.minimumWidth()} max={country.maximumWidth()}"
+    )
+    assert year.minimumWidth() == year.maximumWidth() == ui.checkBox_tag_actor.x() - year.x() - gap40, (
+        f"宽态 year 未钉到演员列: min={year.minimumWidth()} max={year.maximumWidth()}"
+    )
 
 
 def test_nfo_tail_align_to_premiered_when_narrow(win, app):
@@ -1775,9 +1784,9 @@ def test_nfo_tail_align_to_premiered_when_narrow(win, app):
         after = {cb: (cb.x(), cb.y()) for cb in (mpaa, custom, runtime, votes, rd, pr)}
         assert before == after, f"{w}宽 二次同步漂移"
 
-    # 无操作检查（700/750/1900）：天然对齐，条件式无触发、约束零残留
-    for w in (700, 750, 1900):
-        win.resize(w, 700 if w < 1900 else 1050)
+    # 无操作检查（700/750）：天然对齐，条件式无触发、约束零残留
+    for w in (700, 750):
+        win.resize(w, 700)
         goto_nfo_tab()
         app.processEvents()
         assert custom.x() == pr.x() == votes.x(), f"{w}宽三者应对齐"
@@ -1785,6 +1794,169 @@ def test_nfo_tail_align_to_premiered_when_narrow(win, app):
         assert mpaa.maximumWidth() == 16777215, f"{w}宽 mpaa 不应残留最大宽"
         assert runtime.minimumWidth() == 0, f"{w}宽 runtime 不应残留最小宽"
         assert runtime.maximumWidth() == 16777215, f"{w}宽 runtime 不应残留最大宽"
+
+    # 宽态（1900）：custom/votes 仍与 pr 同列（目标列控制器把整列搬到分级列）；
+    # mpaa/runtime 的钉宽改由目标列控制器写入（min=max 到分级列），旧“零残留”
+    # 断言改为新契约断言。
+    win.resize(1900, 1050)
+    goto_nfo_tab()
+    app.processEvents()
+    assert custom.x() == pr.x() == votes.x(), "1900宽三者应对齐"
+    gap141 = ui.horizontalLayout_141.spacing()
+    gap40 = ui.horizontalLayout_40.spacing()
+    assert (
+        mpaa.minimumWidth()
+        == mpaa.maximumWidth()
+        == ui.checkBox_tag_definition.x() - ui.checkBox_tag_actor.x() - gap141
+    ), f"1900宽 mpaa 未钉到分级列: min={mpaa.minimumWidth()} max={mpaa.maximumWidth()}"
+    assert (
+        runtime.minimumWidth()
+        == runtime.maximumWidth()
+        == ui.checkBox_tag_definition.x() - ui.checkBox_tag_actor.x() - gap40
+    ), f"1900宽 runtime 未钉到分级列: min={runtime.minimumWidth()} max={runtime.maximumWidth()}"
+
+
+def test_nfo_targets_align_to_tag_columns_when_wide(win, app, monkeypatch):
+    """设置-NFO：宽态下目标两列左移到演员/剧集列与分级/片商列，锚点不动，窄态逐像素不变。
+
+    A 组（原标题/剧情/发行日期/分级/时长，五 HBox 行第 2 项）== 演员 == 剧集；
+    B 组（简介/首映/自定义评分/投票 + 影评/导演/TMDB/标签）== 分级 == 片商。
+    _sync_nfo_target_column_align：首项/第 2 项钉宽 + 两项行尾间隔 + C1 列最小宽；
+    窄态复位并重跑右列/标题/行/尾控制器（逐像素无残留）。
+    """
+    ui = win.Ui
+    group_a = (
+        ui.checkBox_nfo_originaltitle,
+        ui.checkBox_nfo_plot,
+        ui.checkBox_nfo_relasedate,
+        ui.checkBox_nfo_mpaa,
+        ui.checkBox_nfo_runtime,
+    )
+    group_b = (
+        ui.checkBox_nfo_originalplot,
+        ui.checkBox_nfo_premiered,
+        ui.checkBox_nfo_customrating,
+        ui.checkBox_nfo_wanted,
+        ui.checkBox_nfo_criticrating,
+        ui.checkBox_nfo_director,
+        ui.checkBox_nfo_actor_tmdbid,
+        ui.checkBox_nfo_tag,
+    )
+    firsts = (
+        ui.checkBox_nfo_sorttitle,
+        ui.checkBox_nfo_outline,
+        ui.checkBox_nfo_release,
+        ui.checkBox_nfo_country,
+        ui.checkBox_nfo_year,
+    )
+    anchors_a = (ui.checkBox_tag_actor, ui.checkBox_tag_series)
+    anchors_b = (ui.checkBox_tag_definition, ui.checkBox_tag_studio)
+    watched = (
+        group_a
+        + group_b
+        + firsts
+        + anchors_a
+        + anchors_b
+        + (
+            ui.checkBox_nfo_score,
+            ui.checkBox_nfo_actor,
+            ui.checkBox_nfo_all_actor,
+            ui.checkBox_nfo_series,
+        )
+    )
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(ui.checkBox_nfo_score), "checkBox_nfo_score") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    def snap():
+        d = {cb.objectName(): (cb.x(), cb.y(), cb.width()) for cb in watched}
+        d["C1min"] = ui.gridLayout_66.columnMinimumWidth(1)
+        return d
+
+    def baseline():
+        from mdcx.controllers.main_window import main_window as mw_mod
+
+        cls = mw_mod.MyMAinWindow
+        orig = cls._sync_nfo_target_column_align
+        monkeypatch.setattr(cls, "_sync_nfo_target_column_align", lambda self: None)
+        try:
+            win._sync_page_layouts()
+            app.processEvents()
+            base = snap()
+        finally:
+            monkeypatch.setattr(cls, "_sync_nfo_target_column_align", orig)
+        win._sync_page_layouts()
+        app.processEvents()
+        return base
+
+    win.show()
+    for w, h in ((1900, 1050), (1920, 1170)):
+        win.resize(w, h)
+        goto_nfo_tab()
+        app.processEvents()
+        assert ui.checkBox_tag_actor.x() == ui.checkBox_tag_series.x(), "锚 A 两列本来就没对齐"
+        assert ui.checkBox_tag_definition.x() == ui.checkBox_tag_studio.x(), "锚 B 两列本来就没对齐"
+        for cb in group_a:
+            assert cb.x() == ui.checkBox_tag_actor.x(), f"宽态 {cb.objectName()} 未到演员列"
+        for cb in group_b:
+            assert cb.x() == ui.checkBox_tag_definition.x(), f"宽态 {cb.objectName()} 未到分级列"
+        # 锚点 x 与所有人 y 不动（对照摘掉本方法后的基线）
+        new = snap()
+        base = baseline()
+        for cb in anchors_a + anchors_b:
+            assert new[cb.objectName()][0] == base[cb.objectName()][0], f"宽态锚点移动 {cb.objectName()}"
+        for cb in watched:
+            assert new[cb.objectName()][1] == base[cb.objectName()][1], f"宽态上下移动 {cb.objectName()}"
+        # 机制残留：两项行尾间隔恰一枚、C1 列最小宽已钳制
+        assert len(win._nfo_target_col_tails) == 1, "宽态两项行尾间隔缺失"
+        assert ui.gridLayout_66.columnMinimumWidth(1) > 0, "宽态 C1 未钳制"
+        # 幂等：再同步一次位置不变
+        win._sync_page_layouts()
+        app.processEvents()
+        assert snap() == new, "宽态二次同步漂移"
+
+    # 窄态：与摘掉本方法后的基线逐像素一致、无尾间隔残留
+    for w, h in ((1030, 753), (900, 700)):
+        win.resize(w, h)
+        goto_nfo_tab()
+        app.processEvents()
+        assert snap() == baseline(), f"{w}宽窄态被改动"
+    assert win._nfo_target_col_tails == [], "窄态残留尾间隔"
+
+
+def test_nfo_debug_tmp(win, app):
+    import mdcx.controllers.main_window.main_window as mw_mod
+
+    calls = []
+    orig = mw_mod.MyMAinWindow._sync_nfo_target_column_align
+
+    def wrap(self):
+        calls.append((ui.checkBox_tag_actor.x(), ui.checkBox_tag_definition.x()))
+        r = orig(self)
+        calls.append(("pinned", ui.checkBox_nfo_sorttitle.width(), ui.checkBox_tag_actor.x()))
+        return r
+
+    mw_mod.MyMAinWindow._sync_nfo_target_column_align = wrap
+    try:
+        ui = win.Ui
+        win.show()
+        win.resize(1900, 1050)
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(ui.checkBox_nfo_score), "checkBox_nfo_score") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+        print("calls:", calls)
+        st, ot = ui.checkBox_nfo_sorttitle, ui.checkBox_nfo_originaltitle
+        print(f"final: st=({st.x()},{st.width()}) ot=({ot.x()},{ot.width()}) actor={ui.checkBox_tag_actor.x()}")
+    finally:
+        mw_mod.MyMAinWindow._sync_nfo_target_column_align = orig
 
 
 def test_nfo_set_aligns_to_maker_publisher_when_wide(win, app):

@@ -278,6 +278,23 @@ class MyMAinWindow(QMainWindow):
         self._watermark_tail_spacers = []
         # 水印页宽态右移对齐注入的固定间隔 [(行布局名, QSpacerItem)]，还原时摘掉
         self._watermark_shift_spacers = []
+        # NFO页目标列对齐：两项行（horizontalLayout_135）宽态尾部补的 Expanding
+        # 间隔（两项全钉死后无处吸收富余，QHBoxLayout 会把富余摊进三个间隙；
+        # 三项行末项 Minimum 自然吸收，无需补），还原时摘掉
+        self._nfo_target_col_tails = []
+        # NFO页目标列对齐是否处于宽态生效中。生效时 C1 列最小宽归本方法所有，
+        # 右列控制器必须跳过（它每遍先清零 C1min，生效中跑它会把本钉宽洗掉；
+        # 且判据 critic.x>custom.x 在生效中恒为假，它本就是 no-op）。
+        # 失效（窄态/复位/放不下）时由本方法先清标志再调它接管，保证 C1 有主。
+        self._nfo_target_col_active = False
+        # NFO页目标列对齐重入守卫：宽态循环里泵事件会触发嵌套全量同步，嵌套的
+        # 本方法直接返回（外层循环的泵+重测会覆盖嵌套跳过的一切情况），防止递归。
+        self._nfo_target_col_running = False
+        # NFO页目标列对齐 trailing 节拍计数：慢路径动过手（应用过钉宽）即排一拍
+        # 全量同步（慢路径收敛的只是当前拍内的几何；滚动区/内容宽度的后续生长、
+        # 如 lw10w 1509→1589，会在退出后才落定，必须有一拍跑在它后面）。
+        # 快路径/窄态/defer 即清零；上限 8 拍防抖荡；下一拍收敛即停排。
+        self._nfo_target_col_trailing = 0
         self._zimu_dl_gap = -1  # 该间隔当前生效的宽度（-1 = 未安装/已拆除）
         self._nfo_colon_cal: tuple | None = None  # NFO冒号对齐：(字体样式key, 组标题冒号x, 行标签右pad)，像素标定缓存
         self._adv_dock_spacer = None  # 高级页隐藏图标行插在 label_42 与「隐藏菜单栏图标」之间的固定间隔
@@ -5024,6 +5041,7 @@ class MyMAinWindow(QMainWindow):
         self._sync_nfo_tail_align()
         self._sync_nfo_set_align()
         self._sync_nfo_field_tips()
+        self._sync_nfo_target_column_align()
 
     def _sync_nfo_right_column_align(self) -> None:
         """设置-NFO：宽视口下右列（影评/导演/TMDB/标签）左对齐到自定义分级/想看人数。
@@ -5047,6 +5065,12 @@ class MyMAinWindow(QMainWindow):
         score = ui.checkBox_nfo_score
         critic = ui.checkBox_nfo_criticrating
         custom = ui.checkBox_nfo_customrating
+        if self._nfo_target_col_active:
+            # 目标列对齐生效中：C1 列最小宽归它所有，直接返回。它生效时
+            # critic 与 custom 同在锚 B 列、判据恒为假，本来也是 no-op；
+            # 不返回的话本方法开头的清零会把它的钉宽洗掉（_sync_page_layouts
+            # 第 4014 行每遍都调本方法，且跑在钩子链之后、专抢最后一写）。
+            return
         grid.setColumnMinimumWidth(1, 0)
         # 防御性刷新：直接调用时若外层有 pending 布局请求，先落定再测量
         # （内层激活只排布 cell 内部，不管 cell 本身在哪）。钩子时序问题另由
@@ -5337,6 +5361,236 @@ class MyMAinWindow(QMainWindow):
                         row.activate()
                     if outer is not None:
                         outer.activate()
+
+    def _sync_nfo_target_column_align(self) -> None:
+        """设置-NFO：宽态下目标两列左移到演员/剧集列与分级/片商列，窄态保持不动。
+
+        用户需求（最大化）：原标题/剧情/发行日期/分级/时长（A 组，五个 HBox 行
+        horizontalLayout_135/136/137/141/40 的第 2 项）向左移动到与演员/剧集
+        （`checkBox_tag_actor`/`checkBox_tag_series`，标签行第 2 列）严格上下
+        对齐；简介/首映/自定义评分/投票（同五行的第 3 项）与影评评分/导演/
+        演员TMDB ID/标签（gridLayout_66 的 C1 四格）向左移动到与分级/片商
+        （`checkBox_tag_definition`/`checkBox_tag_studio`，标签行第 3 列）严格
+        上下对齐。四个锚点自身一律不动；最小化时页面、布局、控件、提示词等
+        全部保持原样；只许左右移动。
+        根因：五 HBox 行左堆积无弹簧、三项按 Minimum 均分 surplus（首项天然
+        定在 X0=136 不动），第 2/3 项以斜率 ~1/3、~2/3 右移；gridLayout_66
+        的 columnstretch=(1,0) 让 C0 吃掉全部 surplus，C1.x 以斜率 1 右移；
+        而标签两行是 4 等分均分。三者斜率各异，只在默认宽度附近相交，窗口
+        加宽后持续发散（离屏 1920×1170 实测 A 列 599 vs 锚 476、B 列/C1 列
+        1092 vs 锚 846）。各行同属 layoutWidget_10，.x() 同一坐标系直接可比。
+        做法（宽态门控，快慢双径、双向幂等）：窄态（拉伸量 <= 0）清掉本钉宽/尾间隔/
+        C1 列最小宽后重跑右列/标题/行/尾四个控制器还原窄态行为，直接返回。宽态先走
+        快路径：激活全链后按当前几何算约束，与现状逐值一致即零成本返回（不清不泵，
+        resize 拖拽高频调用无负担）。否则走慢路径：绝不清直接闭环——C1 列最小宽一清零
+        grid66 即收缩、col1 收窄、锚点左移，量到的是随即被自己的应用作废的几何（曾导致
+        481 落定 488 的 stale，且多加同步也只会重复倒带）；锚点从未被钉，带着当前约束
+        直接量到热值。随后至多 6 轮：激活→测量→比对，一致则泵事件冲掉本次应用的后果
+        后再验证一次（仍一致才真收敛），否则应用后泵事件供下一轮重测。慢路径动过手
+        必排一拍 NFO 链 trailing（singleShot(0)，上限 8 拍）：慢路径收敛的只是当前拍内
+        几何，滚动区/内容宽度后续生长（如 lw10w 1509→1589）落定在退出之后，必须有一拍
+        跑在它后面；下一拍快路径收敛即停排。单拍测量不可靠：切页级联里锚点随滚动区
+        拉伸分阶段落定，且本方法的 C1 列最小宽会加宽 grid66、经 grid40 col1 反推锚点
+        （自反馈），闭环是必需的。另有归属权问题：_sync_page_layouts 每遍都调右列
+        控制器且跑在钩子链之后，它开头的清零会洗掉本钉宽——以 _nfo_target_col_active
+        标志声明归属，生效中右列控制器直接返回（判据恒为假、本是 no-op），泵事件触发的
+        嵌套全量同步因此无害；窄态/复位/放不下时先清标志再调它接管，保证 C1 有主。
+        重入守卫 _nfo_target_col_running 拦住循环泵事件触发的嵌套本方法（外层循环覆盖
+        一切）。宽态按行实测计算：首项钉宽 =
+        锚A.x - 首项.x - 行间距（第 2 项即落到锚 A 列），第 2 项钉宽 =
+        锚B.x - 锚A.x - 行间距（第 3 项即落到锚 B 列）；C1 沿用右列控制器的
+        列最小宽公式（col 宽 - 锚B.x + 左列首项.x，此时第 3 项已在锚 B 列，
+        与旧公式逐值相等），C1 四格一并归位。全有或全无：任一钉宽低于
+        max(文本 hint, 60) 防裁字地板即整单放弃（首项 hint 最大 122、
+        第 2 项最大 150，1920 宽下钉宽恒 364，
+        C0 目标 734 远大于左列 hint，正常只走通过分支）。两项行
+        （horizontalLayout_135）两项全钉死后行内无 Minimum 项吸收富余，
+        离屏实测 QHBoxLayout 会把富余均摊进前/中/后三个间隙（双 364 在
+        1473 行里落到 246/862 而非左对齐，纯 Qt 最小复现确认与业务代码无关），
+        故只给两项行尾部补 Expanding 间隔吸收（水印页尾部间隔同款手法；
+        三项行末项 Minimum 自然吸收、无需补），间隔每遍先摘后补。复选框只改列宽，
+        高不变→行高不变→无上下移动。休眠页（不可见）跳过。
+        与既有控制器的相容：本方法挂在 `_sync_nfo_page_align` 链尾。标题控制器
+        在本方法之后仍成立（ot==rd、plot==rd、opl==pr 依然逐位相等，
+        三前缀最小宽恰为本钉宽、>150 不变）；右列控制器判据 critic.x>custom.x
+        在本方法之后恒为假（两者同在锚 B 列），C1 列最小宽改由本方法写入，
+        其“宽态应钳制/窄态应清零”测试依然成立；行/尾控制器只在窄态触发，
+        宽态下本方法覆写它们的复位值（min=max 全覆盖），故它们宽态“零残留”
+        的旧断言改由本方法的钉宽断言接管（见测试）。
+        """
+        ui = self.Ui
+        rows = (
+            ui.horizontalLayout_135,
+            ui.horizontalLayout_136,
+            ui.horizontalLayout_137,
+            ui.horizontalLayout_141,
+            ui.horizontalLayout_40,
+        )
+        firsts = (
+            ui.checkBox_nfo_sorttitle,
+            ui.checkBox_nfo_outline,
+            ui.checkBox_nfo_release,
+            ui.checkBox_nfo_country,
+            ui.checkBox_nfo_year,
+        )
+        seconds = (
+            ui.checkBox_nfo_originaltitle,
+            ui.checkBox_nfo_plot,
+            ui.checkBox_nfo_relasedate,
+            ui.checkBox_nfo_mpaa,
+            ui.checkBox_nfo_runtime,
+        )
+        anchor_a = ui.checkBox_tag_actor
+        anchor_b = ui.checkBox_tag_definition
+        if not anchor_a.isVisibleTo(self):
+            return
+        if self._nfo_target_col_running:
+            return  # 嵌套调用（宽态循环里泵事件触发的）：外层循环覆盖一切
+        grid = ui.gridLayout_66
+        score = ui.checkBox_nfo_score
+        c0_cells = (
+            score,
+            ui.checkBox_nfo_actor,
+            ui.checkBox_nfo_all_actor,
+            ui.checkBox_nfo_series,
+        )
+        outer = ui.gridLayout_40
+
+        def _activate_all():
+            for row in rows:
+                row.invalidate()
+                row.activate()
+            grid.invalidate()
+            grid.activate()
+            if outer is not None:
+                outer.activate()
+
+        def _compute():
+            # 量锚点并算出钉宽/C1min。返回 (ok, first_pins, second_pins, c1_min)，
+            # ok 为 False 即放不下（防裁字地板），调用方走 defer。
+            anchor_a_x = anchor_a.x()
+            anchor_b_x = anchor_b.x()
+            first_pins = [anchor_a_x - cb.x() - row.spacing() for cb, row in zip(firsts, rows, strict=True)]
+            second_pins = [anchor_b_x - anchor_a_x - row.spacing() for row in rows]
+            col_w = grid.geometry().width()
+            c1_min = max(col_w - anchor_b_x + score.x(), 0)
+            c0_target = anchor_b_x - score.x() - grid.spacing()
+            floor = max([cb.sizeHint().width() for cb in firsts + seconds + c0_cells] + [60])
+            ok = min(first_pins + second_pins) >= floor and c0_target >= floor
+            return ok, first_pins, second_pins, c1_min
+
+        def _matches(first_pins, second_pins, c1_min):
+            return (
+                all(
+                    cb.minimumWidth() == pin and cb.maximumWidth() == pin
+                    for cb, pin in zip(firsts + seconds, first_pins + second_pins, strict=True)
+                )
+                and grid.columnMinimumWidth(1) == c1_min
+            )
+
+        def _clear():
+            # 注意 sorttitle/outline/plot 三个前缀在 .ui 设计里自带最小宽 150
+            # （Fixed-150 前缀，标题控制器每遍也是按 150 复位），清零会破坏设计值，
+            # 故按 150 复位；其余七项设计最小宽即 0（行/尾控制器同式），
+            # 最大宽设计均为默认。
+            for cb in (firsts[0], firsts[1], seconds[1]):
+                cb.setMinimumWidth(150)
+            for cb in (firsts[2], firsts[3], firsts[4], seconds[0], seconds[2], seconds[3], seconds[4]):
+                cb.setMinimumWidth(0)
+            for cb in firsts + seconds:
+                cb.setMaximumWidth(16777215)
+            for row, spacer in self._nfo_target_col_tails:
+                row.removeItem(spacer)
+            self._nfo_target_col_tails = []
+            grid.setColumnMinimumWidth(1, 0)
+            self._nfo_target_col_active = False
+
+        # 宽态门：拉伸量 <= 0 即窄态，复位后把管理同组控件的四个控制器重跑一遍，
+        # 还原与本方法无关的窄态行为（本方法在窄态逐像素无残留；标志已清，
+        # 右列控制器接管 C1 即恢复自然行为）。
+        if self._scroll_stretch_extra(ui.scrollArea_13) <= 0:
+            _clear()
+            self._nfo_target_col_trailing = 0
+            self._sync_nfo_right_column_align()
+            self._sync_nfo_title_plot_align()
+            self._sync_nfo_row_align()
+            self._sync_nfo_tail_align()
+            return
+        # 快路径：稳态零成本。锚点从未被钉、可直接读；归属标志还在且按当前几何
+        # 算出的约束与现状逐值一致→直接返回（不清不泵，resize 拖拽高频调用无负担）。
+        _activate_all()
+        ok, first_pins, second_pins, c1_min = _compute()
+        if ok and self._nfo_target_col_active and _matches(first_pins, second_pins, c1_min):
+            self._nfo_target_col_trailing = 0
+            return
+        # 慢路径：不清直接闭环。绝不能先清再量：C1 列最小宽一清零 grid66 即收缩、
+        # col1 收窄、锚点左移，量到的是随即被自己的应用作废的几何（此前 stale 的根因：
+        # 以约束相等退出，却验证了倒回去的世界；多加几拍同步也无用，只会重复倒带）。
+        # 锚点从未被钉，带着当前约束直接量到的是热值；钉宽只约束首项/第 2 项自身宽度，
+        # 不改变行首 x，公式不受污染。随后至多 6 轮：激活→测量→比对，一致则泵事件
+        # 冲掉本次应用的后果后再验证一次（仍一致才真收敛），否则应用后泵事件供下一轮
+        # 重测。嵌套调用由重入守卫拦，外层循环覆盖一切，有界终止。
+        self._nfo_target_col_running = True
+        try:
+            self._nfo_target_col_active = True
+            applied_any = False
+            for _ in range(6):
+                _activate_all()
+                ok, first_pins, second_pins, c1_min = _compute()
+                if not ok:
+                    # 放不下就整单放弃、不裁字（小宽态 defer）：清掉本钉宽后把 C1 交还
+                    # 给右列控制器（此时判据若成立它会自己钳制），行为即自然布局。
+                    _clear()
+                    self._nfo_target_col_trailing = 0
+                    self._sync_nfo_right_column_align()
+                    return
+                if _matches(first_pins, second_pins, c1_min):
+                    # 与当前约束逐值一致：泵事件冲掉之前应用的后果，再验证一次，
+                    # 仍一致才算真收敛（否则继续循环应用）。
+                    QApplication.processEvents()
+                    _activate_all()
+                    ok2, first_pins2, second_pins2, c1_min2 = _compute()
+                    if ok2 and _matches(first_pins2, second_pins2, c1_min2):
+                        break
+                    first_pins, second_pins, c1_min = first_pins2, second_pins2, c1_min2
+                    if not ok2:
+                        _clear()
+                        self._nfo_target_col_trailing = 0
+                        self._sync_nfo_right_column_align()
+                        return
+                applied_any = True
+                for cb, pin in zip(firsts, first_pins, strict=True):
+                    cb.setMinimumWidth(pin)
+                    cb.setMaximumWidth(pin)
+                for cb, pin in zip(seconds, second_pins, strict=True):
+                    cb.setMinimumWidth(pin)
+                    cb.setMaximumWidth(pin)
+                # 两项行两项全钉死后无处吸收富余（离屏实测 QHBoxLayout 会把富余均摊进
+                # 三个间隙），三项行末项 Minimum 自然吸收。只给两项行尾部补 Expanding
+                # 间隔（水印页尾部间隔同款手法），窄态/复位时摘掉；已补过不再重复补。
+                for row in rows:
+                    if row.count() == 2 and not any(r is row for r, _ in self._nfo_target_col_tails):
+                        tail = QSpacerItem(0, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+                        row.addItem(tail)
+                        self._nfo_target_col_tails.append((row, tail))
+                _activate_all()
+                grid.setColumnMinimumWidth(1, c1_min)
+                grid.invalidate()
+                grid.activate()
+                QApplication.processEvents()
+                _activate_all()
+            # 慢路径动过手：排一拍 NFO 链跑在后续生长（lw10/内容宽）后面。
+            # 注意必须直接排链（_sync_nfo_page_align，有休眠守卫），不能排全量同步——
+            # 链只挂在宽幅拉伸钩子上，无拉伸时全量同步根本到不了本方法。
+            # 下一拍收敛（快路径）即停排；仍失稳则再排；上限 8 拍防抖荡。
+            if applied_any:
+                if self._nfo_target_col_trailing < 8:
+                    self._nfo_target_col_trailing += 1
+                    QTimer.singleShot(0, self._sync_nfo_page_align)
+                else:
+                    self._nfo_target_col_trailing = 0
+        finally:
+            self._nfo_target_col_running = False
 
     def _sync_nfo_field_tips(self) -> None:
         """设置-NFO：窄态下字段说明按钮左移进组框，宽态保持不动。
