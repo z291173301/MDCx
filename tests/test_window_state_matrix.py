@@ -2474,17 +2474,23 @@ def _goto_naming_tab(win, app):
 
 @pytest.mark.parametrize("width", [1000, 1920])
 def test_naming_filename_checkboxes_column_align(win, app, width):
-    """命名页「视频文件名」三处（马赛克/画质/分隔符空格）左缘严格同列，小数点等距右随。
+    """命名页三处「视频文件名/空格」同列 + 「.小数点」与「不获取分辨率」同列。
 
     用户需求：马赛克命名规则的「视频文件名」右移到与画质命名规则「视频文件名」
-    上下严格对齐；分隔符行的「 空格」同样右移对齐，「. 小数点」同步右移相同距离；
+    上下严格对齐；分隔符行的「 空格」同样右移对齐；最小化时把「.小数点」向左移动、
+    最大化时向右移动到与「不获取分辨率」上下严格对齐（「不获取分辨率」保持不动）；
     窄态与宽态都必须生效。
 
     三个组都是命名滚动区内容的直接子控件、设计 x 同为 30 且宽态只加宽不改 x，
     故用「映射到滚动区内容的绝对 x」比对才是用户肉眼看到的对齐基准。
-    根因防线：小数点右移后右缘 560+110+1=671 ≥ 组宽 720*0.9=648，会被通用宽幅
-    同步判为 _DOCK_RIGHT 在宽态额外右移 extra，与「空格」拉开距离——故它必须留在
-    CustomScrollArea._MANUAL_WIDGET_NAMES 里不被登记。
+    根因防线：小数点右缘 560+110+1=671 ≥ 组宽 720*0.9=648，会被通用宽幅
+    同步判为 _DOCK_RIGHT 在宽态额外右移 extra——故它必须留在
+    CustomScrollArea._MANUAL_WIDGET_NAMES 里不被登记（宽态 1920 下若被登记，
+    会先被推到 671+extra 再被本方法拉回，对齐值不变但多一次跳动；窄态则直接
+    按登记位参与计算，量到的 none 仍是终态故结论不变，但为稳妥起见保持不登记）。
+    注：此前「小数点与空格保持 140 设计间距、等距右随」的约定已被新需求取代——
+    窄态下该约定本来也从未成立（空格被左移 47 而小数点纹丝不动，point-space 实测
+    187 ≠ 140，正是本用例 [1000] 之前挂掉的原因）。
     """
     from PyQt6.QtCore import QPoint
 
@@ -2502,17 +2508,21 @@ def test_naming_filename_checkboxes_column_align(win, app, width):
     space = ui.checkBox_cd_part_space
     point = ui.checkBox_cd_part_point
     underline = ui.checkBox_cd_part_underline
+    none = ui.radioButton_videosize_none
 
     abs_x = lambda w: w.mapTo(content, QPoint(0, 0)).x()  # noqa: E731
     base_x = abs_x(hd)
     for label, w in (("马赛克视频文件名", mosaic), ("分隔符空格", space)):
         assert abs_x(w) == base_x, f"{width} 宽下 {label} 未与画质视频文件名同列: {abs_x(w)} vs {base_x}"
-    # 「. 小数点」与「空格」保持设计间距（等距右移），不因宽态锚定右缘而拉开
-    assert point.x() - space.x() == 140, f"{width} 宽下小数点与空格间距漂移: {point.x() - space.x()}"
-    assert abs_x(point) - abs_x(space) == 140, f"{width} 宽下小数点未按绝对距离等距右移"
-    # 「_ 下划线」保持原位（160），不受本次右移影响
-    assert abs_x(underline) - abs_x(space) == -260, "下划线相对位置被改动"
+    # 「.小数点」两态都与「不获取分辨率」严格上下对齐（锚点不动，只动小数点；
+    # 本方法从不写锚点几何，下面的复位快照会连带锁定锚点不被第二遍同步搬动）
+    assert abs_x(point) == abs_x(none), f"{width} 宽下小数点未与不获取分辨率同列: {abs_x(point)} vs {abs_x(none)}"
+    # 「_ 下划线」保持设计原位（局部 x=160），不受任何对齐改动（窄态 path 列本身
+    # 随字体度量浮动：conftest 桩掉字体时 path/space/none 同步左移 15，190-388=-198；
+    # 故不断言与 space 的相对值，只断言下划线自己纹丝不动）
+    assert underline.x() == 160, f"{width} 宽下下划线被改动: x={underline.x()}"
 
+    # 锚点「不获取分辨率」同样纳入复位快照：第二遍同步不得搬动它（需求：锚点保持不动）
     snap = {
         n: getattr(ui, n).geometry().getRect()
         for n in (
@@ -2521,6 +2531,7 @@ def test_naming_filename_checkboxes_column_align(win, app, width):
             "checkBox_cd_part_underline",
             "checkBox_cd_part_space",
             "checkBox_cd_part_point",
+            "radioButton_videosize_none",
         )
     }
     win._sync_page_layouts()
@@ -2533,6 +2544,7 @@ def test_naming_filename_checkboxes_column_align(win, app, width):
             "checkBox_cd_part_underline",
             "checkBox_cd_part_space",
             "checkBox_cd_part_point",
+            "radioButton_videosize_none",
         )
     }
     assert snap == after, f"二次同步漂移: {snap} -> {after}"

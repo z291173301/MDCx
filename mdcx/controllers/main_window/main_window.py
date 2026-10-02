@@ -2573,6 +2573,22 @@ class MyMAinWindow(QMainWindow):
         "checkBox_cd_part_space",
         "checkBox_filename_4k",
     )
+    # ── 命名页小数点复选框（窄宽两态都向「不获取分辨率」对齐）──
+    # 目标 checkBox_cd_part_point（分集组绝对定位项，设计局部 x=560）；
+    # 锚点 radioButton_videosize_none（画质行末项，自身不动——宽态它随行同步右移
+    # 是 _sync_naming_definition_align 做的，本方法只读它的落定位置，故与
+    # _NAMING_DEFN_TAIL 是同一控件）。
+    # 两态实测（content-abs；1000×700 窄态 / 1920×1170 宽态，离屏）：
+    #   窄态 point 590 vs none 605（差 -15）；宽态 point 590 vs none 653（差 -63，
+    #   none 随 path 右移了 47）。用户需求：两态都把小数点移到与不获取分辨率
+    #   严格上下对齐，不获取分辨率保持不动（取代此前的「小数点与空格保持 140
+    #   设计间距、等距右随」——窄态下该约定本来也从未成立：空格被左移 47 而小数点
+    #   纹丝不动，point-space 实测 187 ≠ 140，正是旧回归测试 [1000] 挂掉的原因）。
+    # 越界判据用 sizeHint 宽（实测 59）而非控件全宽 110：窄态父组框被宽幅同步收窄
+    # （1000 宽窗口下 groupBox_38 仅 649，目标局部 x=575，575+110=685 会误判越界），
+    # 而实际内容（勾选框 + “.小数点”文字）仅 59 宽，575+59=634 完全可见。
+    _NAMING_POINT_TARGET = "checkBox_cd_part_point"
+    _NAMING_POINT_ANCHOR = "radioButton_videosize_none"
 
     # ── 水印页水印设置组（最大化时四行左标签冒号左移到「首个水印位置：」冒号）──
     # gridLayout_24 的 col0 在宽态被 QGridLayout 摊了 +272 富余（label_128 从 x0 被推到
@@ -2750,11 +2766,13 @@ class MyMAinWindow(QMainWindow):
         self._naming_narrow_restores = []
 
     def _sync_naming_definition_align(self, scroll=None) -> None:
-        """命名页画质命名规则：最大化时「使用路径中包含的画质信息」右移到「视频文件名」列。
+        """命名页画质命名规则：最大化时 path 右移到视频文件名列 + 小数点对齐 none 列。
 
         用户需求：最大化时把「使用路径中包含的画质信息」向右移动到与下方「视频文件名」
         严格上下对齐的位置，「不获取分辨率」同步向右移动，「视频文件名」位置保持不变；
-        最小化时界面、控件、组件等等均保持不变。
+        同时把「.小数点」向右移动到与「不获取分辨率」严格上下对齐（读落定后的 none
+        位置，故排在间隔收敛之后）；最小化时画质行保持不变（窄态只做三复选框左移 +
+        小数点对齐，见 _sync_naming_narrow_align）。
 
         实测几何（abs = 相对滚动内容左缘；1030×753 窄态 / 1920×1170 宽态）：
           video 200 / path 403 / none 605 / filename_4k 450（两态完全一致，通用宽幅同步
@@ -2846,15 +2864,61 @@ class MyMAinWindow(QMainWindow):
             holder.setFixedWidth(holder.width() + d)
             row.invalidate()
             row.activate()
+        # 小数点：宽态向「不获取分辨率」对齐。必须排在间隔收敛之后——none 的位置
+        # 由上面的收敛循环刚定下，此时量到的是终态；helper 内自己再换算一次，
+        # 不依赖本方法的 anchor_x。
+        self._move_naming_point_to_none(content)
+
+    def _move_naming_point_to_none(self, content) -> None:
+        """命名页：小数点复选框左缘对齐「不获取分辨率」左缘（窄宽两态都做）。
+
+        用户需求：最小化时把「.小数点」向左移动、最大化时向右移动到与「不获取
+        分辨率」严格上下对齐的位置，「不获取分辨率」位置保持不变（方向由运行时
+        几何决定：量到在哪边就往哪边移，不写死左右）。
+        目标是分集组内绝对定位项，直接 move(x)，只改 x 不碰 y/宽高；跨组 mapTo
+        经公共祖先 content 中转；越界则放弃。复位记录复用 _naming_narrow_restores
+        （调用方每遍先清后建，故幂等、往返自愈）。小数点在
+        CustomScrollArea._MANUAL_WIDGET_NAMES 里，通用宽幅同步不会登记/搬动它。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None or content is None:
+            return
+        target = getattr(ui, self._NAMING_POINT_TARGET, None)
+        anchor = getattr(ui, self._NAMING_POINT_ANCHOR, None)
+        if target is None or anchor is None:
+            return
+        parent = target.parentWidget()
+        if parent is None or parent.parentWidget() is not content:
+            # 目标须是内容直属组框的子项，否则换算无意义
+            return
+        try:
+            anchor_x = anchor.mapTo(content, anchor.rect().topLeft()).x()
+            target_x = target.mapTo(content, target.rect().topLeft()).x()
+        except Exception:
+            return
+        d = anchor_x - target_x
+        if not d:
+            return
+        nx = target.x() + d
+        if nx < 0:
+            return
+        need = max(target.sizeHint().width(), target.minimumSizeHint().width())
+        if nx + need > parent.width():
+            return
+        if target.x() != nx:
+            self._naming_narrow_restores.append((target, target.x()))
+            target.move(nx, target.y())
 
     def _sync_naming_narrow_align(self, scroll=None) -> None:
-        """命名页窄态：三复选框左移到 path 列，path 自身不动，宽态不动。
+        """命名页窄态：三复选框左移到 path 列 + 小数点对齐 none 列，锚点均不动。
 
         用户需求：最小化时把视频文件名（上下两个：checkBox_filename_mosaic /
         checkBox_filename_4k）与空格（checkBox_cd_part_space）向左移动到与
         「使用路径中包含的画质信息」（radioButton_videosize_path）上下严格对齐，
-        锚点位置保持不变；最大化时页面布局控件提示等均保持不变（本分支窄态才
-        动手，宽态调用方已提前 return）。
+        把「.小数点」（checkBox_cd_part_point）移动到与「不获取分辨率」
+        （radioButton_videosize_none）上下严格对齐，两个锚点位置均保持不变；
+        最大化时页面布局控件提示等均保持不变（本分支窄态才动手，宽态调用方已
+        提前 return——宽态的小数点由 _sync_naming_definition_align 负责）。
 
         三目标均为组框内绝对定位项（设计局部 x 均为 420），直接 move(x)，只改 x
         不碰 y/宽高；跨组 mapTo 必须经公共祖先 content 中转。越界则放弃该项。
@@ -2896,6 +2960,8 @@ class MyMAinWindow(QMainWindow):
             if target.x() != nx:
                 self._naming_narrow_restores.append((target, target.x()))
                 target.move(nx, target.y())
+        # 小数点：窄态同样向「不获取分辨率」对齐（锚点不动）
+        self._move_naming_point_to_none(content)
 
     def _clear_watermark_colon_align(self) -> None:
         """清掉水印页网格列钉死 + 四行尾部间隔（每遍同步先清后建，故幂等、往返自愈）。"""
