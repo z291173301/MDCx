@@ -2154,7 +2154,11 @@ def test_settings_scrollbars_use_declared_thickness_not_stale_geometry(win, app)
     # 逐条封死：所有页签都必须 min=max=target。只看 width() 会漏掉「几何恰好已经
     # 等于 target 而被放过」的那条——它没钉住，后续任意一次 polish/布局都能把它
     # 打回平台默认厚度，正是「随机落在某个页签」的残余。
-    unpinned = [(i, bar.minimumWidth(), bar.maximumWidth()) for i, bar in enumerate(bars) if bar.minimumWidth() != target or bar.maximumWidth() != target]
+    unpinned = [
+        (i, bar.minimumWidth(), bar.maximumWidth())
+        for i, bar in enumerate(bars)
+        if bar.minimumWidth() != target or bar.maximumWidth() != target
+    ]
     assert not unpinned, f"有页签未被钉死(仍只靠 QSS 撑着): {unpinned}"
 
     # 用户操作序列：切走再切回，复跑不得降级（旧实现此处已被钉死）
@@ -2169,7 +2173,11 @@ def test_settings_scrollbars_use_declared_thickness_not_stale_geometry(win, app)
     win._sync_settings_scrollbar_widths()
     app.processEvents()
     assert {bar.width() for bar in bars} == {target}, "切页往返后厚度降级（旧 bug 复现）"
-    unpinned = [(i, bar.minimumWidth(), bar.maximumWidth()) for i, bar in enumerate(bars) if bar.minimumWidth() != target or bar.maximumWidth() != target]
+    unpinned = [
+        (i, bar.minimumWidth(), bar.maximumWidth())
+        for i, bar in enumerate(bars)
+        if bar.minimumWidth() != target or bar.maximumWidth() != target
+    ]
     assert not unpinned, f"切页往返后有页签掉出钉死态: {unpinned}"
 
 
@@ -2270,9 +2278,7 @@ def test_scroll_area_pins_scrollbar_thickness_on_show_without_timer(win, app):
         bar = area.verticalScrollBar()
         assert bar.isVisible(), f"页签{i} 滚动条不可见，无法量绘制宽度"
         w_now = painted_width(bar)
-        assert w_now in (None, declared_px), (
-            f"页签{i} 修法下应绘制 {declared_px}px，实际 {w_now}"
-        )
+        assert w_now in (None, declared_px), f"页签{i} 修法下应绘制 {declared_px}px，实际 {w_now}"
         # 复刻故障：退回平台默认厚度并重新抛光（= 陈旧缓存被刷新成窄值）
         bar.setFixedWidth(stale)
         bar.style().unpolish(bar)
@@ -2286,9 +2292,7 @@ def test_scroll_area_pins_scrollbar_thickness_on_show_without_timer(win, app):
             f"页签{i} 未重新钉死: min={bar.minimumWidth()} max={bar.maximumWidth()}"
         )
         w_after = painted_width(bar)
-        assert w_after in (None, declared_px), (
-            f"页签{i} 绘制宽度未回到声明厚度: {w_after}"
-        )
+        assert w_after in (None, declared_px), f"页签{i} 绘制宽度未回到声明厚度: {w_after}"
         checked += 1
     assert checked >= 10, f"实测页签数异常: {checked}"
 
@@ -2532,3 +2536,95 @@ def test_naming_filename_checkboxes_column_align(win, app, width):
         )
     }
     assert snap == after, f"二次同步漂移: {snap} -> {after}"
+
+
+def _goto_website_tab(win, app):
+    """切到软件设置-刮削网站页（两个待对齐下拉框所在 tab，即 scrollArea_8 那一页）。"""
+    ui = win.Ui
+    _goto(win, app, "page_setting")
+    for i in range(ui.tabWidget.count()):
+        if ui.tabWidget.widget(i).findChild(ui.scrollArea_8.__class__, "scrollArea_8") is not None:
+            ui.tabWidget.setCurrentIndex(i)
+            break
+    else:
+        raise AssertionError("刮削网站 tab (scrollArea_8) not found")
+    app.processEvents()
+
+
+def _site_pref_rights(win):
+    """「指定网站」「锁定类型」两个下拉框在公共祖先 content 里的右缘（+1 右开区间）。"""
+    content = win.Ui.scrollArea_8.widget()
+    out = []
+    for name in ("comboBox_website_all", "comboBox_fixed_scraping_type"):
+        widget = getattr(win.Ui, name)
+        out.append(widget.mapTo(content, widget.rect().bottomRight()).x() + 1)
+    return out
+
+
+@pytest.mark.parametrize("width", [1030, 1920])
+def test_site_pref_combo_right_aligns_to_fixed_type(win, app, width):
+    """刮削网站页「指定网站」下拉框右缘收缩到「锁定类型」下拉框右缘（窄宽两态）。
+
+    用户需求：「软件设置-刮削网站-指定网站下拉框右侧收缩到锁定类型右侧的位置」。
+    根因：两个下拉框分属不同组框的不同网格（gridLayout_28 只有 2 列，
+    gridLayout_36 有 4 列——多出「编辑网站」「网站优先」两个按钮列），列宽天然
+    差 111px，「指定网站」下拉框因此比「锁定类型」多出 111px 右缘（窄态
+    689 vs 578、宽态 1579 vs 1468，实测两态差值恒等）。
+    _sync_site_pref_combo_width 按参考框实时右缘换算宽度上限并 setMaximumWidth
+    钉住（不能用 move()，网格会覆盖绝对坐标），故窄宽两态都应收敛到差值 0。
+    """
+    ui = win.Ui
+    _goto_website_tab(win, app)
+    win.resize(width, 700 if width == 1030 else 1080)
+    win.show()
+    app.processEvents()
+    for _ in range(3):  # 首次打开的几何要经 settle + 宽幅同步落定，多泵几轮事件
+        win._sync_page_layouts()
+        app.processEvents()
+
+    combo_right, ref_right = _site_pref_rights(win)
+    assert combo_right == ref_right, f"{width} 宽下指定网站右缘 {combo_right} 未对齐锁定类型 {ref_right}"
+    # 宽度上限应恰为「参考右缘 - 本框左缘」；且只钉上限、不钉下限
+    combo = ui.comboBox_website_all
+    content = ui.scrollArea_8.widget()
+    combo_x = combo.mapTo(content, combo.rect().topLeft()).x()
+    assert combo.maximumWidth() == ref_right - combo_x, "宽度上限与目标宽度不符"
+    assert combo.minimumWidth() == 0, "只应限制上限，不应钉死下限"
+    # 参考框自身不得被本控制器改动（它是基准）
+    ref = ui.comboBox_fixed_scraping_type
+    assert (ref.minimumWidth(), ref.maximumWidth()) == (0, 16777215), "参考框被写入宽度约束"
+
+    snap = _site_pref_rights(win)
+    win._sync_page_layouts()
+    app.processEvents()
+    assert _site_pref_rights(win) == snap, f"{width} 宽下二次同步漂移: {snap} -> {_site_pref_rights(win)}"
+
+
+def test_site_pref_combo_ignored_until_tab_opened(win, app):
+    """从未打开过的刮削网站页签：不得据未布局的假读数把宽度钉死。
+
+    取证坑：未布局页签里两个下拉框都停在 Qt 默认 100px 宽（实测 combo right=180、
+    ref right=150，差 30），若不加可见性早退就会按这组假读数把 maximumWidth
+    钉成 70，页签首次打开时宽度再也张不开。故休眠时整段早退、不碰约束。
+    """
+    ui = win.Ui
+    combo = ui.comboBox_website_all
+    design_max = combo.maximumWidth()  # .ui 声明的 maximumSize 宽（16000）
+    # 切到设置页但停在别的 tab（不切刮削网站），制造「该 tab 从未打开」的状态
+    _goto(win, app, "page_setting")
+    ui.tabWidget.setCurrentIndex(0)
+    win.resize(1030, 700)
+    win.show()  # isVisibleTo 需要窗口真显示，否则休眠/可见判定不成立
+    app.processEvents()
+    win._sync_page_layouts()
+    app.processEvents()
+    assert not ui.scrollArea_8.isVisibleTo(win), "前置条件失败：刮削网站 tab 仍可见"
+    assert combo.maximumWidth() == design_max, "休眠时不应写入宽度上限"
+
+    # 切进该 tab 后应立刻对齐（currentChanged 的 settle/beats 会补跑全量同步）
+    _goto_website_tab(win, app)
+    for _ in range(3):
+        win._sync_page_layouts()
+        app.processEvents()
+    combo_right, ref_right = _site_pref_rights(win)
+    assert combo_right == ref_right, f"首次打开未对齐: 指定网站 {combo_right} vs 锁定类型 {ref_right}"

@@ -4462,7 +4462,7 @@ class Ui_MDCx(object):
         self.comboBox_website_all.setMaxVisibleItems(30)
         self.comboBox_website_all.setFrame(False)
         self.comboBox_website_all.setObjectName("comboBox_website_all")
-        self.gridLayout_28.addWidget(self.comboBox_website_all, 4, 1, 1, 1)
+        self.gridLayout_28.addWidget(self.comboBox_website_all, 3, 1, 1, 1)
         self.label_315 = QtWidgets.QLabel(parent=self.layoutWidget1)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -4481,7 +4481,7 @@ class Ui_MDCx(object):
         self.label_315.setWordWrap(False)
         self.label_315.setWordWrap(True)
         self.label_315.setObjectName("label_315")
-        self.gridLayout_28.addWidget(self.label_315, 3, 1, 1, 1)
+        self.gridLayout_28.addWidget(self.label_315, 4, 1, 1, 1)
         self.widget_field_priority_options = QtWidgets.QWidget(parent=self.layoutWidget1)
         self.widget_field_priority_options.setObjectName("widget_field_priority_options")
         self.horizontalLayout_field_priority_options = QtWidgets.QHBoxLayout(self.widget_field_priority_options)
@@ -4503,7 +4503,7 @@ class Ui_MDCx(object):
         self.horizontalLayout_field_priority_options.addItem(spacerItem)
         self.gridLayout_28.addWidget(self.widget_field_priority_options, 2, 1, 1, 1)
         self.pushButton_scrape_note = QtWidgets.QPushButton(parent=self.groupBox_11)
-        self.pushButton_scrape_note.setGeometry(QtCore.QRect(529, 210, 151, 26))
+        self.pushButton_scrape_note.setGeometry(QtCore.QRect(529, 140, 151, 26))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -13466,7 +13466,7 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p style='line-height:20px'>\n"
-                "                                素人和  FC2 番号演员可能是「素人」之类假名字，勾选「使用AV-wiki获取演员真实名字」，可以请求AV-Wiki获取演员真实日文名，之后可以使用演员映射表翻译为中文<br>\n"
+                "                                素人和  FC2 番号演员可能是「素人」之类假名字，勾选「使用AV-Wiki获取演员真实名字」，可以请求AV-Wiki获取演员真实日文名，之后可以使用演员映射表翻译为中文<br>\n"
                 "                                演员名比较复杂，不能简单使用翻译引擎翻译。主要的问题：演员名翻译不准确、演员有多个名字、同一演员不同番号演员名不统一、各网站使用的演员名不统一等。不过通过演员名映射翻译表可以解决这些问题，使刮削后的演员名整齐统一。<br>\n"
                 "                                实现逻辑：网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译表文件名为：actor_database.xlsx。<br>\n"
                 "                                Windows：\\配置文件目录\\userdata\\actor_database.xlsx，配置文件的目录可以在「设置」-「高级」中设置。<br>\n"
@@ -13476,7 +13476,7 @@ class Ui_MDCx(object):
                 "                                2、zh_cn/zh_tw/jp：输出词，当keyword匹配到演员名时，可以输出对应语言的名字</p>",
             )
         )
-        self.checkBox_actor_realname.setText(_translate("MDCx", "使用AV-wiki获取演员真实名字"))
+        self.checkBox_actor_realname.setText(_translate("MDCx", "AV-Wiki获取演员真名"))
         self.checkBox_actor_translate.setText(_translate("MDCx", "使用演员映射表翻译演员"))
         self.label_248.setText(_translate("MDCx", "演员语言："))
         self.groupBox_85.setTitle(_translate("MDCx", "标签"))
@@ -14133,7 +14133,7 @@ class Ui_MDCx(object):
                 "\n"
                 "<h4>十、软件工具页面</h4>\n"
                 " <ul>\n"
-                "  <li><b>NFO 库管理</b>：左侧导航独立页面，浏览和编辑整个 NFO 库。选择目录后递归扫描所有 .nfo 文件生成列表（支持番号/演员/标题筛选）；点列表项读取 NFO 填充 15 字段编辑表单（番号/标题/演员/发行日/年份/时长/导演/片商/发行商/系列/评分/简介/标签/封面URL/海报URL），右侧同步预览本地海报和缩略图，可调起裁剪工具；保存前自动对比改动弹窗确认（字段级 diff），无改动不写盘；批量操作面板支持多选后一键替换演员名、加标签、删标签、统一系列名；列表右键菜单提供重新刮削（找同目录同名视频入队）、打开所在目录、删除 NFO。</li>\n"
+                "  <li><b>NFO 库管理</b>：左侧导航独立页面，浏览和编辑整个 NFO 库。选择目录后递归扫描所有 .nfo 文件生成列表（支持番号/演员/标题筛选）；点列表项读取 NFO 填充 15 字段编辑表单（番号/标题/演员/发行日/年份/时长/导演/片商/发行商/系列/评分/简介/标签/封面URL/海报URL），右侧同步预览本地海报和缩略图，可调起裁剪工具；保存前自动对比改动弹窗确认（字段级 diff），无改动不写盘；批量操作面板支持多选后一键替换演员名、加标签、删标签、统一系列名；列表右键菜单提供重新刮削番号（找同目录同名视频入队）、打开所在目录、删除nfo文件。</li>\n"
                 "  <li><b>演员库维护</b>：直接操作 actor_database.xlsx。补全中文名（按 TMDB ID 补翻译）、补全LibreDMM链接、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的条目，勾选「全量更新」则并入全部行，不覆盖本地已有别名，支持「起始行/限量」分片续跑）、JavDB中文名（从 JavDB 影片详情页抓取演员中文名，并发拉取影片详情，支持分片续跑与「停止当前维护任务」）、Minnano-av补全（从 minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，TMDB给出人工修复步骤）、打开数据库（用默认程序打开xlsx查看与编辑）、剔除男演员（按 TMDB 性别删除男优）、校验 tmdbid 有效性（清除 TMDB 失效 id 并按名字重搜补回）、更新nfo文件TMDB ID字段（用本地库新 id 覆盖 nfo 旧 id）。联网工具支持限量分片与「停止当前维护任务」按钮，网络请求自动并发，进度实时显示。</li>\n"
                 "  <li><b>刮削缓存管理</b>：在「软件工具」页刮削缓存面板可查看断点续刮缓存状态（已完成/失败/总数），支持刷新缓存统计、导出缓存数据、重置缓存（清除全部已完成标记，下次全量重刮）、清空缓存（删除 scrape_state.db 文件）。适合在断点续刮数据异常或需要重新全量刮削时使用。</li>\n"
                 "  <li><b>Emby/Jellyfin 演员管理器</b>：填写 Emby/Jellyfin 地址和 API 密钥后连接服务器，获取演员列表并按媒体库筛选（可配置只获取演员类型 / 重复去重）；从 Gfriends / graphis.ne.jp / minnano-av / 本地文件夹按可配置优先级匹配头像和背景图（本地文件夹采用预扫描索引，N 次全树遍历降为 1 次），从本地演员库 / 维基百科 / minnano-av / 数据库按可配置优先级匹配简介和出生日期；Gfriends / Graphis / 信息链路已合并为统一函数，按数据源优先级依次尝试；「数据源测试」可逐源验证结果，「设置」可配置数据源优先级与获取过滤；预览后批量同步到服务器（支持仅补缺失或强制重新获取，同步完成后自动刷新列表），双击演员行打开详情编辑对话框，可编辑简介 / 信息并单独同步头像 / 简介；头像缓存持久化到 userdata/emby_actor_cache/ 目录（不再随临时目录清理丢失），「清空缓存文件夹」可一键清理。</li>\n"

@@ -3810,6 +3810,16 @@ class MyMAinWindow(QMainWindow):
         # 窄态内部直接 return，最小化布局逐像素不变。
         self._sync_watermark_colon_align(getattr(ui, "scrollArea_4", None))
 
+        # ============ page_setting / 刮削网站页: 「指定网站」下拉框右缘对齐「锁定类型」 ============
+        # 必须排在通用拉伸之后：本方法要量「锁定类型」下拉框在 content 里的实时右缘，
+        # 而两个组框的宽度刚被宽幅同步按新视口改写（排前面量到的是上一视口的旧值）。
+        self._sync_site_pref_combo_width()
+
+        # ============ page_setting / 刮削网站页: 「刮削不到？看这里！」按钮垂直居中到下拉框 ============
+        # 必须排在 _sync_site_pref_combo_width 之后：本方法按下拉框的实时几何重钉
+        # 按钮 y，而上一步刚改写下拉框的宽度上限（进而影响所在行高与行位置）。
+        self._sync_scrape_note_vertical()
+
         # ============ page_setting / NFO页: 宽幅组落定（先落定再量） ============
         # verify_gb 复验血案：tab 切换时 showEvent 的 wide-sync 跑在级联中途
         # （视口 805），落定到 819 后再无事件触发它，groupBox_81 带着 stale
@@ -4532,6 +4542,123 @@ class MyMAinWindow(QMainWindow):
                 self._sync_page_layouts()
         except Exception:
             return
+
+    # 设置-刮削网站：「网站偏好」组里「指定网站」下拉框右缘对齐「锁定类型」下拉框
+    _SITE_PREF_COMBO = "comboBox_website_all"  # 指定网站（row 3 col 1，gridLayout_28）
+    _SITE_PREF_COMBO_REF = "comboBox_fixed_scraping_type"  # 锁定类型（row 14 col 1，gridLayout_36）
+    _SITE_PREF_SCROLL = "scrollArea_8"  # 刮削网站页签的滚动区
+    # 「刮削不到？看这里！」按钮：groupBox_11 的绝对定位子控件（不在任何 layout 里），
+    # y 由 _sync_scrape_note_vertical 按下拉框实时中心重钉，故不随行高/字号漂移。
+    _SITE_PREF_NOTE_BUTTON = "pushButton_scrape_note"
+    # 设计态宽度上限（.ui 声明的 maximumSize 宽 = 16000），首次进入时记下，
+    # 「读数无意义」分支据此原样交回布局。None = 尚未记下。
+    _site_pref_combo_design_max: int | None = None
+
+    # 两个下拉框同在 scrollAreaWidgetContents_guaxiaowangzhan 内、都落在各自网格的
+    # 第 1 列，故该 content 是二者的公共祖先（跨分支 mapTo 必须经公共祖先中转）。
+    # 「网站偏好」只有 2 列、「类型刮削网站」有 4 列（多出「编辑网站」「网站优先」
+    # 两个按钮列），列宽因此天然差 111px（离屏实测窄态 513-402、宽态 1403-1292，
+    # 两态差值恒等），表现为「指定网站」下拉框右缘越过「锁定类型」111px。
+    def _sync_site_pref_combo_width(self) -> None:
+        """设置-刮削网站：「指定网站」下拉框右缘收缩到「锁定类型」下拉框右缘。
+
+        用户需求：「软件设置-刮削网站-指定网站下拉框右侧收缩到锁定类型右侧的位置」。
+        做法：量出参考下拉框（锁定类型）在公共祖先 content 里的右缘，换算成
+        「指定网站」下拉框的可用宽度上限并 setMaximumWidth 钉住——不用 move()/
+        setGeometry()，因为两者都在 QGridLayout 里，layout 重新 activate 会直接
+        覆盖绝对坐标（与 _pin_row_lead_width 同一结论），而宽度上限是布局本身
+        遵守的约束。每次全量同步都按当前视口重算，故窄态/宽态各自收敛到差值 0，
+        且窗口在两态间来回变化时宽度会跟着重新张开（只减不增会锁死在窄态）。
+        幂等：目标宽度不变时不再触碰控件；本方法在整条 resize 路径上高频调用，
+        故对休眠页签做可见性早退（成本近似为零，且避免从未布局的假读数）。
+        """
+        ui = self.Ui
+        combo = getattr(ui, self._SITE_PREF_COMBO, None)
+        ref = getattr(ui, self._SITE_PREF_COMBO_REF, None)
+        if combo is None or ref is None:
+            return
+        scroll = getattr(ui, self._SITE_PREF_SCROLL, None)
+        if scroll is None or not scroll.isVisibleTo(self):
+            # 从未打开过的页签：两个下拉框还停在未经布局的默认几何（实测 100px 宽），
+            # 此时量到的右缘是假读数，据此钉上限会把宽度钉死在错值上。整段早退、
+            # 不碰任何约束，等首次切进本页签（currentChanged → _settle_settings_after_switch
+            # 与 _queue_nfo_post_cascade_sync 都会再跑一遍全量同步）时几何已落定再对齐。
+            return
+        content = scroll.widget()
+        # 落定前置：本控制器量的是两个下拉框的实时右缘，而它们所在的组框宽度由
+        # CustomScrollArea 的宽幅同步按当前视口改写。首次打开本页签时宽幅同步还
+        # 没跑（组框停在未布局的默认宽度，实测两框仅 100~219px 宽），此刻量到的
+        # 是中间态假读数——若据此钉上限，宽度会被永久钉死在 147px，再也张不开
+        # （钉住后布局不再扩张，钉值与实际需求形成自锁）。故先显式重跑一遍宽幅
+        # 同步（同 _sync_nfo_page_align 对 scrollArea_13 的处理），再量终态。
+        scroll.sync_wide_children_width()
+        # 设计上限取 .ui 的 16000（comboBox_website_all 声明的 maximumSize 宽），
+        # 首次进入时记下，供「读数无意义」分支原样交回布局——不能拿 QWIDGETSIZE_MAX
+        # 顶替，那会永久改掉设计约束。
+        if self._site_pref_combo_design_max is None:
+            self._site_pref_combo_design_max = combo.maximumWidth()
+        design_max = self._site_pref_combo_design_max
+        # 尚未布局（宽高为 0）或滚动区没内容时读数无意义，放开上限交回布局
+        if content is None or combo.width() <= 0 or ref.width() <= 0 or content.width() <= 0:
+            if combo.maximumWidth() != design_max:
+                combo.setMaximumWidth(design_max)
+            return
+        combo_x = combo.mapTo(content, QPoint(0, 0)).x()
+        ref_right = ref.mapTo(content, ref.rect().bottomRight()).x() + 1
+        target = ref_right - combo_x
+        floor = combo.minimumSizeHint().width()
+        if target < floor:
+            # 视口窄到「锁定类型」所在四列网格（多出「编辑网站」「网站优先」两列）
+            # 先被挤瘪，参考框右缘已退到本框最小可用宽度之内，此时对齐目标不可达
+            # （实测 720x680 窗口下目标仅 93px < 最小 147px）。钉一个低于自身最小
+            # 尺寸的上限只会与布局互相拉扯，故交回设计上限、放弃本轮对齐。
+            if combo.maximumWidth() != design_max:
+                combo.setMaximumWidth(design_max)
+            return
+        if combo.maximumWidth() != target:
+            combo.setMaximumWidth(target)
+
+    def _sync_scrape_note_vertical(self) -> None:
+        """设置-刮削网站：「刮削不到？看这里！」按钮垂直居中到「指定网站」下拉框。
+
+        用户需求：「向上移动后要居于下拉框水平中间的位置」。该按钮是 groupBox_11
+        的绝对定位子控件（不在任何 layout 里），.ui 里声明的 y 是**死值**——网格行高
+        会随字体变化（下拉框上方的 widget_field_priority_options 行、以及各说明
+        文字的折行数都参与撑高），行序一换这个死值就与下拉框错行。只改 .ui 能对齐
+        当前默认字号，一旦用户改 UI 缩放（comboBox_ui_scale 支持 80%~300%，
+        init.py 的 _UI_SCALE_VALUES）或系统字号，行高就变、按钮跟着漂。
+
+        故这里在每次全量同步里按「下拉框实时中心」重钉按钮 y：move() 只改 y、不碰
+        宽度与 x（x 由 CustomScrollArea 的 _DOCK_RIGHT 右缘锚定负责，见
+        CustomClass.py 的 _classify_inner——那里判 _DOCK_RIGHT 依赖按钮的 right()
+        落位，本方法不动 x 故不与之冲突）。只用 setGeometry 的 y 分量，保持 x/宽高
+        原样。
+        休眠页签整段早退：从未布局时下拉框停在未布局的假几何（实测 y=28、高 30），
+        据此钉 y 会把按钮钉到错行且再无事件纠正（休眠读取数是同 _sync_site_pref_
+        combo_width 里的假读数陷阱）。切进本页签时 currentChanged 的 settle/beats
+        会补跑全量同步，那时几何已落定。
+        幂等：目标 y 不变时不触碰控件（本方法在整条 resize 路径上高频调用）。
+        """
+        ui = self.Ui
+        combo = getattr(ui, self._SITE_PREF_COMBO, None)
+        button = getattr(ui, self._SITE_PREF_NOTE_BUTTON, None)
+        if combo is None or button is None:
+            return
+        scroll = getattr(ui, self._SITE_PREF_SCROLL, None)
+        if scroll is None or not scroll.isVisibleTo(self):
+            return
+        # 取按钮的父控件（groupBox_11）作公共祖先：按钮直接挂在它下面，而下拉框
+        # 嵌在再下一层的 layoutWidget1 网格里，两者的 y 分属不同坐标系，必须经
+        # 公共祖先中转才能直接比（直接用下拉框的 parentWidget 会差出
+        # layoutWidget1 在组框内的偏移 28px）。两者高度不同（30 vs 26），
+        # 用中心点对齐。
+        anchor = button.parentWidget()
+        if anchor is None or combo.height() <= 0 or combo.width() <= 0:
+            return
+        combo_y = combo.mapTo(anchor, QPoint(0, 0)).y()
+        target = combo_y + (combo.height() - button.height()) // 2
+        if button.y() != target:
+            button.move(button.x(), target)
 
     # 设置-NFO「写入NFO的字段」组：col0 左标签（130px Fixed 右对齐），冒号在右缘
     _NFO_COLON_LABELS = (
@@ -5452,10 +5579,145 @@ class MyMAinWindow(QMainWindow):
                         item.geometry = (ix, frame.y(), iw, frame.height())
 
             scroll = getattr(ui, "scrollArea_11", None)
+            self._sync_fanyi_trans_align(scroll)
             if scroll is not None:
                 scroll.sync_content_min_height()
         finally:
             self._fanyi_resyncing = False
+
+    def _sync_fanyi_trans_align(self, scroll=None) -> None:
+        """设置-翻译页：窄态四个目标左移到锚点列；宽态（最大化）四个目标对到锚点列。
+
+        用户需求（窄态/最小化，保持此前行为不变）：「显示翻译来源」与「日语+中文」
+        左移到与「中文繁体」（radioButton_outline_zh_tw，保持不动）严格上下对齐；
+        「使用演员映射表翻译演员」左移到与「中文繁体」对齐（锚点为
+        radioButton_actor_zh_tw，保持不动）；「关闭」
+        （radioButton_trans_show_one）左移到与「日语」
+        （radioButton_outline_jp，保持不动）严格上下对齐。
+
+        用户需求（宽态/最大化，翻译页其余布局、控件、提示词等保持不变）：
+        「显示翻译来源」「使用演员映射表翻译演员」向左移动到与「中文繁体」
+        上下严格对齐（中文繁体不动）；「日语+中文」向右移动到与「中文繁体」
+        严格上下对齐，「关闭」向右移动到与「日语」严格上下对齐（中文繁体、
+        日语不动）。即四个目标的 content-x 与各自锚点完全相等，方向不限。
+
+        做法：
+          - 窄态（拉伸量 <= 0）：沿用此前逻辑——只允许左移，右推/已对齐则放弃；
+            若宽态加宽/钉宽过双语显示行容器与三个单选，先交还设计值（见下）。
+          - 宽态：四个目标按锚点 content-x 精确对齐（双向）。两个复选框的父容器
+            （layoutWidget_13/20）会被通用宽幅同步拉宽，目标落在容器内，无需
+            处理；但「双语显示」行的 frame_5（设计 661）与 layoutWidget_24
+            （设计 521）是绝对定位、通用同步不拉宽——直接 move() 会把单选框钉
+            到父容器之外导致裁剪（子控件超出父矩形不绘制）。故先把 frame_5 加宽
+            到组宽（组宽 − 左右各 20px 设计边距），layoutWidget_24 加宽到
+            frame 宽 − 140（设计：frame 内 x=140、右缘贴齐），再 activate。
+            加宽后 HBox 会把多余宽度均分到三个单选身上（离屏实测横向三单选会被
+            拉到 460 宽），「中文+日语」会被拉宽变形、其余两项位置也算不准，
+            故把三个单选的宽度钉为自然宽（sizeHint，与字号/缩放自适应），HBox
+            把它们顶左排列，「中文+日语」保持自然大小不动；再 move() 目标到锚点。
+          - 经 content 中转量锚点与目标的绝对 x 差值（QWidget.mapTo 要求目标是
+            调用者的祖先，跨分支直接映射会拿到未定义值，故一律经 content 中转），
+            目标 move() 到锚点 x（只改 x 不碰 y/宽高；越出父级则放弃；布局容器
+            后续 activate 会按设计复位，还原不依赖本方法，每遍重钉故双向幂等）。
+        休眠页跳过。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        if scroll is None:
+            scroll = getattr(ui, "scrollArea_11", None)
+        box = getattr(ui, "groupBox_83", None)
+        if box is None or not box.isVisibleTo(self):
+            return
+        content = scroll.widget() if scroll is not None else box.parentWidget()
+        if content is None:
+            return
+        pairs = (
+            ("radioButton_outline_zh_tw", "checkBox_show_translate_from"),
+            ("radioButton_outline_zh_tw", "radioButton_trans_show_jp_zh"),
+            ("radioButton_outline_jp", "radioButton_trans_show_one"),
+            ("radioButton_actor_zh_tw", "checkBox_actor_translate"),
+        )
+        wide = self._scroll_stretch_extra(scroll) > 0
+        if wide:
+            self._widen_fanyi_bilingual_row()
+        else:
+            self._restore_fanyi_bilingual_row()
+        for anchor_name, target_name in pairs:
+            anchor = getattr(ui, anchor_name, None)
+            target = getattr(ui, target_name, None)
+            if anchor is None or target is None:
+                continue
+            if target.parentWidget() is None or anchor.parentWidget() is None:
+                continue
+            dx = anchor.mapTo(content, anchor.rect().topLeft()).x() - target.mapTo(content, target.rect().topLeft()).x()
+            if not wide and dx >= 0:
+                continue  # 窄态只允许左移，右推/已对齐则放弃；宽态按锚点精确对齐
+            g = target.geometry()
+            nx = g.x() + dx
+            if nx < 0 or nx + g.width() > target.parentWidget().width():
+                continue  # 越出父级则保持通用逻辑给出的位置
+            if dx:
+                target.move(nx, g.y())
+        if wide:
+            # 「中文+日语」保持设计位置（父容器内 x=0、自然宽）：加宽后 HBox 会把
+            # 多余空间均分成前后间隙把它顶到中间（离屏实测 x=288），此处每遍钉回。
+            first = getattr(ui, "radioButton_trans_show_zh_jp", None)
+            if first is not None and first.x() != 0:
+                first.move(0, first.y())
+
+    # 「双语显示」行在 .ui 里的设计几何（frame_5：组内 x=20 w=661；
+    # layoutWidget_24：frame 内 x=140 w=521，右缘贴齐 frame 右缘）。
+    _FANYI_BILINGUAL_FRAME_W = 661
+    _FANYI_BILINGUAL_LW_W = 521
+    _FANYI_BILINGUAL_LW_X = 140
+    _FANYI_BILINGUAL_RADIOS = (
+        "radioButton_trans_show_zh_jp",  # 中文+日语（保持自然大小不动，只钉宽防 HBox 拉伸）
+        "radioButton_trans_show_jp_zh",  # 日语+中文
+        "radioButton_trans_show_one",  # 关闭
+    )
+
+    def _widen_fanyi_bilingual_row(self) -> None:
+        """宽态：加宽「双语显示」行容器并把三个单选钉为自然宽（见 trans_align）。"""
+        ui = self.Ui
+        frame, lw = ui.frame_5, ui.layoutWidget_24
+        want_frame_w = ui.groupBox_83.width() - 2 * 20
+        if frame.width() != want_frame_w:
+            frame.resize(want_frame_w, frame.height())
+        want_lw_w = frame.width() - self._FANYI_BILINGUAL_LW_X
+        if lw.width() != want_lw_w:
+            lw.resize(want_lw_w, lw.height())
+        if lw.layout() is not None:
+            lw.layout().invalidate()
+            lw.layout().activate()
+        for name in self._FANYI_BILINGUAL_RADIOS:
+            radio = getattr(ui, name, None)
+            if radio is None:
+                continue
+            natural = radio.sizeHint().width()
+            if radio.minimumWidth() != natural or radio.maximumWidth() != natural:
+                radio.setFixedWidth(natural)
+
+    def _restore_fanyi_bilingual_row(self) -> None:
+        """窄态：把宽态加宽/钉宽过的容器与单选交还设计值（幂等，数值相符即 no-op）。"""
+        ui = self.Ui
+        frame, lw = ui.frame_5, ui.layoutWidget_24
+        if frame.width() != self._FANYI_BILINGUAL_FRAME_W:
+            frame.resize(self._FANYI_BILINGUAL_FRAME_W, frame.height())
+        if lw.width() != self._FANYI_BILINGUAL_LW_W:
+            lw.resize(self._FANYI_BILINGUAL_LW_W, lw.height())
+        if lw.layout() is not None:
+            lw.layout().invalidate()
+            lw.layout().activate()
+        for name in self._FANYI_BILINGUAL_RADIOS:
+            radio = getattr(ui, name, None)
+            if radio is None:
+                continue
+            # .ui 里三个单选均无 maximumSize 约束、minimumWidth 均为 0
+            # （trans_show_jp_zh 另有 minimumHeight 30，那是高度方向，此处不动）。
+            if radio.minimumWidth() != 0 or radio.maximumWidth() != 16777215:
+                radio.setMinimumWidth(0)
+                radio.setMaximumWidth(16777215)
 
     # ============ 设置-命名页（画质组 groupBox_65）的间距收紧常量 ============
     # 网格容器与 QHD 说明、说明与分辨率行、分辨率行与末端添加4K行、末端添加4K行与

@@ -666,22 +666,39 @@ def set_style(self: "MyMAinWindow"):
         QPushButton:pressed#pushButton_right_menu,:pressed#pushButton_play,:pressed#pushButton_open_folder,:pressed#pushButton_open_nfo,:pressed#pushButton_show_hide_logs,:pressed#pushButton_save_failed_list,:pressed#pushButton_tree_clear{{
             background-color: rgba(150, 150, 150, 120);
         }}
-        QPushButton#pushButton_scrape_note,#pushButton_field_tips_website,#pushButton_field_tips_nfo{{
+        QPushButton#pushButton_field_tips_nfo{{
             color: #111827;
             background: #FFFFFF;
             border: 1px solid #CBD5E1;
             border-radius: 6px;
             padding: 3px 10px;
         }}
-        QPushButton:hover#pushButton_scrape_note,:hover#pushButton_field_tips_website,:hover#pushButton_field_tips_nfo{{
+        QPushButton:hover#pushButton_field_tips_nfo{{
             color: #FFFFFF;
             background: #4C6EFF;
             border: 1px solid #4C6EFF;
         }}
-        QPushButton:pressed#pushButton_scrape_note,:pressed#pushButton_field_tips_website,:pressed#pushButton_field_tips_nfo{{
+        QPushButton:pressed#pushButton_field_tips_nfo{{
             color: #FFFFFF;
             background: #3F5FE6;
             border: 1px solid #3F5FE6;
+        }}
+        QPushButton#pushButton_scrape_note{{
+            color: #111827;
+            background: #FFFFFF;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            padding: 3px 10px;
+        }}
+        QPushButton:hover#pushButton_scrape_note{{
+            color: #111827;
+            background: #F1F5F9;
+            border: 1px solid #94A3B8;
+        }}
+        QPushButton:pressed#pushButton_scrape_note{{
+            color: #111827;
+            background: #E2E8F0;
+            border: 1px solid #94A3B8;
         }}
         QPushButton#pushButton_save_new_config,#pushButton_init_config,#pushButton_success_list_close,#pushButton_success_list_save,#pushButton_success_list_clear,#pushButton_show_tips_close,#pushButton_nfo_close,#pushButton_nfo_save,#pushButton_show_pic_actor,#pushButton_add_actor_pic,#pushButton_add_actor_info,#pushButton_add_actor_pic_kodi,#pushButton_del_actor_folder,#pushButton_move_mp4,#pushButton_select_file,#pushButton_select_local_library,#pushButton_select_netdisk_path,#pushButton_select_localdisk_path,#pushButton_creat_symlink,#pushButton_find_missing_number,#pushButton_select_thumb,#pushButton_start_single_file,#pushButton_select_file_clear_info,#pushButton_add_sub_for_all_video,#pushButton_view_failed_list,#pushButton_select_media_folder,#pushButton_select_media_folder_setting_page,#pushButton_select_softlink_folder,#pushButton_select_sucess_folder,#pushButton_select_failed_folder,#pushButton_view_success_file,#pushButton_select_subtitle_folder,#pushButton_select_actor_photo_folder,#pushButton_select_gfriends_local,#pushButton_select_actor_info_db,#pushButton_select_config_folder,#pushButton_add_all_extrafanart_copy,#pushButton_del_all_extrafanart_copy,#pushButton_add_all_extras,#pushButton_del_all_extras,#pushButton_add_all_theme_videos,#pushButton_del_all_theme_videos,#pushButton_check_and_clean_files,#pushButton_search_by_number,#pushButton_search_by_url{{
             font-size:14px;
@@ -958,22 +975,39 @@ def set_dark_style(self: "MyMAinWindow"):
         QPushButton{
             color: #E5E7EB;
         }
-        QPushButton#pushButton_scrape_note,#pushButton_field_tips_website,#pushButton_field_tips_nfo{
+        QPushButton#pushButton_field_tips_nfo{
             color: #E5E7EB;
             background: #1D2834;
             border: 1px solid #3B4654;
             border-radius: 6px;
             padding: 3px 10px;
         }
-        QPushButton:hover#pushButton_scrape_note,:hover#pushButton_field_tips_website,:hover#pushButton_field_tips_nfo{
+        QPushButton:hover#pushButton_field_tips_nfo{
             color: #FFFFFF;
             background: #6684FF;
             border: 1px solid #6684FF;
         }
-        QPushButton:pressed#pushButton_scrape_note,:pressed#pushButton_field_tips_website,:pressed#pushButton_field_tips_nfo{
+        QPushButton:pressed#pushButton_field_tips_nfo{
             color: #FFFFFF;
             background: #4C6EE0;
             border: 1px solid #4C6EE0;
+        }
+        QPushButton#pushButton_scrape_note{
+            color: #E5E7EB;
+            background: #1D2834;
+            border: 1px solid #3B4654;
+            border-radius: 6px;
+            padding: 3px 10px;
+        }
+        QPushButton:hover#pushButton_scrape_note{
+            color: #E5E7EB;
+            background: #253140;
+            border: 1px solid #566374;
+        }
+        QPushButton:pressed#pushButton_scrape_note{
+            color: #E5E7EB;
+            background: #2B3A4C;
+            border: 1px solid #566374;
         }
         """)
     )
@@ -1092,22 +1126,39 @@ def set_dark_style(self: "MyMAinWindow"):
         QPushButton:pressed#pushButton_right_menu,:pressed#pushButton_play,:pressed#pushButton_open_folder,:pressed#pushButton_open_nfo,:pressed#pushButton_show_hide_logs,:pressed#pushButton_save_failed_list,:pressed#pushButton_tree_clear{{
             background-color: rgba(150, 150, 150, 120);
         }}
-        QPushButton#pushButton_scrape_note,#pushButton_field_tips_website,#pushButton_field_tips_nfo{{
+        QPushButton#pushButton_field_tips_nfo{{
             color: #E5E7EB;
             background: #1D2834;
             border: 1px solid #3B4654;
             border-radius: 6px;
             padding: 3px 10px;
         }}
-        QPushButton:hover#pushButton_scrape_note,:hover#pushButton_field_tips_website,:hover#pushButton_field_tips_nfo{{
+        QPushButton:hover#pushButton_field_tips_nfo{{
             color: #FFFFFF;
             background: #6684FF;
             border: 1px solid #6684FF;
         }}
-        QPushButton:pressed#pushButton_scrape_note,:pressed#pushButton_field_tips_website,:pressed#pushButton_field_tips_nfo{{
+        QPushButton:pressed#pushButton_field_tips_nfo{{
             color: #FFFFFF;
             background: #4C6EE0;
             border: 1px solid #4C6EE0;
+        }}
+        QPushButton#pushButton_scrape_note{{
+            color: #E5E7EB;
+            background: #1D2834;
+            border: 1px solid #3B4654;
+            border-radius: 6px;
+            padding: 3px 10px;
+        }}
+        QPushButton:hover#pushButton_scrape_note{{
+            color: #E5E7EB;
+            background: #253140;
+            border: 1px solid #566374;
+        }}
+        QPushButton:pressed#pushButton_scrape_note{{
+            color: #E5E7EB;
+            background: #2B3A4C;
+            border: 1px solid #566374;
         }}
         QPushButton#pushButton_save_new_config,#pushButton_init_config,#pushButton_success_list_close,#pushButton_success_list_save,#pushButton_success_list_clear,#pushButton_show_tips_close,#pushButton_nfo_close,#pushButton_nfo_save,#pushButton_show_pic_actor,#pushButton_add_actor_pic,#pushButton_add_actor_info,#pushButton_add_actor_pic_kodi,#pushButton_del_actor_folder,#pushButton_move_mp4,#pushButton_select_file,#pushButton_select_local_library,#pushButton_select_netdisk_path,#pushButton_select_localdisk_path,#pushButton_creat_symlink,#pushButton_find_missing_number,#pushButton_select_thumb,#pushButton_start_single_file,#pushButton_select_file_clear_info,#pushButton_add_sub_for_all_video,#pushButton_view_failed_list,#pushButton_select_media_folder,#pushButton_select_media_folder_setting_page,#pushButton_select_softlink_folder,#pushButton_select_sucess_folder,#pushButton_select_failed_folder,#pushButton_view_success_file,#pushButton_select_subtitle_folder,#pushButton_select_actor_photo_folder,#pushButton_select_gfriends_local,#pushButton_select_actor_info_db,#pushButton_select_config_folder,#pushButton_add_all_extrafanart_copy,#pushButton_del_all_extrafanart_copy,#pushButton_add_all_extras,#pushButton_del_all_extras,#pushButton_add_all_theme_videos,#pushButton_del_all_theme_videos,#pushButton_check_and_clean_files,#pushButton_search_by_number,#pushButton_search_by_url{{
             font-size:14px;

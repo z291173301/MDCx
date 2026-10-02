@@ -723,7 +723,7 @@ def on_nfo_lib_batch_done(self: MyMAinWindow, _arg: str) -> None:
 
 
 def listWidget_nfo_lib_context_menu(self: MyMAinWindow, pos) -> None:
-    """NFO 列表右键菜单：重新刮削 / 打开所在目录 / 删除 NFO。"""
+    """NFO 列表右键菜单：重新刮削番号 / 打开所在目录 / 删除nfo文件。"""
     items = self.Ui.listWidget_nfo_lib.selectedItems()
     if not items:
         return
@@ -741,9 +741,9 @@ def listWidget_nfo_lib_context_menu(self: MyMAinWindow, pos) -> None:
         menu.addAction(count_action)
         menu.addSeparator()
 
-    act_rescrape = QAction("重新刮削", self)
+    act_rescrape = QAction("重新刮削番号", self)
     act_open_folder = QAction("打开所在目录", self)
-    act_delete = QAction("删除 NFO" + (f"（{len(nfo_paths)} 个）" if len(nfo_paths) > 1 else ""), self)
+    act_delete = QAction("删除nfo文件" + (f"（{len(nfo_paths)} 个）" if len(nfo_paths) > 1 else ""), self)
     menu.addAction(act_rescrape)
     menu.addAction(act_open_folder)
     menu.addSeparator()
