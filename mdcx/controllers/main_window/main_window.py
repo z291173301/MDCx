@@ -1252,10 +1252,15 @@ class MyMAinWindow(QMainWindow):
     )
     # 自身 leftMargin 非零、需归零的行布局（hl159 的 20px）
     _ACTOR_INFO_ROW_ZERO_MARGIN = ("horizontalLayout_159",)
-    # 窄态（需求③）：语言行不动（「中文简体」自身保持原位），只把「不存在中文时，
-    # 翻译日语为中文」与「使用数据库补全演员信息」连同同排后续控件左移到 A1。
-    # 窄态 A1→A2 仅 160px，放不下第二列，故只用 A1。
+    # 窄态：语言行把「中文繁体」右移到 A2、「日语」右移到 A3（中文简体不动）；
+    # 「不存在中文时，翻译日语为中文」与「使用数据库补全演员信息」连同同排后续控件
+    # 左移到 A1。窄态 A1→A2 仅 160px，但语言行尾部本就有 Expanding 间隔可吸收位移，
+    # 故繁/日两列放得下（1000 宽实测 need 102/101）。
     _ACTOR_INFO_NARROW_TARGETS = {
+        "horizontalLayout_92": (
+            ("radioButton_actor_info_zh_tw", "A2"),
+            ("radioButton_actor_info_ja", "A3"),
+        ),
         "horizontalLayout_100": (("checkBox_actor_info_translate", "A1"),),
         "horizontalLayout_159": (("checkBox_actor_db", "A1"),),
     }
@@ -1846,9 +1851,10 @@ class MyMAinWindow(QMainWindow):
              「中文简体」同在 A1，「中文繁体」A2、「日语」A3 不变。
           ② 「演员信息数据库：」路径输入框左缘扩到 A1、右缘缩到 A2（宽度 = A2-A1），
              「选择文件」按钮随之左移到输入框右缘之后。窄态此行不动。
-        窄态（需求③）：「不存在中文时，翻译日语为中文」「使用数据库补全演员信息」
+        窄态：「不存在中文时，翻译日语为中文」「使用数据库补全演员信息」
           及其同排后续控件左缘对齐 A1（即「中文简体」所在列）；「所有演员」同左移到
-          A1。窄态下 A1 与 A2 间距仅 160px，放不下 A2，故只钉 A1。
+          A1；语言行「中文繁体」右移到 A2、「日语」右移到 A3（中文简体不动，
+          A2/A3 锚点自身不动；行尾 Expanding 间隔吸收位移）。
 
         共同手法（col1 内的行受 QGridLayout 管理，对子控件 setGeometry 会在下次
         layout 激活时被覆盖，一律用 QSpacerItem 注入定位）：

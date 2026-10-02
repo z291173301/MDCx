@@ -253,7 +253,7 @@ def test_actor_info_columns_align_when_wide(win, app):
 
 
 def test_actor_info_columns_align_when_narrow(win, app):
-    """需求⑦：窄态两行 + 「所有演员」左移到「中文简体」所在列，语言行与路径行不动。"""
+    """需求⑦ + 本轮：窄态两行 + 「所有演员」左移到「中文简体」所在列；语言行繁/日右移到 A2/A3。"""
     ui = win.Ui
     win.show()
     _goto_actor_page(win, app)
@@ -279,6 +279,18 @@ def test_actor_info_columns_align_when_narrow(win, app):
     ):
         assert _abs(ui, follower) > _abs(ui, leader), f"窄态 {desc} 未紧随其首控件"
 
+    # 本轮：窄态「中文繁体」右移到 A2（使用Graphis头像）、「日语」右移到 A3
+    # （请求Graphis最新图片），两锚点自身不动；「中文简体」保持在 A1 原位。
+    assert _abs(ui, ui.radioButton_actor_info_zh_tw) == _abs(ui, ui.checkBox_actor_photo_ne_face), (
+        "窄态「中文繁体」未与「使用Graphis头像」对齐"
+    )
+    assert _abs(ui, ui.radioButton_actor_info_ja) == _abs(ui, ui.checkBox_actor_photo_ne_new), (
+        "窄态「日语」未与「请求Graphis最新图片」对齐"
+    )
+    assert _abs(ui, ui.radioButton_actor_info_zh_cn) == _abs(ui, ui.checkBox_actor_photo_ne_backdrop), (
+        "窄态「中文简体」被带偏"
+    )
+
     # 需求⑥ 明确「最小化时不用变」：路径行在窄态不得被钉到宽态位置
     assert _abs(ui, ui.lineEdit_actor_db_path) != _abs(ui, ui.radioButton_actor_info_zh_tw), (
         "窄态路径输入框被误钉到宽态列"
@@ -297,6 +309,7 @@ def test_actor_info_state_restored_after_round_trip(win, app):
 
     _resize(win, app, 1000, 700)
     base = snap()
+    base_spacers = sorted(row.objectName() for row, _ in win._actor_info_spacers)
     base_indent = (
         ui.horizontalLayout_98.spacing(),
         ui.label_280.width(),
@@ -317,7 +330,12 @@ def test_actor_info_state_restored_after_round_trip(win, app):
         ui.layoutWidget_15.geometry().getRect(),
     )
     assert now_indent == base_indent, f"还原态缩进/容器未复原: {base_indent} -> {now_indent}"
-    assert win._actor_info_spacers == [], "还原态未清空间隔"
+    # 窄态语言行（繁→A2、日→A3）合法注入固定间隔，还原态应与初态一致
+    # （初态窄态同样有这几个），而非清零。
+    assert sorted(row.objectName() for row, _ in win._actor_info_spacers) == base_spacers, (
+        f"还原态间隔与初态不一致: {base_spacers} -> "
+        f"{sorted(row.objectName() for row, _ in win._actor_info_spacers)}"
+    )
     # 窄态本身也要钉位（需求⑦/⑧），故宽度锁在窄态非空是正常的；真正要保证的是
     # 「锁定的是窄态值、不是宽态值」——路径输入框不得停在宽态的 466。
     assert ui.lineEdit_actor_db_path.width() != 466, (
