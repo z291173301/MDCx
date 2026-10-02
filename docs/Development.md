@@ -112,12 +112,20 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 
 - 现象（用户实测四条，截图红框标出演员/网络/高级）：启动后先点开过的页正常、没点过的更窄；等 30~60 秒或最大化再还原后全部变齐；且每次异常页都不同。
 - 排查排除：滚动区 `.ui` 逐项一致（几何/frameShape/lineWidth/AlwaysOn/AlwaysOff/widgetResizable，演员仅多 Sunken 装饰）；12 个滚动区全是 `CustomScrollArea`（`findChild` 无遗漏）；全库无 `setStyle`/`QScrollBar` 实例化/`setVerticalScrollBar`，策略全 AlwaysOn；QSS 滚动条规则全库唯一（`controllers/main_window/style.py:build_scrollbar_style`，`QScrollBar:vertical{width:16px}` + 满宽滑块 + `min-height:44px`，随 centralwidget 整页下发）且渲染输出合法（大括号平衡）；离屏 12 页 + 0.8 缩放 + 首开→最大化→还原三轮探针全部逐值相等。
-- **生产取证（临时日志，用户跑）**：`dpr=1.00`（**不是**分数缩放，80% 猜测被否）；12 页逐值相同——`w=16`、`sizeHint=16`、样式类相同、祖先样式表 3128 字符相同、视口 758、滚动区 774（唯一例外 p0 缺 min/max 约束，宽度同为 16）。
-- **像素级取证**（真实 QSS 不 patch `set_style`，逐页 `bar.grab()` 统计）：12 页都是 **16px 宽的槽 + 16px 满宽滑块**（每列"非底色"像素数逐列相等），唯一逐页不同的是**滑块长度**占槽高 18%~82%（随内容高度变化，`sb.max` 各页不同）。注意浅色主题槽底 `#E5E7EB` 接近白底、滑块 `#CBD5E1`，两者对比极低——"整条实心灰柱"与"淡细条"的观感差异主要来自滑块长度而非厚度。
-- 结论：用户"三页更细"的现象**至今未定案**，此前"未布局页读 Qt 默认 100px 长度 + 80% 分数缩放取整不同"的根因推导已被上述实数证伪。下一步需要放大截图（整窗截图无法判 1~2px 级差异）才能定位真实差异像素。
-- 保留兜底：`_sync_settings_scrollbar_widths()`（try/except 整体兜底，3.14t free-threading 下槽内抛异常会直接带崩进程，见 add_log 槽事故）遍历 12 页签 CustomScrollArea，`area/viewport/bar` 全部 `ensurePolished()`，只采信 8~48px 区间读数取最宽者为准、其余 `setFixedWidth(target)`，有改动则 `_sync_page_layouts()` 按新视口重排；连接用 `QTimer.singleShot(0, …)` 且排在 `_queue_nfo_post_cascade_sync` 之后（量级联终态厚度，直连会量到级联前几何，同款陷阱见字段说明那节）。生产实测各页本就 16px，故它在生产是 **no-op 兜底**：只在将来某页厚度荒唐（Qt 默认长度值 100 那种）时拉回一致值。已一致时零改动（幂等）。
+- ~~生产取证（临时日志）~~ / ~~像素级取证~~：**这两批"12 页逐值相同、都是 16px"的证据已作废**，原因是探针根本没让设置页显示出来——`stackedWidget` 里 `page_setting` 的下标是 **4**（不是 2），按 2 进页时页面始终 `isVisibleTo=False`，滚动条从未被布局/抛光，量到的只有"恰好被布局过的那一条"是真的，其余 11 条的 `vis=False` 被当成"无需检查"跳过了。**教训：量设置页滚动条前必须先断言 `page_setting.isVisibleTo(win)`，否则整批数据作废。**
+- **已定案（滚动条忽宽忽窄）**：根因是控制器读 `width()` + 取 `min`，两处叠加把一次瞬时坏读数变成全局永久降级。QSS 的权威厚度是 `QScrollBar:vertical{width:16px}`，它落在 **`sizeHint()`** 上；而 `width()` 只是控件当前几何，未 polish / 未被布局的页签停在平台默认 `PM_ScrollBarExtent`（`QT_SCALE_FACTOR=0.8` + 125% 系统缩放下实测 **12**，比 QSS 少 4）。旧代码 `min(sane)` 先取到某个未抛光页的 12，再 `setFixedWidth(12)`（min=max=12，**覆盖 QSS**）把 12 页一齐钉死——这正是"首开某页是宽的、切走再回来变窄、再也回不到 16、且每次落在随机页签"的表现。**决定性复现**：`QT_SCALE_FACTOR=0.8`、窗口 1030×650、真正进入设置页后逐页切换并对每条**可见**滚动条 `grab()` 逐像素量——修前 11 页里 **10 页渲染宽度就是 12px**（恰好落在字幕/水印/演员/网络/高级五页，与用户报的一模一样），修后 **11 页全 16px**。
+- 保留兜底：`_sync_settings_scrollbar_widths()`（try/except 整体兜底，3.14t free-threading 下槽内抛异常会直接带崩进程，见 add_log 槽事故）遍历 12 页签 CustomScrollArea，`area/viewport/bar` 全部 `ensurePolished()`，厚度读数改取 **`sizeHint()`**（不受布局时序影响，12 页恒为 QSS 值），只采信 8~48px 区间读数**取最宽者** `max` 为准、sizeHint 全不可信时退回 `width()` 仍取 max、其余 `setFixedWidth(target)`，有改动则 `_sync_page_layouts()` 按新视口重排；连接用 `QTimer.singleShot(0, …)` 且排在 `_queue_nfo_post_cascade_sync` 之后（量级联终态厚度，直连会量到级联前几何，同款陷阱见字段说明那节）。已一致时零改动（幂等）。**读数来源与 max 缺一不可**：读 `width()` 会被未布局页污染，取 `min` 则一次坏读数拖着全组降级——两者任一错都会复现随机页签变窄。**判定"是否需要钉"必须看约束（`minimumWidth()/maximumWidth()`）而不是几何（`width()`）**：首开时唯一被布局过的那条 `width()` 恰好已等于 target，按几何判会放过它，它就永远只靠 QSS 撑着，后续任意一次 polish/布局都能把它打回平台默认厚度——这正是"随机页签"的残余，故逐条钉成 `min=max=target` 才是封死的终态。
+- ~~第二轮判断（触发时机竞态）：挂 `QTimer.singleShot(0)` 与 polish/布局赛跑，所以异常页签每次不同~~ —— **已被下面的实测推翻**。定时器只是让"钉几何"这件事发生在随机时刻，本身不是病因。
+- **最终定案（2026-10-02，第三轮）：钉几何不改变绘制，真正的原因是 Qt 在 polish 时缓存了滚动条 groove/handle 的子控件矩形。** 用整窗合成图逐像素量（不看控件属性）：控件 `width()/sizeHint()/min/max` 在**所有**页签都已是 16，但实际画出来的槽宽在字幕/水印/演员/网络/高级等页仍是 **12**，只有刮削目录/命名/翻译画成 16——**属性与画面对不上**。`setFixedWidth` 只改几何，那份抛光期缓存不失效，槽就照旧按抛光时的平台默认（`PM_ScrollBarExtent` 实测 12）画。
+  - 决定性干预表（字幕页，窄态已复现）：基线 12 → `update()+repaint()` **仍 12**（单纯重绘无效）→ `unpolish()+polish()` **16** → 整窗 repaint 16 → 条 hide+show 16 → 滚动区 hide+show 16 → 祖先样式表重挂 16 → **条自身 `setFixedWidth(15)` → 画 15**（关键：绘制确实跟随宽度，但只在重新抛光之后）。
+  - 由此解释了两个一直对不上的现象：①**为什么是随机页签**——一条条看起来宽，只是因为它碰巧被别的事件（换肤、焦点、祖先样式表变动）顺带重新抛光过；②**为什么最大化就好了、还原后也保持**——最大化让整棵控件树重新抛光。
+  - **修法**：`CustomScrollArea.sync_scrollbar_thickness(repolish=False)`（`mdcx/views/CustomClass.py`）——`ensurePolished()` → 厚度读 QSS 声明的 `sizeHint()`（不硬编码 16）→ 只采信 8~48px 区间 → 约束不等于声明值才 `setFixedWidth(declared)` → **仅在"宽度真的改了"或"这是 show"时才 `style().unpolish()+polish()+update()` 让缓存失效**。挂在 `showEvent`（`repolish=True`，显示正是陈旧绘制第一次露出来的时刻）与 `resizeEvent`（不带 repolish，未改动即返回，天然幂等、不会自激成 resize 回环）。
+  - **验证按渲染像素，不按控件属性**：`QT_SCALE_FACTOR=0.8`、窗口 1030×700、真实启动路径逐页切换后量整窗合成图。带修法连跑 3 次 `painted=16` 覆盖全部 12 页（`narrow=0`）；`git stash` 打回改动连跑 2 次 `narrow=11`。
 - 观感调整尝试与**最终结论：不改**（用户 2026-09-27 决定放弃此问题）。两轮尝试均已回滚：`① 槽底加深（浅 #E5E7EB→#D8DEE6 / 深 #1F2937→#263241）+ 滑块定厚 10px`、用户否；`② 只把滑块改窄 8px、颜色不动`、用户试后仍无改善、否。回滚后 `build_scrollbar_style` 回到 #153 原状（槽宽 16px、滑块满宽无 width/height、最短 44px、深浅四色原样）。取证链（四路独立证据，全部指向"厚度逐页相同"）：生产逐页日志 `w=16 / sizeHint=16 / 样式类相同 / 祖先样式表 3128 字符相同 / 视口 758 / 滚动区 774`，`dpr=1.00`（80% 分数缩放猜测被否）；离屏真实 QSS 逐页 `bar.grab()` 像素指纹——12 页皆 16px 槽 + 16px 满宽滑块；整块窗口合成图回匹配（先从 `grab()` 取两种主色再回合成图找条色，容差 2）——`bar=(0,0,16,685)`、`bar_x_win=1047`、`right_gap=26`、命中条色宽度 16 逐页相等；红槽诊断（临时把 `track` 刷 #FF0000、`handle` 刷 #0000FF 截图，用户配合）——两页红槽宽度与 x 位置完全一致，**唯一差异是滑块长度**（NFO 蓝段 ~362px vs 网络页 ~262px，同一 590px 槽内；槽底红段 228 vs 328）。滑块长度由 Qt 按 内容高/视口高 算出（12 页占槽高 18%~82%），无法跨页拉平。
-- 回归测试：`tests/test_window_state_matrix.py::test_settings_scrollbars_uniform_width_across_tabs`（先逐个点开 12 页签复刻生产"已布局"态并断言厚度统一且在 8~48 区间 → 记录 `groupBox_81` 几何 → 注入两页窄 4px → 调控制器 → 断言全页统一到 target、组框几何原样恢复、幂等）。初版控制器对全部读数取 max，被未布局页的 100 污染成 target=100（测试首跑即挂），已改为逐条过滤 sane 读数。
+- 回归测试：`tests/test_window_state_matrix.py::test_settings_scrollbars_use_declared_thickness_not_stale_geometry`（给 `page_setting` 挂真实滚动条 QSS → 注入"声明 16 / 几何停在窄值"的混合态 → 调控制器 → 断言 12 页全部回到声明厚度**且逐条 min=max=target**（不留"几何恰好已等于 target 就放过"的口子）→ 切走切回复跑，断言厚度与钉死态都不降级）。另有 `test_settings_scrollbars_uniform_width_across_tabs`（先逐个点开 12 页签复刻生产"已布局"态并断言厚度统一且在 8~48 区间 → 记录 `groupBox_81` 几何 → 注入两页窄 4px → 调控制器 → 断言全页统一到 target、组框几何原样恢复、幂等）。初版控制器对全部读数取 max，被未布局页的 100 污染成 target=100（测试首跑即挂），已改为逐条过滤 sane 读数。两个测试都锁住"取最宽者"：注入窄几何后若实现取 min，全部 12 页会被统一到窄值而挂。第三个测试 `test_scroll_area_pins_scrollbar_thickness_on_show_without_timer` 锁的是**下沉修法本身**：压矮窗口让 12 页都真实溢出 → 逐页测量绘制宽度（离屏未绘制时该测量返回 `None` 并跳过）→ 注入"几何 16 / 绘制停在 12"的真实故障态（`setFixedWidth(窄值)` + `unpolish` + `polish`，复刻陈旧缓存）→ 走 `area.show()` 触发 `showEvent` 的 `repolish=True` → 断言几何与 min=max 回到 16、绘制宽度回到 16；另锁幂等。无修法时报 `AttributeError`。
+- **定案验证（2026-10-02，按渲染像素）**：`QT_SCALE_FACTOR=0.8`、窗口 1030×700、真实启动路径进入设置页后逐页切换，量**整窗合成图**上的实际槽宽——带修法连跑 3 次，12 页全部 `painted=16`（`narrow=0`）；`git stash push -- mdcx/views/CustomClass.py` 打回连跑 2 次，`narrow=11`。
+- **教训（本议题踩了三次）**：①量设置页滚动条前必须先断言 `page_setting.isVisibleTo(win)`（它在下标 **4**，不是 2），否则整批数据作废；②**只读控件属性会骗人**——属性全对、像素是错的，必须量渲染结果；③要求用户配合点击的诊断设计是失败的（两次日志都记到"从未进入设置页"），诊断脚本应自带导航、在真实事件循环里自动跑完。离屏 pytest 里 `grab()` 拿不到真实绘制（整行同色），绘制宽度断言需容忍这种情况。
+- 另注：短窗口（1030×~330~520）下切到**NFO 页**（`tabWidget` 下标 8）会让本进程直接崩（Windows 退出码 `-1073740791`，`faulthandler` 无 Python 栈）。与本议题无关、未定位，但复现设置页滚动条取证时**不要靠压窗口高度来造溢出**，改用正常窗口 + 逐页切换（1030×650 下 11 页已自然溢出）。
 
 **版本检查定时复查走完整提示链**（用户需求：`timer_update`（12h）只连裸 `check_version`——主线程阻塞做网络且返回值丢弃，定时检查永远不提示）
 
@@ -409,6 +417,19 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 - **推送前自检**：修改代码后先运行 `uv run quick-check`（ruff format/check + mypy）；提交推送前运行 `uv run check --skip-hook-install`（ruff format/check + mypy + pytest + check_thread_safety；出厂演员库/信息库或其校验脚本有改动时才跑 `check_actor_db` / `check_info_db`）。`scripts/check_ui_layout.py` 只作手工诊断（warning 不阻断），结构约束由 `tests/test_ui_structure.py` 锁定。
 
 ## 代码规范
+
+### 界面问题的取证与验证（2026-10-02 立规）
+
+下列各条来自「设置页滚动条忽宽忽窄」一案——该案连续三轮改错方向、每轮都「验证通过」，直到用户实测两遍才发现没修好。根子不在手笨，在于**取证方式本身有系统性盲区**，故立规。
+
+- **界面问题一律以「渲染出来的像素」为准，不以控件属性为准。** 属性（`width()` / `sizeHint()` / `min` / `max`）描述控件**认为自己**多大，绘制结果才是用户**看到**多大，二者可以完全不一致——本案的终局正是「12 个页签属性全对 16，实际画出来 11 个是 12」。量像素用 `widget.grab().toImage()`，且**必须从整窗合成图 `win.grab()` 取**（对未绘制的隐藏控件单独 `grab()` 只会拿到陈旧的后备存储像素）。**属性全绿不构成「已修复」的证据。**
+- **量之前先断言目标真的显示了。** 本案探针按 `stackedWidget` 下标 2 进设置页，而 `page_setting` 实际在 **4**，页面全程 `isVisibleTo=False`、控件从未被布局/抛光，于是 11 条滚动条的「不可见」被当成「无需检查」跳过，整批数据作废。**断言 `page_setting.isVisibleTo(win)` 通过之前，任何测量结果都不算数。** 另：短窗口下切 NFO 页（`tabWidget` 下标 8）会让进程直接崩（无 Python 栈），造溢出要靠正常窗宽 + 逐页切换，不要压窗口高度。
+- **「异常落在哪几个」会变，说明在和事件循环赛跑，不是在修病因。** 第一轮坏的是字幕/水印/演员/网络/高级，第二轮变成下载/刮削网站/刮削模式——**换了一批坏的就等于没修**。遇到随机性先假定有竞态，把定时的修复下沉到控件自身的事件钩子，别挂 `QTimer.singleShot(0)`。
+- **改了几何不等于改了绘制；样式表驱动的子控件要重新 polish。** Qt 在 polish 时算好并缓存 groove/handle 等子控件矩形，之后 `setFixedWidth` 只更新几何、不作废缓存，绘制仍按旧值走。**症状是 `update()+repaint()` 完全无效**，必须 `style().unpolish(w); style().polish(w)`。判据：改宽度后画面对不上，先试重新 polish（本案实测 `setFixedWidth(15)` 画 15、`(16)` 画 16，但都得先 polish）。
+- **区分「某控件内部数据对」和「用户看到的对」是两类断言，测试要各写一条。** 离屏 pytest 不绘制，`grab()` 拿到的是空后备存储（整行同色），此时像素断言只能**放宽为 `None` 或期望值**；真正的像素验证放在带真实事件循环的探针里做。
+- **诊断脚本要自动驱动，不能依赖用户手工点。** 两轮让用户自己操作采集的日志都是废的（一次 11 秒内从未进过设置页，一次进程 150ms 就结束）。探针应复刻真实启动路径后自行遍历全部状态并输出可判读的结论。
+- **宣称「已修复」前先问一句：这个探针能不能判别出故障？** 若把有 bug 的代码喂给它也返回「一切正常」，说明它没有判别力，此时的「通过」是假阳性。本案靠这一条才逼出真因。
+- **宣布失败要干脆。** 用户实测没变化就直说没修好，别用「属性已全部正确」之类的读数去解释成成功。
 
 - **格式化**：ruff（行宽 120，启用 isort/pyupgrade/flake8）
 - **类型检查**：mypy（全项目零 `disable_error_code`；`mdcx/controllers/main_window/init.py`、`load_config.py`、`views/`、`gen/` 等豁免，CI `ci.yaml` 强制执行）；pyright 仅在 `pyproject.toml` 中保留配置，未纳入 CI 门禁

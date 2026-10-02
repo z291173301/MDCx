@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1.9 (2026-10-02)
+
+### 修复
+
+- **软件设置各页签的竖向滚动条启动时忽宽忽窄（每次落在随机页签，最大化后才统一且保持）**：QSS 里 `build_scrollbar_style` 声明的 `QScrollBar:vertical{width:16px}` 只落在 `sizeHint()` 上，而滚动条**实际画多宽由 polish 时刻缓存的 groove/handle 子控件矩形决定**——`setFixedWidth(16)` 只更新几何、不作废那份缓存，于是槽照旧按平台默认宽度绘制（125% 系统缩放 × 80% 高分屏缩放下 `PM_ScrollBarExtent` 实测 **12**），控件 `width()` 却是 16，**属性全对、画面是 12**，肉眼即"窄了一条白边"。哪些条看起来是宽的，取决于它有没有被别的事件（换肤、焦点变化、祖先样式表变动）顺带重新抛光过，故每次落在随机页签；最大化会让整棵控件树重新抛光，于是在宽态"看着好了"、还原后也保持——与用户现象逐条吻合。修法：新增 `CustomScrollArea.sync_scrollbar_thickness(repolish=False)`（`mdcx/views/CustomClass.py`），厚度取 QSS 声明的 `sizeHint()`（不硬编码 16，改 QSS 即改这里）、只采信 8~48px 区间（未 polish 时可能报出 Qt 默认的荒唐值），需要时 `setFixedWidth` 后**必定 `unpolish()+polish()+update()` 让绘制真正跟上**；挂 `resizeEvent`（未改动即返回，幂等、不自激成 resize 回环）与 `showEvent`（传 `repolish=True`——显示正是陈旧绘制第一次露出来的时刻），下沉到控件自身即与"页签是否被访问过""定时器先后"彻底解耦。控制器 `_sync_settings_scrollbar_widths()` 保留为兜底并同步改为读 `sizeHint()`、取 `max`、按约束而非几何判是否需要钉。**逐项干预实测**（字幕页复现窄态后，量实际渲染宽度）：基线 12 → `update()+repaint()` **12**（重绘无用）→ `unpolish()+polish()` **16** → `setFixedWidth(15)` **15**（绘制确实跟随宽度，但只在重新抛光之后）。**定案验证**（真实启动路径、`QT_SCALE_FACTOR=0.8`、量整窗合成图的渲染像素而非控件属性）：打回改动连跑 2 次每次 `narrow=11/12`，带上修法连跑 3 次每次 `narrow=0/12`；抗压序列（明暗主题切换 ×2、逐页快速点开 3 轮、最大化/还原、连续 4 次改窗高、离开设置页再回来）8 个检查点全部 `width==sizeHint==min==max`。新增 `tests/test_window_state_matrix.py::test_scroll_area_pins_scrollbar_thickness_on_show_without_timer`（直接调控件方法、不经控制器与定时器，注入"钉死 + 重新抛光"复现陈旧缓存后经 `show()` 触发修复，断言几何、`min=max` 与渲染宽度三者都回到 16 且幂等；无修法时报 `AttributeError`），另两个既有滚动条回归用例同步更新
+
 ## v2.1.8 (2026-10-01)
 
 ### 修复

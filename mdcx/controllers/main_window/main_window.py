@@ -3926,20 +3926,31 @@ class MyMAinWindow(QMainWindow):
     def _sync_settings_scrollbar_widths(self) -> None:
         """设置页各页签竖向滚动条厚度兜底（保证逐页等宽、有 sane 下限）
 
-        定位说明（务必先读，避免再被假象带偏）：本方法**不是**用户"演员/网络/
-        高级三页滚动条看着更细"那个现象的修法。生产逐页取证（临时日志，实测
-        dpr=1.00）显示 12 个页签的滚动条在每个可测字段上逐值相同：w=16、
-        sizeHint=16、样式类相同、祖先样式表相同（3128 字符）、视口 758、
-        滚动区 774；再对每页滚动条 grab() 逐像素统计，12 页都是 16px 宽的槽
-        + 16px 满宽滑块，唯一逐页不同的是**滑块长度**（占槽高 18%~82%，随
-        内容高度变化）。此前"80% 分数缩放 + 未布局页读 Qt 默认 100px 长度"
-        的根因推导已由这批实数证伪（dpr 实为 1.00，且 12 页宽度本就一致）。
-        本方法保留作兜底：若将来某页滚动条因样式/布局异常报出荒唐厚度（Qt 默
-        认长度值 100 那种），切页时会被拉回与其余页一致的合理值。
+        这就是用户「演员/网络/高级（以及字幕/水印）几页滚动条看着更细」那个现象
+        的修法。取证的坑在于：**必须先让设置页真正显示出来**再去量——stackedWidget
+        里 page_setting 的下标是 4（不是 2），早前几版脚本按 2 进页，页面始终
+        isVisibleTo False，本方法每次都在守卫处早退，于是量到的「12 页一致、都是
+        16px」全是假象（那批数据只有真正被布局过的一条是真的）。
+        正确取证：QT_SCALE_FACTOR=0.8（对应用户 1920x1080 + 125% 系统缩放）、
+        窗口 1030x650、进入设置页后逐页切，**对每条可见滚动条 grab() 逐像素量**——
+        修前 11 页里 10 页渲染宽度就是 12px（恰好落在字幕/水印/演员/网络/高级），
+        修后 11 页全是 16px，与 QSS 声明一致。
         做法：切页落定后取各页厚度，只采信落在合理区间（8~48px）的读数，取
         其中最宽者为准，把其余一律 setFixedWidth 对齐；已一致时完全 no-op
         （幂等）；除滚动条自身厚度外不改任何几何，组框与行列宽由末尾的全量
         同步按新视口重排。
+        读数来源（离屏整窗实测，勿再改回 width()）：厚度取 **sizeHint()** 而非
+        width()。QSS 里 `QScrollBar:vertical{width:16px}` 是权威厚度，它落在
+        sizeHint 上；width() 只是控件当前几何，未 polish / 未被布局过的页签停在
+        平台默认 PM_ScrollBarExtent（实测 12，比 QSS 少 4）。这正是「首开某页
+        是宽的、切走再回来变窄、且每次落在随机页签」的成因：先用 width() 取到
+        某个未抛光页的 12，再被 setFixedWidth 永久钉死（min=max=12 覆盖 QSS），
+        12 页一齐降级且再也回不到 16。sizeHint 不受布局时序影响，12 页恒为 16。
+        取最宽者（max）而非最窄：一次坏读数只能把自己拉回众数，不能拖着全组
+        降级——这与本方法文档、docs/Development.md 及
+        tests/test_window_state_matrix.py 的断言一致（min 会让该回归测试失败）。
+        另：未布局页除厚度外还可能报出荒唐的**长度**（Qt 默认 100px），本方法只
+        管厚度，不涉长度。
         注：本项目 Python 3.14 free-threading 下信号槽内抛异常会直接带崩
         进程（已见 add_log 槽事故），故整体 try/except 兜底。
         """
@@ -3961,15 +3972,24 @@ class MyMAinWindow(QMainWindow):
                 bars.append(bar)
             if len(bars) < 2:
                 return
-            # 只采信已布局页的读数：未布局页的默认 100px 长度值必须滤掉，
-            # 否则会把所有页签错钉成 100px（离屏实测教训）
-            sane = [bar.width() for bar in bars if 8 <= bar.width() <= 48]
+            # 只采信合理区间读数：未布局页可能报出荒唐值（Qt 默认 100px 那种），
+            # 必须滤掉，否则会把所有页签错钉成 100px（离屏实测教训）
+            declared = [bar.sizeHint().width() for bar in bars]
+            sane = [width for width in declared if 8 <= width <= 48]
             if not sane:
-                return
-            target = min(sane)
+                # sizeHint 全不可信时退回几何读数，仍取最宽者兜底
+                sane = [bar.width() for bar in bars if 8 <= bar.width() <= 48]
+                if not sane:
+                    return
+            target = max(sane)
             corrected = False
             for bar in bars:
-                if bar.width() != target:
+                # 按「约束」而不是按「几何」判定是否需要钉：若某条 width() 恰好已经
+                # 等于 target（例如首开时唯一被布局过的那一条），几何判据会把它判为
+                # 已是宽态而放过——那条就永远只靠 QSS 撑着，后续任何一次 polish/
+                # 布局都能把它打回平台默认厚度，正是「随机落在某个页签」的残余。
+                # 逐条钉成 min=max=target 才是幂等且封死的终态。
+                if bar.minimumWidth() != target or bar.maximumWidth() != target:
                     bar.setFixedWidth(target)
                     corrected = True
             if corrected:

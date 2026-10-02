@@ -339,6 +339,52 @@ class CustomScrollArea(QScrollArea):
         finally:
             self._in_post_wide_sync_hook = False
 
+    # 合理厚度区间：QSS 声明值只会落在 sizeHint 上，而未 polish / 未布局的滚动条
+    # sizeHint 可能报出荒唐值（Qt 默认那种），必须滤掉再钉，否则会把滚动条错钉成
+    # 一百多像素。8~48 覆盖平台默认（实测 12）与 QSS 声明（实测 16）。
+    _SCROLLBAR_SANE_MIN = 8
+    _SCROLLBAR_SANE_MAX = 48
+
+    def sync_scrollbar_thickness(self, repolish: bool = False) -> None:
+        """把本滚动区的竖向滚动条钉到 QSS 声明的厚度，并让 Qt 真的按这个厚度绘制。
+
+        钉厚度只改几何，**不改绘制**——这才是「随机页签时宽时窄」的真正成因。
+        Qt 在 polish 时把滚动条 groove / handle 的子控件矩形算好并缓存；之后把控件
+        改宽（setFixedWidth）只会更新几何，那份缓存仍是抛光时的旧值，于是槽照旧按
+        平台默认（实测 12px）画，而控件 `width()` 已经是 16——属性与画面对不上。
+        实测：仅 `update()+repaint()` 仍是 12；`unpolish()+polish()` 后变 16；
+        再 `setFixedWidth(15)` 则画 15——即绘制确实跟随宽度，但只在重新抛光之后。
+        所以宽度改完必须重新抛光让缓存失效。
+
+        哪些条是宽的，取决于它有没有被别的事件（换肤、焦点、祖先样式表变动）顺带
+        重新抛光过，所以每次落在随机页签；最大化会让整棵控件树重新抛光，于是"看着
+        好了"，还原后也保持——完全对得上用户现象。
+
+        厚度来源仍是 QSS 声明的 sizeHint()，不硬编码 16：改 QSS 即改这里。
+        """
+        try:
+            bar = self.verticalScrollBar()
+            if bar is None:
+                return
+            bar.ensurePolished()
+            declared = bar.sizeHint().width()
+            if not (self._SCROLLBAR_SANE_MIN <= declared <= self._SCROLLBAR_SANE_MAX):
+                return
+            changed = False
+            if bar.minimumWidth() != declared or bar.maximumWidth() != declared:
+                bar.setFixedWidth(declared)
+                changed = True
+            # 已经钉死时，只有 show（repolish=True）才继续走：显示是陈旧绘制第一次
+            # 真正露出来的时刻，也是唯一能保证把它刷掉的机会。resizeEvent 走这里
+            # 会因未改动而直接返回，天然幂等、不会自激成 resize 回环。
+            if not (changed or repolish):
+                return
+            bar.style().unpolish(bar)
+            bar.style().polish(bar)
+            bar.update()
+        except Exception:
+            return
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
         # 先同步宽幅容器（含缩回），再按最新 childrenRect 补内容最小尺寸——
@@ -346,10 +392,12 @@ class CustomScrollArea(QScrollArea):
         self.sync_wide_children_width()
         self._run_post_wide_sync_hook()
         self.sync_content_min_height()
+        self.sync_scrollbar_thickness()
 
     def showEvent(self, event):
         super().showEvent(event)
         self.sync_wide_children_width()
         self._run_post_wide_sync_hook()
         self.sync_content_min_height()
+        self.sync_scrollbar_thickness(repolish=True)
 

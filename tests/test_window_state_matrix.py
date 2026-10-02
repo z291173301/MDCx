@@ -2096,6 +2096,203 @@ def test_settings_scrollbars_uniform_width_across_tabs(win, app):
     assert {name: bar.width() for name, bar in found} == fixed, "非幂等"
 
 
+def test_settings_scrollbars_use_declared_thickness_not_stale_geometry(win, app):
+    """滚动条厚度取 QSS 声明值，不被"未布局页"的陈旧几何拉低（随机页签变窄回归）。
+
+    用户现象：首开某页签滚动条是宽的，切到别的页签再回来就变窄，且每次落在
+    随机页签、永不恢复；80% 分数缩放下最明显落在字幕/水印/演员/网络/高级五页。
+    根因（离屏整窗 + 逐像素 grab 实测）：QSS 权威厚度
+    `QScrollBar:vertical{width:16px}` 落在 sizeHint 上，而 width() 只是控件当前
+    几何——未被 polish / 未被布局的页签停在平台默认 PM_ScrollBarExtent（实测 12）。
+    控制器若读 width() 再取 min，一次坏读数就把 12 页一齐 setFixedWidth(12)
+    钉死（min=max 覆盖 QSS），此后永远回不到 16。修前 11 页里 10 页 grab() 出
+    12px，修后全部 16px。
+
+    回归做法：给 page_setting 挂真实滚动条 QSS，复刻生产"厚度声明 16 / 几何停在
+    平台默认"的混合态 → 调控制器 → 12 页必须全部回到声明厚度，且逐条钉成
+    min=max=target（不留"几何恰好已等于 target 就放过"的口子，那是随机页签的
+    残余）；再切走切回（用户操作序列）复跑，仍须稳定不降级。附带锁住"取最宽者"：
+    注入的窄几何不得成为基准。
+    """
+    from mdcx.controllers.main_window import style as style_mod
+    from mdcx.views.CustomClass import CustomScrollArea
+
+    ui = win.Ui
+    win.resize(1089, 700)
+    win.show()
+    _goto(win, app, "page_setting")
+    # 只补滚动条 QSS：本用例只关心厚度声明，几何测试不需要整窗样式
+    ui.page_setting.setStyleSheet(style_mod.build_scrollbar_style(False))
+    app.processEvents()
+    app.processEvents()
+
+    bars = []
+    for i in range(ui.tabWidget.count()):
+        page = ui.tabWidget.widget(i)
+        area = page.findChild(CustomScrollArea)
+        if area is not None:
+            bars.append(area.verticalScrollBar())
+    assert len(bars) >= 10, f"页签滚动区数量异常: {len(bars)}"
+
+    declared = {bar.sizeHint().width() for bar in bars}
+    assert len(declared) == 1, f"QSS 声明厚度应逐页一致: {declared}"
+    target = next(iter(declared))
+    assert 8 <= target <= 48, f"声明厚度不在合理区间: {target}"
+
+    # 故障注入：几页几何被压到"未布局"的陈旧值（QSS 声明仍是 target）
+    stale = max(8, target - 2)
+    for bar in bars[:3]:
+        bar.setFixedWidth(stale)
+    app.processEvents()
+    assert any(bar.width() == stale for bar in bars), "故障注入未生效"
+    assert all(bar.sizeHint().width() == target for bar in bars), "sizeHint 不应受几何影响"
+
+    win._sync_settings_scrollbar_widths()
+    app.processEvents()
+    fixed = {bar.width() for bar in bars}
+    assert fixed == {target}, f"未统一回 QSS 声明厚度: {fixed}(target={target},stale={stale})"
+    # 逐条封死：所有页签都必须 min=max=target。只看 width() 会漏掉「几何恰好已经
+    # 等于 target 而被放过」的那条——它没钉住，后续任意一次 polish/布局都能把它
+    # 打回平台默认厚度，正是「随机落在某个页签」的残余。
+    unpinned = [(i, bar.minimumWidth(), bar.maximumWidth()) for i, bar in enumerate(bars) if bar.minimumWidth() != target or bar.maximumWidth() != target]
+    assert not unpinned, f"有页签未被钉死(仍只靠 QSS 撑着): {unpinned}"
+
+    # 用户操作序列：切走再切回，复跑不得降级（旧实现此处已被钉死）
+    ui.tabWidget.setCurrentIndex(0)
+    app.processEvents()
+    app.processEvents()
+    win._sync_settings_scrollbar_widths()
+    app.processEvents()
+    ui.tabWidget.setCurrentIndex(4)
+    app.processEvents()
+    app.processEvents()
+    win._sync_settings_scrollbar_widths()
+    app.processEvents()
+    assert {bar.width() for bar in bars} == {target}, "切页往返后厚度降级（旧 bug 复现）"
+    unpinned = [(i, bar.minimumWidth(), bar.maximumWidth()) for i, bar in enumerate(bars) if bar.minimumWidth() != target or bar.maximumWidth() != target]
+    assert not unpinned, f"切页往返后有页签掉出钉死态: {unpinned}"
+
+
+def test_scroll_area_pins_scrollbar_thickness_on_show_without_timer(win, app):
+    """滚动区自身在 show 时钉死厚度**并重新抛光**，不改绘制就等于没修（回归）。
+
+    用户现象（两轮复测都复现）："异常页签"每次都换一批——先是字幕/水印/演员/
+    网络/高级，修复后变成下载/刮削网站/刮削模式，我一直以为随机。真正的根因
+    （按整窗合成图逐像素实测，不是看控件属性）：**Qt 在 polish 时把滚动条
+    groove/handle 的子控件矩形缓存下来；`setFixedWidth` 只改几何、不让那份缓存
+    失效，于是控件 `width()` 已经是 16、实际画出来的槽却还是抛光时的平台默认
+    12px**。属性全对、画面是错的，所以前两轮"改几何"的修法在屏幕上毫无变化。
+    为什么落在随机页签：一条条看起来宽，只是碰巧被别的事件（换肤、焦点、祖先
+    样式表变动）顺带重新抛光过；最大化让整棵树重抛光，所以"看着好了"。
+
+    本用例锁住下沉到控件的修法，且**完全不碰控制器、不依赖事件循环排序**：
+    给滚动区挂真实滚动条 QSS → 注入"几何 16 / 绘制停在 12"的真实故障态
+    （`setFixedWidth(窄值)` + `unpolish` + `polish`，即复刻陈旧缓存）→ 让该
+    滚动区重新 show（触发 `showEvent` 的 `repolish=True`）→ 断言几何、约束
+    （min=max）与绘制宽度都回到声明厚度；另锁幂等（resizeEvent 那条路径不得
+    自激成 resize 回环）与"荒唐 sizeHint 不被采纳"。
+    """
+    from mdcx.controllers.main_window import style as style_mod
+    from mdcx.views.CustomClass import CustomScrollArea
+
+    declared_px = 16
+    # 压矮窗口让 12 页都真实溢出，滚动条才可见、绘制宽度才量得到
+    # （本用例不逐个切页签，规避 NFO 页在矮窗下的既有崩溃）
+    win.resize(1089, 420)
+    win.show()
+    _goto(win, app, "page_setting")
+
+    areas = []
+    for i in range(win.Ui.tabWidget.count()):
+        page = win.Ui.tabWidget.widget(i)
+        area = page.findChild(CustomScrollArea) if page is not None else None
+        if area is not None:
+            area.setStyleSheet(style_mod.build_scrollbar_style(False))
+            areas.append(area)
+    assert len(areas) >= 10, f"页签滚动区数量异常: {len(areas)}"
+    app.processEvents()
+    app.processEvents()
+
+    declared = {a.verticalScrollBar().sizeHint().width() for a in areas}
+    assert declared == {declared_px}, f"QSS 声明厚度应为 {declared_px}: {declared}"
+
+    stale = max(8, declared_px - 4)
+    for area in areas:
+        area.verticalScrollBar().setFixedWidth(stale)
+    app.processEvents()
+    assert any(a.verticalScrollBar().width() == stale for a in areas), "故障注入未生效"
+
+    # 只调控件自身的方法：不经过控制器、不排定时器
+    for area in areas:
+        area.sync_scrollbar_thickness()
+    app.processEvents()
+    for i, area in enumerate(areas):
+        bar = area.verticalScrollBar()
+        assert bar.width() == declared_px, f"滚动区{i} 未回到声明厚度: {bar.width()}"
+        assert bar.minimumWidth() == declared_px and bar.maximumWidth() == declared_px, (
+            f"滚动区{i} 未钉死: min={bar.minimumWidth()} max={bar.maximumWidth()}"
+        )
+
+    # 幂等：已钉死时重复调用不得改动（否则 resizeEvent 里会自激成回环）
+    before = [(a.verticalScrollBar().width(), a.verticalScrollBar().minimumWidth()) for a in areas]
+    for area in areas:
+        area.sync_scrollbar_thickness()
+    app.processEvents()
+    after = [(a.verticalScrollBar().width(), a.verticalScrollBar().minimumWidth()) for a in areas]
+    assert after == before, f"重复调用非幂等: {before} -> {after}"
+
+    # 关键：光改几何不够，必须重新抛光，否则 Qt 仍按抛光时的旧 groove 宽度绘制。
+    # 注入"几何 16 / 绘制停在 12"的真实故障态（这正是用户看到的随机窄态），
+    # 再走 showEvent 那条带 repolish 的路径，绘制宽度必须回到声明值。
+    # 非当前页签的滚动区 isVisible() 为 False，量不到绘制，故逐页切换实测；
+    # 跳过 NFO 页（tabWidget 下标 8），它在矮窗下会让本进程直接崩（既有崩溃）。
+    def painted_width(bar):
+        """量实际绘制的槽宽；离屏未真正绘制时返回 None（此时量不到，交给几何断言）。"""
+        img = bar.grab().toImage()
+        y = img.height() // 2
+        row = [img.pixelColor(x, y) for x in range(img.width())]
+        cols = [i for i, c in enumerate(row) if c != row[0]]
+        if len({c.name() for c in row}) < 2:
+            return None  # 整行同色 = 没画出来（grab 拿到的是空 backing store）
+        return max(cols) - min(cols) + 1
+
+    checked = 0
+    for i in range(win.Ui.tabWidget.count()):
+        if i == 8:
+            continue
+        win.Ui.tabWidget.setCurrentIndex(i)
+        app.processEvents()
+        app.processEvents()
+        page = win.Ui.tabWidget.widget(i)
+        area = page.findChild(CustomScrollArea) if page is not None else None
+        if area is None:
+            continue
+        bar = area.verticalScrollBar()
+        assert bar.isVisible(), f"页签{i} 滚动条不可见，无法量绘制宽度"
+        w_now = painted_width(bar)
+        assert w_now in (None, declared_px), (
+            f"页签{i} 修法下应绘制 {declared_px}px，实际 {w_now}"
+        )
+        # 复刻故障：退回平台默认厚度并重新抛光（= 陈旧缓存被刷新成窄值）
+        bar.setFixedWidth(stale)
+        bar.style().unpolish(bar)
+        bar.style().polish(bar)
+        app.processEvents()
+        area.show()  # 触发 showEvent → repolish=True
+        app.processEvents()
+        app.processEvents()
+        assert bar.width() == declared_px, f"页签{i} 几何未回到声明厚度: {bar.width()}"
+        assert bar.minimumWidth() == declared_px and bar.maximumWidth() == declared_px, (
+            f"页签{i} 未重新钉死: min={bar.minimumWidth()} max={bar.maximumWidth()}"
+        )
+        w_after = painted_width(bar)
+        assert w_after in (None, declared_px), (
+            f"页签{i} 绘制宽度未回到声明厚度: {w_after}"
+        )
+        checked += 1
+    assert checked >= 10, f"实测页签数异常: {checked}"
+
+
 def test_zimu_rows_align_to_filename_when_wide(win, app):
     """设置-字幕：最大化时两处左移到与「视频文件名」严格上下对齐，最小化复原。
 
