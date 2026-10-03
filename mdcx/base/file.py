@@ -14,7 +14,13 @@ import aiofiles
 import aiofiles.os
 
 from ..config.enums import DownloadableFile, KeepableFile, NoEscape, Switch
-from ..config.extend import get_movie_path_setting, need_clean
+from ..config.extend import (
+    SEPARATE_MAIN_MODE,
+    SEPARATE_META_EXTS,
+    get_movie_path_setting,
+    get_separate_meta_root,
+    need_clean,
+)
 from ..config.manager import manager
 from ..config.models import CleanAction
 from ..config.resource_policy import resource_policy
@@ -84,17 +90,27 @@ async def _cleanup_success_tmp_file(success_tmp_path: Path) -> None:
         pass
 
 
-async def move_other_file(number: str, folder_old_path: Path, folder_new_path: Path, file_name: str, naming_rule: str):
+async def move_other_file(
+    number: str,
+    folder_old_path: Path,
+    folder_new_path: Path,
+    file_name: str,
+    naming_rule: str,
+    meta_folder_new_path: Path | None = None,
+):
     # 软硬链接模式不移动
     if manager.config.soft_link != 0:
         return
 
+    # 分离模式：元数据与其他文件分开存放
+    separate_meta = meta_folder_new_path is not None and meta_folder_new_path != folder_old_path
+
     # 目录相同不移动
-    if folder_new_path == folder_old_path:
+    if folder_new_path == folder_old_path and not separate_meta:
         return
 
     # 更新模式 或 读取模式
-    if manager.config.main_mode == 3 or manager.config.main_mode == 4:
+    if manager.config.main_mode == 4 or manager.config.main_mode == 5:
         if manager.config.update_mode == "c" and not manager.config.success_file_rename:
             return
 
@@ -109,7 +125,10 @@ async def move_other_file(number: str, folder_old_path: Path, folder_new_path: P
             number in old_file or file_name in old_file or naming_rule in old_file
         ) and "-cd" not in old_file.lower():  # 避免多分集时，其他分级的内容被移走
             old_file_old_path = folder_old_path / old_file
-            old_file_new_path = folder_new_path / old_file
+            if separate_meta and os.path.splitext(old_file)[1].lower() in SEPARATE_META_EXTS:
+                old_file_new_path = meta_folder_new_path / old_file
+            else:
+                old_file_new_path = folder_new_path / old_file
             if (
                 old_file_old_path != old_file_new_path
                 and await aiofiles.os.path.exists(old_file_old_path)
@@ -288,9 +307,11 @@ def _save_remain_list_sync(paths: list[Path]) -> None:
         _remain_save_lock.release()
 
 
-async def _clean_empty_folders(path: Path, file_mode: FileMode) -> None:
+async def _clean_empty_folders(path: Path, file_mode: FileMode, allow_empty: bool | None = None) -> None:
     start_time = time.time()
-    if not manager.config.del_empty_folder or file_mode == FileMode.Again:
+    if allow_empty is None:
+        allow_empty = manager.config.del_empty_folder
+    if not allow_empty or file_mode == FileMode.Again:
         return
     signal.set_label_file_path.emit("🗑 正在清理空文件夹，请等待...")
     signal.show_log_text(" ⏳ Cleaning empty folders...")
@@ -372,6 +393,14 @@ async def check_and_clean_files() -> None:
     signal.show_log_text("================================================================================")
     for movie_path in movie_paths:
         await _clean_empty_folders(movie_path, FileMode.Default)
+        if manager.config.main_mode == SEPARATE_MAIN_MODE:
+            meta_root = get_separate_meta_root(
+                movie_path, get_movie_path_setting(movie_path_override=movie_path).success_folder
+            )
+            if meta_root is not None:
+                await _clean_empty_folders(
+                    meta_root, FileMode.Default
+                )
     signal.set_label_file_path.emit("🗑 清理完成！")
     signal.show_log_text(
         f" 🎉🎉🎉 All finished!!!({get_used_time(start_time)}s) Total {total} , Success {succ} , Failed {fail} "
@@ -500,8 +529,8 @@ async def get_movie_list(file_mode: FileMode, movie_path: Path, ignore_dirs: lis
             signal.set_label_file_path.emit(f"正在遍历待刮削视频目录中的所有视频，请等待...\n {movie_path}")
             if (
                 NoEscape.FOLDER in manager.config.no_escape
-                or manager.config.main_mode == 3
                 or manager.config.main_mode == 4
+                or manager.config.main_mode == 5
             ):
                 ignore_dirs = []
             try:
@@ -634,12 +663,12 @@ async def newtdisk_creat_symlink(
 async def move_file_to_failed_folder(failed_folder: Path, file_path: Path, folder_old_path: Path) -> Path:
     # 更新模式、读取模式，不移动失败文件；不移动文件-关时，不移动； 软硬链接开时，不移动
     main_mode = manager.config.main_mode
-    if main_mode == 3 or main_mode == 4 or not manager.config.failed_file_move or manager.config.soft_link != 0:
+    if main_mode == 4 or main_mode == 5 or not manager.config.failed_file_move or manager.config.soft_link != 0:
         LogBuffer.log().write(f"\n 🙊 [Movie] {file_path}")
         return file_path
 
     # 创建failed文件夹
-    if manager.config.failed_file_move == 1:
+    if manager.config.failed_file_move:
         try:
             await aiofiles.os.makedirs(failed_folder, exist_ok=True)
         except Exception:
@@ -722,7 +751,7 @@ async def check_file(file_path: Path, file_escape_size: float) -> bool:
 
 async def move_torrent(old_dir: Path, new_dir: Path, file_name: str, number: str, naming_rule: str):
     # 更新模式 或 读取模式
-    if manager.config.main_mode == 3 or manager.config.main_mode == 4:
+    if manager.config.main_mode == 4 or manager.config.main_mode == 5:
         if manager.config.update_mode == "c" and not manager.config.success_file_rename:
             return
 
@@ -754,7 +783,7 @@ async def move_torrent(old_dir: Path, new_dir: Path, file_name: str, number: str
 
 async def move_bif(old_dir: Path, new_dir: Path, file_name: str, naming_rule: str) -> None:
     # 更新模式 或 读取模式
-    if manager.config.main_mode == 3 or manager.config.main_mode == 4:
+    if manager.config.main_mode == 4 or manager.config.main_mode == 5:
         if manager.config.update_mode == "c" and not manager.config.success_file_rename:
             return
 
@@ -774,7 +803,7 @@ async def move_bif(old_dir: Path, new_dir: Path, file_name: str, naming_rule: st
 async def move_trailer_video(old_dir: Path, new_dir: Path, file_name: str, naming_rule: str) -> None:
     if manager.config.main_mode < 2 and not manager.config.success_file_move and not manager.config.success_file_rename:
         return
-    if manager.config.main_mode > 2:
+    if manager.config.main_mode > 3:
         update_mode = manager.config.update_mode
         if update_mode == "c" and not manager.config.success_file_rename:
             return

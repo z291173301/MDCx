@@ -609,6 +609,7 @@ class MyMAinWindow(QMainWindow):
         QShortcut(QKeySequence(self.tr("S")), self, self.pushButton_start_scrape_clicked)
         QShortcut(QKeySequence(self.tr("Q")), self, self.hide)
         # QShortcut(QKeySequence(self.tr("Esc")), self, self.hide)
+        QShortcut(QKeySequence(self.tr("Esc")), self, self.hide_tips_widget_on_escape)
         QShortcut(QKeySequence(self.tr("Ctrl+M")), self, self.pushButton_min_clicked2)
         QShortcut(QKeySequence(self.tr("Ctrl+W")), self, self.ready_to_exit)
 
@@ -9049,6 +9050,12 @@ class MyMAinWindow(QMainWindow):
 
         pushButton_select_failed_folder_clicked(self)
 
+    # 设置-目录-数据存放目录-点选择目录
+    def pushButton_select_data_dir_clicked(self):
+        from .tool_handlers import pushButton_select_data_dir_clicked
+
+        pushButton_select_data_dir_clicked(self)
+
     # 设置-字幕-字幕文件目录-点选择目录
     def pushButton_select_subtitle_folder_clicked(self):
         from .tool_handlers import pushButton_select_subtitle_folder_clicked
@@ -9107,6 +9114,9 @@ class MyMAinWindow(QMainWindow):
     def pushButton_tips_normal_mode_clicked(self):
         self._show_tips(self.Ui.pushButton_tips_normal_mode.toolTip())
 
+    def pushButton_tips_separate_mode_clicked(self):
+        self._show_tips(self.Ui.pushButton_tips_separate_mode.toolTip())
+
     def pushButton_tips_sort_mode_clicked(self):
         self._show_tips(self.Ui.pushButton_tips_sort_mode.toolTip())
 
@@ -9126,6 +9136,11 @@ class MyMAinWindow(QMainWindow):
     def _show_tips(self, msg):
         self.Ui.textBrowser_show_tips.setText(msg)
         self.Ui.widget_show_tips.show()
+
+    # ESC 关闭说明弹窗（仅弹窗可见时生效，不影响其他 ESC 行为）
+    def hide_tips_widget_on_escape(self):
+        if self.Ui.widget_show_tips.isVisible():
+            self.Ui.widget_show_tips.hide()
 
     # 设置-刮削网站和字段中的详细说明弹窗
     def pushButton_scrape_note_clicked(self):

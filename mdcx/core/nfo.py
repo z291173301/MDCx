@@ -112,7 +112,7 @@ async def write_nfo(
         LogBuffer.log().write(f"\n 🍀 Nfo done! (old)({get_used_time(start_time)}s)")
         return True
 
-    if manager.config.main_mode == 3:
+    if manager.config.main_mode == 4:
         nfo_title_template = manager.config.update_titletemplate
     else:
         nfo_title_template = manager.config.naming_media
@@ -156,7 +156,7 @@ async def write_nfo(
     release = normalize_xml_text(data.release)
 
     # 读取模式：剥离 data.title 中已累积的 [番号] 前缀，防止每次刮削叠套
-    if manager.config.main_mode == 4 and data.number:
+    if manager.config.main_mode == 5 and data.number:
         number_prefix = f"[{data.number}]"
         while data.title.startswith(number_prefix):
             data.title = data.title[len(number_prefix) :]

@@ -69,6 +69,7 @@ class ConfigV1:
 
     # media
     media_path: str = r""
+    data_path: str = r""
     softlink_path: str = r"softlink"
     success_output_folder: str = r"JAV_output"
     failed_output_folder: str = r"failed"

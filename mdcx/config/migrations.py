@@ -3,7 +3,7 @@ from typing import Any
 
 from .enums import DownloadableFile, HDPicSource, Website
 
-CURRENT_CONFIG_VERSION = 2
+CURRENT_CONFIG_VERSION = 3
 
 
 def _str_to_list(v: str | list[Any] | None, sep: str = ",", unique: bool = True) -> list[str]:
@@ -21,6 +21,26 @@ def _str_to_list(v: str | list[Any] | None, sep: str = ",", unique: bool = True)
 
 def _enum_value(value: Any) -> Any:
     return value.value if hasattr(value, "value") else value
+
+
+# 刮削模式编号（v3 调整）：分离模式插入为 2，视频/更新/读取顺延为 3/4/5。
+_MAIN_MODE_REMAP_V3 = {2: 3, 3: 4, 4: 5}
+
+
+def _migrate_main_mode(data: dict[str, Any]) -> str | None:
+    """旧编号（v2 及更早，或缺版本号的 legacy 配置）→ 新编号，返回迁移提示或 None。"""
+    version = data.get("config_version")
+    if isinstance(version, bool) or not isinstance(version, int):
+        version = 0
+    if version >= 3:
+        return None
+    mode = data.get("main_mode")
+    if isinstance(mode, str) and mode.strip().isdigit():
+        mode = int(mode.strip())
+    if isinstance(mode, bool) or not isinstance(mode, int) or mode not in _MAIN_MODE_REMAP_V3:
+        return None
+    data["main_mode"] = _MAIN_MODE_REMAP_V3[mode]
+    return "[迁移] 刮削模式编号已调整：视频模式2→3、更新模式3→4、读取模式4→5（新增分离模式2）"
 
 
 def _migrate_download_file_option(value: Any) -> Any:
@@ -271,6 +291,9 @@ def migrate_config_data(data: dict[str, Any]) -> list[str]:
         if isinstance(translate_config, dict):
             translate_config.setdefault("llm_prompt_title", old_prompt)
             translate_config.setdefault("llm_prompt_outline", old_prompt)
+
+    if note := _migrate_main_mode(data):
+        warnings.append(note)
 
     data["config_version"] = CURRENT_CONFIG_VERSION
     return warnings

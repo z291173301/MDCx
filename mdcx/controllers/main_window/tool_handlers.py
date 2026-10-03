@@ -246,6 +246,10 @@ def pushButton_select_media_folder_clicked(self):
     _pick_folder(self, "lineEdit_movie_path")
 
 
+def pushButton_select_data_dir_clicked(self):
+    _pick_folder(self, "lineEdit_data_dir")
+
+
 # ============= 演员库维护（新三按钮） =============
 
 

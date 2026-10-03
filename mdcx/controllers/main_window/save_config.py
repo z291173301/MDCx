@@ -83,6 +83,7 @@ def save_config(self: "MyMAinWindow"):
 
     # region media & escape
     manager.config.media_path = self.Ui.lineEdit_movie_path.text()  # 待刮削目录
+    manager.config.data_path = self.Ui.lineEdit_data_dir.text()  # 数据存放目录
     manager.config.softlink_path = self.Ui.lineEdit_movie_softlink_path.text()  # 软链接目录目录
     manager.config.success_output_folder = self.Ui.lineEdit_success.text()  # 成功输出目录
     manager.config.failed_output_folder = self.Ui.lineEdit_fail.text()  # 失败输出目录
@@ -347,9 +348,10 @@ def save_config(self: "MyMAinWindow"):
     # 主模式设置
     manager.config.main_mode = get_radio_buttons(
         (self.Ui.radioButton_mode_common, 1),
-        (self.Ui.radioButton_mode_sort, 2),
-        (self.Ui.radioButton_mode_update, 3),
-        (self.Ui.radioButton_mode_read, 4),
+        (self.Ui.radioButton_mode_separate, 2),
+        (self.Ui.radioButton_mode_sort, 3),
+        (self.Ui.radioButton_mode_update, 4),
+        (self.Ui.radioButton_mode_read, 5),
         default=1,
     )
 
@@ -793,9 +795,10 @@ def save_config(self: "MyMAinWindow"):
     main_mode = int(manager.config.main_mode)  # 刮削模式
     mode_mapping = {
         1: ("common", "正常模式"),
-        2: ("sort", "整理模式"),
-        3: ("update", "更新模式"),
-        4: ("read", "读取模式"),
+        2: ("separate", "分离模式"),
+        3: ("sort", "整理模式"),
+        4: ("update", "更新模式"),
+        5: ("read", "读取模式"),
     }
 
     mode_key, mode_text = mode_mapping.get(main_mode, ("common", "正常模式"))

@@ -101,6 +101,8 @@ def load_config(self: "MyMAinWindow"):
         # region media
         # 视频目录
         self.Ui.lineEdit_movie_path.setText(manager.config.media_path)
+        # 数据存放目录
+        self.Ui.lineEdit_data_dir.setText(manager.config.data_path)
         # 软链接目录
         self.Ui.lineEdit_movie_softlink_path.setText(manager.config.softlink_path)
         # 成功目录
@@ -462,15 +464,17 @@ def load_config(self: "MyMAinWindow"):
         main_mode = manager.config.main_mode
         mode_mapping = {
             1: ("common", "正常模式"),
-            2: ("sort", "整理模式"),
-            3: ("update", "更新模式"),
-            4: ("read", "读取模式"),
+            2: ("separate", "分离模式"),
+            3: ("sort", "整理模式"),
+            4: ("update", "更新模式"),
+            5: ("read", "读取模式"),
         }
         mode_key, mode_text = mode_mapping.get(main_mode, ("common", "正常模式"))
         Flags.main_mode_text = mode_text
         set_radio_buttons(
             mode_key,
             (self.Ui.radioButton_mode_common, "common"),
+            (self.Ui.radioButton_mode_separate, "separate"),
             (self.Ui.radioButton_mode_sort, "sort"),
             (self.Ui.radioButton_mode_update, "update"),
             (self.Ui.radioButton_mode_read, "read"),

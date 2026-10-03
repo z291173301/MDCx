@@ -3127,7 +3127,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <x>0</x>
                       <y>0</y>
                       <width>860</width>
-                      <height>1770</height>
+                      <height>1850</height>
                     </rect>
                   </property>
                   <property name="sizePolicy">
@@ -3142,7 +3142,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <x>30</x>
                         <y>20</y>
                         <width>701</width>
-                        <height>591</height>
+                        <height>671</height>
                       </rect>
                     </property>
                     <property name="styleSheet">
@@ -3157,11 +3157,11 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           <x>20</x>
                           <y>30</y>
                           <width>661</width>
-                          <height>537</height>
+                          <height>617</height>
                         </rect>
                       </property>
                       <layout class="QGridLayout" name="gridLayout_7">
-                        <item row="3" column="1">
+                        <item row="5" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_134">
                             <item>
                               <widget class="QLineEdit" name="lineEdit_movie_softlink_path">
@@ -3206,7 +3206,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="10" column="1">
+                        <item row="12" column="1">
                           <widget class="QLabel" name="label_58">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -3243,14 +3243,14 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>待刮削视频目录：</string>
+                              <string>视频刮削目录：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                             </property>
                           </widget>
                         </item>
-                        <item row="9" column="1">
+                        <item row="11" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_45">
                             <item>
                               <widget class="QLineEdit" name="lineEdit_escape_dir">
@@ -3335,7 +3335,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </property>
                             </widget>
                         </item>
-                        <item row="2" column="1">
+                        <item row="4" column="1">
                           <widget class="QCheckBox" name="checkBox_scrape_softlink_path">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -3360,7 +3360,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="5" column="0">
+                        <item row="7" column="0">
                           <widget class="QLabel" name="label_47">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -3432,7 +3432,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="9" column="0">
+                        <item row="11" column="0">
                           <widget class="QLabel" name="label_48">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -3457,7 +3457,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="8" column="1">
+                        <item row="10" column="1">
                           <widget class="QLabel" name="label_57">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -3476,7 +3476,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="7" column="1">
+                        <item row="9" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_32">
                             <item>
                               <widget class="QLineEdit" name="lineEdit_fail">
@@ -3521,7 +3521,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="4" column="0">
+                        <item row="6" column="0">
                           <widget class="QLabel" name="label_382">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -3546,7 +3546,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="7" column="0">
+                        <item row="9" column="0">
                           <widget class="QLabel" name="label_46">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -3571,7 +3571,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="5" column="1">
+                        <item row="7" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_31">
                             <item>
                               <widget class="QLineEdit" name="lineEdit_success">
@@ -3616,7 +3616,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="6" column="1">
+                        <item row="8" column="1">
                           <widget class="QLabel" name="label_29">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -3635,7 +3635,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="4" column="1">
+                        <item row="6" column="1">
                           <widget class="QLabel" name="label_383">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -3651,6 +3651,109 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
+                        <item row="2" column="0">
+                          <widget class="QLabel" name="label_data_dir">
+                            <property name="sizePolicy">
+                              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                              </sizepolicy>
+                            </property>
+                            <property name="minimumSize">
+                              <size>
+                                <width>0</width>
+                                <height>0</height>
+                              </size>
+                            </property>
+                            <property name="layoutDirection">
+                              <enum>Qt::RightToLeft</enum>
+                            </property>
+                            <property name="text">
+                              <string>数据存放目录：</string>
+                            </property>
+                            <property name="alignment">
+                              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                            </property>
+                          </widget>
+                        </item>
+                        <item row="2" column="1">
+                          <layout class="QHBoxLayout" name="horizontalLayout_data_dir">
+                            <item>
+                              <widget class="QLineEdit" name="lineEdit_data_dir">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>0</width>
+                                    <height>30</height>
+                                  </size>
+                                </property>
+                                <property name="styleSheet">
+                                  <string notr="true"> border: 1px solid rgba(0,0,0, 50);
+                                    border-radius: 15px;
+</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <widget class="QPushButton" name="pushButton_select_data_dir">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>110</width>
+                                    <height>40</height>
+                                  </size>
+                                </property>
+                                <property name="text">
+                                  <string>选择目录</string>
+                                </property>
+                              </widget>
+                            </item>
+                          </layout>
+                        </item>
+                        <item row="3" column="1">
+                          <widget class="QLabel" name="label_data_dir_tip">
+                            <property name="sizePolicy">
+                              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                              </sizepolicy>
+                            </property>
+                            <property name="minimumSize">
+                              <size>
+                                <width>0</width>
+                                <height>32</height>
+                              </size>
+                            </property>
+                            <property name="maximumSize">
+                              <size>
+                                <width>16777215</width>
+                                <height>36</height>
+                              </size>
+                            </property>
+                            <property name="styleSheet">
+                              <string notr="true">color: rgb(8, 128, 128);</string>
+                            </property>
+                            <property name="text">
+                              <string>选择或填写一个目录，该目录专门用来存放刮削元数据</string>
+                            </property>
+                            <property name="alignment">
+                              <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+                            </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
+                            </property>
+                          </widget>
+                        </item>
                       </layout>
                     </widget>
                   </widget>
@@ -3658,7 +3761,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>630</y>
+                        <y>710</y>
                         <width>701</width>
                         <height>351</height>
                       </rect>
@@ -4038,7 +4141,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1000</y>
+                        <y>1080</y>
                         <width>701</width>
                         <height>521</height>
                       </rect>
@@ -4783,7 +4886,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1540</y>
+                        <y>1620</y>
                         <width>701</width>
                         <height>131</height>
                       </rect>
@@ -4950,7 +5053,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <x>0</x>
                       <y>0</y>
                       <width>860</width>
-                      <height>2000</height>
+                      <height>2040</height>
                     </rect>
                   </property>
                   <widget class="QGroupBox" name="groupBox">
@@ -4959,7 +5062,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <x>30</x>
                         <y>260</y>
                         <width>701</width>
-                        <height>421</height>
+                        <height>461</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -4977,11 +5080,119 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           <x>50</x>
                           <y>30</y>
                           <width>631</width>
-                          <height>377</height>
+                          <height>417</height>
                         </rect>
                       </property>
                       <layout class="QGridLayout" name="gridLayout_2">
-                        <item row="1" column="0">
+                                                <item row="1" column="0">
+                          <widget class="QRadioButton" name="radioButton_mode_separate">
+                            <property name="sizePolicy">
+                              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                              </sizepolicy>
+                            </property>
+                            <property name="minimumSize">
+                              <size>
+                                <width>0</width>
+                                <height>30</height>
+                              </size>
+                            </property>
+                            <property name="text">
+                              <string>分离模式</string>
+                            </property>
+                          </widget>
+                        </item>
+                        <item row="1" column="1">
+                          <layout class="QHBoxLayout" name="horizontalLayout_separate_mode">
+                            <item>
+                              <widget class="QLabel" name="label_separate_mode">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="styleSheet">
+                                  <string notr="true">color: rgb(8, 128, 128);</string>
+                                </property>
+                                <property name="text">
+                                  <string>执行：刮削-&gt;下载封面-&gt;重命名-&gt;打水印等全部操作，视频与元数据分开存放</string>
+                                </property>
+                                <property name="wordWrap">
+                                  <bool>true</bool>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <widget class="QPushButton" name="pushButton_tips_separate_mode">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>30</width>
+                                    <height>30</height>
+                                  </size>
+                                </property>
+                                <property name="maximumSize">
+                                  <size>
+                                    <width>30</width>
+                                    <height>30</height>
+                                  </size>
+                                </property>
+                                <property name="cursor">
+                                  <cursorShape>WhatsThisCursor</cursorShape>
+                                </property>
+                                <property name="mouseTracking">
+                                  <bool>true</bool>
+                                </property>
+                                <property name="toolTipDuration">
+                                  <number>500000</number>
+                                </property>
+                                <property name="layoutDirection">
+                                  <enum>Qt::LeftToRight</enum>
+                                </property>
+                                <property name="styleSheet">
+                                  <string notr="true">QPushButton{border-color: rgba(255, 255, 255,
+                                    0);
+                                    background-color: rgba(255, 255, 255, 0);border-radius:10px;}
+                                    QPushButton:hover{background-color: rgba(255, 255, 255, 20);}
+                                    QPushButton:pressed{ background-color: rgba(255, 255, 255, 10);}</string>
+                                </property>
+                                <property name="text">
+                                  <string />
+                                </property>
+                                <property name="icon">
+                                  <iconset theme="system-help">
+                                    <normaloff>.</normaloff>.</iconset>
+                                </property>
+                                <property name="iconSize">
+                                  <size>
+                                    <width>20</width>
+                                    <height>20</height>
+                                  </size>
+                                </property>
+                                <property name="shortcut">
+                                  <string />
+                                </property>
+                                <property name="checkable">
+                                  <bool>false</bool>
+                                </property>
+                                <property name="autoDefault">
+                                  <bool>false</bool>
+                                </property>
+                                <property name="default">
+                                  <bool>false</bool>
+                                </property>
+                              </widget>
+                            </item>
+                          </layout>
+                        </item>
+<item row="2" column="0">
                           <widget class="QRadioButton" name="radioButton_mode_sort">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5000,7 +5211,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="5" column="0">
+                        <item row="6" column="0">
                           <widget class="QLabel" name="label_231">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5028,7 +5239,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="4" column="1">
+                        <item row="5" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_122">
                             <item>
                               <widget class="QLabel" name="label_312">
@@ -5142,7 +5353,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="5" column="1">
+                        <item row="6" column="1">
                           <layout class="QVBoxLayout" name="verticalLayout_5">
                             <item>
                               <layout class="QHBoxLayout" name="horizontalLayout_127">
@@ -5369,7 +5580,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="3" column="1">
+                        <item row="4" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_120">
                             <item>
                               <widget class="QLabel" name="label_36">
@@ -5458,7 +5669,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="4" column="0">
+                        <item row="5" column="0">
                           <widget class="QRadioButton" name="radioButton_mode_read">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5477,7 +5688,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="3" column="0">
+                        <item row="4" column="0">
                           <widget class="QRadioButton" name="radioButton_mode_update">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5496,7 +5707,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="1" column="1">
+                        <item row="2" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_119">
                             <item>
                               <widget class="QLabel" name="label_15">
@@ -5585,7 +5796,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="2" column="1">
+                        <item row="3" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_125">
                             <item>
                               <widget class="QCheckBox" name="checkBox_sortmode_delpic">
@@ -5624,7 +5835,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="2" column="0">
+                        <item row="3" column="0">
                           <widget class="QLabel" name="label_344">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5748,7 +5959,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1540</y>
+                        <y>1580</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -5843,7 +6054,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1670</y>
+                        <y>1710</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -5932,7 +6143,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1800</y>
+                        <y>1840</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -5944,7 +6155,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       </size>
                     </property>
                     <property name="title">
-                      <string>刮削结束后删除空文件夹</string>
+                      <string>刮削结束删除空目录</string>
                     </property>
                     <widget class="QWidget" name="gridLayoutWidget_23">
                       <property name="geometry">
@@ -6021,7 +6232,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>700</y>
+                        <y>740</y>
                         <width>701</width>
                         <height>441</height>
                       </rect>
@@ -6604,7 +6815,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1410</y>
+                        <y>1450</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -6616,7 +6827,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       </size>
                     </property>
                     <property name="title">
-                      <string>刮削成功后重命名文件</string>
+                      <string>刮削成功重命名文件</string>
                     </property>
                     <widget class="QWidget" name="gridLayoutWidget_13">
                       <property name="geometry">
@@ -7061,7 +7272,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1180</y>
+                        <y>1220</y>
                         <width>701</width>
                         <height>211</height>
                       </rect>

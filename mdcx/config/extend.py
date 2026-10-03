@@ -41,6 +41,170 @@ def parse_media_paths(media_path: str | Path | None = None) -> list[Path]:
     return paths or [manager.data_folder]
 
 
+SEPARATE_MAIN_MODE = 2
+"""分离模式的 main_mode 值：视频与元数据分开存放，其余逻辑同正常模式。"""
+
+SEPARATE_META_EXTS = frozenset({".nfo", ".jpg", ".jpeg", ".png", ".webp"})
+"""分离模式下归入数据存放目录的元数据文件扩展名（小写）。"""
+
+
+def resolve_data_dir(movie_path: Path) -> Path | None:
+    """解析数据存放目录；分离模式未启用/未设置/不可用时返回 None（回退正常模式）。
+
+    目录不存在时会自动新建（见 ensure_data_dir），新建失败则回退正常模式。
+    """
+    if manager.config.main_mode != SEPARATE_MAIN_MODE:
+        return None
+    data_path = (getattr(manager.config, "data_path", "") or "").strip()
+    if not data_path:
+        return None
+    return ensure_data_dir(movie_path)
+
+
+_data_dir_logged: set[str] = set()
+"""已打过新建/回退日志的数据目录（绝对路径字符串），避免每个文件重复刷屏。"""
+
+_admin_mkdir_attempted = False
+"""进程内是否已尝试过提权建目录（只弹一次 UAC，避免每个文件都弹窗）。"""
+
+
+def _separate_log(text: str) -> None:
+    """分离模式日志：优先走 UI 日志通道，失败时退到标准 logging（无 Qt 的测试桩环境不炸）。"""
+    try:
+        from ..signals import signal_qt
+
+        signal_qt.show_log_text(text)
+    except Exception:
+        import logging
+
+        logging.getLogger("mdcx.separate").warning(text)
+
+
+def _elevated_mkdir(target: Path) -> bool:
+    """提权新建目录：Windows 用 runas 拉起 UAC 并等待完成，POSIX 用 sudo -n（免交互，失败即放弃）。"""
+    import subprocess
+    import sys
+
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            from ctypes import wintypes
+
+            class SHELLEXECUTEINFOW(ctypes.Structure):
+                _fields_ = [
+                    ("cbSize", wintypes.DWORD),
+                    ("fMask", ctypes.c_ulong),
+                    ("hwnd", wintypes.HWND),
+                    ("lpVerb", wintypes.LPCWSTR),
+                    ("lpFile", wintypes.LPCWSTR),
+                    ("lpParameters", wintypes.LPCWSTR),
+                    ("lpDirectory", wintypes.LPCWSTR),
+                    ("nShow", ctypes.c_int),
+                    ("hInstApp", wintypes.HINSTANCE),
+                    ("lpIDList", ctypes.c_void_p),
+                    ("lpClass", wintypes.LPCWSTR),
+                    ("hkeyClass", wintypes.HKEY),
+                    ("dwHotKey", wintypes.DWORD),
+                    ("hIcon", wintypes.HANDLE),
+                    ("hProcess", wintypes.HANDLE),
+                ]
+
+            sei = SHELLEXECUTEINFOW()
+            sei.cbSize = ctypes.sizeof(SHELLEXECUTEINFOW)
+            sei.fMask = 0x40  # SEE_MASK_NOCLOSEPROCESS：拿到进程句柄以便等待完成
+            sei.lpVerb = "runas"
+            sei.lpFile = "cmd.exe"
+            sei.lpParameters = f'/c mkdir "{target}"'
+            sei.nShow = 0  # SW_HIDE
+            if not ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei)):
+                return False
+            try:
+                ctypes.windll.kernel32.WaitForSingleObject(sei.hProcess, 60000)
+                ctypes.windll.kernel32.CloseHandle(sei.hProcess)
+            except Exception:
+                return False
+        else:
+            result = subprocess.run(["sudo", "-n", "mkdir", "-p", str(target)], timeout=60, capture_output=True)
+            if result.returncode != 0:
+                return False
+    except Exception:
+        return False
+    return target.is_dir()
+
+
+def ensure_data_dir(movie_path: Path) -> Path | None:
+    """确保数据存放目录可用：不存在则新建；新建失败则尝试提权新建；仍失败返回 None（回退正常模式）。"""
+    global _admin_mkdir_attempted
+    if manager.config.main_mode != SEPARATE_MAIN_MODE:
+        return None
+    data_path = (getattr(manager.config, "data_path", "") or "").strip()
+    if not data_path:
+        return None
+    data_dir = Path(data_path)
+    if not data_dir.is_absolute():
+        data_dir = movie_path / data_dir
+    if data_dir.is_dir():
+        return data_dir
+    key = str(data_dir)
+    if data_dir.exists():
+        if key not in _data_dir_logged:
+            _data_dir_logged.add(key)
+            _separate_log(f"⚠️ 数据存放目录已存在但不是目录：{data_dir}，本次回退到正常模式")
+        return None
+    try:
+        data_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    if data_dir.is_dir():
+        if key not in _data_dir_logged:
+            _data_dir_logged.add(key)
+            _separate_log(f"📁 数据存放目录不存在，已自动新建：{data_dir}")
+        return data_dir
+    if not _admin_mkdir_attempted:
+        _admin_mkdir_attempted = True
+        _separate_log(f"⚠️ 无权限新建数据存放目录，尝试以管理员权限新建：{data_dir}")
+        try:
+            _elevated_mkdir(data_dir)
+        except Exception:
+            pass
+        if data_dir.is_dir():
+            if key not in _data_dir_logged:
+                _data_dir_logged.add(key)
+                _separate_log(f"📁 已以管理员权限新建数据存放目录：{data_dir}")
+            return data_dir
+    if key not in _data_dir_logged:
+        _data_dir_logged.add(key)
+        _separate_log(f"⚠️ 数据存放目录无法新建（管理员权限也失败）：{data_dir}，本次回退到正常模式")
+    return None
+
+
+def get_separate_meta_root(movie_path: Path, success_folder: Path) -> Path | None:
+    """分离模式元数据根目录 = 数据目录/success_folder 名；无效时返回 None。"""
+    data_dir = resolve_data_dir(movie_path)
+    if data_dir is None:
+        return None
+    meta_root = data_dir / success_folder.name
+    if meta_root == success_folder:
+        return None
+    return meta_root
+
+
+def mirror_meta_folder(folder: Path, success_folder: Path, meta_root: Path) -> Path:
+    """把视频输出目录映射为数据目录下的镜像目录；映射失败回退原目录。"""
+    try:
+        rel = folder.relative_to(success_folder)
+    except ValueError:
+        return folder
+    if not rel.parts:
+        return meta_root
+    return meta_root / rel
+
+
+def remap_meta_paths(paths: dict[str, Path | None], meta_folder: Path) -> dict[str, Path | None]:
+    """保留文件名、把元数据路径换到镜像目录下（None 保持 None）。"""
+    return {key: (meta_folder / path.name if path is not None else None) for key, path in paths.items()}
+
+
 def _select_movie_path(movie_paths: list[Path], file_path: Path | None) -> Path:
     if not file_path:
         return movie_paths[0]
@@ -101,6 +265,11 @@ def get_movie_path_setting(
             first_folder_name = first_folder_parts[0] if first_folder_parts else ""
             success_folder = Path(success_folder.as_posix().replace("first_folder_name", first_folder_name))
             failed_folder = Path(failed_folder.as_posix().replace("first_folder_name", first_folder_name))
+
+    # 分离模式：数据目录落在扫描树内时，把元数据镜像根目录加入排除，避免二次扫描
+    meta_root = get_separate_meta_root(movie_path, success_folder)
+    if meta_root is not None and meta_root not in ignore_dirs and is_descendant(meta_root, movie_path):
+        ignore_dirs.append(meta_root)
 
     return MoviePathSetting(
         movie_path=movie_path,

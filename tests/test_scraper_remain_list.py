@@ -110,10 +110,10 @@ async def test_normal_mode_skips_done_files(monkeypatch: pytest.MonkeyPatch, tmp
 
 @pytest.mark.asyncio
 async def test_read_mode_ignores_done_cache(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    """读取模式（main_mode=4）：即使缓存标记 done 也不跳过，全部入队。"""
+    """读取模式（main_mode=5）：即使缓存标记 done 也不跳过，全部入队。"""
     from mdcx.core.scrape_cache import ScrapeStateCache
 
-    scraper_module = _patch_scraper_env(monkeypatch, main_mode=4)
+    scraper_module = _patch_scraper_env(monkeypatch, main_mode=5)
 
     files = []
     for name in ("a.mp4", "b.mp4", "c.mp4"):

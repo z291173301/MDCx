@@ -262,7 +262,7 @@ def test_removed_hd_pic_sources_are_filtered_from_old_config():
     config = Config.model_validate(data)
 
     assert config.download_hd_pics == [HDPicSource.AMAZON]
-    assert config.config_version == 2
+    assert config.config_version == 3
     assert "google_used" not in data
     assert "google_exclude" not in data
 
@@ -347,3 +347,15 @@ def test_braced_naming_templates_are_migrated_to_jinja2_syntax():
 
     assert data["naming_file"] == "{{ number }}{% if studio %} [{{ studio }}]{% endif %} {{ definition }}"
     Config.model_validate(data)
+
+
+def test_main_mode_renumbered_on_v2_config():
+    """v2 旧配置的 main_mode 按新编号迁移：正常 1 不动，视频 2→3、更新 3→4、读取 4→5。"""
+    for old, new in ((1, 1), (2, 3), (3, 4), (4, 5)):
+        data = {"config_version": 2, "main_mode": old}
+
+        Config.update(data)
+
+        assert data["main_mode"] == new
+        assert data["config_version"] == 3
+        assert Config.model_validate(data).main_mode == new
