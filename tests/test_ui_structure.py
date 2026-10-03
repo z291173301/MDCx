@@ -551,8 +551,12 @@ _SEPARATE_MODE_TITLE_HINTS = {
     "label_separate_mode_del_empty_folder": ("groupBox_30", "分离模式刮削结束删除空目录"),
 }
 
-# 组框宽 701；提示右缘对齐到框内 (701 - 7)，与左侧标题左边距（6px）视觉对称。
-_SEPARATE_HINT_RECT = (499, -7, 200, 30)
+# 组框宽 701。x 是按「真实 Windows11 风格」实测墨迹反解的：
+# windows11 风格下 QGroupBox 标题墨迹左沿在 x=14（左内边距 14px），而 x=499 时
+# 提示文字墨迹右沿在 690（右内边距仅 6px），右比左贴边 8px——正是「看着右边太挤」
+# 的成因。整条左移 8px 后右内边距 == 左内边距 == 14px，两端视觉对称。
+# （离屏 Fusion 风格下标题偏移只有 2px，会误判为已对称，故必须按 windows11 量化。）
+_SEPARATE_HINT_RECT = (491, -7, 200, 30)
 
 
 def test_separate_mode_title_hints_exist_with_right_text():
@@ -575,7 +579,8 @@ def test_separate_mode_title_hints_right_aligned_same_style():
     """黄：四条提示几何一致、右对齐/从右向左排列，且不覆盖组框标题的字体样式。
 
     x/y 是按 Qt 实测墨迹定的：y=-7 让提示墨迹行与组框标题墨迹行完全重合
-    （离屏渲染实测 dy_top=dy_bot=0），x=499 让右内边距 7px ≈ 标题左内边距 6px。
+    （离屏渲染实测 dy_top=dy_bot=0）；x=491 让右内边距与 windows11 风格下
+    标题的左内边距都是 14px（实测右内边距 14 == 左内边距 14）。
     """
     root = _parse_ui()
     problems = []
@@ -597,7 +602,7 @@ def test_separate_mode_title_hints_right_aligned_same_style():
 
     # 四条提示右缘必须严格对齐（几何一致已保证，这里再锁一次换算值防回归）。
     rights = {_SEPARATE_HINT_RECT[0] + _SEPARATE_HINT_RECT[2] for _ in _SEPARATE_MODE_TITLE_HINTS}
-    assert rights == {699}, f"四条提示右缘应统一为 699，实际 {sorted(rights)}"
+    assert rights == {691}, f"四条提示右缘应统一为 691，实际 {sorted(rights)}"
 
 
 def test_separate_mode_title_hints_red_not_inside_grid_layout():

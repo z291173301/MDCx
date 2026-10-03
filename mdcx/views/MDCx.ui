@@ -6052,7 +6052,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QLabel" name="label_separate_mode_succ_move">
                       <property name="geometry">
                         <rect>
-                          <x>499</x>
+                          <x>491</x>
                           <y>-7</y>
                           <width>200</width>
                           <height>30</height>
@@ -6169,7 +6169,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QLabel" name="label_separate_mode_fail_move">
                       <property name="geometry">
                         <rect>
-                          <x>499</x>
+                          <x>491</x>
                           <y>-7</y>
                           <width>200</width>
                           <height>30</height>
@@ -6286,7 +6286,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QLabel" name="label_separate_mode_del_empty_folder">
                       <property name="geometry">
                         <rect>
-                          <x>499</x>
+                          <x>491</x>
                           <y>-7</y>
                           <width>200</width>
                           <height>30</height>
@@ -6989,7 +6989,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QLabel" name="label_separate_mode_succ_rename">
                       <property name="geometry">
                         <rect>
-                          <x>499</x>
+                          <x>491</x>
                           <y>-7</y>
                           <width>200</width>
                           <height>30</height>
