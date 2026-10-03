@@ -863,7 +863,7 @@ class MyMAinWindow(QMainWindow):
     # 内容拉成一大片空白（1440p 上尤其明显），超出部分留在表单下方。
     _NFO_LIB_FIELD_MAX_H = 300
 
-    # 信息管理页「筛选番号/演员/标题」输入框：设计上限（MDCx.py 里
+    # 信息管理页多条件筛选输入框：设计上限（MDCx.py 里
     # maximumSize(180, QWIDGETSIZE_MAX)）与最小化时必须还原到的值。
     _NFO_LIB_FILTER_MAX_W = 180
     # 最大化时按目录框实测宽换算筛选框宽度的比例，以及换算后的取值区间。

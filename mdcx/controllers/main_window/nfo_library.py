@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import copy
+import re
 import traceback
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -161,6 +162,12 @@ def _scan_nfo_directory(self: MyMAinWindow, folder: Path, select_first: bool = T
         item.setToolTip(str(nfo_path))
         self.Ui.listWidget_nfo_lib.addItem(item)
         count += 1
+    # 剪掉已不在目录中的搜索缓存，避免无界增长（存量命中靠 mtime 校验）
+    cache = getattr(self, "_nfo_lib_search_cache", None)
+    if cache:
+        alive = {str(p) for p in nfo_files}
+        for key in [k for k in cache if k not in alive]:
+            del cache[key]
 
     self.Ui.label_nfo_lib_count.setText(f"共 {count} 个")
     if count == 0:
@@ -418,12 +425,242 @@ def on_nfo_lib_save_done(self: MyMAinWindow, nfo_path_str: str) -> None:
     QTimer.singleShot(1500, _restore)
 
 
+# 搜索索引抓取的 NFO 字段（与 core/nfo.py 的读取标签保持一致）
+_NFO_SEARCH_XPATHS = (
+    "//num/text()",
+    "//title/text()",
+    "//originaltitle/text()",
+    "//actor/name/text()",
+    "//director/text()",
+    "//studio/text()",
+    "//maker/text()",
+    "//publisher/text()",
+    "//label/text()",
+    "//series/text()",
+    "//runtime/text()",
+    "//rating/text()",
+    "//tag/text()",
+    "//plot/text()",
+    "//outline/text()",
+    "//originalplot/text()",
+    "//release/text()",
+    "//releasedate/text()",
+    "//premiered/text()",
+    "//year/text()",
+)
+
+
+# 先于拆词抠出的日期片段：Y-M-D（含 / 与年月日）或 6/8 位纯数字。
+# 注意分隔符不含空白——含空白的写法退化成三词 AND（宽松但可用），
+# 且避免把 "238 5.0" 这类误抠成日期导致回归。
+_DATE_PIECE_RE = re.compile(r"\d{2,4}[-./·・/／年月]\d{1,2}[-./·・/／月]\d{1,2}日?|(?<!\d)(\d{6}|\d{8})(?!\d)")
+
+
+def _split_keyword(keyword: str) -> list[str]:
+    """拆词：日期片段整体保留，其余按逗号/顿号/分号/空白/斜杠拆。
+
+    拆出的空段一律丢弃：首尾多余逗号、连续逗号、全角/半角混用
+    都不影响匹配（粘贴 `,A,B，` 与 `A,B` 等价；全是逗号则
+    视为空搜索显示全部）。
+    """
+    pieces: list[str] = []
+
+    def _cut(m: re.Match) -> str:
+        pieces.append(m.group(0))
+        return f"\x00{len(pieces) - 1}\x00"
+
+    rest = _DATE_PIECE_RE.sub(_cut, keyword)
+    tokens: list[str] = []
+    for t in re.split(r"[,，、;；\s/|/]+", rest):
+        if not t:
+            continue
+        m = re.fullmatch(r"\x00(\d+)\x00", t)
+        tokens.append(pieces[int(m.group(1))] if m else t)
+    return tokens
+
+
+# 全角→半角归一（冒号/逗号/句点/斜杠/分号/空格）：`系列: ポルノスター`
+# 与标签里的 `系列：ポルノスター` 按同一写法比对。`、`/`；`归一后
+# 仍是拆词分隔符，行为不变。
+_FULLWIDTH_MAP = str.maketrans({"：": ":", "，": ",", "．": ".", "／": "/", "；": ";", "、": ",", "　": " "})
+
+
+def _normalize_token_text(text: str) -> str:
+    return text.translate(_FULLWIDTH_MAP)
+
+
+# 纯数字词：整数或一位以上小数（如 `1 / 238 / 2017 / 5.0`）
+_NUMERIC_TOKEN_RE = re.compile(r"^\d+(?:\.\d+)?$")
+
+
+# 完整日期词：Y-M-D（分隔符 - . / · ・ ／ 年月日）或 6/8 位纯数字
+_DATE_FULL_RE = re.compile(
+    r"^(\d{2}|\d{4})[-./·・/／年月](\d{1,2})[-./·・/／月](\d{1,2})日?$|^(\d{6}|\d{8})$"
+)
+
+
+def _date_candidates(year: int, month: int, day: int) -> list[str]:
+    """合法性校验通过则返回 [YYYY-MM-DD, YY-MM-DD]，否则空列表。"""
+    if not (1 <= month <= 12 and 1 <= day <= 31):
+        return []
+    return [f"{year:04d}-{month:02d}-{day:02d}", f"{year % 100:02d}-{month:02d}-{day:02d}"]
+
+
+def _token_variants(token: str) -> list[str]:
+    """单个搜索词的匹配候选：原串 + 日期归一化展开。
+
+    NFO 内发行日按 core 逻辑存为规范 `YYYY-MM-DD`，用户手写
+    `YY-MM-DD / YYYY.MM.DD / YYYY·MM·DD / YYYY年MM月DD日 /
+    YYYYMMDD / YYMMDD` 等都展开成规范形再比对（不区分大小写
+    由调用方统一 lower 处理）。
+    两位年份同时展开 19xx/20xx（如 `13-06-08` → `2013-06-08`），
+    误命中的那支在真实数据里不存在，无实际影响。
+    """
+    variants = [token]
+    m = _DATE_FULL_RE.match(token)
+    if m:
+        if m.group(4) is not None:
+            compact = m.group(4)
+            if len(compact) == 8:
+                variants.extend(
+                    _date_candidates(int(compact[:4]), int(compact[4:6]), int(compact[6:8]))
+                )
+            else:
+                yy, month, day = int(compact[:2]), int(compact[2:4]), int(compact[4:6])
+                variants.extend(_date_candidates(2000 + yy, month, day))
+                variants.extend(_date_candidates(1900 + yy, month, day))
+        else:
+            year_s, month, day = m.group(1), int(m.group(2)), int(m.group(3))
+            if len(year_s) == 4:
+                variants.extend(_date_candidates(int(year_s), month, day))
+            else:
+                yy = int(year_s)
+                variants.extend(_date_candidates(2000 + yy, month, day))
+                variants.extend(_date_candidates(1900 + yy, month, day))
+    # 去重保序
+    return list(dict.fromkeys(variants))
+
+
+def _haystack_matches(haystack: str, token: str) -> bool:
+    """文件名快路径：原子串匹配（`261` 照样定位 `ARM-261`）。
+
+    任一候选命中即算该词命中（日期多写法 OR，词间仍是 AND）。
+    """
+    return any(v in haystack for v in _token_variants(token))
+
+
+def _nfo_matches(index: tuple[str, frozenset, frozenset], token: str) -> bool:
+    """NFO 慢路径：按词的形状分流，`1` 这类杂散数字捞不回结果。
+
+    - 日期形词：归一化后与发行日精确比对（`13-06-08`→`2013-06-08`）；
+    - 纯数字词：只与数字字段精确相等（年份/时长/评分），或为发行日的
+      开头（`2009`→`2009-12-29`）；不做全文子串——`1` 不等于 2013 /
+      110 / 3.4，发行日也不以 `1` 开头，故含 `1` 的多词粘贴整条落空；
+    - 其他词：全文子串（演员/标签/标题/导演/片商/系列/简介等）。
+    """
+    text, numbers, releases = index
+    if _DATE_FULL_RE.match(token):
+        return any(v in releases for v in _token_variants(token))
+    if _NUMERIC_TOKEN_RE.match(token):
+        if token in numbers:
+            return True
+        return any(r.startswith(token) for r in releases)
+    return any(v in text for v in _token_variants(token))
+
+
+def _parse_nfo_search_text(nfo_path: Path) -> tuple[str, frozenset, frozenset]:
+    """解析 NFO 拼成小写可搜索索引 `(全文, 数字字段集, 发行日集)`。
+
+    全文覆盖番号/标题/演员/导演/片商(maker)/发行商(label)/系列/
+    时长/评分/标签/简介(plot+outline+originalplot)/发行日/年份；
+    数字字段（年份/时长/评分，`criticrating` 按 core 逻辑换算回
+    10 分制一并收录）单独成集，供纯数字词精确比对；
+    发行日（release/releasedate/premiered）单独成集，供日期词
+    精确比对与数字前缀比对。失败回退到文件名。
+    全角标点归一到半角后再 lower。
+    """
+    fallback = _normalize_token_text(nfo_path.stem).lower()
+    parts: list[str] = [nfo_path.stem]
+    numbers: set[str] = set()
+    releases: set[str] = set()
+    try:
+        raw = nfo_path.read_bytes()
+    except OSError:
+        return (fallback, frozenset(), frozenset())
+    try:
+        from lxml import etree
+
+        root = etree.fromstring(raw, etree.XMLParser(encoding="utf-8", recover=True))
+        for xp in _NFO_SEARCH_XPATHS:
+            values = [str(v) for v in root.xpath(xp)]
+            parts.extend(values)
+            if xp in ("//year/text()", "//runtime/text()", "//rating/text()"):
+                numbers.update(values)
+            elif xp in ("//release/text()", "//releasedate/text()", "//premiered/text()"):
+                releases.update(values)
+        for v in root.xpath("//criticrating/text()"):
+            parts.append(str(v))
+            numbers.add(str(v))
+            try:
+                derived = str(int(str(v)) / 10)
+                parts.append(derived)
+                numbers.add(derived)
+            except ValueError:
+                pass
+    except Exception:
+        pass
+    text = _normalize_token_text("\n".join(parts)).lower()
+    return (text, frozenset(numbers), frozenset(releases))
+
+
+def _nfo_lib_search_text(self: MyMAinWindow, nfo_path: Path) -> tuple[str, frozenset, frozenset]:
+    """取 NFO 可搜索索引（按 mtime 缓存，文件改动后自动重解析）。"""
+    cache = getattr(self, "_nfo_lib_search_cache", None)
+    if cache is None:
+        cache = self._nfo_lib_search_cache = {}
+    key = str(nfo_path)
+    try:
+        mtime = nfo_path.stat().st_mtime
+    except OSError:
+        mtime = -1.0
+    hit = cache.get(key)
+    if hit is not None and hit[0] == mtime:
+        return hit[1]
+    text = _parse_nfo_search_text(nfo_path)
+    cache[key] = (mtime, text)
+    return text
+
+
 def lineEdit_nfo_lib_filter_changed(self: MyMAinWindow) -> None:
-    """筛选框文本变化时过滤列表。"""
-    keyword = self.Ui.lineEdit_nfo_lib_filter.text().strip().lower()
+    """筛选框文本变化时过滤列表（全字段，大小写不敏感）。
+
+    列表项文本只有番号（stem），其余字段在 NFO 文件内：
+    先走文件名快路径（命中则免磁盘 IO），否则读缓存的可搜索文本。
+    关键词按逗号/顿号/分号/空白/斜杠拆词，多词之间是 AND 关系、
+    与顺序无关（如 `矢沢りょう,川上优` 与 `川上优,矢沢りょう` 等价，
+    `美乳,巨乳` 要求同一 NFO 内两个标签全包含）。
+    日期写法归一：`13-06-08 / 2013.06.08 / 2013·06·08 /
+    2013年06月08日 / 20130608` 等都展开成 NFO 内的规范形
+    `YYYY-MM-DD` 再与发行日精确比对。
+    纯数字词只与数字字段精确相等（年份/时长/评分）或为发行日的
+    开头——`1` 不等于 2013 / 110 / 3.4，发行日也不以 `1` 开头，
+    故 `口交,系列: ポルノスター,1` 这类粘贴整条落空，去掉 `1`
+    即命中；`238 / 5.0 / 2017` 等照样精确命中对应字段。
+    全角冒号/逗号等归一到半角后再比对。
+    """
+    keyword = _normalize_token_text(self.Ui.lineEdit_nfo_lib_filter.text().strip().lower())
+    tokens = _split_keyword(keyword)
     for i in range(self.Ui.listWidget_nfo_lib.count()):
         item = self.Ui.listWidget_nfo_lib.item(i)
-        item.setHidden(bool(keyword) and keyword not in item.text().lower())
+        if not tokens or all(_haystack_matches(item.text().lower(), t) for t in tokens):
+            item.setHidden(False)
+            continue
+        nfo_path_str = item.data(NFO_PATH_ROLE)
+        if not nfo_path_str:
+            item.setHidden(True)
+            continue
+        search = _nfo_lib_search_text(self, Path(nfo_path_str))
+        item.setHidden(not all(_nfo_matches(search, t) for t in tokens))
 
 
 def pushButton_nfo_lib_crop_clicked(self: MyMAinWindow) -> None:
