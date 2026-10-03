@@ -24551,7 +24551,7 @@ p, li { white-space: pre-wrap; }
                         </size>
                       </property>
                       <property name="placeholderText">
-                        <string>筛选：番号/演员/标签/发行日/年份/时长/评分（逗号分隔）...</string>
+                        <string>筛选：番号/标题/演员/导演/片商/发行商/简介/标签/发行日/年份/时长/评分（逗号分隔）...</string>
                       </property>
                     </widget>
                   </item>

@@ -14172,7 +14172,7 @@ class Ui_MDCx(object):
         self.pushButton_nfo_lib_select_dir.setText(_translate("MDCx", "选择目录"))
         self.label_nfo_lib_count.setText(_translate("MDCx", "共 0 个"))
         self.lineEdit_nfo_lib_filter.setPlaceholderText(
-            _translate("MDCx", "筛选：番号/演员/标签/发行日/年份/时长/评分（逗号分隔）...")
+            _translate("MDCx", "筛选：番号/标题/演员/导演/片商/发行商/简介/标签/发行日/年份/时长/评分（逗号分隔）...")
         )
         self.pushButton_nfo_lib_refresh.setText(_translate("MDCx", "刷新"))
         self.label_nfo_lib_list_title.setText(_translate("MDCx", "NFO文件列表"))

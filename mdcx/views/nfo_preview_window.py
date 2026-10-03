@@ -610,6 +610,28 @@ class NfoPreviewWindow(QDialog):
             )
         )
 
+    def _current_nfo_stem(self) -> str:
+        """当前番号（NFO 文件名去后缀），用于通用 poster.jpg/thumb.jpg 的显示名补前缀。"""
+        if 0 <= self._nfo_index < len(self.nfo_paths):
+            return self.nfo_paths[self._nfo_index].stem
+        return ""
+
+    def _display_name(self, path: Path | None) -> str:
+        """用于标题栏与底部信息的显示文件名。
+
+        NFO 同目录图片有两种命名：专属名（如 ABP-608-poster.jpg）与通用名
+        （poster.jpg / thumb.jpg）。通用名看不出是哪个番号，显示时补上
+        番号前缀（ABP-608-poster.jpg）；专属名保持原样，避免重复拼接。
+        """
+        if path is None:
+            return ""
+        name = path.name
+        if name.lower() in ("poster.jpg", "thumb.jpg"):
+            stem = self._current_nfo_stem()
+            if stem and not name.lower().startswith(stem.lower()):
+                return f"{stem}-{name}"
+        return name
+
     def _update_info(self) -> None:
         """底部信息：图片序号 / 文件名 / 尺寸 / 番号位置。"""
         path = self.current_path()
@@ -620,13 +642,13 @@ class NfoPreviewWindow(QDialog):
         if self._source is not None and not self._source.isNull():
             size_text = f"（{self._source.width()}x{self._source.height()}）"
         self.info_label.setText(
-            f"图片 {self._image_index + 1}/{len(self._current_images())}　{path.name}{size_text}"
+            f"图片 {self._image_index + 1}/{len(self._current_images())}　{self._display_name(path)}{size_text}"
             f"　番号 {self._nfo_index + 1}/{len(self.nfo_paths)}"
         )
 
     def _update_title(self) -> None:
         path = self.current_path()
-        self.setWindowTitle(f"{self.title_prefix} - {path.name}" if path else self.title_prefix)
+        self.setWindowTitle(f"{self.title_prefix} - {self._display_name(path)}" if path else self.title_prefix)
 
     # ============= 事件 =============
 

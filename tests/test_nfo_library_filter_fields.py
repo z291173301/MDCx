@@ -1,10 +1,8 @@
 """信息管理页筛选框搜索回归测试。
 
-匹配规则（用户明确要求）：演员/标签独立匹配，不与番号/标题/
-发行日等混同——文字词只在演员名/标签值内子串匹配；
-日期形词与发行日精确比对；纯数字词只与年份/时长/评分精确相等；
-番号走文件名快路径。导演/片商/发行商/系列（不在标签内时）/
-简介等字段不再被搜到。
+匹配规则：文字词在标题/导演/片商/发行商/简介/演员名/标签值内
+子串匹配；日期形词与发行日精确比对；纯数字词只与年份/时长/
+评分精确相等（含 `2` 落空整条的粘贴场景）；番号走文件名快路径。
 """
 
 import os
@@ -62,8 +60,8 @@ def win(app, monkeypatch, tmp_path):
 
 def _write_nfo(folder, name, **fields):
     children = [f"<num>{fields.get('num', name)}</num>"]
-    for key in ("title", "originaltitle", "director", "studio", "publisher", "series",
-                "runtime", "rating", "plot", "outline", "release", "releasedate", "year"):
+    for key in ("title", "originaltitle", "director", "studio", "maker", "publisher", "label",
+                "series", "runtime", "rating", "plot", "outline", "release", "releasedate", "year"):
         if fields.get(key):
             children.append(f"<{key}>{fields[key]}</{key}>")
     for actor in fields.get("actors", []):
@@ -85,11 +83,14 @@ def library(win, app, tmp_path):
         actors=["仲村美羽"],
         director="ザック荒井",
         studio="エスワン ナンバーワンスタイル",
+        maker="S1メーカー",
         publisher="S1 NO.1 STYLE",
+        label="S1レーベル",
         series="",
         runtime="126",
         rating="3.0",
         plot="电影女演员中村美雨接受拍摄",
+        outline="电影女演员的拍摄现场花絮",
         tags=["SNOS", "仲村美羽", "単体作品", "美乳"],
         release="2026-09-03",
     )
@@ -99,11 +100,14 @@ def library(win, app, tmp_path):
         actors=["青木玲", "松嶋れいな"],
         director="",
         studio="ムーディーズ",
+        maker="MOODYZメーカー",
         publisher="MOODYZ Best",
+        label="MOODYZレーベル",
         series="作品集",
         runtime="238",
         rating="5.0",
         plot="38位知名女演员用手指",
+        outline="38位女演员合集总集篇",
         tags=["打手枪", "系列：作品集", "MIBD"],
         release="2009-12-29",
         year="2009",
@@ -140,21 +144,29 @@ def test_filter_runtime(win, app, library):
     assert _search(win, app, "126") == ["SNOS-447"]
 
 
-def test_filter_director_not_searched(win, app, library):
-    # 演员/标签独立匹配：导演字段不在匹配范围内
-    assert _search(win, app, "ザック荒井") == []
+def test_filter_title(win, app, library):
+    assert _search(win, app, "电影女演员中村美雨") == ["SNOS-447"]
+    assert _search(win, app, "手淫4小时") == ["MIBD-459"]
 
 
-def test_filter_studio_not_searched(win, app, library):
-    # 片商字段不在匹配范围内（除非同样写进标签）
-    assert _search(win, app, "ナンバーワンスタイル") == []
-    assert _search(win, app, "ムーディーズ") == []
+def test_filter_director(win, app, library):
+    assert _search(win, app, "ザック荒井") == ["SNOS-447"]
 
 
-def test_filter_publisher_not_searched(win, app, library):
-    # 发行商字段不在匹配范围内
-    assert _search(win, app, "STYLE") == []
-    assert _search(win, app, "MOODYZ Best") == []
+def test_filter_studio(win, app, library):
+    # 片商：studio 与 maker 都在范围内
+    assert _search(win, app, "ナンバーワンスタイル") == ["SNOS-447"]
+    assert _search(win, app, "ムーディーズ") == ["MIBD-459"]
+    assert _search(win, app, "S1メーカー") == ["SNOS-447"]
+    assert _search(win, app, "MOODYZメーカー") == ["MIBD-459"]
+
+
+def test_filter_publisher(win, app, library):
+    # 发行商：publisher 与 label 都在范围内
+    assert _search(win, app, "STYLE") == ["SNOS-447"]
+    assert _search(win, app, "MOODYZ Best") == ["MIBD-459"]
+    assert _search(win, app, "S1レーベル") == ["SNOS-447"]
+    assert _search(win, app, "MOODYZレーベル") == ["MIBD-459"]
 
 
 def test_filter_series(win, app, library):
@@ -166,10 +178,12 @@ def test_filter_rating(win, app, library):
     assert _search(win, app, "3.0") == ["SNOS-447"]
 
 
-def test_filter_outline_not_searched(win, app, library):
-    # 简介字段不在匹配范围内（只在演员名/标签值内找）
-    assert _search(win, app, "中村美雨接受拍摄") == []
-    assert _search(win, app, "38位知名女演员") == []
+def test_filter_plot(win, app, library):
+    # 简介：plot 与 outline 都在范围内
+    assert _search(win, app, "中村美雨接受拍摄") == ["SNOS-447"]
+    assert _search(win, app, "38位知名女演员") == ["MIBD-459"]
+    assert _search(win, app, "拍摄现场花絮") == ["SNOS-447"]
+    assert _search(win, app, "总集篇") == ["MIBD-459"]
 
 
 def test_filter_tag_multi_and_reordered(win, app, library):

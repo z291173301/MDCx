@@ -200,6 +200,55 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 回归：`tests/test_left_status_icons.py`（图标逐字存在、`SCRAPE_INFO_EMOJI_RE`
 不得复活、`GITHUB_REPO`/帮助页地址指向自有仓库、`reset()` 不得清空模式文案）。
 
+### 信息管理筛选框匹配规则（改前必读）
+
+实现：`mdcx/controllers/main_window/nfo_library.py`（入口
+`lineEdit_nfo_lib_filter_changed`，拆词 `_split_keyword`、日期归一
+`_token_variants`、慢路径分流 `_nfo_matches`、索引
+`_parse_nfo_search_text` + `_nfo_lib_search_text`）。回归：
+`tests/test_nfo_library_filter_fields.py`（14 项）。
+
+**最终契约（改任何一条必须同步改测试与占位符）**
+
+1. **拆词**：关键词按逗号/顿号/分号/空白/斜杠拆，全角标点先归一到半角
+   （`_FULLWIDTH_MAP`，归一先于拆词）；`_DATE_PIECE_RE` 先把日期片段
+   （`Y-M-D` 各种分隔符、`YYYYMMDD`/`YYMMDD`）整体抠出，`/` 不再切断日期；
+   空段一律丢弃（首尾/连续逗号与 `A,B` 等价）；多词 AND、顺序无关。
+2. **文件名快路径**：列表项文本只有番号（stem），任一候选子串命中即显示，
+   免磁盘 IO（`261` 定位 `ARM-261`；`_haystack_matches`）。
+3. **NFO 慢路径按词形分流**（`_nfo_matches`，索引是 `(文本, 数字集, 发行日集)`
+   三元组，按 mtime 缓存）：
+   - **日期形词**：`_token_variants()` 展开 `[原串, YYYY-MM-DD, YY-MM-DD]`
+     候选（两位年份同时展 19xx/20xx），与发行日集（release/releasedate/
+     premiered）**精确比对**，任一命中即算该词命中；
+   - **纯数字词**（`_NUMERIC_TOKEN_RE`）：只与数字集（year/runtime/rating，
+     `criticrating` 按 core 逻辑换算回 10 分制一并收录）**精确相等**；
+   - **其他文字词**：在文本池（`_NFO_TEXT_XPATHS` = 演员名/标签值 +
+     title/originaltitle/director/studio/maker/publisher/label/
+     plot/outline/originalplot）内**子串匹配**。
+4. **两个"不在池内"的字段**：`series` 不在文本池，经由 `系列：xxx` 标签命中；
+   `criticrating` 只进数字集不进文本。增删可搜字段只改三个 XPATHS 常量，
+   不要动分流逻辑。
+5. **占位符必须与实际能力一致**（当前「筛选：番号/标题/演员/导演/片商/发行商/
+   简介/标签/发行日/年份/时长/评分（逗号分隔）...」）。改 `.ui` 后一律
+   `pyuic` 重生成 `MDCx.py` + `ruff format`，绝不手改（`test_ui_structure.py`
+   会逐字节比对）。
+
+**两次把搜索改崩的教训（禁令）**
+
+1. **数字与日期永远精确比对，禁止 `startswith`/子串碰数字集与发行日集**：
+   纯数字词曾允许"发行日前缀"口子（`2017-08-04`.startswith(`2`)），导致
+   `ポルノスター,ABP,园田美樱,2` 误命中 ABP-622——`2` 落空整条才是正确行为
+   （`test_filter_stray_digit_kills_match` 锁定）。以后任何"宽松一点"的想法
+   （如年份前缀、时长区间）都必须先加测试再放行，默认不加。
+2. **`_DATE_PIECE_RE` 的分隔符不含空白**：含空白的写法退化成三词 AND
+   （宽松但可用），且能避免 `238 5.0` 被误抠成日期导致回归；`5.0`/`238`/
+   `2013` 这类非日期数字不受归一化影响（`test_filter_release_date_formats`
+   末尾有回归断言）。
+3. **文字池收敛与恢复**：文字池曾收敛到仅演员/标签（标题/导演/片商/发行商/
+   简介直搜彻底失效），后应用户要求加回。如再被要求收窄，必须同步改占位符
+   并把旧用例更名为 `*_not_searched` 反向锁定，而不是直接删断言。
+
 ## 数据模型
 
 完整数据流转链路：
