@@ -123,6 +123,40 @@ def pushButton_nfo_lib_select_dir_clicked(self: MyMAinWindow) -> None:
     _scan_nfo_directory(self, Path(folder), select_first=True)
 
 
+def _resolve_nfo_lib_dir(dir_text: str) -> Path | None:
+    """手动输入的目录文本规整为有效目录，不正确返回 None。
+
+    Windows（`D:\\dir`/`D:/dir`/UNC `\\\\server\\share`）与 Linux
+    （`/home/...`/`~/...`）两种格式都允许：分隔符原样交给本平台
+    pathlib 识别，切勿自行替换斜杠（会破坏 UNC 前导双反斜杠）；
+    只去首尾空白与成对引号（从资源管理器粘贴常带引号），`~` 展开家目录。
+    存在且为目录才返回 Path，否则 None（调用方打日志，列表保持不动）。
+    """
+    text = dir_text.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "\"'":
+        text = text[1:-1].strip()
+    if not text:
+        return None
+    folder = Path(text).expanduser()
+    try:
+        valid = folder.is_dir()
+    except OSError:
+        valid = False
+    return folder if valid else None
+
+
+def lineEdit_nfo_lib_dir_return_pressed(self: MyMAinWindow) -> None:
+    """显示框手动输入目录后回车确认，与刷新走同一扫描链路。
+
+    目录不正确（不存在/不是目录）时只打日志，列表与计数保持不动、
+    不显示任何新内容；正确时才扫描展示。"""
+    folder = _resolve_nfo_lib_dir(self.Ui.lineEdit_nfo_lib_dir.text())
+    if folder is None:
+        signal_qt.show_log_text(f"目录不正确: {self.Ui.lineEdit_nfo_lib_dir.text().strip()}，请输入有效的目录")
+        return
+    _scan_nfo_directory(self, folder, select_first=True)
+
+
 def pushButton_nfo_lib_select_all_clicked(self: MyMAinWindow) -> None:
     """全选 NFO 列表（议题 #61：列表右侧缺全选快捷键）。
 
@@ -141,7 +175,11 @@ def pushButton_nfo_lib_refresh_clicked(self: MyMAinWindow) -> None:
     if not dir_text:
         signal_qt.show_log_text("请先选择目录")
         return
-    _scan_nfo_directory(self, Path(dir_text), select_first=True)
+    folder = _resolve_nfo_lib_dir(dir_text)
+    if folder is None:
+        signal_qt.show_log_text(f"目录不正确: {dir_text}，请重新选择目录")
+        return
+    _scan_nfo_directory(self, folder, select_first=True)
 
 
 def _scan_nfo_directory(self: MyMAinWindow, folder: Path, select_first: bool = True) -> None:
@@ -283,6 +321,43 @@ def on_nfo_lib_data_loaded(self: MyMAinWindow, nfo_path_str: str) -> None:
     # 清理临时状态
     self._nfo_lib_pending_data = None
     self._nfo_lib_pending_info = None
+
+
+def on_nfo_lib_images_changed(self: MyMAinWindow, nfo_path_str: str) -> None:
+    """信息管理页裁剪封面完成：只刷新两张预览图。
+
+    不切页、不碰表单（保留用户未保存的编辑）；若用户已切到别的番号则忽略。
+    由 `nfo_lib_images_changed` 信号在主线程触发。
+    """
+    current: Path | None = getattr(self, "_nfo_lib_current_path", None)
+    if current is None or str(current) != nfo_path_str:
+        return
+    _refresh_nfo_lib_previews(self)
+
+
+def _refresh_nfo_lib_previews(self: MyMAinWindow) -> None:
+    """按当前番号重读磁盘图片并刷新两张预览（QPixmap 不缓存路径，直接重载即新图）。"""
+    nfo_path: Path | None = getattr(self, "_nfo_lib_current_path", None)
+    if nfo_path is None:
+        return
+    poster_path = _resolve_nfo_image(nfo_path, "poster")
+    thumb_path = _resolve_nfo_image(nfo_path, "thumb")
+    if poster_path is not None:
+        pix = QPixmap(str(poster_path))
+        if not pix.isNull():
+            self.Ui.label_nfo_lib_poster_preview.setPixmap(
+                pix.scaled(200, 280, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            )
+    else:
+        self.Ui.label_nfo_lib_poster_preview.setText("无海报")
+    if thumb_path is not None:
+        pix = QPixmap(str(thumb_path))
+        if not pix.isNull():
+            self.Ui.label_nfo_lib_thumb_preview.setPixmap(
+                pix.scaled(200, 120, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            )
+    else:
+        self.Ui.label_nfo_lib_thumb_preview.setText("无缩略图")
 
 
 def _collect_form_data(self: MyMAinWindow) -> CrawlersResult:
@@ -500,9 +575,7 @@ _NUMERIC_TOKEN_RE = re.compile(r"^\d+(?:\.\d+)?$")
 
 
 # 完整日期词：Y-M-D（分隔符 - . / · ・ ／ 年月日）或 6/8 位纯数字
-_DATE_FULL_RE = re.compile(
-    r"^(\d{2}|\d{4})[-./·・/／年月](\d{1,2})[-./·・/／月](\d{1,2})日?$|^(\d{6}|\d{8})$"
-)
+_DATE_FULL_RE = re.compile(r"^(\d{2}|\d{4})[-./·・/／年月](\d{1,2})[-./·・/／月](\d{1,2})日?$|^(\d{6}|\d{8})$")
 
 
 def _date_candidates(year: int, month: int, day: int) -> list[str]:
@@ -528,9 +601,7 @@ def _token_variants(token: str) -> list[str]:
         if m.group(4) is not None:
             compact = m.group(4)
             if len(compact) == 8:
-                variants.extend(
-                    _date_candidates(int(compact[:4]), int(compact[4:6]), int(compact[6:8]))
-                )
+                variants.extend(_date_candidates(int(compact[:4]), int(compact[4:6]), int(compact[6:8])))
             else:
                 yy, month, day = int(compact[:2]), int(compact[2:4]), int(compact[4:6])
                 variants.extend(_date_candidates(2000 + yy, month, day))
@@ -691,6 +762,8 @@ def pushButton_nfo_lib_crop_clicked(self: MyMAinWindow) -> None:
     # showimage 内部按 Path 使用（img_path.as_posix()/parent/stem），传 str 会抛
     # AttributeError，而 PyQt 只把异常打到 stderr，界面上就表现为「点了没反应」
     self.cutwindow.showimage(poster_path, None)
+    # 标记来源：裁剪完成后留在信息管理页、只刷新预览图（见 cut_window.to_cut 末尾）
+    self.cutwindow._nfo_lib_source = nfo_path
     self.cutwindow.show()
     self.cutwindow.raise_()
     self.cutwindow.activateWindow()
@@ -962,7 +1035,7 @@ def on_nfo_lib_batch_done(self: MyMAinWindow, _arg: str) -> None:
 
 
 def listWidget_nfo_lib_context_menu(self: MyMAinWindow, pos) -> None:
-    """NFO 列表右键菜单：重新刮削番号 / 打开所在目录 / 删除nfo文件。"""
+    """NFO 列表右键菜单：重新刮削番号 / 打开所在目录 / 删除NFO文件。"""
     items = self.Ui.listWidget_nfo_lib.selectedItems()
     if not items:
         return
@@ -982,7 +1055,7 @@ def listWidget_nfo_lib_context_menu(self: MyMAinWindow, pos) -> None:
 
     act_rescrape = QAction("重新刮削番号", self)
     act_open_folder = QAction("打开所在目录", self)
-    act_delete = QAction("删除nfo文件" + (f"（{len(nfo_paths)} 个）" if len(nfo_paths) > 1 else ""), self)
+    act_delete = QAction("删除NFO文件" + (f"（{len(nfo_paths)} 个）" if len(nfo_paths) > 1 else ""), self)
     menu.addAction(act_rescrape)
     menu.addAction(act_open_folder)
     menu.addSeparator()

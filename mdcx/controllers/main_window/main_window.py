@@ -193,6 +193,7 @@ class MyMAinWindow(QMainWindow):
     net_check_done = pyqtSignal()  # 网络检测完成，主线程恢复按钮状态
     net_check_progress = pyqtSignal(int, int)  # 网络检测单项完成 (done, total)，主线程刷新按钮进度文本
     nfo_lib_data_loaded = pyqtSignal(str)  # NFO 库管理：后台读取 NFO 完成，主线程填充表单
+    nfo_lib_images_changed = pyqtSignal(str)  # NFO 库管理：信息管理页裁剪封面完成，主线程只刷新两张预览图（不切页）
     nfo_lib_save_done = pyqtSignal(str)  # NFO 库管理：后台保存完成，主线程恢复按钮
     nfo_lib_batch_done = pyqtSignal(str)  # NFO 库管理：批量操作完成，主线程更新状态
     nfo_lib_batch_progress = pyqtSignal(str)  # NFO 库管理：批量操作进度，主线程更新标签
@@ -865,13 +866,10 @@ class MyMAinWindow(QMainWindow):
 
     # 信息管理页多条件筛选输入框：设计上限（MDCx.py 里
     # maximumSize(180, QWIDGETSIZE_MAX)）与最小化时必须还原到的值。
-    _NFO_LIB_FILTER_MAX_W = 180
-    # 最大化时按目录框实测宽换算筛选框宽度的比例，以及换算后的取值区间。
-    # 1920 窗宽下目录框实测约 1030px，0.5 倍 ≈ 516px，与目录框宽度协调；
-    # 再宽就会挤掉「共 N 个」和刷新按钮。
-    _NFO_LIB_FILTER_SCALE = 0.5
-    _NFO_LIB_FILTER_MIN_W = 180
-    _NFO_LIB_FILTER_MAX_W_CAP = 620
+    # 信息管理顶栏：目录显示框与筛选框在布局里各占一份拉伸（.ui 里
+    # horstretch 均为 1），剩余空间永远平分、两框恒等宽，无需运行时换算。
+    # 曾用 `_sync_nfo_lib_top_bar()` 按 0.5 比例换算（最大化加宽/还原复位 180），
+    # 用户要求两框等宽后删除——布局均分在所有窗口状态下天然成立，无自反馈抖动。
 
     # 命名页「视频命名规则」组（groupBox_8）：模板预览框的高度。默认模板只有一行，
     # 128px 会在框内留出大片空白，这里按用户要求取其一半。
@@ -889,41 +887,6 @@ class MyMAinWindow(QMainWindow):
         "groupBox_65",
         "groupBox_67",
     )
-
-    def _sync_nfo_lib_top_bar(self) -> None:
-        """最大化时按「选择目录」显示框的实测宽度等比例加宽筛选框。
-
-        现象：最大化后筛选框仍钉死在设计值 180px，与旁边被拉宽的目录框比例
-        严重失调（用户截图批注「最大化时等比例加宽」）。
-        做法：把筛选框临时按设计宽度复位后量出目录框的可拉伸宽度（不这样量会
-        自反馈——上一遍加宽的筛选框已经把目录框挤窄，反复 resizeEvent 会让两个
-        框宽度来回抖），乘 _NFO_LIB_FILTER_SCALE 换算筛选框上限并守住下限；
-        未最大化时原样复位 180，最小化态逐像素不变。
-        """
-        ui = self.Ui
-        dir_edit = ui.lineEdit_nfo_lib_dir
-        filter_edit = ui.lineEdit_nfo_lib_filter
-        bar = ui.nfo_lib_top_bar
-        bar_layout = bar.layout()
-        if not self.isMaximized():
-            if filter_edit.maximumWidth() != self._NFO_LIB_FILTER_MAX_W:
-                filter_edit.setMaximumWidth(self._NFO_LIB_FILTER_MAX_W)
-            return
-        # 先按设计宽度量基准目录宽，避免量到被自己挤窄后的值
-        previous_max = filter_edit.maximumWidth()
-        if previous_max != self._NFO_LIB_FILTER_MAX_W:
-            filter_edit.setMaximumWidth(self._NFO_LIB_FILTER_MAX_W)
-            bar_layout.invalidate()
-            bar_layout.activate()
-        base = dir_edit.width()
-        if base <= 0:
-            return
-        width = int(base * self._NFO_LIB_FILTER_SCALE)
-        width = max(self._NFO_LIB_FILTER_MIN_W, min(width, self._NFO_LIB_FILTER_MAX_W_CAP))
-        if filter_edit.maximumWidth() != width:
-            filter_edit.setMaximumWidth(width)
-        bar_layout.invalidate()
-        bar_layout.activate()
 
     def _sync_nfo_lib_action_buttons(self) -> None:
         """复位「批量保存」「保存当前nfo文件」的宽度上限，并把「裁剪封面」对齐批量保存的高度。
@@ -3973,8 +3936,7 @@ class MyMAinWindow(QMainWindow):
         # ============ page_nfo_library: 简介/标签高度自适应（议题 #117）============
         self._sync_nfo_lib_form_fields()
 
-        # ============ page_nfo_library: 最大化时筛选框按目录框宽度等比例加宽 ============
-        self._sync_nfo_lib_top_bar()
+        # 目录显示框与筛选框在布局里均分宽度（.ui horstretch 均为 1），无需运行时同步。
         self._sync_nfo_lib_action_buttons()
 
         # ============ page_setting / 命名页: 模板预览固定高度 + 说明文字贴合 ============
@@ -6757,6 +6719,11 @@ class MyMAinWindow(QMainWindow):
 
         pushButton_nfo_lib_refresh_clicked(self)
 
+    def lineEdit_nfo_lib_dir_return_pressed(self):
+        from .nfo_library import lineEdit_nfo_lib_dir_return_pressed
+
+        lineEdit_nfo_lib_dir_return_pressed(self)
+
     def listWidget_nfo_lib_item_clicked(self):
         from .nfo_library import listWidget_nfo_lib_item_clicked
 
@@ -6771,6 +6738,11 @@ class MyMAinWindow(QMainWindow):
         from .nfo_library import on_nfo_lib_data_loaded
 
         on_nfo_lib_data_loaded(self, nfo_path_str)
+
+    def on_nfo_lib_images_changed(self, nfo_path_str: str):
+        from .nfo_library import on_nfo_lib_images_changed
+
+        on_nfo_lib_images_changed(self, nfo_path_str)
 
     def on_nfo_lib_save_done(self, nfo_path_str: str):
         from .nfo_library import on_nfo_lib_save_done

@@ -80,6 +80,7 @@ class CutWindow(QDialog):
         self.Ui = Ui_Dialog_cut_poster()  # 实例化 Ui
         self.Ui.setupUi(self)  # 初始化Ui
         self.main_window = parent
+        self._nfo_lib_source: Path | None = None  # 信息管理页发起的裁剪来源（nfo 路径）；None 表示主流程
         self.m_drag = False  # 允许拖动
         self.m_DragPosition = None  # 拖动位置
         self.show_w = self.Ui.label_backgroud_pic.width()  # 图片显示区域的宽高
@@ -275,6 +276,7 @@ class CutWindow(QDialog):
         self.cut_thumb_path = None  # 裁剪后的thumb路径
         self.cut_poster_path = None  # 裁剪后的poster路径
         self.cut_fanart_path = None  # 裁剪后的fanart路径
+        self._nfo_lib_source = None  # 每次打开裁剪窗都回到主流程，信息管理页发起时由调用方在 showimage 之后设置
         self.Ui.label_origin_size.setText(str(f"{self.pic_w!s}, {self.pic_h!s}"))  # 显示原图尺寸
 
         # 获取水印设置
@@ -508,9 +510,16 @@ class CutWindow(QDialog):
         img.close()
         img_new_png.close()
 
-        # 在主界面显示预览（QWidget 只能主线程操作，经信号调度）
-        self.main_window.change_to_mainpage.emit("")
-        self.main_window.request_preview_images.emit(str(self.cut_poster_path), str(thumb_path))
+        # 在主界面显示预览（QWidget 只能主线程操作，经信号调度）。
+        # 信息管理页发起的裁剪：留在信息管理页，只刷新两张预览图，不跳主页
+        # （表单不动，避免覆盖用户未保存的编辑）；主流程保持原行为。
+        nfo_source = self._nfo_lib_source
+        self._nfo_lib_source = None
+        if nfo_source is not None:
+            self.main_window.nfo_lib_images_changed.emit(str(nfo_source))
+        else:
+            self.main_window.change_to_mainpage.emit("")
+            self.main_window.request_preview_images.emit(str(self.cut_poster_path), str(thumb_path))
         return True
 
     def mousePressEvent(self, a0):

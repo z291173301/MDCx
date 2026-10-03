@@ -1,9 +1,9 @@
 """信息管理页列表右键菜单文案回归测试。
 
 需求：`NFO 列表右键菜单：重新刮削 / 打开所在目录 / 删除 NFO` 改为
-`NFO 列表右键菜单：重新刮削番号 / 打开所在目录 / 删除nfo文件`。
+`NFO 列表右键菜单：重新刮削番号 / 打开所在目录 / 删除NFO文件`。
 
-本文件锁死三项菜单文案（含多选时「删除nfo文件（N 个）」的后缀拼接），改回旧措辞
+本文件锁死三项菜单文案（含多选时「删除NFO文件（N 个）」的后缀拼接），改回旧措辞
 即报红。相关文案同步范围见 `docs/Changelog.md` v2.2.0「界面调整」。
 
 刻意不锁的三处（均非本菜单）：删除确认框标题「删除 NFO」、重新刮削输入框标题
@@ -24,8 +24,8 @@ from PyQt6.QtWidgets import QApplication, QMenu
 
 _app: QApplication | None = None
 
-# 三个菜单项的期望文案（顺序即菜单中的顺序：标题行 → 重新刮削番号 → 打开所在目录 → 删除nfo文件）
-_EXPECTED_TEXTS = ("重新刮削番号", "打开所在目录", "删除nfo文件")
+# 三个菜单项的期望文案（顺序即菜单中的顺序：标题行 → 重新刮削番号 → 打开所在目录 → 删除NFO文件）
+_EXPECTED_TEXTS = ("重新刮削番号", "打开所在目录", "删除NFO文件")
 # 本次改名前的旧文案（只有前两项改名，「打开所在目录」始终未变）
 _OLD_TEXTS = ("重新刮削", "删除 NFO")
 
@@ -114,7 +114,7 @@ def _context_menu(win, monkeypatch, app) -> QMenu:
 
 
 def test_menu_item_texts(library, win, app, monkeypatch):
-    """三个菜单项文案：重新刮削番号 / 打开所在目录 / 删除nfo文件。"""
+    """三个菜单项文案：重新刮削番号 / 打开所在目录 / 删除NFO文件。"""
     menu = _context_menu(win, monkeypatch, app)
     # 末尾两项是分隔线（空文本），首个是标题行（番号 / 已选择 N 项）
     texts = [action.text() for action in menu.actions() if action.text()]
@@ -126,13 +126,13 @@ def test_menu_item_texts(library, win, app, monkeypatch):
 
 
 def test_delete_text_keeps_count_suffix(library, win, app, monkeypatch):
-    """多选时删除项仍是「删除nfo文件（N 个）」。"""
+    """多选时删除项仍是「删除NFO文件（N 个）」。"""
     win.Ui.listWidget_nfo_lib.selectAll()
     app.processEvents()
     menu = _context_menu(win, monkeypatch, app)
     texts = [action.text() for action in menu.actions() if action.text()]
     assert texts[0] == "已选择 2 项"
-    assert "删除nfo文件（2 个）" in texts
+    assert "删除NFO文件（2 个）" in texts
 
 
 def test_menu_docstring_matches_texts():

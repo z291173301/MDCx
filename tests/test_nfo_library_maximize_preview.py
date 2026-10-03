@@ -8,7 +8,7 @@
 2. 左键单击右侧预览图要弹出与主页面完全重合的大图窗口（带最小化/最大化/关闭按钮），
    ← / → 在同一个番号内切换封面与缩略图，↑ / ↓ 切换不同番号，Esc 关闭；
    图片下方提示用箭头图标表示按键，不写「左右键 / 上下键」这类文字；
-3. 最大化时「筛选番号/演员/标题」输入框要按「选择目录」显示框宽度等比例加宽；
+3. 「选择目录」显示框与筛选框恒等宽（布局均分，两态一致）；
 4. 顶栏顺序改为 目录显示框 → 选择目录按钮 → 共 N 个 → 筛选 → 刷新，
    目录框向左拓展、吃满按钮让出的空间；
 5. 选择目录确定后（或刷新后）自动展示目录内第一个番号的信息；
@@ -279,44 +279,41 @@ def test_top_bar_order_and_dir_box_expands_left(win, app):
     assert box.x() + box.width() + spacing == button.x()
 
 
-# ============= 3. 筛选框等比例加宽 =============
+# ============= 3. 目录框与筛选框等宽 =============
 
 
-def test_maximized_filter_box_scales_with_dir_box(win, app):
-    """最大化时筛选框按目录框实测宽度等比例加宽，最小化态复位 180。"""
+def test_dir_box_and_filter_box_share_equal_width(win, app):
+    """目录显示框与筛选框在两态下恒等宽（.ui 里 horstretch 均为 1，均分剩余空间）。
+
+    曾用 `_sync_nfo_lib_top_bar()` 按 0.5 比例换算（最大化加宽/还原复位 180），
+    用户要求两框等宽后删除，改由布局均分——窄态/最大化/还原往返皆严格相等，
+    且反复同步不漂移。
+    """
     _goto_nfo_lib(win, app)
-    win.resize(1920, 1080)
-    app.processEvents()
     ui = win.Ui
+    dir_edit = ui.lineEdit_nfo_lib_dir
+    filter_edit = ui.lineEdit_nfo_lib_filter
 
+    win.resize(1030, 700)
+    app.processEvents()
     _set_maximized(win, app, False)
-    assert ui.lineEdit_nfo_lib_filter.maximumWidth() == win._NFO_LIB_FILTER_MAX_W
+    assert dir_edit.width() == filter_edit.width() > 0
 
     _set_maximized(win, app, True)
-    widened = ui.lineEdit_nfo_lib_filter.maximumWidth()
-    assert widened > win._NFO_LIB_FILTER_MAX_W, "最大化后筛选框没有加宽"
-    assert ui.lineEdit_nfo_lib_filter.width() > win._NFO_LIB_FILTER_MAX_W
+    win.resize(1920, 1080)
+    app.processEvents()
+    assert dir_edit.width() == filter_edit.width() > 0
+    widened = filter_edit.width()
 
-    # 反复同步不得来回抖动（目录框宽度被自己的加宽结果影响会自反馈）
+    # 反复同步不得漂移
     for _ in range(4):
         win._sync_page_layouts()
         app.processEvents()
-        assert ui.lineEdit_nfo_lib_filter.maximumWidth() == widened, "筛选框宽度在重复同步间抖动"
-
-    # 换算依据是「筛选框按设计宽度复位时的目录框宽」
-    ui.lineEdit_nfo_lib_filter.setMaximumWidth(win._NFO_LIB_FILTER_MAX_W)
-    ui.nfo_lib_top_bar.layout().invalidate()
-    ui.nfo_lib_top_bar.layout().activate()
-    base = ui.lineEdit_nfo_lib_dir.width()
-    assert base > 0
-    expected = max(
-        win._NFO_LIB_FILTER_MIN_W,
-        min(int(base * win._NFO_LIB_FILTER_SCALE), win._NFO_LIB_FILTER_MAX_W_CAP),
-    )
-    assert widened == expected, f"筛选框宽度 {widened} 与目录框实测 {base} 不成比例（期望 {expected}）"
+        assert ui.lineEdit_nfo_lib_dir.width() == ui.lineEdit_nfo_lib_filter.width()
+        assert ui.lineEdit_nfo_lib_filter.width() == widened
 
     _set_maximized(win, app, False)
-    assert ui.lineEdit_nfo_lib_filter.maximumWidth() == win._NFO_LIB_FILTER_MAX_W
+    assert ui.lineEdit_nfo_lib_dir.width() == ui.lineEdit_nfo_lib_filter.width() > 0
 
 
 # ============= 4. 大图预览窗口 =============
@@ -600,6 +597,62 @@ def test_select_dir_auto_shows_first_nfo(win, app, tmp_path):
     assert not win.Ui.label_nfo_lib_thumb_preview.pixmap().isNull(), "缩略图预览未自动填充"
 
 
+def test_dir_box_manual_input_confirmed_by_enter(win, app, tmp_path):
+    """显示框手动输入目录后回车（returnPressed），与选目录同链路扫描展示。"""
+    folder = tmp_path / "manual_input"
+    _make_library_folder(folder, [("CCC-003", "手动输入")])
+
+    _goto_nfo_lib(win, app)
+    assert not win.Ui.lineEdit_nfo_lib_dir.isReadOnly(), "显示框必须可编辑"
+    win.Ui.lineEdit_nfo_lib_dir.setText(str(folder))
+    win.Ui.lineEdit_nfo_lib_dir.returnPressed.emit()
+    app.processEvents()
+
+    assert win.Ui.label_nfo_lib_count.text() == "共 1 个"
+    assert win.Ui.listWidget_nfo_lib.count() == 1
+    assert win.Ui.listWidget_nfo_lib.currentItem().text() == "CCC-003"
+    assert _wait_until(app, lambda: win.Ui.lineEdit_nfo_lib_title.text() == "手动输入"), "表单未自动填充"
+
+
+def test_dir_box_enter_invalid_dir_keeps_old_list(win, app, tmp_path):
+    """手动输入不存在的目录/文件路径回车：只打日志，列表与计数保持不动。"""
+    folder = tmp_path / "valid_lib"
+    _make_library_folder(folder, [("DDD-004", "有效目录")])
+
+    _goto_nfo_lib(win, app)
+    win.Ui.lineEdit_nfo_lib_dir.setText(str(folder))
+    win.Ui.lineEdit_nfo_lib_dir.returnPressed.emit()
+    app.processEvents()
+    assert win.Ui.listWidget_nfo_lib.count() == 1
+
+    # 不存在的目录
+    win.Ui.lineEdit_nfo_lib_dir.setText(str(tmp_path / "not_exist_dir_xxx"))
+    win.Ui.lineEdit_nfo_lib_dir.returnPressed.emit()
+    app.processEvents()
+    # 指向文件也不是目录
+    win.Ui.lineEdit_nfo_lib_dir.setText(str(folder / "DDD-004.nfo"))
+    win.Ui.lineEdit_nfo_lib_dir.returnPressed.emit()
+    app.processEvents()
+
+    assert win.Ui.listWidget_nfo_lib.count() == 1
+    assert win.Ui.listWidget_nfo_lib.item(0).text() == "DDD-004"
+    assert win.Ui.label_nfo_lib_count.text() == "共 1 个"
+
+
+def test_dir_box_manual_input_accepts_quoted_and_slash_forms(win, app, tmp_path):
+    """带引号粘贴与正斜杠写法都能正确规整（Windows D:/ 与 Linux /home/ 同由 pathlib 识别，不做斜杠替换）。"""
+    folder = tmp_path / "slash lib"
+    _make_library_folder(folder, [("EEE-005", "斜杠写法")])
+
+    _goto_nfo_lib(win, app)
+    win.Ui.lineEdit_nfo_lib_dir.setText(f'"{str(folder).replace(chr(92), "/")}"')
+    win.Ui.lineEdit_nfo_lib_dir.returnPressed.emit()
+    app.processEvents()
+
+    assert win.Ui.listWidget_nfo_lib.count() == 1
+    assert win.Ui.label_nfo_lib_count.text() == "共 1 个"
+
+
 def test_select_dir_keeps_no_selection_when_folder_empty(win, app, tmp_path):
     """目录里没有 NFO 时不产生选中项，只显示占位提示。"""
     folder = tmp_path / "empty_lib"
@@ -773,6 +826,37 @@ def test_crop_button_opens_cut_window(win, app, library):
     app.processEvents()
     assert win.cutwindow.isVisible(), "裁剪窗口没有弹出"
     assert win.cutwindow.show_image_path == library / "ABC-001-poster.jpg"
+
+
+def test_crop_from_nfo_lib_stays_and_refreshes(win, app, library):
+    """信息管理页裁剪完成后不跳主页，只刷新本页两张预览图（表单不动）。"""
+    from mdcx.utils import executor
+
+    ui = win.Ui
+    ui.listWidget_nfo_lib.setCurrentRow(0)
+    assert _wait_until(app, lambda: getattr(win, "_nfo_lib_current_path", None) is not None)
+    assert _wait_until(app, lambda: ui.label_nfo_lib_poster_preview.pixmap() is not None)
+
+    win.pushButton_nfo_lib_crop_clicked()
+    app.processEvents()
+    assert win.cutwindow._nfo_lib_source == win._nfo_lib_current_path
+
+    page_before = ui.stackedWidget.currentIndex()
+    old_key = ui.label_nfo_lib_poster_preview.pixmap().cacheKey()
+    jumped: list[str] = []
+    refreshed: list[str] = []
+    win.change_to_mainpage.connect(lambda s: jumped.append(s))
+    win.nfo_lib_images_changed.connect(lambda s: refreshed.append(s))
+
+    # 同步跑完裁剪（to_cut 末尾只做 emit，与异步跑同一分支）
+    assert executor.run(win.cutwindow.to_cut([])) is True
+    app.processEvents()
+
+    assert refreshed == [str(win._nfo_lib_current_path)], "信息管理页裁剪完成没有刷新预览"
+    assert not jumped, "信息管理页裁剪完成跳到主页了"
+    assert ui.stackedWidget.currentIndex() == page_before, "裁剪完成切页了"
+    assert ui.label_nfo_lib_poster_preview.pixmap() is not None
+    assert ui.label_nfo_lib_poster_preview.pixmap().cacheKey() != old_key, "预览图没有重载"
 
 
 def test_crop_button_warns_when_no_selection(win, app, monkeypatch):
