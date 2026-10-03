@@ -425,28 +425,23 @@ def on_nfo_lib_save_done(self: MyMAinWindow, nfo_path_str: str) -> None:
     QTimer.singleShot(1500, _restore)
 
 
-# 搜索索引抓取的 NFO 字段（与 core/nfo.py 的读取标签保持一致）
-_NFO_SEARCH_XPATHS = (
-    "//num/text()",
-    "//title/text()",
-    "//originaltitle/text()",
+# 演员/标签独立匹配的字段：只含演员名与标签值，不与番号/标题/
+# 发行日等其他字段混同（用户明确要求）
+_NFO_ACTOR_TAG_XPATHS = (
     "//actor/name/text()",
-    "//director/text()",
-    "//studio/text()",
-    "//maker/text()",
-    "//publisher/text()",
-    "//label/text()",
-    "//series/text()",
+    "//tag/text()",
+)
+# 纯数字词精确比对的数字字段：年份/时长/评分
+_NFO_NUMBER_XPATHS = (
+    "//year/text()",
     "//runtime/text()",
     "//rating/text()",
-    "//tag/text()",
-    "//plot/text()",
-    "//outline/text()",
-    "//originalplot/text()",
+)
+# 日期形词精确比对的发行日字段
+_NFO_RELEASE_XPATHS = (
     "//release/text()",
     "//releasedate/text()",
     "//premiered/text()",
-    "//year/text()",
 )
 
 
@@ -550,37 +545,34 @@ def _haystack_matches(haystack: str, token: str) -> bool:
 
 
 def _nfo_matches(index: tuple[str, frozenset, frozenset], token: str) -> bool:
-    """NFO 慢路径：按词的形状分流，`1` 这类杂散数字捞不回结果。
+    """NFO 慢路径：演员/标签独立匹配，不与番号/标题/发行日等混同。
 
     - 日期形词：归一化后与发行日精确比对（`13-06-08`→`2013-06-08`）；
-    - 纯数字词：只与数字字段精确相等（年份/时长/评分），或为发行日的
-      开头（`2009`→`2009-12-29`）；不做全文子串——`1` 不等于 2013 /
-      110 / 3.4，发行日也不以 `1` 开头，故含 `1` 的多词粘贴整条落空；
-    - 其他词：全文子串（演员/标签/标题/导演/片商/系列/简介等）。
+    - 纯数字词：只与数字字段精确相等（年份/时长/评分）——`1`/`2`
+      不等于任何数字字段，故含它们的粘贴整条落空；
+    - 其他词：只在演员名/标签值内子串匹配——`ポルノスター,ABP,
+      园田美樱,2` 中前三词命中标签/演员，`2` 落空则整条不显示。
     """
     text, numbers, releases = index
     if _DATE_FULL_RE.match(token):
         return any(v in releases for v in _token_variants(token))
     if _NUMERIC_TOKEN_RE.match(token):
-        if token in numbers:
-            return True
-        return any(r.startswith(token) for r in releases)
+        return token in numbers
     return any(v in text for v in _token_variants(token))
 
 
 def _parse_nfo_search_text(nfo_path: Path) -> tuple[str, frozenset, frozenset]:
-    """解析 NFO 拼成小写可搜索索引 `(全文, 数字字段集, 发行日集)`。
+    """解析 NFO 拼成小写可搜索索引 `(演员标签文本, 数字字段集, 发行日集)`。
 
-    全文覆盖番号/标题/演员/导演/片商(maker)/发行商(label)/系列/
-    时长/评分/标签/简介(plot+outline+originalplot)/发行日/年份；
-    数字字段（年份/时长/评分，`criticrating` 按 core 逻辑换算回
-    10 分制一并收录）单独成集，供纯数字词精确比对；
-    发行日（release/releasedate/premiered）单独成集，供日期词
-    精确比对与数字前缀比对。失败回退到文件名。
+    演员/标签独立匹配：文本只含演员名与标签值，不含番号/标题/
+    导演/片商/简介等其他字段；数字字段（年份/时长/评分，
+    `criticrating` 按 core 逻辑换算回 10 分制一并收录）单独成集，
+    供纯数字词精确比对；发行日（release/releasedate/premiered）
+    单独成集，供日期词精确比对。失败回退到文件名。
     全角标点归一到半角后再 lower。
     """
     fallback = _normalize_token_text(nfo_path.stem).lower()
-    parts: list[str] = [nfo_path.stem]
+    parts: list[str] = []
     numbers: set[str] = set()
     releases: set[str] = set()
     try:
@@ -591,20 +583,16 @@ def _parse_nfo_search_text(nfo_path: Path) -> tuple[str, frozenset, frozenset]:
         from lxml import etree
 
         root = etree.fromstring(raw, etree.XMLParser(encoding="utf-8", recover=True))
-        for xp in _NFO_SEARCH_XPATHS:
-            values = [str(v) for v in root.xpath(xp)]
-            parts.extend(values)
-            if xp in ("//year/text()", "//runtime/text()", "//rating/text()"):
-                numbers.update(values)
-            elif xp in ("//release/text()", "//releasedate/text()", "//premiered/text()"):
-                releases.update(values)
+        for xp in _NFO_ACTOR_TAG_XPATHS:
+            parts.extend(str(v) for v in root.xpath(xp))
+        for xp in _NFO_NUMBER_XPATHS:
+            numbers.update(str(v) for v in root.xpath(xp))
+        for xp in _NFO_RELEASE_XPATHS:
+            releases.update(str(v) for v in root.xpath(xp))
         for v in root.xpath("//criticrating/text()"):
-            parts.append(str(v))
             numbers.add(str(v))
             try:
-                derived = str(int(str(v)) / 10)
-                parts.append(derived)
-                numbers.add(derived)
+                numbers.add(str(int(str(v)) / 10))
             except ValueError:
                 pass
     except Exception:
@@ -632,20 +620,22 @@ def _nfo_lib_search_text(self: MyMAinWindow, nfo_path: Path) -> tuple[str, froze
 
 
 def lineEdit_nfo_lib_filter_changed(self: MyMAinWindow) -> None:
-    """筛选框文本变化时过滤列表（全字段，大小写不敏感）。
+    """筛选框文本变化时过滤列表（大小写不敏感）。
 
+    演员/标签独立匹配，不与番号/标题/发行日等混同：
+    文字词只在演员名/标签值内子串匹配；日期形词与发行日精确比对；
+    纯数字词只与年份/时长/评分精确相等；番号走文件名快路径。
     列表项文本只有番号（stem），其余字段在 NFO 文件内：
-    先走文件名快路径（命中则免磁盘 IO），否则读缓存的可搜索文本。
+    先走文件名快路径（命中则免磁盘 IO），否则读缓存的可搜索索引。
     关键词按逗号/顿号/分号/空白/斜杠拆词，多词之间是 AND 关系、
     与顺序无关（如 `矢沢りょう,川上优` 与 `川上优,矢沢りょう` 等价，
     `美乳,巨乳` 要求同一 NFO 内两个标签全包含）。
     日期写法归一：`13-06-08 / 2013.06.08 / 2013·06·08 /
     2013年06月08日 / 20130608` 等都展开成 NFO 内的规范形
     `YYYY-MM-DD` 再与发行日精确比对。
-    纯数字词只与数字字段精确相等（年份/时长/评分）或为发行日的
-    开头——`1` 不等于 2013 / 110 / 3.4，发行日也不以 `1` 开头，
-    故 `口交,系列: ポルノスター,1` 这类粘贴整条落空，去掉 `1`
-    即命中；`238 / 5.0 / 2017` 等照样精确命中对应字段。
+    纯数字词只与数字字段精确相等（年份/时长/评分）——`1`/`2`
+    不等于任何数字字段，故 `ポルノスター,ABP,园田美樱,2` 这类粘贴
+    整条落空，去掉 `2` 即命中；`238 / 5.0 / 2009` 等照样精确命中。
     全角冒号/逗号等归一到半角后再比对。
     """
     keyword = _normalize_token_text(self.Ui.lineEdit_nfo_lib_filter.text().strip().lower())

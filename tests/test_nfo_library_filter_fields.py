@@ -1,8 +1,10 @@
-"""信息管理页筛选框全字段搜索回归测试。
+"""信息管理页筛选框搜索回归测试。
 
-覆盖用户 8 项需求：时长 / 导演 / 片商 / 发行商 / 系列 / 评分 /
-简介 / 标签，同时搜文件名与 NFO 内容；标签与演员支持逗号分隔多词
-AND、乱序组合等价。
+匹配规则（用户明确要求）：演员/标签独立匹配，不与番号/标题/
+发行日等混同——文字词只在演员名/标签值内子串匹配；
+日期形词与发行日精确比对；纯数字词只与年份/时长/评分精确相等；
+番号走文件名快路径。导演/片商/发行商/系列（不在标签内时）/
+简介等字段不再被搜到。
 """
 
 import os
@@ -138,18 +140,21 @@ def test_filter_runtime(win, app, library):
     assert _search(win, app, "126") == ["SNOS-447"]
 
 
-def test_filter_director(win, app, library):
-    assert _search(win, app, "ザック荒井") == ["SNOS-447"]
+def test_filter_director_not_searched(win, app, library):
+    # 演员/标签独立匹配：导演字段不在匹配范围内
+    assert _search(win, app, "ザック荒井") == []
 
 
-def test_filter_studio(win, app, library):
-    assert _search(win, app, "ナンバーワンスタイル") == ["SNOS-447"]
-    assert _search(win, app, "ムーディーズ") == ["MIBD-459"]
+def test_filter_studio_not_searched(win, app, library):
+    # 片商字段不在匹配范围内（除非同样写进标签）
+    assert _search(win, app, "ナンバーワンスタイル") == []
+    assert _search(win, app, "ムーディーズ") == []
 
 
-def test_filter_publisher(win, app, library):
-    assert _search(win, app, "STYLE") == ["SNOS-447"]
-    assert _search(win, app, "MOODYZ Best") == ["MIBD-459"]
+def test_filter_publisher_not_searched(win, app, library):
+    # 发行商字段不在匹配范围内
+    assert _search(win, app, "STYLE") == []
+    assert _search(win, app, "MOODYZ Best") == []
 
 
 def test_filter_series(win, app, library):
@@ -161,9 +166,10 @@ def test_filter_rating(win, app, library):
     assert _search(win, app, "3.0") == ["SNOS-447"]
 
 
-def test_filter_outline(win, app, library):
-    assert _search(win, app, "中村美雨接受拍摄") == ["SNOS-447"]
-    assert _search(win, app, "38位知名女演员") == ["MIBD-459"]
+def test_filter_outline_not_searched(win, app, library):
+    # 简介字段不在匹配范围内（只在演员名/标签值内找）
+    assert _search(win, app, "中村美雨接受拍摄") == []
+    assert _search(win, app, "38位知名女演员") == []
 
 
 def test_filter_tag_multi_and_reordered(win, app, library):
@@ -202,7 +208,7 @@ def test_filter_release_date_formats(win, app, library):
         "2009年12月29",
         "20091229",
         "091229",
-        "2009-12-29,MOODYZ",
+        "2009-12-29,打手枪",
     ):
         assert _search(win, app, kw) == ["MIBD-459"], kw
     # SNOS-447 发行日 2026-09-03
@@ -224,8 +230,8 @@ def test_filter_stray_commas_ignored(win, app, library):
     # 用户截图模式：有效词全命中 + 首尾空段 → 命中（标签/演员同一套逻辑）
     assert _search(win, app, ",青木玲,MIBD，作品集，") == ["MIBD-459"]
     assert _search(win, app, "青木玲,MIBD,作品集,") == ["MIBD-459"]
-    # 开头的 "1" 这类数字词只与数字字段精确比对（年份/时长/评分）
-    # 或为发行日的开头——都不成立则整条落空
+    # 开头的 "1" 这类数字词只与数字字段精确比对（年份/时长/评分），
+    # 不成立则整条落空
     assert _search(win, app, "1,青木玲,MIBD") == []
 
 
@@ -244,3 +250,10 @@ def test_filter_stray_digit_kills_match(win, app, library):
     assert _search(win, app, "2009,打手枪") == ["MIBD-459"]
     # 半角冒号写法命中全角标签
     assert _search(win, app, "系列:作品集") == ["MIBD-459"]
+    # 用户原样：标签/演员词全命中 + 杂散数字 `2`（不在演员/标签里，
+    # 也不精确等于年份 2009 / 时长 238 / 评分 5.0）→ 整条落空；
+    # 去掉 `2` 即命中
+    assert _search(win, app, "作品集,打手枪,青木玲,2") == []
+    assert _search(win, app, "作品集,打手枪,青木玲") == ["MIBD-459"]
+    assert _search(win, app, "単体作品,美乳,仲村美羽,2") == []
+    assert _search(win, app, "単体作品,美乳,仲村美羽") == ["SNOS-447"]
