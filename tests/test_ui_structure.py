@@ -301,6 +301,42 @@ def _widget_bool_prop(w, name):
     return b.text == "true" if b is not None else None
 
 
+def _widget_enum_prop(w, name):
+    p = w.find(f"property[@name='{name}']")
+    if p is None:
+        return None
+    e = p.find("enum")
+    return e.text if e is not None else None
+
+
+def _widget_set_prop(w, name):
+    p = w.find(f"property[@name='{name}']")
+    if p is None:
+        return None
+    s = p.find("set")
+    return s.text if s is not None else None
+
+
+def _widget_rect(w):
+    rect = w.find("property/rect")
+    if rect is None:
+        return None
+    return (
+        int(rect.find("x").text),
+        int(rect.find("y").text),
+        int(rect.find("width").text),
+        int(rect.find("height").text),
+    )
+
+
+def _parent_widget_name(w):
+    """取控件的直接父 widget 的 objectName（跳过 layout/item 中间层）。"""
+    parent = w.getparent()
+    while parent is not None and parent.tag != "widget":
+        parent = parent.getparent()
+    return parent.get("name") if parent is not None else None
+
+
 def test_amazon_skip_hint_green_merged_text_and_wrap():
     """绿（成功）：提示文案已合并为一段、且开启自动换行。"""
     root = _parse_ui()
@@ -502,3 +538,78 @@ def test_gfriends_select_button_red_broken_shape_gone():
     style_text = _STYLE_PATH.read_text(encoding="utf-8")
     present = [p for p in _GFRIENDS_STYLE_BROKEN if p in style_text]
     assert not present, f"全局样式回到修复前缺席形态: {present}"
+
+
+# ---------- 刮削模式页「分离模式…」右侧提示 —— 文案/几何/对齐回归锁 ----------
+
+# 四个组框标题右侧各挂一条同款提示（只加提示文案，不新增任何开关项）：
+# label 名 -> (所属组框, 提示文案)
+_SEPARATE_MODE_TITLE_HINTS = {
+    "label_separate_mode_succ_rename": ("groupBox_18", "分离模式刮削成功重命名文件"),
+    "label_separate_mode_succ_move": ("groupBox_27", "分离模式刮削成功后移动文件"),
+    "label_separate_mode_fail_move": ("groupBox_15", "分离模式刮削失败时移动文件"),
+    "label_separate_mode_del_empty_folder": ("groupBox_30", "分离模式刮削结束删除空目录"),
+}
+
+# 组框宽 701；提示右缘对齐到框内 (701 - 7)，与左侧标题左边距（6px）视觉对称。
+_SEPARATE_HINT_RECT = (499, -7, 200, 30)
+
+
+def test_separate_mode_title_hints_exist_with_right_text():
+    """绿：四条提示都挂在对应组框内，文案与设计图一致。"""
+    root = _parse_ui()
+    mismatches = {}
+    for name, (box, expected) in _SEPARATE_MODE_TITLE_HINTS.items():
+        w = _find_widget_by_name(root, name)
+        if w is None:
+            mismatches[name] = "控件不存在"
+            continue
+        if _parent_widget_name(w) != box:
+            mismatches[name] = f"父容器应为 {box}，实际 {_parent_widget_name(w)}"
+        elif _widget_string_prop(w, "text") != expected:
+            mismatches[name] = _widget_string_prop(w, "text")
+    assert not mismatches, f"分离模式提示文案/归属与预期不符: {mismatches}"
+
+
+def test_separate_mode_title_hints_right_aligned_same_style():
+    """黄：四条提示几何一致、右对齐/从右向左排列，且不覆盖组框标题的字体样式。
+
+    x/y 是按 Qt 实测墨迹定的：y=-7 让提示墨迹行与组框标题墨迹行完全重合
+    （离屏渲染实测 dy_top=dy_bot=0），x=499 让右内边距 7px ≈ 标题左内边距 6px。
+    """
+    root = _parse_ui()
+    problems = []
+    for name in _SEPARATE_MODE_TITLE_HINTS:
+        w = _find_widget_by_name(root, name)
+        assert w is not None, f"{name} 不存在"
+        if _widget_rect(w) != _SEPARATE_HINT_RECT:
+            problems.append(f"{name} 几何 {_widget_rect(w)} != {_SEPARATE_HINT_RECT}")
+        if _widget_enum_prop(w, "layoutDirection") != "Qt::RightToLeft":
+            problems.append(f"{name} layoutDirection 应为 Qt::RightToLeft")
+        if _widget_set_prop(w, "alignment") != "Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter":
+            problems.append(f"{name} alignment 应为右对齐+垂直居中")
+        if _widget_enum_prop(w, "frameShape") != "QFrame::NoFrame":
+            problems.append(f"{name} frameShape 应为 QFrame::NoFrame")
+        # 不写本地 styleSheet，字体颜色/大小/格式全部继承组框标题，避免两边不一致。
+        if w.find("property[@name='styleSheet']") is not None:
+            problems.append(f"{name} 不应有本地 styleSheet 覆盖")
+    assert not problems, "分离模式提示样式问题:\n" + "\n".join(problems)
+
+    # 四条提示右缘必须严格对齐（几何一致已保证，这里再锁一次换算值防回归）。
+    rights = {_SEPARATE_HINT_RECT[0] + _SEPARATE_HINT_RECT[2] for _ in _SEPARATE_MODE_TITLE_HINTS}
+    assert rights == {699}, f"四条提示右缘应统一为 699，实际 {sorted(rights)}"
+
+
+def test_separate_mode_title_hints_red_not_inside_grid_layout():
+    """红（回归）：提示不得被塞进组框内的网格布局——那会掉到标题行下方一行。
+
+    提示必须以绝对定位挂在组框上（与 groupBox 同父、无 layout 参与）。
+    """
+    root = _parse_ui()
+    for name, (box, _text) in _SEPARATE_MODE_TITLE_HINTS.items():
+        w = _find_widget_by_name(root, name)
+        assert w is not None, f"{name} 不存在"
+        assert w.find("property[@name='geometry']") is not None, f"{name} 应绝对定位（带 geometry）"
+        parent = _find_widget_by_name(root, box)
+        assert parent is not None, f"{box} 不存在"
+        assert w.getparent() is parent, f"{name} 应与 {box} 同父（挂在组框上而非布局内）"

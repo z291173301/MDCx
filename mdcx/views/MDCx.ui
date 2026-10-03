@@ -6049,6 +6049,34 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         </item>
                       </layout>
                     </widget>
+                    <widget class="QLabel" name="label_separate_mode_succ_move">
+                      <property name="geometry">
+                        <rect>
+                          <x>499</x>
+                          <y>-7</y>
+                          <width>200</width>
+                          <height>30</height>
+                        </rect>
+                      </property>
+                      <property name="sizePolicy">
+                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                        </sizepolicy>
+                      </property>
+                      <property name="layoutDirection">
+                        <enum>Qt::RightToLeft</enum>
+                      </property>
+                      <property name="frameShape">
+                        <enum>QFrame::NoFrame</enum>
+                      </property>
+                      <property name="text">
+                        <string>分离模式刮削成功后移动文件</string>
+                      </property>
+                      <property name="alignment">
+                        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                    </widget>
                   </widget>
                   <widget class="QGroupBox" name="groupBox_15">
                     <property name="geometry">
@@ -6138,6 +6166,34 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         </item>
                       </layout>
                     </widget>
+                    <widget class="QLabel" name="label_separate_mode_fail_move">
+                      <property name="geometry">
+                        <rect>
+                          <x>499</x>
+                          <y>-7</y>
+                          <width>200</width>
+                          <height>30</height>
+                        </rect>
+                      </property>
+                      <property name="sizePolicy">
+                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                        </sizepolicy>
+                      </property>
+                      <property name="layoutDirection">
+                        <enum>Qt::RightToLeft</enum>
+                      </property>
+                      <property name="frameShape">
+                        <enum>QFrame::NoFrame</enum>
+                      </property>
+                      <property name="text">
+                        <string>分离模式刮削失败时移动文件</string>
+                      </property>
+                      <property name="alignment">
+                        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
+                    </widget>
                   </widget>
                   <widget class="QGroupBox" name="groupBox_30">
                     <property name="geometry">
@@ -6226,6 +6282,34 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           </widget>
                         </item>
                       </layout>
+                    </widget>
+                    <widget class="QLabel" name="label_separate_mode_del_empty_folder">
+                      <property name="geometry">
+                        <rect>
+                          <x>499</x>
+                          <y>-7</y>
+                          <width>200</width>
+                          <height>30</height>
+                        </rect>
+                      </property>
+                      <property name="sizePolicy">
+                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                        </sizepolicy>
+                      </property>
+                      <property name="layoutDirection">
+                        <enum>Qt::RightToLeft</enum>
+                      </property>
+                      <property name="frameShape">
+                        <enum>QFrame::NoFrame</enum>
+                      </property>
+                      <property name="text">
+                        <string>分离模式刮削结束删除空目录</string>
+                      </property>
+                      <property name="alignment">
+                        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
                     </widget>
                   </widget>
                   <widget class="QGroupBox" name="groupBox_5">
@@ -6901,6 +6985,34 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           </widget>
                         </item>
                       </layout>
+                    </widget>
+                    <widget class="QLabel" name="label_separate_mode_succ_rename">
+                      <property name="geometry">
+                        <rect>
+                          <x>499</x>
+                          <y>-7</y>
+                          <width>200</width>
+                          <height>30</height>
+                        </rect>
+                      </property>
+                      <property name="sizePolicy">
+                        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                        </sizepolicy>
+                      </property>
+                      <property name="layoutDirection">
+                        <enum>Qt::RightToLeft</enum>
+                      </property>
+                      <property name="frameShape">
+                        <enum>QFrame::NoFrame</enum>
+                      </property>
+                      <property name="text">
+                        <string>分离模式刮削成功重命名文件</string>
+                      </property>
+                      <property name="alignment">
+                        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                      </property>
                     </widget>
                   </widget>
                   <widget class="QGroupBox" name="groupBox_53">
