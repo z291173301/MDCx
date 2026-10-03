@@ -175,7 +175,7 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 | 配置文件行 | 🛠 | `{manager.file}` | `show_scrape_info` |
 | 版本行 | 🐰 | `MDCx {localversion}` | `show_scrape_info` |
 | 默认末行 | 🔍 | `点击检查最新版本` | `__init__` 的 `new_version` 初值 |
-| 有新版本末行 | 🍉 | `有新版本了！（{latest}）` | `_show_version_thread` |
+| 有新版本末行 | 🍉 | `有新版本了！<font color="red">{latest}</font>`（版本号相同仅日期更新时日期包含在红字范围内） | `_show_version_thread` |
 
 **四条硬规则**
 

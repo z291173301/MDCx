@@ -6611,7 +6611,10 @@ class MyMAinWindow(QMainWindow):
                 # 不再刷屏；出现更新的版本时会自动再次提示。
                 if latest_version != self._notified_new_version:
                     self._notified_new_version = latest_version
-                    self.new_version = f"\n🍉 有新版本了！（{latest_version.display}）"
+                    # 左下角提示新格式「有新版本了！vX.Y.Z (日期)」：保留感叹号、去外层括号，
+                    # 版本标识（含日期）整体红字；版本号相同仅日期更新时日期包含在红字范围内。
+                    display = html.escape(latest_version.display, quote=False)
+                    self.new_version = f'\n🍉 有新版本了！<font color="red">{display}</font>'
                     signal_qt.show_scrape_info()
                     version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="red" >最新版本是: {latest_version.display}，请及时更新！🚀 </font>）'
                     download_link = f' ⬇️ <a href="{GITHUB_RELEASES_URL}">下载新版本</a>'
@@ -8250,7 +8253,12 @@ class MyMAinWindow(QMainWindow):
             elif manager.config.soft_link == 2:
                 scrape_info = "🍯 硬链接 · 开\n" + scrape_info
             after_info = f"\n{scrape_info}\n🛠 {manager.file}\n🐰 MDCx {self.localversion}"
-            self.label_show_version.emit(before_info + after_info + self.new_version)
+            text = before_info + after_info + self.new_version
+            if "<font" in text or "<span" in text:
+                # QLabel AutoText 在换行符先于标签出现时判为纯文本、会原样输出标签：
+                # 含红字提示时统一用 <br> 换行，保证标红正常渲染与换行显示。
+                text = text.replace("\n", "<br>")
+            self.label_show_version.emit(text)
         except Exception:
             signal_qt.show_traceback_log(traceback.format_exc())
 
