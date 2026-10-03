@@ -15,11 +15,12 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
@@ -42,6 +43,45 @@ _KEY_HINTS: tuple[tuple[str, str, str], ...] = (
     ("↑", "↓", "不同番号图片"),
     ("Esc", "", "关闭"),
 )
+
+
+# 任务栏 AppUserModelID 读写用的 COM 结构与常量（仅定义类型，不做系统调用）。
+# 同一块 GUID 定义被 Set/Get 共用，提在模块级避免重复定义。
+if sys.platform == "win32":
+    import ctypes as _ctypes_win
+    from ctypes import wintypes as _wintypes_win
+
+    class _AppIdGUID(_ctypes_win.Structure):
+        _fields_ = [
+            ("Data1", _wintypes_win.DWORD),
+            ("Data2", _wintypes_win.WORD),
+            ("Data3", _wintypes_win.WORD),
+            ("Data4", _wintypes_win.BYTE * 8),
+        ]
+
+    class _AppIdPropertyKey(_ctypes_win.Structure):
+        _fields_ = [("fmtid", _AppIdGUID), ("pid", _wintypes_win.DWORD)]
+
+    _APP_ID_STORE_IID = _AppIdGUID(
+        0x886D8EEB,
+        0x8CF2,
+        0x4446,
+        (_wintypes_win.BYTE * 8)(0x8D, 0x02, 0xCD, 0xBA, 0x1D, 0xBD, 0xCF, 0x99),
+    )  # IID_IPropertyStore
+    _APP_ID_PKEY = _AppIdPropertyKey(
+        _AppIdGUID(
+            0x9F4C2855,
+            0x9F79,
+            0x4B39,
+            (_wintypes_win.BYTE * 8)(0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3),
+        ),
+        5,  # PKEY_AppUserModel_ID
+    )
+else:
+    _ctypes_win = None  # type: ignore[assignment]
+    _wintypes_win = None  # type: ignore[assignment]
+    _APP_ID_STORE_IID = None
+    _APP_ID_PKEY = None
 
 
 def _image_kind(path: Path | None) -> str:
@@ -70,7 +110,11 @@ class NfoPreviewWindow(QDialog):
     nfo_index_changed = pyqtSignal(int)
 
     def __init__(self, parent: MyMAinWindow | QWidget | None = None) -> None:
-        super().__init__(parent)
+        # 独立顶层窗口（不挂 owner）：任务栏常驻自己的按钮与实时缩略图，
+        # 点缩略图切换窗口全由系统原生支持。
+        super().__init__(None)
+        # 几何与状态跟随的主窗口：只读引用，不做 QObject 父子（传给 show_matching 用）。
+        self._main = parent
         self.setWindowTitle("图片预览")
         # 摘掉工具窗/无边框标记，补上最小化与最大化按钮（关闭按钮由 QDialog 自带）
         flags = self.windowFlags() & ~(Qt.WindowType.Tool | Qt.WindowType.FramelessWindowHint)
@@ -83,6 +127,19 @@ class NfoPreviewWindow(QDialog):
         self.setSizeGripEnabled(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setModal(False)
+        # 关掉本窗口不得退出整个应用：主窗口收进托盘后本窗口是最后一扇可见窗口，
+        # 默认 WA_QuitOnClose 会触发 app 退出，看起来像连带关了主窗口。
+        self.setAttribute(Qt.WidgetAttribute.WA_QuitOnClose, False)
+        try:
+            # 任务栏按钮与 Alt+Tab 用跟主窗口相同的 MDCx 图标
+            from mdcx.config.resources import resources
+
+            self.setWindowIcon(QIcon(resources.icon_ico))
+        except Exception:
+            pass
+        # 独立的任务栏 AppUserModelID：同进程窗口默认会被系统合并成一个按钮，
+        # 预览必须跟主窗口分成左右两个图标，各自点各自隐藏显示。
+        self._set_taskbar_app_id("MDCx.NfoPreview")
 
         # 番号清单：与图片组一一对应的 NFO 路径，供外部把下标映射回列表选中项
         self.nfo_paths: list[Path] = []
@@ -90,6 +147,19 @@ class NfoPreviewWindow(QDialog):
         self.images: list[list[Path]] = []
         # 标题前缀（如「封面预览」），show_entries 时不会覆盖，切图时仍生效
         self.title_prefix = "图片预览"
+        # 主窗口最小化时预览是否最大化：任务栏整组还原后 OS 可能把预览落回普通态，
+        # 靠它重新最大化（见 eventFilter）。False = 无需恢复。
+        self._max_before_parent_minimized = False
+        # 最小化过的标记：从最小化还原出来时重新严丝合缝盖住主窗口（见 changeEvent）。
+        self._was_minimized = False
+        # 最小化那一刻是否最大化：还原时恢复最大化（最小化不丢最大化，原生语义）。
+        self._was_maximized = False
+        # 主窗口还在最小化、盖住动作做不了时先挂起，主窗口回来再执行。
+        self._cover_pending = False
+        # show_matching 主动摆位置期间忽略 changeEvent 的盖住钩子（防重入）。
+        self._placing = False
+        if parent is not None:
+            parent.installEventFilter(self)
         self._nfo_index = 0
         self._image_index = 0
         self._source: QPixmap | None = None
@@ -130,20 +200,249 @@ class NfoPreviewWindow(QDialog):
         """按主窗口当前的样子弹出：窗口状态跟随主窗口，位置与尺寸与主窗口重合。
 
         普通状态下 setGeometry(parent.geometry()) 让弹窗正好完全盖住主窗口；
-        最大化状态直接 showMaximized()，两者都会铺满同一块屏幕。
+        最大化状态先把普通几何钉到主窗口还原尺寸（主窗口启动时的大小）再
+        showMaximized()，两者都会铺满同一块屏幕，还原下来正好是启动大小，
+        不会缩成布局最小尺寸；最小化同理先钉好普通几何再 showMinimized()。
+
+        Windows 上不能在可见的最大化窗口上直接 setGeometry（还原矩形会被
+        写坏，表现为标题栏中间的还原按钮点了没反应），所以几何只在普通态
+        下写，且普通态→最大化之间 pump 一次事件，让原生窗口先落稳在普通
+        态再最大化；已是最大化就不再碰几何（只修历史残留的过小还原矩形）。
+
+        本次是主动摆位置，不触发还原后的盖住钩子（见 changeEvent）。
         """
-        self.setWindowState(self._plain_state())
+        from PyQt6.QtWidgets import QApplication
+
+        self._was_minimized = False
+        self._was_maximized = False
+        self._cover_pending = False
+        self._max_before_parent_minimized = False
+        self._placing = True
+        try:
+            self._place_matching(parent, QApplication)
+        finally:
+            self._placing = False
+
+    def _place_matching(self, parent: QWidget, QApplication) -> None:
+        """show_matching 的实际摆位逻辑（调用方负责 _placing 标记）。"""
         if parent.isMinimized():
+            if not self.isVisible():
+                self.setGeometry(self._normal_geometry_for(parent))
+            elif not self.isMinimized() and self._restore_rect_too_small():
+                self.showNormal()
+                QApplication.processEvents()
+                self.setGeometry(self._normal_geometry_for(parent))
+                QApplication.processEvents()
             self.showMinimized()
             return
         if parent.isMaximized():
-            self.showMaximized()
+            if not self.isVisible():
+                # 隐藏时一次写好还原矩形再最大化：单次原生过渡，还原按钮正常
+                self.setGeometry(self._normal_geometry_for(parent))
+                self.showMaximized()
+            elif not self.isMaximized():
+                self.showNormal()
+                QApplication.processEvents()
+                self.setGeometry(self._normal_geometry_for(parent))
+                QApplication.processEvents()
+                self.showMaximized()
+            elif self._restore_rect_too_small():
+                # 已最大化但还原矩形是历史残留的极小值：还原→钉好→再最大化修一次
+                self.showNormal()
+                QApplication.processEvents()
+                self.setGeometry(self._normal_geometry_for(parent))
+                QApplication.processEvents()
+                self.showMaximized()
         else:
             # 先显示再摆位置：显示前就撑满屏幕会被系统判成最大化
             self.showNormal()
             self.setGeometry(parent.geometry())
         self.raise_()
         self.activateWindow()
+
+    @staticmethod
+    def _window_property_store(hwnd: int):
+        """取窗口的 IPropertyStore（(store, vtable8)，失败返回 (None, None)）。
+
+        COM 接口指针指向对象，对象首字段才是指向虚表的指针：
+        先解一层拿到虚表地址，再按索引取函数，少一层就是访问违例。
+        调用方负责 release(store)。仅 Windows，失败一律吞掉。
+        """
+        if sys.platform != "win32" or not hwnd:
+            return None, None
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            shell32 = ctypes.windll.shell32
+            # 注意：windll 函数默认按 int 传参/返回值，64 位下指针会被截断，
+            # 必须显式声明签名，否则就是访问违例（已有血案）。
+            shell32.SHGetPropertyStoreForWindow.argtypes = [
+                wintypes.HWND,
+                ctypes.c_void_p,
+                ctypes.POINTER(ctypes.c_void_p),
+            ]
+            shell32.SHGetPropertyStoreForWindow.restype = ctypes.HRESULT
+            store = ctypes.c_void_p()
+            hr = shell32.SHGetPropertyStoreForWindow(
+                wintypes.HWND(hwnd), ctypes.byref(_APP_ID_STORE_IID), ctypes.byref(store)
+            )
+            if hr != 0 or not store:
+                return None, None
+            vtable_addr = ctypes.c_void_p.from_address(store.value).value
+            if not vtable_addr:
+                NfoPreviewWindow._release_store(store)
+                return None, None
+            return store, (ctypes.c_void_p * 8).from_address(vtable_addr)
+        except Exception:
+            return None, None
+
+    @staticmethod
+    def _release_store(store) -> None:
+        """释放 IPropertyStore（失败吞掉）。"""
+        try:
+            import ctypes
+
+            vtable_addr = ctypes.c_void_p.from_address(store.value).value
+            vtable = (ctypes.c_void_p * 8).from_address(vtable_addr)
+            release = ctypes.WINFUNCTYPE(ctypes.c_ulong, ctypes.c_void_p)(vtable[2])
+            release(store)
+        except Exception:
+            pass
+
+    def _set_taskbar_app_id(self, app_id: str) -> None:
+        """给本窗口设置独立的任务栏 AppUserModelID（仅 Windows）。
+
+        同进程窗口默认共用一个 AppUserModelID，任务栏会合并成一个按钮
+        （悬停缩略图叠在一起不好点）；预览用独立 ID 后跟主窗口分成左右
+        两个图标，各自点各自最小化/还原。失败一律吞掉，不影响功能。
+        必须在窗口首次显示前调用，且之后不再改标记/父子关系（HWND 稳定）。
+        """
+        if sys.platform != "win32":
+            return
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            hwnd = int(self.winId())
+            if not hwnd:
+                return
+            store, vtable = NfoPreviewWindow._window_property_store(hwnd)
+            if store is None or vtable is None:
+                return
+            try:
+                func_type = ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)
+                set_value = func_type(vtable[6])  # IPropertyStore::SetValue
+                # PROPVARIANT(VT_LPWSTR=31)：24 字节清零，0 处写 vt，8 处写字符串指针；
+                # SetValue 会自己拷贝字符串，这里泄漏几十字节一次，无需清理。
+                prop = (ctypes.c_byte * 24)()
+                ctypes.cast(prop, ctypes.POINTER(wintypes.USHORT)).contents.value = 31
+                text = ctypes.create_unicode_buffer(app_id)
+                ctypes.cast(
+                    ctypes.addressof(prop) + 8, ctypes.POINTER(ctypes.c_void_p)
+                ).contents.value = ctypes.addressof(text)
+                if set_value(store, ctypes.byref(_APP_ID_PKEY), ctypes.byref(prop)) == 0:
+                    commit = ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p)(vtable[7])
+                    commit(store)
+            finally:
+                NfoPreviewWindow._release_store(store)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _read_app_id_for_widget(widget: QWidget) -> str | None:
+        """读任意窗口的任务栏 AppUserModelID（回归测试用，主窗口应与预览不同）"""
+        if sys.platform != "win32":
+            return None
+        value = None
+        ptr = 0
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            hwnd = int(widget.winId())
+            if not hwnd:
+                return None
+            store, vtable = NfoPreviewWindow._window_property_store(hwnd)
+            if store is None or vtable is None:
+                return None
+            try:
+                func_type = ctypes.WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)
+                get_value = func_type(vtable[5])  # IPropertyStore::GetValue
+                prop = (ctypes.c_byte * 24)()
+                if get_value(store, ctypes.byref(_APP_ID_PKEY), ctypes.byref(prop)) != 0:
+                    return None
+                if ctypes.cast(prop, ctypes.POINTER(wintypes.USHORT)).contents.value != 31:
+                    return None
+                ptr = ctypes.cast(ctypes.addressof(prop) + 8, ctypes.POINTER(ctypes.c_void_p)).contents.value
+                value = ctypes.wstring_at(ptr) if ptr else None
+            finally:
+                NfoPreviewWindow._release_store(store)
+        except Exception:
+            return None
+        if ptr:
+            try:
+                import ctypes
+
+                ole32 = ctypes.windll.ole32
+                ole32.CoTaskMemFree.argtypes = [ctypes.c_void_p]
+                ole32.CoTaskMemFree.restype = None
+                ole32.CoTaskMemFree(ctypes.c_void_p(ptr))
+            except Exception:
+                pass
+        return value
+
+    def _read_taskbar_app_id(self) -> str | None:
+        """读回本窗口的任务栏 AppUserModelID（仅 Windows，失败/无值返回 None）。
+
+        给回归测试与 showEvent 补齐用：读不到期望值就说明属性丢了。
+        """
+        return NfoPreviewWindow._read_app_id_for_widget(self)
+
+    def _ensure_taskbar_app_id(self) -> None:
+        """显示时补齐 AppID：读回不对就重设（防 HWND 重建/属性丢失导致合回一组）"""
+        try:
+            if self._read_taskbar_app_id() != "MDCx.NfoPreview":
+                self._set_taskbar_app_id("MDCx.NfoPreview")
+        except Exception:
+            pass
+
+    def _restore_rect_too_small(self) -> bool:
+        """还原矩形是否过小（历史版本 showMaximized 前没钉几何的残留）。"""
+        try:
+            normal = self.normalGeometry()
+        except Exception:
+            return True
+        return not (normal.isValid() and normal.width() >= 360 and normal.height() >= 240)
+
+    @staticmethod
+    def _normal_geometry_for(parent: QWidget):
+        """弹窗还原时应回到的普通几何：主窗口还原尺寸，即启动时的大小。"""
+        from PyQt6.QtCore import QRect
+        from PyQt6.QtWidgets import QApplication
+
+        normal = None
+        try:
+            normal = parent.normalGeometry()
+        except Exception:
+            normal = None
+        if normal is not None and normal.isValid() and normal.width() >= 360 and normal.height() >= 240:
+            return normal
+        screen = parent.screen() if hasattr(parent, "screen") else None
+        if screen is None:
+            screen = QApplication.primaryScreen()
+        avail = screen.availableGeometry() if screen is not None else None
+        width, height = 1030, 700
+        if avail is not None and avail.isValid():
+            width = min(width, avail.width())
+            height = min(height, avail.height())
+            x = avail.x() + max(0, (avail.width() - width) // 2)
+            y = avail.y() + max(0, (avail.height() - height) // 2)
+            return QRect(x, y, width, height)
+        geo = parent.geometry()
+        x = geo.x() + max(0, (geo.width() - width) // 2)
+        y = geo.y() + max(0, (geo.height() - height) // 2)
+        return QRect(x, y, width, height)
 
     def current_nfo_index(self) -> int:
         """当前番号在番号清单中的下标（清单为空时为 -1）。"""
@@ -186,13 +485,6 @@ class NfoPreviewWindow(QDialog):
 
     # ============= 内部实现 =============
 
-    def _plain_state(self) -> Qt.WindowState:
-        """摘掉最大化 / 最小化 / 全屏，只保留普通状态。"""
-        return (
-            self.windowState()
-            & ~(Qt.WindowState.WindowMaximized | Qt.WindowState.WindowMinimized | Qt.WindowState.WindowFullScreen)
-        ) | Qt.WindowState.WindowActive
-
     def _current_images(self) -> list[Path]:
         """当前番号的图片列表。"""
         if not self.images:
@@ -205,19 +497,20 @@ class NfoPreviewWindow(QDialog):
         self._update_title()
 
     def _build_hint_bar(self) -> QWidget:
-        """图片下方的提示行：左边图片信息，右边键位图标（图标而非文字说明按键）。"""
+        """图片下方的提示行：信息与键位图标作为一组整行居中（最大化/普通态一致）。"""
         bar = QWidget(self)
         bar.setObjectName("widget_nfo_lib_preview_hint")
         row = QHBoxLayout(bar)
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(4)
+        row.addStretch(1)
 
         self.info_label = QLabel(bar)
         self.info_label.setObjectName("label_nfo_lib_preview_info")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.info_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.info_label.setMinimumWidth(1)  # 允许整行压缩，别把弹窗最小宽度顶大
-        row.addWidget(self.info_label, 1)
+        row.addWidget(self.info_label, 0)
 
         for first, second, text in _KEY_HINTS:
             if first:
@@ -226,6 +519,7 @@ class NfoPreviewWindow(QDialog):
                 row.addWidget(self._make_key_cap(second))
             row.addWidget(self._make_hint_text(text))
             row.addSpacing(12)
+        row.addStretch(1)
         return bar
 
     @staticmethod
@@ -321,3 +615,114 @@ class NfoPreviewWindow(QDialog):
         # 图片区是 Ignored 策略，show 后才有实际尺寸，需要按新尺寸重绘一次
         self._render()
         self.setFocus(Qt.FocusReason.OtherFocusReason)
+        # 每次显示都保证任务栏 AppID 在位（防 HWND 重建/属性丢失合回一组）
+        self._ensure_taskbar_app_id()
+
+    def changeEvent(self, event) -> None:
+        super().changeEvent(event)
+        if event.type() != QEvent.Type.WindowStateChange:
+            return
+        # 从最小化还原出来：最大化恢复最大化，普通态重新严丝合缝盖住主窗口
+        # （任务栏整组还原不再叠偏）。show_matching 主动摆位置时跳过
+        # （它自己负责几何，_placing 防重入）。
+        if self.isMinimized():
+            self._was_minimized = True
+            # 最小化那一刻是否最大化：从 oldState 取（当前态已翻成最小化），
+            # 还原时恢复最大化用（最小化不丢最大化，原生语义）。
+            try:
+                old_state = event.oldState()
+                self._was_maximized = bool(old_state & Qt.WindowState.WindowMaximized)
+            except Exception:
+                self._was_maximized = False
+            return
+        if not self._was_minimized or self._placing or not self.isVisible():
+            return
+        main = self._main
+        if main is not None and main.isMinimized():
+            self._cover_pending = True  # 主窗口还没回来，回来再盖（标记留着）
+        else:
+            self._was_minimized = False
+            self._enforce_cover(main)
+
+    def _enforce_cover(self, main: QWidget | None) -> None:
+        """还原后严丝合缝盖住主窗口：最大化态铺满同一块屏幕，普通态重合几何。
+
+        最小化前是最大化的恢复最大化（最小化不丢最大化）；普通主窗口上的
+        最大化预览已算盖住，不动；不抢焦点，前台归属由任务栏还原决定。
+        主窗口还在最小化时挂起，不硬盖。
+        """
+        if main is None or main.isMinimized():
+            self._cover_pending = True
+            return
+        self._placing = True
+        try:
+            if main.isMaximized() or self._was_maximized:
+                if self.isMaximized():
+                    if self._restore_rect_too_small():
+                        from PyQt6.QtWidgets import QApplication
+
+                        self.showNormal()
+                        QApplication.processEvents()
+                        self.setGeometry(self._normal_geometry_for(main))
+                        QApplication.processEvents()
+                        self.showMaximized()
+                else:
+                    from PyQt6.QtWidgets import QApplication
+
+                    self.showNormal()
+                    QApplication.processEvents()
+                    self.setGeometry(self._normal_geometry_for(main))
+                    QApplication.processEvents()
+                    self.showMaximized()
+            elif not self.isMaximized():
+                self.showNormal()
+                self.setGeometry(main.geometry())
+        finally:
+            self._placing = False
+            self._was_minimized = False
+            self._was_maximized = False
+
+    def eventFilter(self, a0, a1) -> bool:
+        # 主窗口任务栏最小化/还原整组窗口时跟随：最小化那一刻记下预览是否最大化，
+        # 主窗口还原后若预览被 OS 落回普通态则重新最大化；挂起的盖住动作在这里执行。
+        # 用户手动点的还原按钮不受影响（只在盖住钩子与快照逻辑里动手脚）。
+        if a0 is self._main and a1.type() == QEvent.Type.WindowStateChange:
+            try:
+                if a0.isMinimized():
+                    self._max_before_parent_minimized = self.isMaximized()
+                elif self._max_before_parent_minimized:
+                    if self.isMaximized():
+                        # OS 保住了最大化：无事可做，两个标记都清掉
+                        self._max_before_parent_minimized = False
+                        self._cover_pending = False
+                    else:
+                        # 标记留给 _restore_after_parent_restore 消费（它负责清掉）；
+                        # 这里只排 timer，让 OS 先完成整组窗口的恢复。
+                        QTimer.singleShot(0, self._restore_after_parent_restore)
+                        QTimer.singleShot(250, self._restore_after_parent_restore)
+                elif self._cover_pending and self.isVisible() and not self.isMinimized() and not self._placing:
+                    self._cover_pending = False
+                    self._enforce_cover(a0)
+            except Exception:
+                pass
+        return super().eventFilter(a0, a1)
+
+    def _restore_after_parent_restore(self) -> None:
+        """主窗口还原后补救：预览本应最大化却被落回普通态时重新最大化。"""
+        if not self._max_before_parent_minimized:
+            return
+        if self.isMinimized() or not self.isVisible():
+            # 预览还没被 OS 恢复（或用户收了起来）：留给下一拍 timer 再试
+            return
+        if not self.isMaximized():
+            self.showMaximized()
+        self._max_before_parent_minimized = False
+        self._cover_pending = False  # 最大化即盖住，不必再盖一次
+
+    def closeEvent(self, event) -> None:
+        # 用户主动关闭（Esc/×）：清掉还原钩子的标记
+        self._was_minimized = False
+        self._was_maximized = False
+        self._cover_pending = False
+        self._max_before_parent_minimized = False
+        super().closeEvent(event)

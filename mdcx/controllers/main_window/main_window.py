@@ -6343,6 +6343,10 @@ class MyMAinWindow(QMainWindow):
     def closeEvent(self, a0):
         if Switch.HIDE_CLOSE in manager.config.switch_on:
             self.hide()
+            # 主窗口收起时把预览窗口连带关闭，不留孤儿窗口在屏幕/任务栏上
+            preview = getattr(self, "nfo_lib_preview_window", None)
+            if preview is not None:
+                preview.close()
         else:
             self.ready_to_exit()
         if a0:

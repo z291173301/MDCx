@@ -380,6 +380,30 @@ def test_preview_window_minimized_when_main_minimized(win, app, library):
     assert win.nfo_lib_preview_window.isMinimized(), "主页面最小化时弹窗应一起最小化"
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="任务栏 AppUserModelID 仅 Windows")
+def test_preview_window_has_own_taskbar_app_id(win, app, library):
+    """预览窗口必须有独立的任务栏 AppUserModelID，跟主窗口分成两个图标。
+
+    主窗口右下角图标隐藏再显示后也不得合回一组：showEvent 每次显示都补齐。
+    """
+    from mdcx.views.nfo_preview_window import NfoPreviewWindow
+
+    win._nfo_lib_current_path = library / "ABC-001.nfo"
+    _left_click(win, app, win.Ui.label_nfo_lib_poster_preview)
+    window = win.nfo_lib_preview_window
+    if app.platformName() != "windows":
+        pytest.skip("任务栏 AppUserModelID 需要真实 Windows 窗口系统，离屏平台无 shell 可读回")
+    assert window._read_taskbar_app_id() == "MDCx.NfoPreview"
+    assert NfoPreviewWindow._read_app_id_for_widget(win) != "MDCx.NfoPreview"
+
+    # 模拟托盘收起再放出主窗口：预览的独立 ID 必须还在，不得合回一组
+    win.hide()
+    app.processEvents()
+    win.show()
+    app.processEvents()
+    assert window._read_taskbar_app_id() == "MDCx.NfoPreview"
+
+
 def test_preview_window_repositions_after_main_window_moves(win, app, library):
     """主页面挪动 / 改尺寸后再次点图，弹窗要重新与主页面重合（默认居中覆盖）。"""
     win._nfo_lib_current_path = library / "ABC-001.nfo"

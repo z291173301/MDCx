@@ -553,3 +553,27 @@ uv run build           # PyInstaller 打包
 uv run bump            # 版本号更新
 uv run changelog       # 生成变更日志
 ```
+
+## 大图预览窗口任务栏与窗口状态（v2.2.1 起）
+
+### 独立顶层窗口
+
+- `NfoPreviewWindow` 必须 `super().__init__(None)`，对主窗口只保留只读引用（`self._main`）；绝不再 `setParent` 挂回去。图标用 `resources.icon_ico`（延迟导入防循环）。
+
+### 独立 AppUserModelID
+
+- 预览固定 `MDCx.NfoPreview`，首次显示前设置，之后不动标记/父子关系。
+- ctypes 三铁律（都出过访问违例血案）：`windll` 函数显式声明签名；COM 接口指针先解一层再取虚表函数；`GetValue` 的指针 `CoTaskMemFree`（同样先声明签名）。
+- `showEvent` 读回校验丢了就补（`_ensure_taskbar_app_id`）；回归测试锁 ID 存在＋主窗口无＋hide/show 后还在（真实 Windows，离屏跳过）。
+
+### 还原后严丝合缝盖住
+
+- `changeEvent` 只认“从最小化出来”：是否最大化从 `event.oldState()` 取；还原时最大化恢复最大化，普通态 `showNormal + setGeometry(主窗口几何)`；最大化盖普通不动；不抢焦点。
+- 主窗口还在最小化则挂起（`_cover_pending`），由装在主窗口上的 `eventFilter` 在其回来时执行；`_restore_after_parent_restore` 两拍 timer 保留，互斥幂等。
+- `show_matching` 全程 `_placing`（`try/finally`）；手动还原、拖动一律不动；`closeEvent` 清标记。
+- 最大化前先钉还原矩形到启动尺寸，几何只在普通态写、泵一次事件（还原按钮点不动的根因）。
+
+### 关闭语义
+
+- 预览 `WA_QuitOnClose=False`；主窗口 `closeEvent` 收起分支连带 `close()` 预览。
+- 再报“关预览退进程”先查构建落点（一个图标＝老构建）再查事件查看器异常代码，不要直接动代码（`quitOnLastWindowClosed` 全局已关＋AST 锁定）。
