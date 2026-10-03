@@ -207,7 +207,10 @@ class NfoPreviewWindow(QDialog):
         Windows 上不能在可见的最大化窗口上直接 setGeometry（还原矩形会被
         写坏，表现为标题栏中间的还原按钮点了没反应），所以几何只在普通态
         下写，且普通态→最大化之间 pump 一次事件，让原生窗口先落稳在普通
-        态再最大化；已是最大化就不再碰几何（只修历史残留的过小还原矩形）。
+        态再最大化；已是最大化时若还原矩形过小或与主窗口还原尺寸不一致才修
+        （不一致多因复用窗口：上次最大化态关闭不重置 windowState，下次隐藏
+        态直接 setGeometry 写不进还原矩形；或主窗口还原尺寸已变而预览留旧值），
+        一致时不动，避免每次点图都闪一下。
 
         本次是主动摆位置，不触发还原后的盖住钩子（见 changeEvent）。
         """
@@ -226,31 +229,46 @@ class NfoPreviewWindow(QDialog):
     def _place_matching(self, parent: QWidget, QApplication) -> None:
         """show_matching 的实际摆位逻辑（调用方负责 _placing 标记）。"""
         if parent.isMinimized():
+            desired = self._normal_geometry_for(parent)
             if not self.isVisible():
-                self.setGeometry(self._normal_geometry_for(parent))
-            elif not self.isMinimized() and self._restore_rect_too_small():
+                # 隐藏态可能还残留着上次最大化/最小化的 state（Esc/× 关闭不重置
+                # windowState）：带着 Maximized 做 setGeometry 写不进还原矩形，
+                # 下次点还原按钮就会缩到旧尺寸/极小尺寸。先落回普通态再写。
+                if self.isMaximized() or self.isMinimized():
+                    self.setWindowState(Qt.WindowState.WindowNoState)
+                self.setGeometry(desired)
+            elif (not self.isMinimized()) and (
+                self._restore_rect_too_small() or self._restore_rect_mismatch(desired)
+            ):
                 self.showNormal()
                 QApplication.processEvents()
-                self.setGeometry(self._normal_geometry_for(parent))
+                self.setGeometry(desired)
                 QApplication.processEvents()
             self.showMinimized()
             return
         if parent.isMaximized():
+            desired = self._normal_geometry_for(parent)
             if not self.isVisible():
-                # 隐藏时一次写好还原矩形再最大化：单次原生过渡，还原按钮正常
-                self.setGeometry(self._normal_geometry_for(parent))
+                # 同上：隐藏的最大化态下直接 setGeometry 写不进还原矩形，
+                # 表现为「还原按钮不能正常缩小到主页面大小」（时好时坏：
+                # 上次关闭时是最大化态就坏，是普通态就好）。
+                if self.isMaximized() or self.isMinimized():
+                    self.setWindowState(Qt.WindowState.WindowNoState)
+                self.setGeometry(desired)
                 self.showMaximized()
             elif not self.isMaximized():
                 self.showNormal()
                 QApplication.processEvents()
-                self.setGeometry(self._normal_geometry_for(parent))
+                self.setGeometry(desired)
                 QApplication.processEvents()
                 self.showMaximized()
-            elif self._restore_rect_too_small():
-                # 已最大化但还原矩形是历史残留的极小值：还原→钉好→再最大化修一次
+            elif self._restore_rect_too_small() or self._restore_rect_mismatch(desired):
+                # 已最大化但还原矩形是历史残留（过小，或主窗口还原尺寸已变
+                # 而预览还留着旧值）：还原→钉好→再最大化修一次。不一致才修，
+                # 避免每次点图都闪一下。
                 self.showNormal()
                 QApplication.processEvents()
-                self.setGeometry(self._normal_geometry_for(parent))
+                self.setGeometry(desired)
                 QApplication.processEvents()
                 self.showMaximized()
         else:
@@ -414,6 +432,29 @@ class NfoPreviewWindow(QDialog):
         except Exception:
             return True
         return not (normal.isValid() and normal.width() >= 360 and normal.height() >= 240)
+
+    def _restore_rect_mismatch(self, desired) -> bool:
+        """还原矩形是否与期望不一致（主窗口还原尺寸已变而预览还留着旧值）。
+
+        frame 边框取整可能差 1px，用 2px 容差比对，避免每次点图都触发
+        还原→钉好→再最大化的闪一下；差得再大就必须修，否则还原按钮会
+        缩到旧位置/旧大小，看起来像「不能正常缩小到主页面大小」。
+        """
+        try:
+            cur = self.normalGeometry()
+        except Exception:
+            return True
+        try:
+            if cur is None or desired is None or not cur.isValid() or not desired.isValid():
+                return True
+            return (
+                abs(cur.x() - desired.x()) > 2
+                or abs(cur.y() - desired.y()) > 2
+                or abs(cur.width() - desired.width()) > 2
+                or abs(cur.height() - desired.height()) > 2
+            )
+        except Exception:
+            return True
 
     @staticmethod
     def _normal_geometry_for(parent: QWidget):
@@ -657,13 +698,14 @@ class NfoPreviewWindow(QDialog):
         self._placing = True
         try:
             if main.isMaximized() or self._was_maximized:
+                desired = self._normal_geometry_for(main)
                 if self.isMaximized():
-                    if self._restore_rect_too_small():
+                    if self._restore_rect_too_small() or self._restore_rect_mismatch(desired):
                         from PyQt6.QtWidgets import QApplication
 
                         self.showNormal()
                         QApplication.processEvents()
-                        self.setGeometry(self._normal_geometry_for(main))
+                        self.setGeometry(desired)
                         QApplication.processEvents()
                         self.showMaximized()
                 else:
@@ -671,7 +713,7 @@ class NfoPreviewWindow(QDialog):
 
                     self.showNormal()
                     QApplication.processEvents()
-                    self.setGeometry(self._normal_geometry_for(main))
+                    self.setGeometry(desired)
                     QApplication.processEvents()
                     self.showMaximized()
             elif not self.isMaximized():
