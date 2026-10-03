@@ -13061,9 +13061,7 @@ class Ui_MDCx(object):
         self.groupBox_27.setTitle(_translate("MDCx", "刮削成功后移动文件"))
         self.gridLayoutWidget_6.setStyleSheet(_translate("MDCx", "color: rgb(80, 80, 80);"))
         self.label_54.setText(_translate("MDCx", "刮削成功时，移动刮削文件到成功输出目录"))
-        self.label_55.setText(
-            _translate("MDCx", "刮削成功时，不移动文件位置，仍在原目录，适合已整理好目录或二次刮削场景")
-        )
+        self.label_55.setText(_translate("MDCx", "刮削成功时，不移动文件位置，仍在原目录"))
         self.radioButton_succ_move_on.setText(_translate("MDCx", "开"))
         self.radioButton_succ_move_off.setText(_translate("MDCx", "关"))
         self.label_separate_mode_succ_move.setText(_translate("MDCx", "分离模式刮削成功后移动文件"))
@@ -13104,9 +13102,7 @@ class Ui_MDCx(object):
             )
         )
         self.groupBox_18.setTitle(_translate("MDCx", "刮削成功重命名文件"))
-        self.label_38.setText(
-            _translate("MDCx", "刮削成功时，按照「命名」-「视频命名规则」-「视频文件名」对文件重新命名")
-        )
+        self.label_38.setText(_translate("MDCx", "刮削成功时，按照「视频文件名」重新命名"))
         self.label_39.setText(_translate("MDCx", "刮削成功时，文件名称继续使用原有文件名"))
         self.radioButton_succ_rename_on.setText(_translate("MDCx", "开"))
         self.radioButton_succ_rename_off.setText(_translate("MDCx", "关"))

@@ -6014,7 +6014,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>刮削成功时，不移动文件位置，仍在原目录，适合已整理好目录或二次刮削场景</string>
+                              <string>刮削成功时，不移动文件位置，仍在原目录</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -6935,7 +6935,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>刮削成功时，按照「命名」-「视频命名规则」-「视频文件名」对文件重新命名</string>
+                              <string>刮削成功时，按照「视频文件名」重新命名</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
