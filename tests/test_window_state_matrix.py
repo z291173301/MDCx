@@ -1201,6 +1201,9 @@ def test_donate_alipay_qr_only_appears_when_maximized(win, app):
 
     # ③ 还原后必须恢复原样（双向幂等）
     assert not win.isMaximized(), "前提：showNormal() 后应退出最大化"
+    # changeEvent 里 QTimer.singleShot(0) 的重算要跑完，否则支付宝码来不及隐藏
+    app.processEvents()
+    win._sync_dock_layout()
     assert alipay.isHidden(), "还原后支付宝码应重新隐藏"
     assert qr.width() <= win._DONATE_QR_SIZE, f"还原后微信码 {qr.width()} 超过设计边长"
     assert qr.x() == (side_w - qr.width()) // 2, f"还原后未居中：{qr.x()}"

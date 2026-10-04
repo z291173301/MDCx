@@ -6638,7 +6638,12 @@ class MyMAinWindow(QMainWindow):
         # 议题：最大化/还原时 resizeEvent 中 isMaximized() 时序不可靠（状态位尚未更新），
         # 在窗口状态变更事件后延迟一帧重算布局，确保统计标签 y 坐标正确跟随最大化状态
         if a0.type() == QEvent.Type.WindowStateChange:
+            # 延迟一帧后状态位才可靠，此时**必须重算侧栏**：_layout_donate 用
+            # isMaximized() 决定是否在微信码上方加支付宝码，而 resizeEvent 那一拍
+            # 窗口管理器「先发尺寸、后发状态」，isMaximized() 还是 False，只靠
+            # resizeEvent 会导致最大化后支付宝码始终不出现（用户反馈「最大化没变化」）
             QTimer.singleShot(0, self._sync_page_layouts)
+            QTimer.singleShot(0, self._sync_dock_layout)
         if (
             not IS_WINDOWS
             and self.window_radius
