@@ -241,6 +241,8 @@ class _DummyResources:
         "clear_tree_icon",
         "del_file_icon",
         "del_folder_icon",
+        "donate_alipay_icon",
+        "donate_wechat_icon",
         "help_icon",
         "hide_boss_icon",
         "hide_logs_icon",

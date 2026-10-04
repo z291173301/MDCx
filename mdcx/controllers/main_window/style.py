@@ -320,7 +320,7 @@ def set_style(self: "MyMAinWindow"):
     # 控件美化 左侧栏样式
     self.Ui.widget_setting.setStyleSheet(f"""
         QWidget#widget_setting{{
-            background: #F5F5F6;
+            background: #EEF3FF;
             border-top-left-radius: {self.window_radius}px;
             border-bottom-left-radius: {self.window_radius}px;
         }}

@@ -156,6 +156,10 @@ class Resources:
         self.net_icon = self.qtr("Img/net.svg")
         self.help_icon = self.qtr("Img/help.svg")
 
+        # 赞助二维码（侧栏「使用说明」下方 + 赞助弹窗）
+        self.donate_wechat_icon = self.qtr("Img/donate-wechat.jpg")  # 微信收款码
+        self.donate_alipay_icon = self.qtr("Img/donate-alipay.jpg")  # 支付宝收款码
+
         self.mark_4k = self.r("Img/4k.png")
         self.mark_8k = self.r("Img/8k.png")
         self.mark_sub = self.r("Img/sub.png")

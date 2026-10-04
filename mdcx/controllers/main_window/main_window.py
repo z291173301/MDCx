@@ -35,6 +35,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QInputDialog,
+    QLabel,
     QLineEdit,
     QMainWindow,
     QMenu,
@@ -110,6 +111,7 @@ from mdcx.utils.file import (
 )
 from mdcx.utils.path import safe_rmtree
 from mdcx.views.CustomClass import CustomScrollArea, wrapped_label_height
+from mdcx.views.donate_window import DonateDialog
 from mdcx.views.MDCx import Ui_MDCx
 from mdcx.views.similar_window import SimilarDialog
 
@@ -457,6 +459,7 @@ class MyMAinWindow(QMainWindow):
         self.preview_image_loader.loaded.connect(self._apply_preview_images)
         self.Init_Singal()  # 信号连接
         self.Init_Ui()  # 设置Ui初始状态
+        self._init_donate_widgets()  # 侧栏「使用说明」下方加收款码 + [赞助作者] 链接
         self.load_config()  # 加载配置
         self._setup_name_template_preview()
         get_success_list()  # 获取历史成功刮削列表
@@ -3520,6 +3523,114 @@ class MyMAinWindow(QMainWindow):
     _DOCK_LOCAL_Y_MIN = 680  # label_local_number 不低于设计 y
     _DOCK_LOCAL_H = 21  # label_local_number 设计高
 
+    # region 侧栏「使用说明」下方的微信收款码 + [赞助作者] 链接
+    _DONATE_QR_SIZE = 76  # 收款码边长（侧栏宽 210，留足左右留白）
+    _DONATE_LINK_H = 18  # [赞助作者] 文字行高
+    _DONATE_LINK_GAP = 4  # 二维码与文字间距
+    _DONATE_PAD = 6  # 与导航区/状态区的间距
+    _DONATE_BLOCK_H = _DONATE_QR_SIZE + _DONATE_LINK_GAP + _DONATE_LINK_H  # 整个色块占位 98
+    _DONATE_LINK_COLOR = "#0078D7"  # 与「赞助作者」页 [赞助作者] 链接同色
+    _DONATE_LINK_COLOR_DARK = "#4DA6FF"  # 暗黑模式提亮，保证可读
+
+    def _init_donate_widgets(self) -> None:
+        """在侧栏挂「微信收款码 + [赞助作者]」两个控件（运行时注入，不改 .ui）。
+
+        .ui/MDCx.py 由 pyuic6 生成且有同步测试，故侧栏新增控件走运行时注入：
+        挂到 widget_setting 下并 raise_ 到 left_backgroud_widget 之上。
+        位置/显隐由 _layout_donate 随窗口高度自适应（见 _sync_dock_layout）。
+        """
+        ui = self.Ui
+        parent = ui.widget_setting
+        qr = QLabel(parent=parent)
+        qr.setObjectName("label_donate_qr")
+        qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        qr.setFixedSize(self._DONATE_QR_SIZE, self._DONATE_QR_SIZE)
+        qr.setToolTip(" 微信扫码赞助 ")
+        pixmap = QPixmap(resources.donate_wechat_icon)
+        if pixmap.isNull():
+            qr.setText("二维码\n加载失败")
+            qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        else:
+            qr.setPixmap(
+                pixmap.scaled(
+                    self._DONATE_QR_SIZE,
+                    self._DONATE_QR_SIZE,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
+        link = QLabel(parent=parent)
+        link.setObjectName("label_donate_link")
+        link.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        link.setFixedHeight(self._DONATE_LINK_H)
+        link.setOpenExternalLinks(False)
+        link.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        link.setToolTip(" 点击查看赞助方式 ")
+        link.linkActivated.connect(lambda _url: self.show_donate_dialog())
+        ui.label_donate_qr = qr
+        ui.label_donate_link = link
+        qr.raise_()
+        link.raise_()
+        self._style_donate_link()
+
+    def _style_donate_link(self) -> None:
+        """[赞助作者] 富文本链接：亮色 #0078D7 / 暗黑提亮。"""
+        link = getattr(self.Ui, "label_donate_link", None)
+        if link is None:
+            return
+        color = self._DONATE_LINK_COLOR_DARK if self.dark_mode else self._DONATE_LINK_COLOR
+        link.setText(f'<a href="#donate" style="color:{color}; text-decoration:none;">[赞助作者]</a>')
+
+    def show_donate_dialog(self) -> None:
+        """弹出赞助窗口（收款码 + 新人榜/土豪榜）。"""
+        try:
+            dialog = DonateDialog(self)
+            dialog.exec()
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
+
+    def _hide_donate(self) -> None:
+        """空间完全不够时隐藏收款码（极矮窗口，导航独占整列）。"""
+        for name in ("label_donate_qr", "label_donate_link"):
+            widget = getattr(self.Ui, name, None)
+            if widget is not None:
+                widget.setVisible(False)
+
+    def _layout_donate(self, nav_bottom: int, status_y: int, status_h: int) -> tuple[int, int]:
+        """在导航区与状态区之间安放收款码色块，返回校正后的 (status_y, status_h)。
+
+        状态区 label_show_version 是底对齐文字，把它的顶边下移不会移动文字，
+        故空间不足时可「压状态区」腾位；压到 _DOCK_STATUS_H_MIN 以下仍不够时
+        隐藏二维码（宁可少一个入口，也不能叠字/裁字——军规③）。
+        """
+        ui = self.Ui
+        qr = getattr(ui, "label_donate_qr", None)
+        link = getattr(ui, "label_donate_link", None)
+        if qr is None or link is None:
+            return status_y, status_h
+        top = nav_bottom + self._DONATE_PAD
+        want_bottom = top + self._DONATE_BLOCK_H
+        status_bottom = status_y + status_h
+        if want_bottom + self._DONATE_PAD > status_y:
+            # 空间不够：下移状态区顶边（底对齐，文字不动）来腾位
+            new_y = want_bottom + self._DONATE_PAD
+            if new_y > status_bottom - self._DOCK_STATUS_H_MIN:
+                qr.setVisible(False)
+                link.setVisible(False)
+                return status_y, status_h
+            status_y = new_y
+            status_h = status_bottom - new_y
+        side_w = ui.widget_setting.width()
+        qr.setGeometry((side_w - self._DONATE_QR_SIZE) // 2, top, self._DONATE_QR_SIZE, self._DONATE_QR_SIZE)
+        link.setGeometry(
+            0, want_bottom - self._DONATE_LINK_H, side_w, self._DONATE_LINK_H
+        )
+        qr.setVisible(True)
+        link.setVisible(True)
+        return status_y, status_h
+
+    # endregion 侧栏收款码
+
     def _dock_nav_buttons(self) -> list[QPushButton]:
         """当前可见的导航按钮（配置可隐藏「演员管理/信息管理」两项）。"""
         ui = self.Ui
@@ -3573,7 +3684,10 @@ class MyMAinWindow(QMainWindow):
         )
         if status_y >= nav_top + self._DOCK_NAV_H + self._DOCK_STATUS_GAP:
             self._layout_dock_nav(nav_top, self._DOCK_NAV_BTN_H, self._DOCK_NAV_SPACING, self._DOCK_NAV_H)
-            status.setGeometry(0, status_y, status.width(), self._DOCK_STATUS_H)
+            status_h = self._DOCK_STATUS_H
+            # 收款码插在导航区与状态区之间；不够就压状态区（底对齐，文字不动）
+            status_y, status_h = self._layout_donate(nav_top + self._DOCK_NAV_H, status_y, status_h)
+            status.setGeometry(0, status_y, status.width(), status_h)
             status.setVisible(True)
             local.setVisible(True)
             local.move(
@@ -3606,10 +3720,12 @@ class MyMAinWindow(QMainWindow):
             # ④ 极矮窗口：状态区让位，导航独占整列（叠字比裁切更糟）
             status.setVisible(False)
             local.setVisible(False)
+            self._hide_donate()
             return
         status.setVisible(True)
         local.setVisible(True)
         status_y = nav_top + content_h + self._DOCK_STATUS_GAP
+        status_y, status_h = self._layout_donate(nav_top + content_h, status_y, status_h)
         status.setGeometry(0, status_y, status.width(), status_h)
         # 数字浮标贴状态区左下角，且不得超出窗底
         local.move(0, min(status_y + status_h - self._DOCK_LOCAL_H, height - self._DOCK_LOCAL_H))
@@ -6457,6 +6573,7 @@ class MyMAinWindow(QMainWindow):
             self.show_flag = False
             self.set_style()  # 样式美化
             apply_site_priority_theme(self)
+            self._style_donate_link()  # 暗黑/亮色切换时同步 [赞助作者] 链接颜色
 
             # self.setWindowState(Qt.WindowNoState)                               # 恢复正常窗口
             self.show()
@@ -6733,8 +6850,9 @@ class MyMAinWindow(QMainWindow):
     # region 左侧切换页面
     # 点左侧的主界面按钮
     def pushButton_main_clicked(self):
+        # 侧栏配色与「软件设置」页保持一致（#EEF3FF / 右边框 #D8E2FF）
         self.Ui.left_backgroud_widget.setStyleSheet(
-            f"background: #F5F5F6;border-right: 1px solid #EDEDED;border-top-left-radius: {self.window_radius}px;border-bottom-left-radius: {self.window_radius}px;"
+            f"background: #EEF3FF;border-right: 1px solid #D8E2FF;border-top-left-radius: {self.window_radius}px;border-bottom-left-radius: {self.window_radius}px;"
         )
         self.Ui.stackedWidget.setCurrentIndex(0)
         self.set_left_button_style()
