@@ -2633,16 +2633,17 @@ def test_scroll_area_pins_scrollbar_thickness_on_show_without_timer(win, app):
 
 
 def test_zimu_rows_align_to_filename_when_wide(win, app):
-    """设置-字幕：最大化时两处左移到与「视频文件名」严格上下对齐，最小化复原。
+    """设置-字幕：宽态两处左移到与「视频文件名」严格上下对齐，窄态逐值复原。
 
     用户需求（最大化态）：「新添加字幕的视频在结束后重新刮削」复选框左移到
     与「视频文件名」左缘上下对齐（视频文件名自身保持不变）；「点击下载字幕包」
-    左移到视频文件名下方（左缘同样对齐）；最小化时页面、布局、控件保持不变。
+    左移到视频文件名下方（左缘同样对齐）。
     根因：复选框被通用宽幅同步判为 _DOCK_RIGHT（右缘 661 ≥ 组宽 701*0.9），
     最大化时右移到右缘；下载行是横向均分布局，链接位置随列宽漂移。
     本测试锁定：宽态两处左缘 == 活测量的文件名左缘、参照与链接 y 不动、
     复选框行/绿色说明钉回设计 y、组框底部上收贴内容、组间距保持设计值、
-    二次同步幂等；窄态复选框/链接/前导钉宽/行列数/组高/行 y 与基线逐值一致。
+    二次同步幂等；窄态复选框/链接/前导钉宽/行列数/组高/行 y 与基线逐值一致，
+    链接文字另由 test_zimu_download_link_aligns_to_filename_when_narrow 锁定。
     """
     from PyQt6.QtCore import QPoint
 
@@ -2684,6 +2685,17 @@ def test_zimu_rows_align_to_filename_when_wide(win, app):
         "lay": lay.geometry().getRect(),
     }
     assert lay.count() == 2, f"窄态下载行列数异常: {lay.count()}"
+    # 窄态链接：控件左缘本就与「视频文件名」同位，文字必须是左对齐（否则可见
+    # 文字在 84~250px 宽的格子里居中偏右，正是用户截图里的现象）。
+    from PyQt6.QtCore import Qt as _Qt0
+
+    _content0 = ui.scrollArea_9.widget()
+    assert link.alignment() == (_Qt0.AlignmentFlag.AlignLeft | _Qt0.AlignmentFlag.AlignVCenter), (
+        f"窄态链接文字未左对齐: {link.alignment()}"
+    )
+    assert link.mapTo(_content0, QPoint(0, 0)).x() == ui.checkBox_filename.mapTo(_content0, QPoint(0, 0)).x(), (
+        "窄态链接未与视频文件名左缘同位"
+    )
 
     win.resize(1920, 1170)
     app.processEvents()
@@ -2788,10 +2800,154 @@ def test_zimu_rows_align_to_filename_when_wide(win, app):
     assert [ui.gridLayout_27.rowMinimumHeight(r) for r in range(4)] == [0, 0, 0, 0], "窄态网格行最小高残留"
     assert link.geometry().getRect() == base["link"], f"窄态链接未复原: {link.geometry().getRect()} vs {base['link']}"
     assert lay.geometry().getRect() == base["lay"], "窄态下载行几何未复原"
-    assert link.alignment() == base["link_align"], "窄态链接对齐残留"
+    # 回到窄态：文字仍左对齐（与「视频文件名」严格同位），不因往返而回居中
+    from PyQt6.QtCore import Qt as _Qt1
+
+    assert link.alignment() == (_Qt1.AlignmentFlag.AlignLeft | _Qt1.AlignmentFlag.AlignVCenter), (
+        f"窄态链接文字对齐残留: {link.alignment()}"
+    )
+    _content1 = ui.scrollArea_9.widget()
+    assert link.mapTo(_content1, QPoint(0, 0)).x() == ui.checkBox_filename.mapTo(_content1, QPoint(0, 0)).x(), (
+        "窄态链接未与视频文件名左缘同位"
+    )
+    assert ui.checkBox_filename.geometry().getRect() == base["fn"], "视频文件名几何被改动"
     assert (lead.minimumWidth(), lead.maximumWidth()) == base["lead_mm"], "窄态前导钉宽残留"
     assert lay.count() == base["count"], f"窄态间隔未拆除: count={lay.count()}"
     assert ui.groupBox_45.geometry().getRect() == base["box"], "窄态组框 y/高未复原"
+
+
+def _goto_zimu_tab(win, app):
+    """切到软件设置-字幕页（scrollAreaWidgetContents_zimu 所在 tab）。"""
+    from mdcx.views.CustomClass import CustomScrollArea
+
+    ui = win.Ui
+    _goto(win, app, "page_setting")
+    for i in range(ui.tabWidget.count()):
+        page = ui.tabWidget.widget(i)
+        area = page.findChild(CustomScrollArea)
+        if (
+            area is not None
+            and area.widget() is not None
+            and area.widget().objectName() == "scrollAreaWidgetContents_zimu"
+        ):
+            ui.tabWidget.setCurrentIndex(i)
+            app.processEvents()
+            win.show()
+            app.processEvents()
+            return area
+    raise AssertionError("字幕 tab not found")
+
+
+def test_zimu_download_link_aligns_to_filename_when_narrow(win, app):
+    """设置-字幕（最小化）：「点击下载字幕包」与「视频文件名」严格上下对齐。
+
+    用户需求（最小化态）：「将点击下载字幕包向左移动到与视频文件名严格上下对齐
+    的位置，视频文件名位置保持不变，最大化时页面、布局、控件、提示词等等均保持
+    不变」。
+
+    根因：下载行 horizontalLayout_10 是两项均分布局，窄态下提示文字与链接同行
+    均分，链接格子被拉到 84~250px 宽；格子左缘本就与「视频文件名」左缘同位，
+    但 QLabel 设计态是 AlignCenter，可见文字被整体右移 (格子宽-文字宽)/2（本仓
+    默认字体下 0~28px 随窗口浮动；用户 125% 环境格子约 200px、文字 105px，约
+    47px）。改 AlignLeft|AlignVCenter 后可见文字左缘 == 格子左缘，全程不移动
+    任何控件、不改提示文字。
+
+    残差说明（几何上无法两全，故不截断提示词）：「视频文件名」行也是两项均分，
+    其第二项起点 = 行首 + 行宽的一半；而下载行第二项起点 = 提示词自然宽 + 间距。
+    窗口宽到两者相等时严格对齐（本仓默认字体 Sans Serif 9pt / offscreen 96dpi 下
+    实测窗口 ≥ 1000px 时残差为 0，含用户截图的 1014x730）；更窄时提示词宽于半行
+    （2*228+6 > 行宽），链接格子只能停在提示词右侧，残差 = 提示词超出中线的部分。
+    要消除它只能把提示词压窄（用户明确要求不动提示词）或让链接压住提示词，故保留
+    残差并在下方逐值锁定。
+    """
+    from PyQt6.QtCore import QPoint, Qt
+
+    # (窗口宽, 窗口高) -> 链接可见文字左缘 - 「视频文件名」左缘（px，0 即严格对齐）
+    # 注意 1059 宽时 extra 已 > 0 转入宽态（宽态由 test_zimu_rows_align_to_filename_when_wide 覆盖）
+    expected_residual = {
+        (800, 640): 49,
+        (900, 680): 44,
+        (950, 700): 19,
+        (1000, 700): 0,
+        (1014, 730): 0,
+        (1030, 700): 0,
+    }
+    area = _goto_zimu_tab(win, app)
+    ui = win.Ui
+    link = ui.label_download_sub_zip
+    lead = ui.label_102
+    fn = ui.checkBox_filename
+    lay = ui.horizontalLayout_10
+    content = area.widget()
+    want_align = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+
+    def snap():
+        lead_left = lead.mapTo(content, QPoint(0, 0)).x()
+        return {
+            "fn": fn.geometry().getRect(),
+            "link": link.geometry().getRect(),
+            "lead": lead.geometry().getRect(),
+            "lay": lay.geometry().getRect(),
+            "lead_mm": (lead.minimumWidth(), lead.maximumWidth()),
+            "align": link.alignment(),
+            "count": lay.count(),
+            # 链接可见文字左缘：左对齐时 == 链接格子左缘
+            "cell_left": link.mapTo(content, QPoint(0, 0)).x(),
+            "fn_left": fn.mapTo(content, QPoint(0, 0)).x(),
+            # 不截断提示词时链接格子能到的最左位置
+            "best_left": lead_left + lead.width() + lay.spacing(),
+        }
+
+    for (w, h), residual in expected_residual.items():
+        win.resize(w, h)
+        for _ in range(2):
+            app.processEvents()
+            win._sync_page_layouts()
+        app.processEvents()
+        s = snap()
+        tag = f"{w}x{h}"
+        assert win._scroll_stretch_extra(win._zimu_scroll) <= 0, f"{tag} 不该是宽态"
+        # ① 修复本体：文字左对齐，可见文字左缘 == 链接格子左缘（不再被居中右移）
+        assert s["align"] == want_align, f"{tag} 窄态链接文字未左对齐: {s['align']}"
+        assert s["cell_left"] == s["best_left"], f"{tag} 链接格子不在提示词右侧 {s['best_left']}: {s['cell_left']}"
+        # ② 提示词与布局零改动：不钉 lead 宽、不插间隔项（窄态解钉由既有代码负责）
+        assert s["lead_mm"] == (0, 16777215), f"{tag} 不该钉提示词宽度: {s['lead_mm']}"
+        assert s["count"] == 2, f"{tag} 窄态下载行不该有间隔项: count={s['count']}"
+        # ③ 对齐结果：两行同位时严格 0 残差；不同位时残差恰为不截断提示词的最小残差
+        assert s["cell_left"] - s["fn_left"] == residual, (
+            f"{tag} 残差非预期: {s['cell_left'] - s['fn_left']} vs {residual}"
+        )
+
+    # 「视频文件名」自身不被移动：同一尺寸下反复同步几何逐值不变
+    win.resize(1000, 700)
+    for _ in range(2):
+        app.processEvents()
+        win._sync_page_layouts()
+    app.processEvents()
+    first = snap()
+    for _ in range(3):
+        win._sync_page_layouts()
+        app.processEvents()
+    assert snap() == first, f"二次同步漂移: {first} -> {snap()}"
+
+    # 往返宽态：窄态几何逐值复原，且宽态不受本次改动影响
+    win.resize(1920, 1170)
+    for _ in range(2):
+        app.processEvents()
+        win._sync_page_layouts()
+    app.processEvents()
+    wide = snap()
+    assert wide["cell_left"] == wide["fn_left"], "宽态链接与文件名未对齐"
+    assert wide["align"] == want_align, "宽态对齐被改动"
+    assert wide["count"] == 3, f"宽态下载行应有间隔项: count={wide['count']}"
+    win.resize(1000, 700)
+    for _ in range(2):
+        app.processEvents()
+        win._sync_page_layouts()
+    app.processEvents()
+    back = snap()
+    for key in first:
+        assert back[key] == first[key], f"宽态往返后窄态 {key} 未复原: {back[key]} vs {first[key]}"
 
 
 def _goto_naming_tab(win, app):

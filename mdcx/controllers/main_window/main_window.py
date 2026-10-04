@@ -3247,6 +3247,19 @@ class MyMAinWindow(QMainWindow):
     _ZIMU_BUTTON_DESIGN_Y = 220
     # 上方网格容器 gridLayoutWidget_27 的设计高（宽态按行铺排量同步增高）。
     _ZIMU_GRID_DESIGN_H = 186
+    # 「点击下载字幕包」（label_download_sub_zip）的文字对齐：恒 AlignLeft|AlignVCenter。
+    #
+    # 根因（用户截图，最小化态）：该 QLabel 的设计态是 AlignCenter，而它所在的
+    # horizontalLayout_10 是「两项均分布局」——窄态下提示文字「下载字幕包解压…」
+    # 与链接同行均分，链接格子被拉到 84~250px 宽，格子左缘本就与「视频文件名」
+    # （checkBox_filename）左缘同位（同宽时实测 content 坐标都是 433），但居中把
+    # 可见文字整体右移了 (格子宽-文字宽)/2（用户环境格子约 200px、文字 105px，
+    # 右移约 47px；本仓默认字体下 0~28px 随窗口浮动），于是「点击下载字幕包」
+    # 看上去比「视频文件名」右移一大截。改左对齐后，可见文字左缘 == 链接格子
+    # 左缘，两行同位时即与「视频文件名」严格上下对齐。
+    # 宽态本来就用这个值（见 _sync_zimu_row_align），两态统一后不再有“宽态对、
+    # 窄态偏右”的割裂；文字位置以外的任何几何（格子、提示文字、宽态铺排）不动。
+    _ZIMU_LINK_ALIGN = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
 
     def _sync_zimu_page_align(self, _scroll=None) -> None:
         """设置-字幕：把底部空白收缩 + 行对齐入口整条重跑（钩子用，零参可调）。
@@ -3311,13 +3324,28 @@ class MyMAinWindow(QMainWindow):
             scroll.sync_content_min_height()
 
     def _sync_zimu_row_align(self, scroll=None) -> None:
-        """设置-字幕：最大化时两处左移到与「视频文件名」严格上下对齐，最小化不动。
+        """设置-字幕：两处控件对齐「视频文件名」——复选框只宽态、下载链接两态都做。
 
         用户需求（最大化态）：「新添加字幕的视频在结束后重新刮削」
         （checkBox_sub_rescrape）左移到与「视频文件名」（checkBox_filename，
         位置保持不变）左缘上下对齐；「点击下载字幕包」
-        （label_download_sub_zip）左移到「视频文件名」下方（左缘同样对齐）；
-        最小化时页面、布局、控件保持不变。
+        （label_download_sub_zip）左移到「视频文件名」下方（左缘同样对齐）。
+
+        用户需求（最小化态）：「点击下载字幕包」也左移到与「视频文件名」严格
+        上下对齐，「视频文件名」位置保持不变；最大化时页面、布局、控件、提示
+        文字等均保持不变（故宽态分支一字未改）。
+        最小化态只需把链接文字从设计态的 AlignCenter 换成 _ZIMU_LINK_ALIGN：
+        该行是两项均分布局，窄态下链接格子左缘本就与「视频文件名」左缘同位，
+        偏右的全部来自居中（详见 _ZIMU_LINK_ALIGN 处的实测数据）。
+        残留残差（不修，几何上无法两全）：「视频文件名」行也是两项均分，其第二项
+        起点 = 行首 + 半行宽；下载行第二项起点 = 提示词自然宽 + 间距。窗口够宽
+        时两者相等 → 严格对齐（本仓默认字体 Sans Serif 9pt/offscreen 96dpi 实测
+        窗口 ≥ 1000px 残差 0，含用户截图的 1014x730）；更窄时提示词宽于半行宽
+        （2*228+6 > 行宽），链接格子只能停在提示词右侧，残差 19~49px
+        （800/900/950 宽实测 49/44/19）。要消除它只能压窄提示词（用户明确要求
+        不动提示词）或让链接压住提示词，故保留残差，由
+        tests/test_window_state_matrix.py::test_zimu_download_link_aligns_to_filename_when_narrow
+        逐值锁定。
 
         根因：复选框是 groupBox_45 的直接子项，宽 236 ≥ 内宽一半不成立、右缘
         425+236=661 ≥ 组宽 701*0.9，被通用宽幅同步判为 _DOCK_RIGHT，最大化时
@@ -3326,8 +3354,8 @@ class MyMAinWindow(QMainWindow):
         同位——本方法按活测量的「视频文件名」左缘钉死，不依赖这种巧合。
 
         做法（只改「页面被拉宽」的态，还原态逐像素复原，双向幂等）：
-          - extra <= 0 直接拆除下载行间隔、解除 label_102 钉宽、恢复链接居中、
-            复位复选框行 y 后 return（复选框 x/组框几何由通用同步按设计复位）；
+          - extra <= 0 直接拆除下载行间隔、解除 label_102 钉宽、把链接文字改回
+            左对齐、复位复选框行 y 后 return（复选框 x/组框几何由通用同步按设计复位）；
           - extra > 0：以「视频文件名」经公共祖先 content 映射的 x 为基准
             （注：QWidget.mapTo 要求目标是调用者的祖先，跨分支直接映射会
             拿到未定义值，离屏实测恒偏 +302，故一律经 content 中转）；
@@ -3335,7 +3363,7 @@ class MyMAinWindow(QMainWindow):
             下载行把 label_102 钉回 sizeHint 宽 + 插入固定间隔把链接推到
             基准 x（只允许左移，右推/放不下则放弃，链接右缘恒等于行右缘）。
             链接 QLabel 设计态是 AlignCenter：格子拉宽后即使左缘对齐，可见
-            文字仍居中偏右，故宽态把文字对齐改左（窄态恢复 AlignCenter）。
+            文字仍居中偏右，故宽态把文字对齐改左（窄态同样保持左对齐，见上）。
           - 纵向均匀铺排（宽态有填充时）：填充量按八等分铺进行内行距——上方
             网格 4 行各增 unit（unit = filler//8），长按钮下移 5*unit，
             复选框行下移 5*unit + unit//3（紧贴长按钮下方，间隙只 +unit//3），
@@ -3382,10 +3410,12 @@ class MyMAinWindow(QMainWindow):
         if content is None:
             return
         if self._scroll_stretch_extra(scroll) <= 0:
-            # 还原态：清零网格行最小高、拆除下载行间隔、解除前导钉宽、恢复链接
-            # 居中、复位复选框行 y，其余交给通用同步复位。
-            if link.alignment() != Qt.AlignmentFlag.AlignCenter:
-                link.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            # 还原态：清零网格行最小高、拆除下载行间隔、解除前导钉宽、复位复选框
+            # 行 y，其余交给通用同步复位。链接文字这里仍钉 _ZIMU_LINK_ALIGN
+            # （不再恢复居中）：窄态下格子左缘已与「视频文件名」同位，改左对齐
+            # 即让可见文字与它严格上下对齐，且不碰任何控件几何。
+            if link.alignment() != self._ZIMU_LINK_ALIGN:
+                link.setAlignment(self._ZIMU_LINK_ALIGN)
             if add_chs.y() != self._ZIMU_CHECKS_DESIGN_Y:
                 add_chs.move(add_chs.x(), self._ZIMU_CHECKS_DESIGN_Y)
             if any(grid.rowMinimumHeight(r) != 0 for r in range(4)):
@@ -3449,7 +3479,7 @@ class MyMAinWindow(QMainWindow):
         ok = want_gap >= 0 and tx_g27 <= link.x() and tx_g27 + link.sizeHint().width() <= grid27.width()
         new_gap = want_gap if ok else 0
         changed = self._pin_row_lead_width(lead, lead_w if ok else None)
-        want_align = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter if ok else Qt.AlignmentFlag.AlignCenter
+        want_align = self._ZIMU_LINK_ALIGN if ok else Qt.AlignmentFlag.AlignCenter
         if link.alignment() != want_align:
             link.setAlignment(want_align)
         spacer = self._zimu_dl_spacer
