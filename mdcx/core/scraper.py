@@ -35,6 +35,9 @@ from ..config.enums import (
 )
 from ..config.extend import (
     SEPARATE_MAIN_MODE,
+    eff_del_empty_folder,
+    eff_success_file_move,
+    eff_success_file_rename,
     get_movie_path_setting,
     get_separate_meta_root,
     mirror_meta_folder,
@@ -385,13 +388,13 @@ class Scraper:
                 path_settings if media_path == movie_path else get_movie_path_setting(movie_path_override=media_path)
             )
             clean_path = current_paths.softlink_path if manager.config.scrape_softlink_path else media_path
-            await _clean_empty_folders(clean_path, file_mode)
+            # 视频刮削目录下的空目录：永远走左侧正常模式开关（两种模式都一样）
+            await _clean_empty_folders(clean_path, file_mode, allow_empty=manager.config.del_empty_folder)
             if manager.config.main_mode == SEPARATE_MAIN_MODE:
                 meta_root = get_separate_meta_root(media_path, current_paths.success_folder)
                 if meta_root is not None:
-                    await _clean_empty_folders(
-                        meta_root, file_mode
-                    )
+                    # 数据存放目录下的空目录：走右侧分离模式开关
+                    await _clean_empty_folders(meta_root, file_mode, allow_empty=eff_del_empty_folder())
         end_time = time.time()
         used_time = str(round((end_time - Flags.start_time), 2))
         average_time = str(round((end_time - Flags.start_time) / task_count, 2)) if task_count else used_time
@@ -1226,8 +1229,8 @@ class Scraper:
                         res.tag = str(file_path)
                         return None, None
 
-        # 不移动文件时，NFO、图片等写入原目录
-        if not manager.config.success_file_move:
+        # 不移动文件时，NFO、图片等写入原目录（分离模式走右侧开关）
+        if not eff_success_file_move():
             nfo_new_path = file_path.with_suffix(".nfo")
             folder_new_path = folder_old_path
             poster_new_path_with_filename = folder_old_path / (file_name + "-poster.jpg")
@@ -1246,7 +1249,7 @@ class Scraper:
         # 分离模式：元数据路径换到数据目录镜像下（视频路径不动；未启用时原值不变）
         meta_root = get_separate_meta_root(paths.movie_path, success_folder)
         if meta_root is not None:
-            if manager.config.success_file_move:
+            if eff_success_file_move():
                 meta_folder = mirror_meta_folder(folder_new_path, success_folder, meta_root)
             else:
                 meta_folder = meta_root / folder_old_path.name
@@ -1377,8 +1380,8 @@ class Scraper:
         # 生成nfo文件
         await write_nfo(file_info, res, nfo_new_path, meta_folder, update_nfo)
 
-        # 移动字幕、种子、bif、trailer、其他文件（配置允许时才执行）
-        if manager.config.success_file_move:
+        # 移动字幕、种子、bif、trailer、其他文件（配置允许时才执行，分离模式走右侧开关）
+        if eff_success_file_move():
             if file_info.has_sub:
                 await move_sub(folder_old_path, folder_new_path, file_name, sub_list, naming_rule)
             await move_torrent(folder_old_path, folder_new_path, file_name, movie_number, naming_rule)
@@ -1392,7 +1395,7 @@ class Scraper:
 
         # 创建软链接及复制文件（由 auto_link 独立控制）
         if manager.config.auto_link:
-            if manager.config.success_file_move:
+            if eff_success_file_move():
                 target_dir = Path(manager.config.localdisk_path) / folder_new_path.relative_to(
                     success_folder, walk_up=True
                 )
@@ -1591,15 +1594,15 @@ async def move_sub(
 
     # 更新模式 或 读取模式
     if manager.config.main_mode > 3:
-        if manager.config.update_mode == "c" and not manager.config.success_file_rename:
+        if manager.config.update_mode == "c" and not eff_success_file_rename():
             return
 
     # 软硬链接开时，复制字幕（EMBY 显示字幕）
     elif manager.config.soft_link > 0:
         copy_flag = True
 
-    # 成功移动关、成功重命名关时，返回
-    elif not manager.config.success_file_move and not manager.config.success_file_rename:
+    # 成功移动关、成功重命名关时，返回（分离模式走右侧开关）
+    elif not eff_success_file_move() and not eff_success_file_rename():
         return
 
     for sub in sub_list:

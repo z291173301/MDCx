@@ -341,6 +341,10 @@ class Config(BaseModel):
     failed_file_move: bool = Field(default=True, title="失败后移动文件")
     success_file_rename: bool = Field(default=True, title="成功后重命名文件")
     del_empty_folder: bool = Field(default=True, title="删除空目录")
+    separate_success_file_move: bool = Field(default=True, title="分离模式成功后移动文件")
+    separate_failed_file_move: bool = Field(default=True, title="分离模式失败后移动文件")
+    separate_success_file_rename: bool = Field(default=True, title="分离模式成功后重命名文件")
+    separate_del_empty_folder: bool = Field(default=True, title="分离模式删除空目录")
     show_poster: bool = Field(default=True, title="显示海报")
     download_files: list[DownloadableFile] = Field(
         default_factory=lambda: [
@@ -1033,6 +1037,16 @@ class Config(BaseModel):
         处理字段变更.
         """
         warnings = migrate_config_data(d)
+        # 分离模式右侧开关：旧配置文件里没有这些键时，继承左侧正常模式开关的当前值
+        # （左侧默认全 True，所以全新/旧配置默认左右一致；一旦保存过，键已存在，用户选择保留）
+        for _left, _separate in (
+            ("success_file_move", "separate_success_file_move"),
+            ("failed_file_move", "separate_failed_file_move"),
+            ("success_file_rename", "separate_success_file_rename"),
+            ("del_empty_folder", "separate_del_empty_folder"),
+        ):
+            if _separate not in d:
+                d[_separate] = d.get(_left, True)
         # 处理旧版字段设置
         if "field_configs" not in d:
             Config._convert_field_configs(d)

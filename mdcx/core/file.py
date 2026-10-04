@@ -11,6 +11,7 @@ import aiofiles.os
 
 from ..base.number import remove_escape_string
 from ..config.enums import CDChar, Switch
+from ..config.extend import eff_success_file_move, eff_success_file_rename
 from ..config.manager import manager
 from ..consts import IS_MAC, IS_WINDOWS
 from ..models.enums import FileMode
@@ -81,7 +82,7 @@ async def creat_folder(
     dont_creat_folder = False  # 不需要创建文件夹
 
     # 正常模式、视频模式时，软链接关，成功后不移动文件开时，这时不创建文件夹
-    if manager.config.main_mode in (1, 3) and manager.config.soft_link == 0 and not manager.config.success_file_move:
+    if manager.config.main_mode in (1, 3) and manager.config.soft_link == 0 and not eff_success_file_move():
         dont_creat_folder = True
 
     # 更新模式、读取模式，选择更新c文件时，不创建文件夹
@@ -90,7 +91,7 @@ async def creat_folder(
 
     # 如果不需要创建文件夹，当不重命名时，直接返回
     if dont_creat_folder:
-        if not manager.config.success_file_rename:
+        if not eff_success_file_rename():
             other.dont_move_movie = True
             return True
 
@@ -259,7 +260,7 @@ def _get_folder_path(success_folder: Path, file_info: FileInfo, res: CrawlersRes
     # 正常模式 或 整理模式
     else:
         # 关闭软链接，并且成功后移动文件关时，使用原来文件夹
-        if manager.config.soft_link == 0 and not manager.config.success_file_move:
+        if manager.config.soft_link == 0 and not eff_success_file_move():
             return folder_path, folder_name
 
     # 当根据刮削模式得到的视频目录名为空时，使用成功输出目录
@@ -317,7 +318,7 @@ def _generate_file_name(cd_part, file_info: FileInfo, res: CrawlersResult) -> st
     file_name, file_ex = os.path.splitext(file_full_name)
 
     # 如果成功后不重命名，则返回原来名字
-    if not manager.config.success_file_rename:
+    if not eff_success_file_rename():
         return file_name
 
     # 更新模式 或 读取模式

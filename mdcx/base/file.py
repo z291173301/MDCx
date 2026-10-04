@@ -17,6 +17,10 @@ from ..config.enums import DownloadableFile, KeepableFile, NoEscape, Switch
 from ..config.extend import (
     SEPARATE_MAIN_MODE,
     SEPARATE_META_EXTS,
+    eff_del_empty_folder,
+    eff_failed_file_move,
+    eff_success_file_move,
+    eff_success_file_rename,
     get_movie_path_setting,
     get_separate_meta_root,
     need_clean,
@@ -111,10 +115,10 @@ async def move_other_file(
 
     # 更新模式 或 读取模式
     if manager.config.main_mode == 4 or manager.config.main_mode == 5:
-        if manager.config.update_mode == "c" and not manager.config.success_file_rename:
+        if manager.config.update_mode == "c" and not eff_success_file_rename():
             return
 
-    elif not manager.config.success_file_move and not manager.config.success_file_rename:
+    elif not eff_success_file_move() and not eff_success_file_rename():
         return
 
     files = await aiofiles.os.listdir(folder_old_path)
@@ -392,15 +396,15 @@ async def check_and_clean_files() -> None:
     signal.show_log_text(f" 🍀 Clean done!({get_used_time(start_time)}s)")
     signal.show_log_text("================================================================================")
     for movie_path in movie_paths:
-        await _clean_empty_folders(movie_path, FileMode.Default)
+        # 视频刮削目录下的空目录：永远走左侧正常模式开关（两种模式都一样）
+        await _clean_empty_folders(movie_path, FileMode.Default, allow_empty=manager.config.del_empty_folder)
         if manager.config.main_mode == SEPARATE_MAIN_MODE:
             meta_root = get_separate_meta_root(
                 movie_path, get_movie_path_setting(movie_path_override=movie_path).success_folder
             )
             if meta_root is not None:
-                await _clean_empty_folders(
-                    meta_root, FileMode.Default
-                )
+                # 数据存放目录下的空目录：走右侧分离模式开关
+                await _clean_empty_folders(meta_root, FileMode.Default, allow_empty=eff_del_empty_folder())
     signal.set_label_file_path.emit("🗑 清理完成！")
     signal.show_log_text(
         f" 🎉🎉🎉 All finished!!!({get_used_time(start_time)}s) Total {total} , Success {succ} , Failed {fail} "
@@ -661,14 +665,15 @@ async def newtdisk_creat_symlink(
 
 
 async def move_file_to_failed_folder(failed_folder: Path, file_path: Path, folder_old_path: Path) -> Path:
-    # 更新模式、读取模式，不移动失败文件；不移动文件-关时，不移动； 软硬链接开时，不移动
+    # 更新模式、读取模式，不移动失败文件；生效开关-关时，不移动； 软硬链接开时，不移动
+    # （分离模式取右侧分离开关，否则取左侧正常开关）
     main_mode = manager.config.main_mode
-    if main_mode == 4 or main_mode == 5 or not manager.config.failed_file_move or manager.config.soft_link != 0:
+    if main_mode == 4 or main_mode == 5 or not eff_failed_file_move() or manager.config.soft_link != 0:
         LogBuffer.log().write(f"\n 🙊 [Movie] {file_path}")
         return file_path
 
     # 创建failed文件夹
-    if manager.config.failed_file_move:
+    if eff_failed_file_move():
         try:
             await aiofiles.os.makedirs(failed_folder, exist_ok=True)
         except Exception:
@@ -752,13 +757,11 @@ async def check_file(file_path: Path, file_escape_size: float) -> bool:
 async def move_torrent(old_dir: Path, new_dir: Path, file_name: str, number: str, naming_rule: str):
     # 更新模式 或 读取模式
     if manager.config.main_mode == 4 or manager.config.main_mode == 5:
-        if manager.config.update_mode == "c" and not manager.config.success_file_rename:
+        if manager.config.update_mode == "c" and not eff_success_file_rename():
             return
 
     # 软硬链接开时，不移动
-    elif (
-        manager.config.soft_link != 0 or not manager.config.success_file_move and not manager.config.success_file_rename
-    ):
+    elif manager.config.soft_link != 0 or not eff_success_file_move() and not eff_success_file_rename():
         return
     torrent_file1 = old_dir / (file_name + ".torrent")
     torrent_file2 = old_dir / (number + ".torrent")
@@ -784,10 +787,10 @@ async def move_torrent(old_dir: Path, new_dir: Path, file_name: str, number: str
 async def move_bif(old_dir: Path, new_dir: Path, file_name: str, naming_rule: str) -> None:
     # 更新模式 或 读取模式
     if manager.config.main_mode == 4 or manager.config.main_mode == 5:
-        if manager.config.update_mode == "c" and not manager.config.success_file_rename:
+        if manager.config.update_mode == "c" and not eff_success_file_rename():
             return
 
-    elif not manager.config.success_file_move and not manager.config.success_file_rename:
+    elif not eff_success_file_move() and not eff_success_file_rename():
         return
     bif_old_path = old_dir / (file_name + "-320-10.bif")
     bif_new_path = new_dir / (naming_rule + "-320-10.bif")
@@ -801,11 +804,11 @@ async def move_bif(old_dir: Path, new_dir: Path, file_name: str, naming_rule: st
 
 
 async def move_trailer_video(old_dir: Path, new_dir: Path, file_name: str, naming_rule: str) -> None:
-    if manager.config.main_mode < 2 and not manager.config.success_file_move and not manager.config.success_file_rename:
+    if manager.config.main_mode < 2 and not eff_success_file_move() and not eff_success_file_rename():
         return
     if manager.config.main_mode > 3:
         update_mode = manager.config.update_mode
-        if update_mode == "c" and not manager.config.success_file_rename:
+        if update_mode == "c" and not eff_success_file_rename():
             return
 
     for media_type in manager.config.media_type:

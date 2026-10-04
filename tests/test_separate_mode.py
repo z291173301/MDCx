@@ -332,3 +332,186 @@ def test_clean_empty_folders_none_falls_back_to_config(monkeypatch, tmp_path):
     monkeypatch.setattr(manager.config, "del_empty_folder", True)
     asyncio.run(_clean_empty_folders(movie, FileMode.Default))
     assert not empty_dir.exists()
+
+
+_LEFT_FLAGS = ("success_file_move", "failed_file_move", "success_file_rename", "del_empty_folder")
+_RIGHT_FLAGS = (
+    "separate_success_file_move",
+    "separate_failed_file_move",
+    "separate_success_file_rename",
+    "separate_del_empty_folder",
+)
+_EFF_FUNCS = (
+    "eff_success_file_move",
+    "eff_failed_file_move",
+    "eff_success_file_rename",
+    "eff_del_empty_folder",
+)
+_RIGHT_RADIOS_ON = (
+    "radioButton_separate_mode_succ_move_on",
+    "radioButton_separate_mode_fail_move_on",
+    "radioButton_separate_mode_succ_rename_on",
+    "radioButton_separate_mode_del_empty_folder_on",
+)
+_RIGHT_RADIOS_OFF = (
+    "radioButton_separate_mode_succ_move_off",
+    "radioButton_separate_mode_fail_move_off",
+    "radioButton_separate_mode_succ_rename_off",
+    "radioButton_separate_mode_del_empty_folder_off",
+)
+
+
+def test_is_separate_mode_only_for_main_mode_2(monkeypatch):
+    from mdcx.config import extend
+    from mdcx.config.manager import manager
+
+    for mode, expected in ((1, False), (2, True), (3, False), (4, False), (5, False)):
+        monkeypatch.setattr(manager.config, "main_mode", mode)
+        assert extend.is_separate_mode() is expected
+
+
+def test_eff_flags_follow_left_in_normal_mode(monkeypatch):
+    """正常模式（main_mode=1）：右侧开关无论怎么拨，有效值都等于左侧。"""
+    import mdcx.config.extend as extend
+    from mdcx.config.manager import manager
+
+    monkeypatch.setattr(manager.config, "main_mode", 1)
+    for left, right, func_name in zip(_LEFT_FLAGS, _RIGHT_FLAGS, _EFF_FUNCS, strict=True):
+        monkeypatch.setattr(manager.config, left, True)
+        monkeypatch.setattr(manager.config, right, False)
+        assert getattr(extend, func_name)() is True
+        monkeypatch.setattr(manager.config, left, False)
+        monkeypatch.setattr(manager.config, right, True)
+        assert getattr(extend, func_name)() is False
+
+
+def test_eff_flags_follow_right_in_separate_mode(monkeypatch):
+    """分离模式（main_mode=2）：视频文件操作的有效值等于右侧开关。"""
+    import mdcx.config.extend as extend
+    from mdcx.config.manager import manager
+
+    monkeypatch.setattr(manager.config, "main_mode", 2)
+    for left, right, func_name in zip(_LEFT_FLAGS, _RIGHT_FLAGS, _EFF_FUNCS, strict=True):
+        monkeypatch.setattr(manager.config, left, True)
+        monkeypatch.setattr(manager.config, right, False)
+        assert getattr(extend, func_name)() is False
+        monkeypatch.setattr(manager.config, left, False)
+        monkeypatch.setattr(manager.config, right, True)
+        assert getattr(extend, func_name)() is True
+
+
+def test_move_other_file_respects_separate_move_off(monkeypatch, tmp_path):
+    """分离模式 + 右侧移动关/重命名关：其他文件留在原地（左侧开也拦不住）。"""
+    from mdcx.base.file import move_other_file
+    from mdcx.config.manager import manager
+
+    old = tmp_path / "old3"
+    video_new = tmp_path / "video_new3"
+    meta_new = tmp_path / "meta_new3"
+    old.mkdir()
+    video_new.mkdir()
+    meta_new.mkdir()
+    (old / "ABC-123.srt").write_text("sub", encoding="utf-8")
+
+    monkeypatch.setattr(manager.config, "soft_link", 0)
+    monkeypatch.setattr(manager.config, "main_mode", 2)
+    monkeypatch.setattr(manager.config, "success_file_move", True)
+    monkeypatch.setattr(manager.config, "success_file_rename", True)
+    monkeypatch.setattr(manager.config, "separate_success_file_move", False)
+    monkeypatch.setattr(manager.config, "separate_success_file_rename", False)
+    monkeypatch.setattr(manager.config, "media_type", [".mp4"])
+
+    asyncio.run(move_other_file("ABC-123", old, video_new, "ABC-123", "ABC-123", meta_new))
+
+    assert (old / "ABC-123.srt").exists()
+    assert not (video_new / "ABC-123.srt").exists()
+
+
+def test_save_load_config_wire_separate_radios():
+    """回归锁：save/load 必须读写全部 8 个右侧 radio 与 4 个 separate_* 字段，防改名漂移。"""
+    from pathlib import Path as _Path
+
+    base = _Path(__file__).resolve().parents[1] / "mdcx" / "controllers" / "main_window"
+    save_src = (base / "save_config.py").read_text(encoding="utf-8")
+    load_src = (base / "load_config.py").read_text(encoding="utf-8")
+    # 保存只读「开」按钮的 isChecked；加载要同时定位开/关按钮
+    for radio in _RIGHT_RADIOS_ON:
+        assert radio in save_src, f"save_config.py 未引用 {radio}"
+        assert radio in load_src, f"load_config.py 未引用 {radio}"
+    for radio in _RIGHT_RADIOS_OFF:
+        assert radio in load_src, f"load_config.py 未引用 {radio}"
+    for field in _RIGHT_FLAGS:
+        assert field in save_src, f"save_config.py 未引用 {field}"
+        assert field in load_src, f"load_config.py 未引用 {field}"
+
+
+def test_separate_flags_inherit_left_when_missing():
+    """旧 JSON 里没有 separate_* 键：默认和左侧开关一致（左关则右也关）。"""
+    from mdcx.config.models import Config
+
+    data = {
+        "success_file_move": True,
+        "failed_file_move": False,
+        "success_file_rename": True,
+        "del_empty_folder": False,
+    }
+    Config.update(data)
+    assert data["separate_success_file_move"] is True
+    assert data["separate_failed_file_move"] is False
+    assert data["separate_success_file_rename"] is True
+    assert data["separate_del_empty_folder"] is False
+    cfg = Config.model_validate(data)
+    assert cfg.separate_success_file_move is True
+    assert cfg.separate_failed_file_move is False
+    assert cfg.separate_success_file_rename is True
+    assert cfg.separate_del_empty_folder is False
+
+
+def test_separate_flags_missing_keys_default_to_true():
+    """全新配置（左右键都没有）：右侧默认全开，和左侧默认一致。"""
+    from mdcx.config.models import Config
+
+    data: dict = {}
+    Config.update(data)
+    for field in _RIGHT_FLAGS:
+        assert data[field] is True
+    cfg = Config.model_validate(data)
+    for field in _RIGHT_FLAGS:
+        assert getattr(cfg, field) is True
+
+
+def test_separate_flags_preserved_when_present():
+    """已保存过的配置：右侧键已存在，用户选择不被左侧覆盖。"""
+    from mdcx.config.models import Config
+
+    data = {
+        "success_file_move": True,
+        "separate_success_file_move": False,
+    }
+    Config.update(data)
+    assert data["separate_success_file_move"] is False
+    assert Config.model_validate(data).separate_success_file_move is False
+
+
+def test_separate_flags_json_roundtrip():
+    """写入 JSON 再读回：四个右侧开关都在 JSON 里且值不变。"""
+    import json
+
+    from mdcx.config.models import Config
+
+    data = {
+        "separate_success_file_move": False,
+        "separate_failed_file_move": True,
+        "separate_success_file_rename": False,
+        "separate_del_empty_folder": True,
+    }
+    Config.update(data)
+    cfg = Config.model_validate(data)
+    raw = json.loads(cfg.model_dump_json())
+    assert raw["separate_success_file_move"] is False
+    assert raw["separate_failed_file_move"] is True
+    assert raw["separate_success_file_rename"] is False
+    assert raw["separate_del_empty_folder"] is True
+    cfg2 = Config.model_validate(raw)
+    assert cfg2.separate_success_file_move is False
+    assert cfg2.separate_del_empty_folder is True

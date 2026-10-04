@@ -571,6 +571,34 @@ def load_config(self: "MyMAinWindow"):
             (self.Ui.radioButton_del_empty_folder_off, False),
             default=self.Ui.radioButton_del_empty_folder_off,
         )
+        # 分离模式：成功后移动文件（右侧开关）
+        set_radio_buttons(
+            manager.config.separate_success_file_move,
+            (self.Ui.radioButton_separate_mode_succ_move_on, True),
+            (self.Ui.radioButton_separate_mode_succ_move_off, False),
+            default=self.Ui.radioButton_separate_mode_succ_move_off,
+        )
+        # 分离模式：失败后移动文件（右侧开关）
+        set_radio_buttons(
+            manager.config.separate_failed_file_move,
+            (self.Ui.radioButton_separate_mode_fail_move_on, True),
+            (self.Ui.radioButton_separate_mode_fail_move_off, False),
+            default=self.Ui.radioButton_separate_mode_fail_move_off,
+        )
+        # 分离模式：成功后重命名文件（右侧开关）
+        set_radio_buttons(
+            manager.config.separate_success_file_rename,
+            (self.Ui.radioButton_separate_mode_succ_rename_on, True),
+            (self.Ui.radioButton_separate_mode_succ_rename_off, False),
+            default=self.Ui.radioButton_separate_mode_succ_rename_off,
+        )
+        # 分离模式：结束后删除空文件夹（右侧开关）
+        set_radio_buttons(
+            manager.config.separate_del_empty_folder,
+            (self.Ui.radioButton_separate_mode_del_empty_folder_on, True),
+            (self.Ui.radioButton_separate_mode_del_empty_folder_off, False),
+            default=self.Ui.radioButton_separate_mode_del_empty_folder_off,
+        )
 
         # 显示封面
         self.Ui.checkBox_cover.setChecked(manager.config.show_poster)

@@ -48,6 +48,39 @@ SEPARATE_META_EXTS = frozenset({".nfo", ".jpg", ".jpeg", ".png", ".webp"})
 """分离模式下归入数据存放目录的元数据文件扩展名（小写）。"""
 
 
+def is_separate_mode() -> bool:
+    """当前是否为分离模式（刮削模式 == 2）。
+
+    分离模式下，视频刮削目录内的视频文件（移动/重命名/失败移动）走右侧
+    「分离模式」开关；正常模式下全部走左侧开关（右侧开关被忽略）。
+    """
+    return manager.config.main_mode == SEPARATE_MAIN_MODE
+
+
+def eff_success_file_move() -> bool:
+    """视频文件「刮削成功后移动」生效值：分离模式取右侧，否则取左侧。"""
+    return manager.config.separate_success_file_move if is_separate_mode() else manager.config.success_file_move
+
+
+def eff_failed_file_move() -> bool:
+    """视频文件「刮削失败后移动」生效值：分离模式取右侧，否则取左侧。"""
+    return manager.config.separate_failed_file_move if is_separate_mode() else manager.config.failed_file_move
+
+
+def eff_success_file_rename() -> bool:
+    """视频文件「刮削成功重命名」生效值：分离模式取右侧，否则取左侧。"""
+    return manager.config.separate_success_file_rename if is_separate_mode() else manager.config.success_file_rename
+
+
+def eff_del_empty_folder() -> bool:
+    """数据存放目录「刮削结束删除空目录」生效值：分离模式取右侧，否则取左侧。
+
+    注意：视频刮削目录下的空目录清理永远走左侧 del_empty_folder（见调用方显式传参），
+    本函数只用于数据存放目录（meta_root）一侧。
+    """
+    return manager.config.separate_del_empty_folder if is_separate_mode() else manager.config.del_empty_folder
+
+
 def resolve_data_dir(movie_path: Path) -> Path | None:
     """解析数据存放目录；分离模式未启用/未设置/不可用时返回 None（回退正常模式）。
 

@@ -5372,7 +5372,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                       </size>
                                     </property>
                                     <property name="text">
-                                      <string>本地刮削成功的文件，按更新模式规则重新整理分类</string>
+                                      <string>本地刮削成功的文件，按更新模式重新整理分类</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -5388,7 +5388,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                       <string notr="true">color: rgb(8, 128, 128);</string>
                                     </property>
                                     <property name="text">
-                                      <string>可无需联网重新整理</string>
+                                      <string>可无需联网重新整理分类</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -5445,7 +5445,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                                   </size>
                                                 </property>
                                                 <property name="text">
-                                                  <string>允许更新nfo文件</string>
+                                                  <string>允许更新NFO文件</string>
                                                 </property>
                                               </widget>
                                             </item>
@@ -5461,7 +5461,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                                 </property>
                                                 <property name="text">
-                                                  <string>&lt;p&gt;按Emby标题、设置-翻译、NFO页设置利用本地nfo更新&lt;/p&gt;</string>
+                                                  <string>&lt;p&gt; 按Emby标题、设置-翻译、NFO设置利用本地NFO更新&lt;/p&gt;</string>
                                                 </property>
                                               </widget>
                                             </item>
@@ -5478,7 +5478,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                                   </sizepolicy>
                                                 </property>
                                                 <property name="text">
-                                                  <string>本地nfo内有链接，重新下载图片等文件</string>
+                                                  <string>本地NFO内有链接，重新下载封面图片等文件</string>
                                                 </property>
                                               </widget>
                                             </item>
@@ -5494,7 +5494,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                                 </property>
                                                 <property name="text">
-                                                  <string>将按「设置」-「下载」更新</string>
+                                                  <string>将按设置 -「下载」更新</string>
                                                 </property>
                                               </widget>
                                             </item>
@@ -5523,7 +5523,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                       </size>
                                     </property>
                                     <property name="text">
-                                      <string>本地没有nfo的文件，按正常模式规则重新刮削</string>
+                                      <string>本地没有NFO的文件，按正常模式规则重新刮削</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -5537,7 +5537,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                       <string notr="true">color: rgb(0, 0, 0);</string>
                                     </property>
                                     <property name="text">
-                                      <string>本地nfo合并及策略</string>
+                                      <string>本地NFO合并及策略</string>
                                     </property>
                                   </widget>
                                 </item>
@@ -7305,7 +7305,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>设置 javdb 延时可降低 javdb 被封概率，将在1/2延时-1延时之间随机。</string>
+                              <string>设置Javdb延时可以降低Javdb被风控概率，将在1/2延时-1延时之间随机选择</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>

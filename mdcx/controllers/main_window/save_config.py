@@ -401,6 +401,11 @@ def save_config(self: "MyMAinWindow"):
     manager.config.failed_file_move = self.Ui.radioButton_fail_move_on.isChecked()
     manager.config.success_file_rename = self.Ui.radioButton_succ_rename_on.isChecked()
     manager.config.del_empty_folder = self.Ui.radioButton_del_empty_folder_on.isChecked()
+    # 分离模式右侧开关
+    manager.config.separate_success_file_move = self.Ui.radioButton_separate_mode_succ_move_on.isChecked()
+    manager.config.separate_failed_file_move = self.Ui.radioButton_separate_mode_fail_move_on.isChecked()
+    manager.config.separate_success_file_rename = self.Ui.radioButton_separate_mode_succ_rename_on.isChecked()
+    manager.config.separate_del_empty_folder = self.Ui.radioButton_separate_mode_del_empty_folder_on.isChecked()
     manager.config.show_poster = self.Ui.checkBox_cover.isChecked()
     # endregion
 

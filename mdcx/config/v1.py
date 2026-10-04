@@ -113,6 +113,10 @@ class ConfigV1:
     failed_file_move: bool = True
     success_file_rename: bool = True
     del_empty_folder: bool = True
+    separate_success_file_move: bool = True
+    separate_failed_file_move: bool = True
+    separate_success_file_rename: bool = True
+    separate_del_empty_folder: bool = True
     show_poster: bool = True
 
     # file_download
