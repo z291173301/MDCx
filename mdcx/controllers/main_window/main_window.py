@@ -3530,15 +3530,22 @@ class MyMAinWindow(QMainWindow):
     _DONATE_LINK_FONT_PX = 16  # 文档用：字号实际由 style.py 的 QSS 决定，此处仅备查
     # 16px 的 fontMetrics().height() = 19，行高 22 留 3px 余量；_DONATE_LINK_H 须 ≥ 它
     _DONATE_LINK_H = 22
-    _DONATE_LINK_GAP = 6  # 二维码与文字间距
-    _DONATE_PAD = 6  # 与导航区/状态区的间距
-    _DONATE_TEXT_GAP = 17  # [赞助作者] 底边到状态文字首行的间距（同样取自最紧凑时的 17px）
-    # 二维码边长恒定 168：侧栏宽 210，两侧各留 21px 空白（210 - 2*21 = 168）。
-    # 取值来自「还原/默认窗口」（def_w/def_h = 1030x700，init.py::_adaptive_window_sizes）
-    # 下的实测尺寸——那里高度最紧、二维码被可用高度压到 168。**必须与默认窗口一致**，
-    # 否则上限一旦大于它，最大化时二维码涨到上限、留白变小（实测 176 时最大化留白
-    # 17px 而还原 21px，差 4px；奇数边长还会左右差 1px）。只在窗口比默认更矮时才缩小。
-    _DONATE_QR_SIZE = 168
+    # 以下三个间距按「默认窗口 1030x700 下二维码尽量大」倒推得出（用户第 10 轮要求）。
+    # 高度预算实测：avail = 198 − max(TEXT_GAP, PAD + STATUS_H_MIN − text_h) − LINK_GAP − PAD
+    #   （198 = status_bottom 690 − text_h 60 − LINK_H 22 − nav_bottom 410）
+    # 原值 TEXT_GAP 17 / LINK_GAP 6 / PAD 6 → avail 168，二维码被卡在 168（左右留白 21）。
+    # 收到 10 / 2 / 2 → gap=max(10, 72+2−60)=14，avail = 198−14−2−2 = 180。
+    # 为什么不动状态文字：默认窗口下它底边只剩 10px 余量，再下移文字会被窗底裁掉，
+    # 而这三个间距收窄是零代价的（gap 的另一个来源 STATUS_H_MIN+text_h 项也随之下降）。
+    _DONATE_LINK_GAP = 2  # 二维码与 [赞助作者] 的间距
+    _DONATE_PAD = 2  # 与导航区/状态区的内边距（在 gap 公式里也出现一次，故收窄收益翻倍）
+    _DONATE_TEXT_GAP = 10  # [赞助作者] 底边到状态文字首行的间距
+    # 二维码边长恒定 180：侧栏宽 210，两侧各留 15px 空白（210 - 2*15 = 180）。
+    # **必须等于默认窗口（def_w/def_h = 1030x700，init.py::_adaptive_window_sizes）下的
+    # 实测 avail**，否则两态留白会不一致：上限小于它则最大化时也涨不上去，大于它则
+    # 最大化时涨到上限、留白变小（实测上限 176 时最大化留白 17px 而还原 21px，差 4px；
+    # 奇数边长还会左右差 1px）。只在窗口比默认更矮时才等比缩小。
+    _DONATE_QR_SIZE = 180
     _DONATE_QR_MIN = 40  # 二维码最小边长（再小宁可不显示，也不能叠字——军规③）
     _DONATE_LINK_COLOR = "#0078D7"  # 与「赞助作者」页 [赞助作者] 链接同色
     _DONATE_LINK_COLOR_DARK = "#4DA6FF"  # 暗黑模式提亮，保证可读

@@ -1070,9 +1070,14 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     底对齐（rect 越高文字越靠下），两边叠加导致最大化后「[赞助作者]」与
     「正常模式·字段优先」的间距从 17px 暴涨到 331px（用户反馈截图），
     改为底部锚定后两者都应与窗口高度无关；② 二维码边长上限先后在「侧栏宽（满宽不留
-    白）」、「恒定 176」与「恒定 168」之间来回改过，两档不一致被用户指出（最大化时直接
-    顶到左右边界；176 时最大化留白 17px 而还原窗口 21px，差 4px），现固定为 168
-    —— 取「还原/默认窗口」（1030x700）下的实测边长，两态完全一致。
+    白）」、「恒定 176」、「恒定 168」与「恒定 180」之间来回改过，两档不一致被用户指出
+    （最大化时直接顶到左右边界；176 时最大化留白 17px 而还原窗口 21px，差 4px）。
+    180 是收窄三处缝隙（_DONATE_LINK_GAP 6→2、_DONATE_PAD 6→2、_DONATE_TEXT_GAP 17→10）
+    换来的，默认窗口下的高度预算：
+        avail = 198 − max(TEXT_GAP, PAD + STATUS_H_MIN − text_h) − LINK_GAP − PAD
+              （198 = status_bottom 690 − text_h 60 − LINK_H 22 − nav_bottom 410）
+              = 198 − max(10, 72+2−60) − 2 − 2 = 198 − 14 − 2 − 2 = 180
+    _DONATE_QR_SIZE 必须等于这个 avail，否则两态留白会不一致（见 main_window 常量注释）。
     """
     _goto(win, app, "page_main")
     win.setMinimumSize(0, 0)
