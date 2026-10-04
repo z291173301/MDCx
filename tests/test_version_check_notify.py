@@ -135,7 +135,7 @@ def test_periodic_recheck_notifies_once_per_version(win, app, monkeypatch):
 
 
 def test_new_version_prompt_shows_release_display_name(win, app, monkeypatch):
-    """红字与左下角提示都展示 release 标题（vX.Y.Z (tag)），不再只显示裸数字 tag。"""
+    """左下角只展示日期 tag 全角括号红字（🍉 图标保留），红字日志仍展示 release 标题。"""
     from mdcx.controllers.main_window import main_window as mw_mod
 
     log_calls = _stub_version_path(monkeypatch, win)
@@ -144,7 +144,8 @@ def test_new_version_prompt_shows_release_display_name(win, app, monkeypatch):
     win._show_version_thread()
     app.processEvents()
 
-    assert "v9.9.9 (99999999)" in win.new_version
+    assert f"（{int(win.localversion) + 100}）" in win.new_version
+    assert "🍉 有新版本了！" in win.new_version
     assert any("v9.9.9 (99999999)" in t for t in log_calls if "请及时更新" in t)
 
 

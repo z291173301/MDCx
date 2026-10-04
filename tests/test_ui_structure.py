@@ -374,12 +374,12 @@ _READ_MODE_UI_TEXTS = {
     "label_41": "刮削排除目录：",
     "label_48": "刮削排除目录：",
     "checkBox_read_has_nfo_update": "本地刮削成功的文件，按更新模式重新整理分类",
-    "checkBox_read_update_nfo": "允许更新nfo文件",
-    "label_37": "<p>按Emby标题、设置-翻译、NFO页设置利用本地nfo更新</p>",
-    "checkBox_read_download_file_again": "本地nfo内有链接，重新下载图片等文件",
-    "label_347": "将按「设置」-「下载」更新",
-    "checkBox_read_no_nfo_scrape": "本地没有nfo的文件，按正常模式规则重新刮削",
-    "checkBox_nfo_merge_strategy": "本地nfo合并及策略",
+    "checkBox_read_update_nfo": "允许更新NFO文件",
+    "label_37": "<p> 按Emby标题、设置-翻译、NFO设置利用本地NFO更新</p>",
+    "checkBox_read_download_file_again": "本地NFO内有链接，重新下载封面图片等文件",
+    "label_347": "将按设置 -「下载」更新",
+    "checkBox_read_no_nfo_scrape": "本地没有NFO的文件，按正常模式规则重新刮削",
+    "checkBox_nfo_merge_strategy": "本地NFO合并及策略",
     "checkBox_sortmode_delpic": "删除本地已下载的图片和nfo文件",
 }
 
@@ -792,3 +792,105 @@ def test_separate_mode_radios_red_holder_absolutely_positioned_and_grid_not_over
         if right_margin != left_margin:
             problems.append(f"{box} 左右留白不对称：左 {left_margin} vs 右 {right_margin}")
     assert not problems, "分离模式开/关容器/网格几何问题:\n" + "\n".join(problems)
+
+
+# ---------- STRM 行位置锁定：主复选框与删除行严格上下对齐，禁止后移 ----------
+
+_STRM_MAIN_TEXT = "为本地视频文件生成STRM链接文本"
+_STRM_OVERWRITE_TEXT = "覆盖本地已存在的STRM链接文本"
+
+
+def _find_layout_by_name(root, name):
+    for layout in root.iter("layout"):
+        if layout.get("name") == name:
+            return layout
+    return None
+
+
+def _grid_item_pos(grid, child_name):
+    """在 gridLayout 下找直接子 item（widget 或 layout）名为 child_name 的 (row, column)。"""
+    for item in grid.findall("item"):
+        if len(item) == 0:
+            continue
+        if item[0].get("name") == child_name:
+            return (item.get("row"), item.get("column"))
+    return (None, None)
+
+
+def test_strm_checkboxes_text_order_and_alignment_locked():
+    """STRM 行锁定：主复选框居左与删除行对齐、覆盖框居右，挪动即失败。"""
+    root = _parse_ui()
+    problems = []
+
+    main = _find_widget_by_name(root, "checkBox_separate_generate_strm")
+    overwrite = _find_widget_by_name(root, "checkBox_separate_overwrite_strm")
+    if main is None:
+        problems.append("checkBox_separate_generate_strm 不存在")
+    elif _widget_string_prop(main, "text") != _STRM_MAIN_TEXT:
+        problems.append(f"主复选框文案被改: {_widget_string_prop(main, 'text')!r}")
+    if overwrite is None:
+        problems.append("checkBox_separate_overwrite_strm 不存在")
+    elif _widget_string_prop(overwrite, "text") != _STRM_OVERWRITE_TEXT:
+        problems.append(f"覆盖复选框文案被改: {_widget_string_prop(overwrite, 'text')!r}")
+
+    hbox = _find_layout_by_name(root, "horizontalLayout_strm")
+    if hbox is None:
+        problems.append("horizontalLayout_strm 不存在")
+    else:
+        kids = [item[0].get("name") for item in hbox.findall("item") if len(item)]
+        # 前两项必须是两复选框且顺序不变；允许末尾跟随纯 spacer（horizontalSpacer_strm）——
+        # STRM 行两个复选框都是 Fixed，HBox 最大宽被钉死在 285 会卡住 gridLayout_2 第 1 列，
+        # 容器拉宽后多余空间被三等分摊、描述列整体右移；末尾弹性 spacer 解开上限且不改变行外观。
+        if kids[:2] != ["checkBox_separate_generate_strm", "checkBox_separate_overwrite_strm"]:
+            problems.append(f"STRM 行内顺序被改（主框必须居左首位）: {kids!r}")
+        for extra in kids[2:]:
+            if not extra.startswith("horizontalSpacer_"):
+                problems.append(f"STRM 行内不允许出现非 spacer 部件: {extra!r}")
+
+    reuse_hbox = _find_layout_by_name(root, "horizontalLayout_reuse_meta")
+    if reuse_hbox is None:
+        problems.append("horizontalLayout_reuse_meta 不存在")
+    else:
+        kids = [item[0].get("name") for item in reuse_hbox.findall("item") if len(item)]
+        # 复用行：复用框居左 + gap spacer + 覆盖框居右（覆盖框与 STRM 覆盖框上下对齐），末尾弹性 spacer。
+        if kids[:3] != [
+            "checkBox_separate_reuse_meta",
+            "horizontalSpacer_reuse_meta_gap",
+            "checkBox_separate_overwrite_meta",
+        ]:
+            problems.append(f"复用行内顺序被改: {kids!r}")
+        for extra in kids[3:]:
+            if not extra.startswith("horizontalSpacer_"):
+                problems.append(f"复用行内不允许出现非 spacer 部件: {extra!r}")
+    overwrite_meta = _find_widget_by_name(root, "checkBox_separate_overwrite_meta")
+    if overwrite_meta is None:
+        problems.append("checkBox_separate_overwrite_meta 不存在")
+    elif _widget_string_prop(overwrite_meta, "text") != "覆盖本地保存的视频元数据文件":
+        problems.append(f"覆盖元数据复选框文案被改: {_widget_string_prop(overwrite_meta, 'text')!r}")
+
+    grid = _find_layout_by_name(root, "gridLayout_2")
+    if grid is None:
+        problems.append("gridLayout_2 不存在")
+    else:
+        if _grid_item_pos(grid, "horizontalLayout_strm") != ("2", "1"):
+            problems.append(f"STRM 行被移动（应在 row=2 col=1）: {_grid_item_pos(grid, 'horizontalLayout_strm')!r}")
+        if _grid_item_pos(grid, "horizontalLayout_reuse_meta") != ("3", "1"):
+            problems.append(
+                f"复用行被移动（应在 row=3 col=1）: {_grid_item_pos(grid, 'horizontalLayout_reuse_meta')!r}"
+            )
+        if _grid_item_pos(grid, "horizontalLayout_125") != ("5", "1"):
+            problems.append(f"删除行被移动（应在 row=5 col=1）: {_grid_item_pos(grid, 'horizontalLayout_125')!r}")
+        strm_spacer = _find_widget_by_name(root, "label_strm_spacer")
+        del_spacer = _find_widget_by_name(root, "label_344")
+        if strm_spacer is None or del_spacer is None:
+            problems.append("label_strm_spacer / label_344 缺失")
+        else:
+            widths = set()
+            for nm, w in (("label_strm_spacer", strm_spacer), ("label_344", del_spacer)):
+                minimum = w.find("property[@name='minimumSize']/size/width")
+                widths.add(int(minimum.text) if minimum is not None else None)
+                if _grid_item_pos(grid, nm)[1] != "0":
+                    problems.append(f"{nm} 不在 col=0: {_grid_item_pos(grid, nm)!r}")
+            if widths != {80}:
+                problems.append(f"两行 col=0 空位宽度应同为 80: {sorted(widths, key=str)!r}")
+    assert not problems, "STRM 行位置/顺序问题:\n" + "\n".join(problems)

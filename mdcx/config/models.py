@@ -345,6 +345,10 @@ class Config(BaseModel):
     separate_failed_file_move: bool = Field(default=True, title="分离模式失败后移动文件")
     separate_success_file_rename: bool = Field(default=True, title="分离模式成功后重命名文件")
     separate_del_empty_folder: bool = Field(default=True, title="分离模式删除空目录")
+    separate_generate_strm: bool = Field(default=False, title="分离模式生成STRM")
+    separate_overwrite_strm: bool = Field(default=False, title="分离模式覆盖已存在STRM")
+    separate_reuse_metadata: bool = Field(default=False, title="分离模式复用数据存放目录元数据")
+    separate_overwrite_meta: bool = Field(default=False, title="分离模式覆盖已存在视频元数据")
     show_poster: bool = Field(default=True, title="显示海报")
     download_files: list[DownloadableFile] = Field(
         default_factory=lambda: [

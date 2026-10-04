@@ -498,6 +498,43 @@ def Init_Singal(self: "MyMAinWindow"):
     self.Ui.pushButton_tips_sort_mode.clicked.connect(self.pushButton_tips_sort_mode_clicked)
     self.Ui.pushButton_tips_update_mode.clicked.connect(self.pushButton_tips_update_mode_clicked)
     self.Ui.pushButton_tips_read_mode.clicked.connect(self.pushButton_tips_read_mode_clicked)
+    # 刮削模式页两网格列钉死：gridLayout_2（刮削模式组）第 1 列左缘必须与
+    # gridLayout_15（Javdb 延时提示 label_26 所在列）左缘上下严格对齐，且永不再动。
+    # 做法：第 0 列 stretch=0（只占最小宽）、第 1 列 stretch=1（吸收全部拉伸富余），
+    # 故第 1 列左缘恒为设计值，不随窗口宽度右移；两网格第 0 列最小宽取较大者，
+    # 保证两列左缘跨网格对齐。setColumnStretch/setColumnMinimumWidth 是持久设置，
+    # 无其他代码碰这两个网格，一次设置永久生效。描述 label 已在 .ui 设 wordWrap=false
+    # 保证单行（tooltip 同文案防极端 DPI 下裁剪）。
+    for _grid in (self.Ui.gridLayout_2, self.Ui.gridLayout_15):
+        _grid.setColumnStretch(0, 0)
+        _grid.setColumnStretch(1, 1)
+    _col0_w = 0
+    for _grid, _rows in (
+        (self.Ui.gridLayout_2, range(9)),
+        (self.Ui.gridLayout_15, range(4)),
+    ):
+        for _r in _rows:
+            _item = _grid.itemAtPosition(_r, 0)
+            _w = _item.widget() if _item is not None else None
+            if _w is not None:
+                _col0_w = max(_col0_w, _w.sizeHint().width())
+    if _col0_w > 0:
+        self.Ui.gridLayout_2.setColumnMinimumWidth(0, _col0_w)
+        self.Ui.gridLayout_15.setColumnMinimumWidth(0, _col0_w)
+    # 复用行第二复选框与 STRM 行第二复选框同 x 上下严格对齐：由主窗口
+    # _sync_reuse_meta_gap_align 按实测差值闭环收敛（sizeHint 在 show 前后会变，
+    # 初始化公式一次算不准），此处不预设 gap 宽度。
+    # 复用/覆盖元数据互斥：只允许同时选中一个（界面层），运行时覆盖优先兜底。
+    self.Ui.checkBox_separate_reuse_meta.toggled.connect(self.checkBox_separate_reuse_meta_changed)
+    self.Ui.checkBox_separate_overwrite_meta.toggled.connect(self.checkBox_separate_overwrite_meta_changed)
+    for _lbl in (
+        self.Ui.label_11,
+        self.Ui.label_separate_mode,
+        self.Ui.label_15,
+        self.Ui.label_36,
+        self.Ui.label_312,
+    ):
+        _lbl.setToolTip(_lbl.text())
     self.Ui.pushButton_tips_soft.clicked.connect(self.pushButton_tips_soft_clicked)
     self.Ui.pushButton_tips_hard.clicked.connect(self.pushButton_tips_hard_clicked)
     self.Ui.checkBox_cover.stateChanged.connect(self.checkBox_cover_clicked)

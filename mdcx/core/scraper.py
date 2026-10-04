@@ -43,6 +43,10 @@ from ..config.extend import (
     mirror_meta_folder,
     parse_media_paths,
     remap_meta_paths,
+    should_generate_strm,
+    should_overwrite_meta,
+    should_overwrite_strm,
+    should_reuse_metadata,
 )
 from ..config.manager import manager
 from ..config.resources import resources
@@ -1357,7 +1361,18 @@ class Scraper:
         )
 
         # 如果 final_pic_path 没处理过，这时才需要下载和加水印
-        if pic_final_catched and file_can_download:
+        # 分离模式复用元数据：三张 final 图片都已存在时跳过下载（保留已有文件）
+        reuse_meta = should_reuse_metadata()
+        # 运行时覆盖优先：勾选覆盖元数据时即使复用也生效重下重写（界面互斥保证两者不同时勾选，此处防手改配置双开）
+        overwrite_meta = should_overwrite_meta()
+        reuse_images = (
+            reuse_meta
+            and not overwrite_meta
+            and thumb_final_path.is_file()
+            and poster_final_path.is_file()
+            and fanart_final_path.is_file()
+        )
+        if pic_final_catched and file_can_download and not reuse_images:
             if not await self._download_images(
                 res,
                 other,
@@ -1377,8 +1392,9 @@ class Scraper:
             if single_folder_catched:
                 await copy_trailer_to_theme_videos(meta_folder, naming_rule)
 
-        # 生成nfo文件
-        await write_nfo(file_info, res, nfo_new_path, meta_folder, update_nfo)
+        # 生成nfo文件（分离模式复用元数据：nfo 已存在时跳过，不重写）
+        if not (reuse_meta and not overwrite_meta and nfo_new_path.is_file()):
+            await write_nfo(file_info, res, nfo_new_path, meta_folder, update_nfo)
 
         # 移动字幕、种子、bif、trailer、其他文件（配置允许时才执行，分离模式走右侧开关）
         if eff_success_file_move():
@@ -1392,6 +1408,17 @@ class Scraper:
             if not await move_movie(other, file_info, file_path, file_new_path):
                 return None, None
         await save_success_list(file_path, file_new_path)
+
+        # 分离模式：为本地视频生成STRM链接地址（与nfo/封面同目录，内容为视频最终绝对路径）
+        # 仅分离模式生效，其他模式下即使勾选也不生成
+        if should_generate_strm(meta_root, skip_reorganize):
+            try:
+                video_final = Path(file_info.file_path) if eff_success_file_move() else Path(file_path)
+                strm_path = meta_folder / f"{naming_rule}.strm"
+                if not strm_path.exists() or should_overwrite_strm():
+                    strm_path.write_text(str(video_final), encoding="utf-8")
+            except OSError:
+                signal.show_log_text(f" 🔴 STRM文件写入失败: {meta_folder / naming_rule}.strm")
 
         # 创建软链接及复制文件（由 auto_link 独立控制）
         if manager.config.auto_link:

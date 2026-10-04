@@ -5053,7 +5053,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <x>0</x>
                       <y>0</y>
                       <width>860</width>
-                      <height>2040</height>
+                      <height>2070</height>
                     </rect>
                   </property>
                   <widget class="QGroupBox" name="groupBox">
@@ -5062,7 +5062,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <x>30</x>
                         <y>260</y>
                         <width>701</width>
-                        <height>461</height>
+                        <height>491</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -5080,7 +5080,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           <x>50</x>
                           <y>30</y>
                           <width>631</width>
-                          <height>417</height>
+                          <height>447</height>
                         </rect>
                       </property>
                       <layout class="QGridLayout" name="gridLayout_2">
@@ -5120,7 +5120,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string>执行：刮削-&gt;下载封面-&gt;重命名-&gt;打水印等全部操作，视频与元数据分开存放</string>
                                 </property>
                                 <property name="wordWrap">
-                                  <bool>true</bool>
+                                  <bool>false</bool>
                                 </property>
                               </widget>
                             </item>
@@ -5192,7 +5192,192 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-<item row="2" column="0">
+<item row="2" column="1">
+                          <layout class="QHBoxLayout" name="horizontalLayout_strm">
+                            <property name="spacing">
+                              <number>14</number>
+                            </property>
+                            <item>
+                              <widget class="QCheckBox" name="checkBox_separate_generate_strm">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>0</width>
+                                    <height>0</height>
+                                  </size>
+                                </property>
+                                <property name="text">
+                                  <string>为本地视频文件生成STRM链接文本</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <widget class="QCheckBox" name="checkBox_separate_overwrite_strm">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>0</width>
+                                    <height>0</height>
+                                  </size>
+                                </property>
+                                <property name="text">
+                                  <string>覆盖本地已存在的STRM链接文本</string>
+                                </property>
+                                <property name="toolTip">
+                                  <string>勾选后，已存在的STRM链接文本将被覆盖；不勾选则跳过已存在项</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <spacer name="horizontalSpacer_strm">
+                                <property name="orientation">
+                                  <enum>Qt::Orientation::Horizontal</enum>
+                                </property>
+                                <property name="sizeHint" stdset="0">
+                                  <size>
+                                    <width>20</width>
+                                    <height>20</height>
+                                  </size>
+                                </property>
+                              </spacer>
+                            </item>
+                          </layout>
+                        </item>
+                        <item row="2" column="0">
+                          <widget class="QLabel" name="label_strm_spacer">
+                            <property name="sizePolicy">
+                              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                              </sizepolicy>
+                            </property>
+                            <property name="minimumSize">
+                              <size>
+                                <width>80</width>
+                                <height>30</height>
+                              </size>
+                            </property>
+                            <property name="layoutDirection">
+                              <enum>Qt::RightToLeft</enum>
+                            </property>
+                            <property name="frameShape">
+                              <enum>QFrame::NoFrame</enum>
+                            </property>
+                            <property name="text">
+                              <string />
+                            </property>
+                            <property name="alignment">
+                              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                            </property>
+                          </widget>
+                        </item>
+                        <item row="3" column="1">
+                          <layout class="QHBoxLayout" name="horizontalLayout_reuse_meta">
+                            <item>
+                              <widget class="QCheckBox" name="checkBox_separate_reuse_meta">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>0</width>
+                                    <height>0</height>
+                                  </size>
+                                </property>
+                                <property name="text">
+                                  <string>复用数据存放目录中的元数据文件</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <spacer name="horizontalSpacer_reuse_meta_gap">
+                                <property name="orientation">
+                                  <enum>Qt::Horizontal</enum>
+                                </property>
+                                <property name="sizeHint" stdset="0">
+                                  <size>
+                                    <width>20</width>
+                                    <height>20</height>
+                                  </size>
+                                </property>
+                              </spacer>
+                            </item>
+                            <item>
+                              <widget class="QCheckBox" name="checkBox_separate_overwrite_meta">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>0</width>
+                                    <height>0</height>
+                                  </size>
+                                </property>
+                                <property name="text">
+                                  <string>覆盖本地保存的视频元数据文件</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <spacer name="horizontalSpacer_reuse_meta">
+                                <property name="orientation">
+                                  <enum>Qt::Horizontal</enum>
+                                </property>
+                                <property name="sizeHint" stdset="0">
+                                  <size>
+                                    <width>20</width>
+                                    <height>20</height>
+                                  </size>
+                                </property>
+                              </spacer>
+                            </item>
+                          </layout>
+                        </item>
+                        <item row="3" column="0">
+                          <widget class="QLabel" name="label_reuse_meta_spacer">
+                            <property name="sizePolicy">
+                              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                              </sizepolicy>
+                            </property>
+                            <property name="minimumSize">
+                              <size>
+                                <width>80</width>
+                                <height>30</height>
+                              </size>
+                            </property>
+                            <property name="layoutDirection">
+                              <enum>Qt::RightToLeft</enum>
+                            </property>
+                            <property name="frameShape">
+                              <enum>QFrame::NoFrame</enum>
+                            </property>
+                            <property name="text">
+                              <string />
+                            </property>
+                            <property name="alignment">
+                              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                            </property>
+                          </widget>
+                        </item>
+                        <item row="4" column="0">
                           <widget class="QRadioButton" name="radioButton_mode_sort">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5211,7 +5396,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="6" column="0">
+                        <item row="8" column="0">
                           <widget class="QLabel" name="label_231">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5239,7 +5424,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="5" column="1">
+                        <item row="7" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_122">
                             <item>
                               <widget class="QLabel" name="label_312">
@@ -5256,7 +5441,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string>不刮削，读取本地信息并显示，适合检查媒体库或媒体库文件重新整理和分类</string>
                                 </property>
                                 <property name="wordWrap">
-                                  <bool>true</bool>
+                                  <bool>false</bool>
                                 </property>
                               </widget>
                             </item>
@@ -5353,7 +5538,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="6" column="1">
+                        <item row="8" column="1">
                           <layout class="QVBoxLayout" name="verticalLayout_5">
                             <item>
                               <layout class="QHBoxLayout" name="horizontalLayout_127">
@@ -5580,7 +5765,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="4" column="1">
+                        <item row="6" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_120">
                             <item>
                               <widget class="QLabel" name="label_36">
@@ -5597,7 +5782,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string>流程同正常模式，但命名按照更新模式规则执行，在下方设置，适合二次刮削</string>
                                 </property>
                                 <property name="wordWrap">
-                                  <bool>true</bool>
+                                  <bool>false</bool>
                                 </property>
                               </widget>
                             </item>
@@ -5669,7 +5854,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="5" column="0">
+                        <item row="7" column="0">
                           <widget class="QRadioButton" name="radioButton_mode_read">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5688,7 +5873,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="4" column="0">
+                        <item row="6" column="0">
                           <widget class="QRadioButton" name="radioButton_mode_update">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5707,7 +5892,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="2" column="1">
+                        <item row="4" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_119">
                             <item>
                               <widget class="QLabel" name="label_15">
@@ -5724,7 +5909,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string>执行：刮削-&gt;重命名，仅整理本地视频，不下载图片，适合不要海报墙的情况</string>
                                 </property>
                                 <property name="wordWrap">
-                                  <bool>true</bool>
+                                  <bool>false</bool>
                                 </property>
                               </widget>
                             </item>
@@ -5796,8 +5981,11 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="3" column="1">
+                        <item row="5" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_125">
+                            <property name="spacing">
+                              <number>2</number>
+                            </property>
                             <item>
                               <widget class="QCheckBox" name="checkBox_sortmode_delpic">
                                 <property name="sizePolicy">
@@ -5835,7 +6023,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </layout>
                         </item>
-                        <item row="3" column="0">
+                        <item row="5" column="0">
                           <widget class="QLabel" name="label_344">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -5880,7 +6068,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string>执行：刮削-&gt;下载封面-&gt;重命名-&gt;打水印等全部操作，适合需要海报墙的情况</string>
                                 </property>
                                 <property name="wordWrap">
-                                  <bool>true</bool>
+                                  <bool>false</bool>
                                 </property>
                               </widget>
                             </item>
@@ -5959,7 +6147,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1580</y>
+                        <y>1610</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -6139,7 +6327,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1710</y>
+                        <y>1740</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -6313,7 +6501,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1840</y>
+                        <y>1870</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -6487,7 +6675,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>740</y>
+                        <y>770</y>
                         <width>701</width>
                         <height>441</height>
                       </rect>
@@ -7070,7 +7258,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1450</y>
+                        <y>1480</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -7612,7 +7800,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1220</y>
+                        <y>1250</y>
                         <width>701</width>
                         <height>211</height>
                       </rect>

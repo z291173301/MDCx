@@ -2723,6 +2723,48 @@ class MyMAinWindow(QMainWindow):
             if nx != clean.x() and 0 <= nx and nx + clean.width() <= limit:
                 clean.move(nx, clean.y())
 
+    def _sync_reuse_meta_gap_align(self) -> None:
+        """刮削模式页：复用行「覆盖……元数据文件」与 STRM 行「覆盖……文本」同 x。
+
+        两行同处 gridLayout_2 第 1 列（左缘天然一致），差值只来自“首框宽度差 +
+        行内间距差”，由行内 gap spacer（第 1 项）补齐。sizeHint 在 show 前后会变
+        （初始化公式一次算不准，窄态实测差 6px），故按实测差值闭环收敛：量两框经
+        content 中转的 x 差，残差就加多少，相等即 no-op。gap 钉 Fixed、行尾 spacer
+        保持 Expanding，宽态富余只进尾部；gap 变宽不改变行总宽（尾部吸收），不触发
+        新的 resize，不会自激。休眠页跳过（切页同拍收敛，无漂移可见）。
+        """
+        ui = self.Ui
+        content = getattr(ui, "scrollAreaWidgetContents_guaxiaomoshi", None)
+        row = getattr(ui, "horizontalLayout_reuse_meta", None)
+        if content is None or row is None or not content.isVisibleTo(self):
+            return
+        strm_box = getattr(ui, "checkBox_separate_overwrite_strm", None)
+        meta_box = getattr(ui, "checkBox_separate_overwrite_meta", None)
+        if strm_box is None or meta_box is None:
+            return
+        gap_item = row.itemAt(1)
+        gap = gap_item.spacerItem() if gap_item is not None else None
+        tail_item = row.itemAt(3)
+        tail = tail_item.spacerItem() if tail_item is not None else None
+        if gap is None or tail is None:
+            return
+        if gap.sizePolicy().horizontalPolicy() != QSizePolicy.Policy.Fixed:
+            gap.changeSize(max(gap.sizeHint().width(), 0), 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        if tail.sizePolicy().horizontalPolicy() != QSizePolicy.Policy.Expanding:
+            tail.changeSize(
+                max(tail.sizeHint().width(), 0), 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum
+            )
+        for _ in range(3):
+            xs = strm_box.mapTo(content, QPoint(0, 0)).x()
+            xm = meta_box.mapTo(content, QPoint(0, 0)).x()
+            if xs == xm:
+                break
+            gap.changeSize(
+                max(gap.sizeHint().width() + (xs - xm), 0), 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum
+            )
+            row.invalidate()
+            row.activate()
+
     def _clear_naming_defn_align(self) -> None:
         """清掉命名页画质行加宽/间隔（每遍同步先清后建，故幂等、往返自愈）。
 
@@ -4035,6 +4077,12 @@ class MyMAinWindow(QMainWindow):
         # 本页两处横向对齐（软链接行让位 +「刮削时自动清理」按态换列）：必须排在
         # 上面那次宽态重跑之后，否则「刮削时自动清理」会被 _DOCK_RIGHT 钉回右缘。
         self._sync_guaxiaomulu_checkbox_align(guaxiaomulu_scroll)
+
+        # ============ page_setting / 刮削模式页: 复用行第二复选框对齐 STRM 行 ====
+        # 覆盖元数据框须与覆盖 STRM 框同 x（上下严格对齐）且永不再动：按实测差值闭环
+        # 收敛（sizeHint 在 show 前后会变，初始化公式一次算不准），相等即 no-op；
+        # 休眠页内部直接 return，切页同拍收敛。
+        self._sync_reuse_meta_gap_align()
 
         # ============ page_setting / 字幕页: 底部填充收缩 + 两处左对齐 ============
         # 排在通用拉伸之后：必须走统一入口 _sync_zimu_page_align（先收缩后对齐）。
@@ -6574,10 +6622,8 @@ class MyMAinWindow(QMainWindow):
                 # 不再刷屏；出现更新的版本时会自动再次提示。
                 if latest_version != self._notified_new_version:
                     self._notified_new_version = latest_version
-                    # 左下角提示新格式「有新版本了！vX.Y.Z (日期)」：保留感叹号、去外层括号，
-                    # 版本标识（含日期）整体红字；版本号相同仅日期更新时日期包含在红字范围内。
-                    display = html.escape(latest_version.display, quote=False)
-                    self.new_version = f'\n🍉 有新版本了！<font color="red">{display}</font>'
+                    # 左下角提示格式「有新版本了！（日期tag）」：保留 🍉 图标与感叹号，只显示日期 tag 全角括号红字。
+                    self.new_version = f'\n🍉 有新版本了！<font color="red">（{latest_version.tag}）</font>'
                     signal_qt.show_scrape_info()
                     version_info = f'基于 MDC-GUI 修改 · 当前版本: {self.version_display} （ <font color="red" >最新版本是: {latest_version.display}，请及时更新！🚀 </font>）'
                     download_link = f' ⬇️ <a href="{GITHUB_RELEASES_URL}">下载新版本</a>'
@@ -9413,6 +9459,15 @@ class MyMAinWindow(QMainWindow):
             self.Ui.checkBox_cd_part_c.setEnabled(True)
         else:
             self.Ui.checkBox_cd_part_c.setEnabled(False)
+
+    # 分离模式-复用/覆盖元数据互斥：只允许同时选中一个（toggled(False) 不动作，故无信号回环）
+    def checkBox_separate_reuse_meta_changed(self, checked):
+        if checked:
+            self.Ui.checkBox_separate_overwrite_meta.setChecked(False)
+
+    def checkBox_separate_overwrite_meta_changed(self, checked):
+        if checked:
+            self.Ui.checkBox_separate_reuse_meta.setChecked(False)
 
     # 设置-刮削目录-同意清理(我已知晓/我已同意)
     def checkBox_i_agree_clean_clicked(self):

@@ -515,3 +515,106 @@ def test_separate_flags_json_roundtrip():
     cfg2 = Config.model_validate(raw)
     assert cfg2.separate_success_file_move is False
     assert cfg2.separate_del_empty_folder is True
+
+
+def test_should_generate_strm_only_in_separate_mode(monkeypatch, tmp_path):
+    """STRM 只在分离模式下生效：其他模式（1/3/4/5）即使勾选也不生成。"""
+    from mdcx.config.extend import should_generate_strm
+    from mdcx.config.manager import manager
+
+    meta = tmp_path / "meta"
+    meta.mkdir()
+    monkeypatch.setattr(manager.config, "separate_generate_strm", True)
+    for mode in (1, 3, 4, 5):
+        monkeypatch.setattr(manager.config, "main_mode", mode)
+        assert should_generate_strm(meta, False) is False
+    monkeypatch.setattr(manager.config, "main_mode", 2)
+    assert should_generate_strm(meta, False) is True
+
+
+def test_should_overwrite_strm_only_in_separate_mode(monkeypatch):
+    """STRM 覆盖开关只在分离模式下生效：其他模式即使勾选也不覆盖。"""
+    from mdcx.config.extend import should_overwrite_strm
+    from mdcx.config.manager import manager
+
+    monkeypatch.setattr(manager.config, "separate_overwrite_strm", True)
+    for mode in (1, 3, 4, 5):
+        monkeypatch.setattr(manager.config, "main_mode", mode)
+        assert should_overwrite_strm() is False
+    monkeypatch.setattr(manager.config, "main_mode", 2)
+    assert should_overwrite_strm() is True
+    monkeypatch.setattr(manager.config, "separate_overwrite_strm", False)
+    assert should_overwrite_strm() is False
+
+
+def test_should_reuse_metadata_only_in_separate_mode(monkeypatch):
+    """元数据复用开关只在分离模式下生效：其他模式即使勾选也不复用。"""
+    from mdcx.config.extend import should_reuse_metadata
+    from mdcx.config.manager import manager
+
+    monkeypatch.setattr(manager.config, "separate_reuse_metadata", True)
+    for mode in (1, 3, 4, 5):
+        monkeypatch.setattr(manager.config, "main_mode", mode)
+        assert should_reuse_metadata() is False
+    monkeypatch.setattr(manager.config, "main_mode", 2)
+    assert should_reuse_metadata() is True
+    monkeypatch.setattr(manager.config, "separate_reuse_metadata", False)
+    assert should_reuse_metadata() is False
+
+
+def test_should_overwrite_meta_only_in_separate_mode(monkeypatch):
+    """元数据覆盖开关只在分离模式下生效：其他模式即使勾选也不覆盖。"""
+    from mdcx.config.extend import should_overwrite_meta
+    from mdcx.config.manager import manager
+
+    monkeypatch.setattr(manager.config, "separate_overwrite_meta", True)
+    for mode in (1, 3, 4, 5):
+        monkeypatch.setattr(manager.config, "main_mode", mode)
+        assert should_overwrite_meta() is False
+    monkeypatch.setattr(manager.config, "main_mode", 2)
+    assert should_overwrite_meta() is True
+    monkeypatch.setattr(manager.config, "separate_overwrite_meta", False)
+    assert should_overwrite_meta() is False
+
+
+def test_should_generate_strm_requires_flag_meta_and_reorganize(monkeypatch, tmp_path):
+    """分离模式下：未勾选 / 元数据根无效 / 跳过整理时均不生成。"""
+    from mdcx.config.extend import should_generate_strm
+    from mdcx.config.manager import manager
+
+    meta = tmp_path / "meta"
+    meta.mkdir()
+    monkeypatch.setattr(manager.config, "main_mode", 2)
+    monkeypatch.setattr(manager.config, "separate_generate_strm", False)
+    assert should_generate_strm(meta, False) is False
+    monkeypatch.setattr(manager.config, "separate_generate_strm", True)
+    assert should_generate_strm(None, False) is False
+    assert should_generate_strm(meta, True) is False
+    assert should_generate_strm(meta, False) is True
+
+
+def test_strm_flags_default_false_and_roundtrip():
+    """STRM 两个开关默认 False（旧配置缺键不继承左侧），JSON 往返不变。"""
+    import json
+
+    from mdcx.config.models import Config
+
+    cfg = Config.model_validate({})
+    assert cfg.separate_generate_strm is False
+    assert cfg.separate_overwrite_strm is False
+    assert cfg.separate_reuse_metadata is False
+    assert cfg.separate_overwrite_meta is False
+    cfg.separate_generate_strm = True
+    cfg.separate_overwrite_strm = True
+    cfg.separate_reuse_metadata = True
+    cfg.separate_overwrite_meta = True
+    raw = json.loads(cfg.model_dump_json())
+    assert raw["separate_generate_strm"] is True
+    assert raw["separate_overwrite_strm"] is True
+    assert raw["separate_reuse_metadata"] is True
+    assert raw["separate_overwrite_meta"] is True
+    cfg2 = Config.model_validate(raw)
+    assert cfg2.separate_generate_strm is True
+    assert cfg2.separate_overwrite_strm is True
+    assert cfg2.separate_reuse_metadata is True
+    assert cfg2.separate_overwrite_meta is True

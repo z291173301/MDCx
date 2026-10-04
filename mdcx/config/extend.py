@@ -57,6 +57,43 @@ def is_separate_mode() -> bool:
     return manager.config.main_mode == SEPARATE_MAIN_MODE
 
 
+def should_generate_strm(meta_root: Path | None, skip_reorganize: bool) -> bool:
+    """是否生成 STRM：仅分离模式 + 已勾选 + 元数据根有效 + 非跳过整理时生效。
+
+    其他模式（正常/视频/更新/读取）下即使勾选也不生成。
+    """
+    return (
+        meta_root is not None and not skip_reorganize and is_separate_mode() and manager.config.separate_generate_strm
+    )
+
+
+def should_overwrite_strm() -> bool:
+    """是否覆盖已存在 STRM：仅分离模式 + 已勾选时生效。
+
+    与 should_generate_strm 同门：即使勾选了「覆盖本地已存在的STRM链接文本」，
+    非分离模式下也不生效（调用方不得直接读 manager.config.separate_overwrite_strm）。
+    """
+    return is_separate_mode() and manager.config.separate_overwrite_strm
+
+
+def should_reuse_metadata() -> bool:
+    """是否复用数据存放目录中的元数据文件：仅分离模式 + 已勾选时生效。
+
+    与 should_overwrite_strm 同门：即使勾选了「复用数据存放目录中的元数据文件」，
+    非分离模式下也不生效（调用方不得直接读 manager.config.separate_reuse_metadata）。
+    """
+    return is_separate_mode() and manager.config.separate_reuse_metadata
+
+
+def should_overwrite_meta() -> bool:
+    """是否覆盖本地保存的视频元数据文件：仅分离模式 + 已勾选时生效。
+
+    与 should_reuse_metadata 互斥：界面层二者只许其一（勾选其一自动取消另一）；
+    若配置被手改成两开，运行时以覆盖为准（调用方不得直接读配置项）。
+    """
+    return is_separate_mode() and manager.config.separate_overwrite_meta
+
+
 def eff_success_file_move() -> bool:
     """视频文件「刮削成功后移动」生效值：分离模式取右侧，否则取左侧。"""
     return manager.config.separate_success_file_move if is_separate_mode() else manager.config.success_file_move

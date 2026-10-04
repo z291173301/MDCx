@@ -406,6 +406,10 @@ def save_config(self: "MyMAinWindow"):
     manager.config.separate_failed_file_move = self.Ui.radioButton_separate_mode_fail_move_on.isChecked()
     manager.config.separate_success_file_rename = self.Ui.radioButton_separate_mode_succ_rename_on.isChecked()
     manager.config.separate_del_empty_folder = self.Ui.radioButton_separate_mode_del_empty_folder_on.isChecked()
+    manager.config.separate_generate_strm = self.Ui.checkBox_separate_generate_strm.isChecked()
+    manager.config.separate_overwrite_strm = self.Ui.checkBox_separate_overwrite_strm.isChecked()
+    manager.config.separate_reuse_metadata = self.Ui.checkBox_separate_reuse_meta.isChecked()
+    manager.config.separate_overwrite_meta = self.Ui.checkBox_separate_overwrite_meta.isChecked()
     manager.config.show_poster = self.Ui.checkBox_cover.isChecked()
     # endregion
 

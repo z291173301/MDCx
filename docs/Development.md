@@ -281,6 +281,13 @@ FileInfo → CrawlerInput → CrawlTask
 
 `Scraper` 类统筹整个刮削流程：扫描文件 → 调度爬虫 → 聚合结果 → 翻译 → 下载 → 生成 NFO → 移动文件。使用渐进式任务调度，支持大量文件不溢出。
 
+### 分离模式元数据复用/覆盖与冲突处理（改前必读）
+
+- **两个开关**：`separate_reuse_metadata`（复用数据存放目录中的元数据文件：目标已存在则跳过图片下载与 NFO 写入）与 `separate_overwrite_meta`（覆盖本地保存的视频元数据文件：存在也重下重写），默认 False，`save_config.py` / `load_config.py` 接线并写入 JSON。
+- **仅分离模式生效**：`extend.py: should_reuse_metadata() / should_overwrite_meta()` 均为 `is_separate_mode() and 配置值`；`scraper.py` 复用跳过条件额外含 `not overwrite_meta`，故手改 JSON 把两项都写成 true 时运行时仍以覆盖优先为准，不会出现既跳过又重写的不确定行为（`load_config` 读到双开时也以覆盖为准落盘显示）。
+- **界面互斥**：`checkBox_separate_reuse_meta_changed / checkBox_separate_overwrite_meta_changed`（`main_window.py`）在勾选时自动取消另一项，去勾选不动作（无回环）；`init.py` 接 `toggled` 信号。
+- **对齐**：覆盖框与「覆盖本地已存在的STRM链接文本」框上下严格对齐，由 `_sync_reuse_meta_gap_align()`（`main_window.py`，`_sync_page_layouts` 尾部调用）按两框实测 x 差闭环收敛钉死 gap 宽，窄宽往返冻结；行内子项顺序与文案由 `tests/test_ui_structure.py` 锁定。
+
 ### 文件爬虫（mdcx/core/file_crawler.py）
 
 `FileScraper` 处理单个文件，负责番号识别、多站并发请求、字段级优先级合并。
