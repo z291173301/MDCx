@@ -2765,6 +2765,58 @@ class MyMAinWindow(QMainWindow):
             row.invalidate()
             row.activate()
 
+    def _sync_javdb_tip_pos(self) -> None:
+        """刮削模式页：Javdb 延时提示（label_26）上移一行并钉死。
+
+        label_26 已移出 gridLayout_15、独立为 groupBox_53 子件（.ui 设计几何
+        (146,160,513,28)：相对旧 grid 内位置上移一行 = fontMetrics 高 14）；
+        grid 内 0-2 行不受影响（容器高已同步收缩 181→129）。
+        运行时钉死两点：x 经 content 映射与 label_separate_mode 文本左缘精确
+        相等（用户要求严格对齐）；y = 容器.y + row2底 + spacing + share − h，
+        其中 share = (H − 各行高 − 2*spacing) / 3 全运行时实测（富余摊槽位的
+        真实值），h = 提示自身 fontMetrics 高。|dx|、|dy| ≤ 1 即 no-op，
+        休眠页/缺件早退，切页同拍收敛。
+        """
+        ui = self.Ui
+        content = getattr(ui, "scrollAreaWidgetContents_guaxiaomoshi", None)
+        tip = getattr(ui, "label_26", None)
+        sep = getattr(ui, "label_separate_mode", None)
+        grid_widget = getattr(ui, "gridLayoutWidget_15", None)
+        grid = getattr(ui, "gridLayout_15", None)
+        if (
+            content is None
+            or tip is None
+            or sep is None
+            or grid_widget is None
+            or grid is None
+            or not content.isVisibleTo(self)
+        ):
+            return
+        # x：与分离模式描述文本左缘精确相等（经 content 中转，同 _sync_reuse_meta_gap_align）。
+        anchor_x = sep.mapTo(content, QPoint(0, 0)).x()
+        if abs(anchor_x - tip.mapTo(content, QPoint(0, 0)).x()) > 1:
+            tip.move(tip.x() + (anchor_x - tip.mapTo(content, QPoint(0, 0)).x()), tip.y())
+        # y：row2 底 + spacing + 所属槽位富余 − 一行字高（全运行时实测）。
+        spacing = grid.verticalSpacing()
+        if spacing < 0:
+            spacing = grid.spacing()
+        rows_h = 0
+        row2_bottom = None
+        for _r in range(3):
+            _item = grid.itemAtPosition(_r, 1)
+            if _item is None:
+                return
+            _g = _item.geometry()  # 第 1 列是 HBox 不是 widget，必须用 cell 几何（widget() 取不到）
+            rows_h += _g.height()
+            if _r == 2:
+                row2_bottom = _g.y() + _g.height()
+        if row2_bottom is None:
+            return
+        share = (grid_widget.height() - rows_h - 2 * spacing) / 3
+        expect_y = grid_widget.y() + row2_bottom + spacing + share - tip.fontMetrics().height()
+        if abs(expect_y - tip.y()) > 1:
+            tip.move(tip.x(), round(expect_y))
+
     def _clear_naming_defn_align(self) -> None:
         """清掉命名页画质行加宽/间隔（每遍同步先清后建，故幂等、往返自愈）。
 
@@ -4083,6 +4135,11 @@ class MyMAinWindow(QMainWindow):
         # 收敛（sizeHint 在 show 前后会变，初始化公式一次算不准），相等即 no-op；
         # 休眠页内部直接 return，切页同拍收敛。
         self._sync_reuse_meta_gap_align()
+
+        # ============ page_setting / 刮削模式页: Javdb 延时提示上移一行并钉死 =
+        # label_26 已移出 grid 独立为 groupBox_53 子件：x 与分离模式描述文本
+        # 精确对齐、y 上移一行；grid 内 0-2 行保持不动。休眠页内部 return。
+        self._sync_javdb_tip_pos()
 
         # ============ page_setting / 字幕页: 底部填充收缩 + 两处左对齐 ============
         # 排在通用拉伸之后：必须走统一入口 _sync_zimu_page_align（先收缩后对齐）。

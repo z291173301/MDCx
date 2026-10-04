@@ -5053,14 +5053,14 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <x>0</x>
                       <y>0</y>
                       <width>860</width>
-                      <height>2070</height>
+                      <height>2028</height>
                     </rect>
                   </property>
                   <widget class="QGroupBox" name="groupBox">
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>260</y>
+                        <y>218</y>
                         <width>701</width>
                         <height>491</height>
                       </rect>
@@ -6147,7 +6147,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1610</y>
+                        <y>1568</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -6327,7 +6327,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1740</y>
+                        <y>1698</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -6501,7 +6501,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1870</y>
+                        <y>1828</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -6675,7 +6675,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>770</y>
+                        <y>728</y>
                         <width>701</width>
                         <height>441</height>
                       </rect>
@@ -7258,7 +7258,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1480</y>
+                        <y>1438</y>
                         <width>701</width>
                         <height>111</height>
                       </rect>
@@ -7437,7 +7437,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <x>30</x>
                         <y>20</y>
                         <width>701</width>
-                        <height>221</height>
+                        <height>193</height>
                       </rect>
                     </property>
                     <property name="styleSheet">
@@ -7452,7 +7452,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           <x>50</x>
                           <y>30</y>
                           <width>631</width>
-                          <height>181</height>
+                          <height>129</height>
                         </rect>
                       </property>
                       <layout class="QGridLayout" name="gridLayout_15">
@@ -7478,25 +7478,6 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignCenter</set>
-                            </property>
-                          </widget>
-                        </item>
-                        <item row="3" column="1">
-                          <widget class="QLabel" name="label_26">
-                            <property name="sizePolicy">
-                              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-                                <horstretch>0</horstretch>
-                                <verstretch>0</verstretch>
-                              </sizepolicy>
-                            </property>
-                            <property name="styleSheet">
-                              <string notr="true">color: rgb(8, 128, 128);</string>
-                            </property>
-                            <property name="text">
-                              <string>设置Javdb延时可以降低Javdb被风控概率，将在1/2延时-1延时之间随机选择</string>
-                            </property>
-                            <property name="wordWrap">
-                              <bool>true</bool>
                             </property>
                           </widget>
                         </item>
@@ -7795,12 +7776,37 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         </item>
                       </layout>
                     </widget>
+                    <widget class="QLabel" name="label_26">
+                      <property name="geometry">
+                        <rect>
+                          <x>146</x>
+                          <y>160</y>
+                          <width>513</width>
+                          <height>28</height>
+                        </rect>
+                      </property>
+                      <property name="sizePolicy">
+                        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                          <horstretch>0</horstretch>
+                          <verstretch>0</verstretch>
+                        </sizepolicy>
+                      </property>
+                      <property name="styleSheet">
+                        <string notr="true">color: rgb(8, 128, 128);</string>
+                      </property>
+                      <property name="text">
+                        <string>设置Javdb延时可以降低Javdb被风控概率，将在1/2延时-1延时之间随机选择</string>
+                      </property>
+                      <property name="wordWrap">
+                        <bool>true</bool>
+                      </property>
+                    </widget>
                   </widget>
                   <widget class="QGroupBox" name="groupBox_2">
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1250</y>
+                        <y>1208</y>
                         <width>701</width>
                         <height>211</height>
                       </rect>

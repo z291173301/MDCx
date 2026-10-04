@@ -511,7 +511,7 @@ def Init_Singal(self: "MyMAinWindow"):
     _col0_w = 0
     for _grid, _rows in (
         (self.Ui.gridLayout_2, range(9)),
-        (self.Ui.gridLayout_15, range(4)),
+        (self.Ui.gridLayout_15, range(3)),
     ):
         for _r in _rows:
             _item = _grid.itemAtPosition(_r, 0)

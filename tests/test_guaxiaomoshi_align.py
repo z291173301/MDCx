@@ -16,7 +16,7 @@
   - 一次性 init 钉死，不挂 _sync_page_layouts 钩子：通用宽幅同步只拉伸
     网格容器宽度，第 0 列最小宽不受影响，故同步前后位置恒定。
 
-本文件 6 项（纯离线 + offscreen 窗口实测）：
+本文件 10 项（纯离线 + offscreen 窗口实测）：
   1. .ui 里 5 个 label 的 wordWrap 均为 false。
   2. MDCx.py 里 5 个 label 均为 setWordWrap(False)（与 .ui 同步）。
   3. 运行时 label_26 与 label_separate_mode 左缘精确对齐（映射到
@@ -27,6 +27,10 @@
      （以后不允许再变动位置）。
   6. 同列 4 个复选框（STRM 生成 / STRM 覆盖 / 元数据复用 / 视频模式删除）
      左缘严格一致，窄↔宽往返不变。
+  9. Javdb 提示上移一行（静态）：label_26 移出 gridLayout_15、独立为
+     groupBox_53 子件，下方 7 组框与滚动内容同步上收（值见测试断言）。
+  10. Javdb 提示上移一行（运行时）：0-2 行高一致且等距（未被搬动），提示 x 与
+     分离描述文本精确相等，y 符合 row2底+spacing+share−h 公式，窄↔宽冻结。
 """
 
 import os
@@ -301,3 +305,109 @@ def test_reuse_overwrite_meta_mutually_exclusive(win, app):
     assert not overwrite.isChecked() and not reuse.isChecked(), "去勾不应影响另一方"
     reuse.setChecked(False)
     app.processEvents()
+
+
+def _ui_geometry(name):
+    """静态辅助：.ui 里 widget 的 design geometry，返回 (x, y, w, h)。"""
+    tree = ET.parse(UI_PATH)
+    for widget in tree.iter("widget"):
+        if widget.get("name") == name:
+            for prop in widget.findall("property"):
+                if prop.get("name") == "geometry":
+                    rect = prop.find("rect")
+                    return tuple(int(rect.find(k).text) for k in ("x", "y", "width", "height"))
+    raise AssertionError(f".ui 里找不到 widget：{name}")
+
+
+def test_javdb_tip_moved_up_one_line_static():
+    """事项9（静态）：label_26 移出 grid，7 组框与内容同步上收（值见下方断言）。"""
+    tree = ET.parse(UI_PATH)
+    for layout in tree.iter("layout"):
+        if layout.get("name") == "gridLayout_15":
+            assert "3" not in [item.get("row") for item in layout.findall("item")], (
+                "gridLayout_15 里还有 row3，label_26 又被塞回 grid"
+            )
+            assert "label_26" not in ET.tostring(layout, encoding="unicode"), "label_26 还在 grid 内"
+            break
+    else:
+        raise AssertionError("找不到 gridLayout_15")
+    for widget in tree.iter("widget"):
+        if widget.get("name") == "groupBox_53":
+            assert "label_26" in [w.get("name") for w in widget.findall("widget")], (
+                "label_26 不是 groupBox_53 的直接子件"
+            )
+            break
+    else:
+        raise AssertionError("找不到 groupBox_53")
+    assert _ui_geometry("label_26") == (146, 160, 513, 28), "label_26 设计几何被改动"
+    assert _ui_geometry("gridLayoutWidget_15")[3] == 129, "grid 容器高不是 129"
+    for name, y in (
+        ("groupBox", 218),
+        ("groupBox_5", 728),
+        ("groupBox_2", 1208),
+        ("groupBox_18", 1438),
+        ("groupBox_27", 1568),
+        ("groupBox_15", 1698),
+        ("groupBox_30", 1828),
+    ):
+        assert _ui_geometry(name)[1] == y, f"{name} 的 y 不是 {y}"
+    assert _ui_geometry("scrollAreaWidgetContents_guaxiaomoshi")[3] == 2028, "滚动内容高不是 2028"
+
+
+def _content_pos(ui, widget):
+    p = widget.mapTo(ui.scrollAreaWidgetContents_guaxiaomoshi, QPoint(0, 0))
+    return (p.x(), p.y())
+
+
+def test_javdb_tip_up_one_line_and_frozen(win, app):
+    """事项10（运行时）：0-2 行 pitch 保持 45，提示 x 与分离文本精确相等，
+    y 符合公式，窄↔宽往返冻结。"""
+    ui = win.Ui
+    win.show()
+    _goto_guaxiaomoshi(win, app)
+
+    def snapshot():
+        grid = ui.gridLayout_15
+        grid.activate()  # 强制重布局，防读到未激活的陈旧几何（offscreen 下曾读到 pitch 42 的中间态）
+        app.processEvents()
+        win._sync_page_layouts()  # 用激活后的几何再收敛一次，方法与断言读同一份输入
+        app.processEvents()
+        widget = ui.gridLayoutWidget_15
+        content = ui.scrollAreaWidgetContents_guaxiaomoshi
+        tops, heights = [], []
+        for r in range(3):
+            g = grid.itemAtPosition(r, 1).geometry()
+            tops.append(widget.mapTo(content, g.topLeft()).y())
+            heights.append(g.height())
+        s = grid.verticalSpacing()
+        if s < 0:
+            s = grid.spacing()
+        share = (widget.height() - sum(heights) - 2 * s) / 3
+        h = ui.label_26.fontMetrics().height()
+        return (
+            tops,
+            heights,
+            s,
+            share,
+            h,
+            _content_pos(ui, ui.label_26),
+            _content_pos(ui, ui.label_separate_mode),
+            _content_pos(ui, widget),
+        )
+
+    _resize(win, app, 1030, 753)
+    tops, heights, s, share, h, tip, sep, wpos = snapshot()
+    # 行高一致且等距（不同字体环境行高不同，不锁死 45，只锁结构不变）。
+    assert heights[0] == heights[1] == heights[2], f"0-2 行高不一致: {heights}"
+    pitch = tops[1] - tops[0]
+    assert tops[2] - tops[1] == pitch, f"0-2 行间距不均匀: {tops}"
+    assert tip[0] == sep[0], f"提示未与分离文本对齐: {tip} vs {sep}"
+    row2bottom = tops[2] - wpos[1] + heights[2]
+    assert tip[1] == wpos[1] + row2bottom + s + share - h, f"提示 y 不符合公式: {tip}"
+    _resize(win, app, 1920, 1170)
+    wide = snapshot()
+    assert wide[0] == tops, f"宽态 0-2 行位置变动: {tops} -> {wide[0]}"
+    assert wide[5] == tip and wide[6] == sep, f"宽态提示/锚点变动: {tip} -> {wide[5]}"
+    _resize(win, app, 1030, 753)
+    back = snapshot()
+    assert back[0] == tops and back[5] == tip, "窄→宽→窄往返未复原"
