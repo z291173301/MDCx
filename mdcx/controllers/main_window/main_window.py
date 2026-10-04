@@ -3538,13 +3538,11 @@ class MyMAinWindow(QMainWindow):
     # 为什么不动状态文字：默认窗口下它底边只剩 10px 余量，再下移文字会被窗底裁掉，
     # 而这三个间距收窄是零代价的（gap 的另一个来源 STATUS_H_MIN+text_h 项也随之下降）。
     _DONATE_LINK_GAP = 2  # 二维码与 [赞助作者] 的间距
-    # 最大化时支付宝码与微信码之间的间距，取「一行汉字的高度」（= [赞助作者] 的
-    # 行高：_DONATE_LINK_FONT_PX=16 实测 fontMetrics().height()=19、行高约 22）。
-    # **独立于 _DONATE_PAD**：后者是色块与导航/状态文字的内边距，收窄它是为了把
-    # 高度全留给二维码（要「紧」）；两码之间是给用户看的分隔，要「疏」。
-    # 不影响两码保持 180：整块底部锚定，窗口越高上方净空越多，1920x1030 实测
-    # qr_bottom 892 − nav_bottom 410 − PAD 2 = 480，两码连间距共需 2*180+22 = 382，
-    # 余 98px 仍可再放大（上限由 _DONATE_QR_SIZE 压住）。
+    # 最大化时支付宝码与微信码之间的间距：取「一行汉字的高度」，即侧栏 [赞助作者]
+    # 的行高（_DONATE_LINK_H / _DONATE_LINK_FONT_PX=16 实测 fontMetrics().height()=19、
+    # 行高约 22），使两码之间的视觉分隔与正文行距统一（用户第 14 轮要求）。
+    # 独立于 _DONATE_PAD：后者是色块与导航/状态文字的内边距，收窄它是为了把高度
+    # 全留给二维码；两码之间的间距是给用户看的分隔，要「疏」不要「紧」。
     _DONATE_ALIPAY_GAP = 22
     _DONATE_PAD = 2  # 与导航区/状态区的内边距（在 gap 公式里也出现一次，故收窄收益翻倍）
     _DONATE_TEXT_GAP = 10  # [赞助作者] 底边到状态文字首行的间距
@@ -3667,8 +3665,8 @@ class MyMAinWindow(QMainWindow):
         上方空间够放两张 _DONATE_QR_SIZE 就都保持设计边长；不够就把**两张一起等比缩小**
         到能放下的最大边长（不把支付宝压成一条缝，否则屏上扫不出来）；连
         _DONATE_ALIPAY_MIN 都放不下则只显示微信码，且微信码仍为 _DONATE_QR_SIZE
-        ——不因多一张码而缩小。两码之间留 _DONATE_ALIPAY_GAP（一行汉字高量级的分隔，
-        独立于紧贴导航/文字的 _DONATE_PAD）。非最大化状态一律不显示支付宝码，其余一切不变。
+        ——不因多一张码而缩小。两码之间留 _DONATE_ALIPAY_GAP（一行汉字高）。
+        非最大化状态一律不显示支付宝码，其余一切不变。
         """
         ui = self.Ui
         qr = getattr(ui, "label_donate_qr", None)
@@ -3695,6 +3693,7 @@ class MyMAinWindow(QMainWindow):
         # 两码等宽时支付宝码顶必须 ≥ nav_bottom + PAD，而微信码下沿固定在 qr_bottom：
         #   qr_bottom - 2s - ALIPAY_GAP ≥ nav_bottom + PAD
         #     ⇒  s ≤ (qr_bottom - nav_bottom - PAD - ALIPAY_GAP) / 2
+        # 两码之间留 _DONATE_ALIPAY_GAP（一行汉字高，见常量区），故净高要减掉它。
         # 上限再压到 _DONATE_QR_SIZE，保证最大化时也不会比普通窗口更大（否则最大化
         # 变成满宽 210、留白 0，与普通窗口的 180/留白 15 不一致——用户反馈过这类不一致）
         two_size = min(
@@ -3717,7 +3716,7 @@ class MyMAinWindow(QMainWindow):
         qr.setFixedSize(qr_size, qr_size)
         qr.move(qr_x, qr_bottom - qr_size)
         if show_alipay:
-            # 支付宝码与微信码同宽同列，两码之间留 _DONATE_ALIPAY_GAP（一行汉字高量级）
+            # 支付宝码与微信码同宽同列，排在微信码上方 _DONATE_ALIPAY_GAP（一行汉字高）处
             alipay.setFixedSize(qr_size, qr_size)
             alipay.move(qr_x, qr_bottom - 2 * qr_size - self._DONATE_ALIPAY_GAP)
             if self._donate_alipay_cache_size != qr_size:
