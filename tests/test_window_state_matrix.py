@@ -1117,7 +1117,7 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
             )
 
     # 间距不小于设计下限，且**与窗口高度无关**（这才是用户反馈的回归点）
-    assert min(gaps.values()) >= win._DONATE_TEXT_GAP, f"间距 {gaps} 小于 {_DONATE_TEXT_GAP}"
+    assert min(gaps.values()) >= win._DONATE_TEXT_GAP, f"间距 {gaps} 小于 {win._DONATE_TEXT_GAP}"
     assert len(set(gaps.values())) == 1, f"间距随窗口高度变化：{gaps}"
     # 同理，左右留白也必须与窗口高度无关：边长上限一旦大于默认窗口下的实测边长，
     # 最大化时二维码就会涨到上限、留白变小（176 时最大化 17px vs 还原 21px，差 4px）
@@ -2948,6 +2948,174 @@ def test_zimu_download_link_aligns_to_filename_when_narrow(win, app):
     back = snap()
     for key in first:
         assert back[key] == first[key], f"宽态往返后窄态 {key} 未复原: {back[key]} vs {first[key]}"
+
+
+def _goto_xiazai_tab(win, app):
+    """切到软件设置-下载页（scrollAreaWidgetContents_xiazai 所在 tab）并返回滚动区。"""
+    from mdcx.views.CustomClass import CustomScrollArea
+
+    ui = win.Ui
+    _goto(win, app, "page_setting")
+    for i in range(ui.tabWidget.count()):
+        page = ui.tabWidget.widget(i)
+        area = page.findChild(CustomScrollArea)
+        if (
+            area is not None
+            and area.widget() is not None
+            and area.widget().objectName() == "scrollAreaWidgetContents_xiazai"
+        ):
+            ui.tabWidget.setCurrentIndex(i)
+            app.processEvents()
+            win.show()
+            app.processEvents()
+            return area
+    raise AssertionError("下载 tab not found")
+
+
+# 「下载」行（groupBox_24）逐项 → 「保留旧文件」行（groupBox_33）同位项。
+# 「压缩」对应「剧照副本」是用户截图红框指定的位置；保留旧文件行末项「主题视频」
+# 在下载行没有对应项，故映射共 7 对。
+_XIAZAI_ALIGN_PAIRS = (
+    ("checkBox_download_poster", "checkBox_old_poster"),
+    ("checkBox_download_thumb", "checkBox_old_thumb"),
+    ("checkBox_download_fanart", "checkBox_old_fanart"),
+    ("checkBox_download_extrafanart", "checkBox_old_extrafanart"),
+    ("checkBox_download_trailer", "checkBox_old_trailer"),
+    ("checkBox_download_nfo", "checkBox_old_nfo"),
+    ("checkBox_compress_downloaded_images", "checkBox_old_extrafanart_copy"),
+)
+
+
+@pytest.mark.parametrize("size", [(600, 600), (700, 620), (900, 700), (1032, 737), (1500, 900), (1920, 1170)])
+def test_xiazai_download_row_aligns_to_keep_old_row(win, app, size):
+    """设置-下载：「下载」行 7 项与「保留旧文件」行同位项严格上下对齐（宽窄两态）。
+
+    用户需求（截图，最小化态）：「压缩」页复选框向下与上方「保留旧文件」严格
+    上下对齐，「保留旧文件」的位置保持不变；最大化时同样对齐。
+
+    根因：两行的容器与内部 QHBoxLayout 在 .ui 里几乎一样，但项数不同（下载行
+    7 项 / 保留旧文件行 8 项，且第 7 项文案不同：「压缩」对「剧照副本」）。无
+    stretch、无 expanding 项时 QBoxLayout 把余量均分给各项，第 k 项左缘 =
+    行首 + Σ(前 k 项自然宽 + spacing) + k·余量/项数，项数少的一行每项都落在
+    8 项那行右侧（实测逐项偏 +6~+160px，越往右越多）。
+
+    宽度也必须一起跟：只 move x 时左邻仍停在布局位置，而被拉宽的控件里画的是
+    左对齐文字，窗口 1200 宽时实测「压缩」与左邻「nfo」字形直接压在一起。改宽度
+    后每项右缘正好止于下一项左缘（那正是参照行自身的排布），极窄窗口下被裁宽度
+    也与参照行一致 —— 各宽度字形重叠实测恒为 0。
+
+    对齐量必须经公共祖先 content 归一后比较：两个复选框分属不同 groupBox，
+    直接比 widget.x() 拿到的是相对各自行容器的局部坐标，会把真偏差算成 0。
+    """
+    from PyQt6.QtCore import QPoint
+
+    width, height = size
+    area = _goto_xiazai_tab(win, app)
+    ui = win.Ui
+    content = area.widget()
+    win.resize(width, height)
+    for _ in range(2):
+        app.processEvents()
+        win._sync_page_layouts()
+    app.processEvents()
+    tag = f"{width}x{height}"
+
+    for dl_name, old_name in _XIAZAI_ALIGN_PAIRS:
+        dl = getattr(ui, dl_name)
+        old = getattr(ui, old_name)
+        dx = dl.mapTo(content, QPoint(0, 0)).x() - old.mapTo(content, QPoint(0, 0)).x()
+        assert dx == 0, f"{tag} {dl_name} 未与 {old_name} 对齐: dx={dx}"
+        assert dl.width() == old.width(), f"{tag} {dl_name} 宽度未跟随 {old_name}: {dl.width()} vs {old.width()}"
+        # 纵向关系不动：两个行容器同高、复选框同高，只有 x/宽被重钉
+        assert dl.height() == old.height(), f"{tag} {dl_name} 高度被改动"
+
+    # 相邻两项字形不重叠：前一项可见内容右缘 <= 后一项左缘
+    prev_end = None
+    for dl_name, _old_name in _XIAZAI_ALIGN_PAIRS:
+        dl = getattr(ui, dl_name)
+        left = dl.mapTo(content, QPoint(0, 0)).x()
+        if prev_end is not None:
+            assert prev_end <= left, f"{tag} {dl_name} 与左邻字形重叠 {prev_end - left}px"
+        prev_end = left + min(dl.width(), dl.sizeHint().width())
+
+
+def test_xiazai_row_align_idempotent_and_survives_tab_switch(win, app):
+    """幂等 + 休眠页不动 + 切回即对齐（钩子装在下载滚动区，休眠由 showEvent 补齐）。"""
+    from PyQt6.QtCore import QPoint
+
+    from mdcx.views.CustomClass import CustomScrollArea
+
+    area = _goto_xiazai_tab(win, app)
+    ui = win.Ui
+    content = area.widget()
+
+    def snap():
+        return tuple(
+            (getattr(ui, dl_name).mapTo(content, QPoint(0, 0)).x(), getattr(ui, dl_name).width())
+            for dl_name, _ in _XIAZAI_ALIGN_PAIRS
+        )
+
+    win.resize(1500, 900)
+    for _ in range(2):
+        app.processEvents()
+        win._sync_page_layouts()
+    app.processEvents()
+    first = snap()
+
+    # 连跑三次钩子几何逐值不变（幂等，不发多余几何事件）
+    for _ in range(3):
+        win._sync_xiazai_row_align()
+        app.processEvents()
+    assert snap() == first, f"重复同步漂移: {first} -> {snap()}"
+
+    # 切到别的 tab 后本滚动区休眠：不应改动几何（钩子直接 return）
+    ui.tabWidget.setCurrentIndex(0)
+    app.processEvents()
+    win.resize(900, 700)
+    app.processEvents()
+    assert snap() == first, f"休眠页被改动: {first} -> {snap()}"
+
+    # 切回下载页：showEvent 触发钩子，同一拍内按新视口（900 宽）完成对齐
+    for i in range(ui.tabWidget.count()):
+        page = ui.tabWidget.widget(i)
+        if page.findChild(CustomScrollArea) is area:
+            ui.tabWidget.setCurrentIndex(i)
+            break
+    else:
+        raise AssertionError("下载 tab not found")
+    app.processEvents()
+    # 窗口宽已变（1500 -> 900），故比对的是「对齐不变量」而非逐值等于 first
+    for dl_name, old_name in _XIAZAI_ALIGN_PAIRS:
+        dl = getattr(ui, dl_name)
+        old = getattr(ui, old_name)
+        dx = dl.mapTo(content, QPoint(0, 0)).x() - old.mapTo(content, QPoint(0, 0)).x()
+        assert dx == 0, f"切回后 {dl_name} 未与 {old_name} 对齐: dx={dx}"
+        assert dl.width() == old.width(), f"切回后 {dl_name} 宽度未跟随: {dl.width()} vs {old.width()}"
+    # 切回后的几何与「当前尺寸下重新同步一遍」逐值一致（无跳帧残留）
+    win._sync_xiazai_row_align()
+    after_sync = snap()
+    win._sync_page_layouts()
+    app.processEvents()
+    assert snap() == after_sync, f"切回后再同步漂移: {after_sync} -> {snap()}"
+
+
+def test_xiazai_row_align_hook_installed_on_scroll_area(win, app):
+    """钩子装在下载滚动区的 _post_wide_sync_hook 上（与通用拉伸同拍完成，避免跳帧）。"""
+    from mdcx.views.CustomClass import CustomScrollArea
+
+    ui = win.Ui
+    _goto(win, app, "page_setting")
+    areas = [page.findChild(CustomScrollArea) for page in (ui.tabWidget.widget(i) for i in range(ui.tabWidget.count()))]
+    xiazai = [
+        a
+        for a in areas
+        if a is not None and a.widget() is not None and a.widget().objectName() == "scrollAreaWidgetContents_xiazai"
+    ]
+    assert len(xiazai) == 1, "下载页滚动区未按内容控件名认出"
+    assert xiazai[0]._post_wide_sync_hook == win._sync_xiazai_row_align
+    assert win._xiazai_scroll is xiazai[0]
+    # 映射表覆盖下载行全部 7 项，且「压缩」对「剧照副本」
+    assert win._XIAZAI_ROW_ALIGN_PAIRS == _XIAZAI_ALIGN_PAIRS
 
 
 def _goto_naming_tab(win, app):
