@@ -5978,7 +5978,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <rect>
                           <x>50</x>
                           <y>30</y>
-                          <width>631</width>
+                          <width>560</width>
                           <height>71</height>
                         </rect>
                       </property>
@@ -6077,6 +6077,63 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                       </property>
                     </widget>
+                    <widget class="QWidget" name="widget_separate_mode_succ_move">
+                      <property name="geometry">
+                        <rect>
+                          <x>611</x>
+                          <y>41</y>
+                          <width>40</width>
+                          <height>49</height>
+                        </rect>
+                      </property>
+                      <widget class="QRadioButton" name="radioButton_separate_mode_succ_move_on">
+                        <property name="geometry">
+                          <rect>
+                            <x>0</x>
+                            <y>0</y>
+                            <width>40</width>
+                            <height>16</height>
+                          </rect>
+                        </property>
+                        <property name="layoutDirection">
+                          <enum>Qt::RightToLeft</enum>
+                        </property>
+                        <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                          </sizepolicy>
+                        </property>
+                        <property name="text">
+                          <string>开</string>
+                        </property>
+                        <property name="checked">
+                          <bool>true</bool>
+                        </property>
+                      </widget>
+                      <widget class="QRadioButton" name="radioButton_separate_mode_succ_move_off">
+                        <property name="geometry">
+                          <rect>
+                            <x>0</x>
+                            <y>33</y>
+                            <width>40</width>
+                            <height>16</height>
+                          </rect>
+                        </property>
+                        <property name="layoutDirection">
+                          <enum>Qt::RightToLeft</enum>
+                        </property>
+                        <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                          </sizepolicy>
+                        </property>
+                        <property name="text">
+                          <string>关</string>
+                        </property>
+                      </widget>
+                    </widget>
                   </widget>
                   <widget class="QGroupBox" name="groupBox_15">
                     <property name="geometry">
@@ -6101,7 +6158,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <rect>
                           <x>50</x>
                           <y>30</y>
-                          <width>631</width>
+                          <width>560</width>
                           <height>71</height>
                         </rect>
                       </property>
@@ -6194,6 +6251,63 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                       </property>
                     </widget>
+                    <widget class="QWidget" name="widget_separate_mode_fail_move">
+                      <property name="geometry">
+                        <rect>
+                          <x>611</x>
+                          <y>41</y>
+                          <width>40</width>
+                          <height>49</height>
+                        </rect>
+                      </property>
+                      <widget class="QRadioButton" name="radioButton_separate_mode_fail_move_on">
+                        <property name="geometry">
+                          <rect>
+                            <x>0</x>
+                            <y>0</y>
+                            <width>40</width>
+                            <height>16</height>
+                          </rect>
+                        </property>
+                        <property name="layoutDirection">
+                          <enum>Qt::RightToLeft</enum>
+                        </property>
+                        <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                          </sizepolicy>
+                        </property>
+                        <property name="text">
+                          <string>开</string>
+                        </property>
+                        <property name="checked">
+                          <bool>true</bool>
+                        </property>
+                      </widget>
+                      <widget class="QRadioButton" name="radioButton_separate_mode_fail_move_off">
+                        <property name="geometry">
+                          <rect>
+                            <x>0</x>
+                            <y>33</y>
+                            <width>40</width>
+                            <height>16</height>
+                          </rect>
+                        </property>
+                        <property name="layoutDirection">
+                          <enum>Qt::RightToLeft</enum>
+                        </property>
+                        <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                          </sizepolicy>
+                        </property>
+                        <property name="text">
+                          <string>关</string>
+                        </property>
+                      </widget>
+                    </widget>
                   </widget>
                   <widget class="QGroupBox" name="groupBox_30">
                     <property name="geometry">
@@ -6218,7 +6332,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <rect>
                           <x>50</x>
                           <y>30</y>
-                          <width>631</width>
+                          <width>560</width>
                           <height>71</height>
                         </rect>
                       </property>
@@ -6310,6 +6424,63 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="alignment">
                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                       </property>
+                    </widget>
+                    <widget class="QWidget" name="widget_separate_mode_del_empty_folder">
+                      <property name="geometry">
+                        <rect>
+                          <x>611</x>
+                          <y>41</y>
+                          <width>40</width>
+                          <height>49</height>
+                        </rect>
+                      </property>
+                      <widget class="QRadioButton" name="radioButton_separate_mode_del_empty_folder_on">
+                        <property name="geometry">
+                          <rect>
+                            <x>0</x>
+                            <y>0</y>
+                            <width>40</width>
+                            <height>16</height>
+                          </rect>
+                        </property>
+                        <property name="layoutDirection">
+                          <enum>Qt::RightToLeft</enum>
+                        </property>
+                        <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                          </sizepolicy>
+                        </property>
+                        <property name="text">
+                          <string>开</string>
+                        </property>
+                        <property name="checked">
+                          <bool>true</bool>
+                        </property>
+                      </widget>
+                      <widget class="QRadioButton" name="radioButton_separate_mode_del_empty_folder_off">
+                        <property name="geometry">
+                          <rect>
+                            <x>0</x>
+                            <y>33</y>
+                            <width>40</width>
+                            <height>16</height>
+                          </rect>
+                        </property>
+                        <property name="layoutDirection">
+                          <enum>Qt::RightToLeft</enum>
+                        </property>
+                        <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                          </sizepolicy>
+                        </property>
+                        <property name="text">
+                          <string>关</string>
+                        </property>
+                      </widget>
                     </widget>
                   </widget>
                   <widget class="QGroupBox" name="groupBox_5">
@@ -6918,7 +7089,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <rect>
                           <x>50</x>
                           <y>30</y>
-                          <width>631</width>
+                          <width>560</width>
                           <height>71</height>
                         </rect>
                       </property>
@@ -7013,6 +7184,63 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="alignment">
                         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                       </property>
+                    </widget>
+                    <widget class="QWidget" name="widget_separate_mode_succ_rename">
+                      <property name="geometry">
+                        <rect>
+                          <x>611</x>
+                          <y>41</y>
+                          <width>40</width>
+                          <height>49</height>
+                        </rect>
+                      </property>
+                      <widget class="QRadioButton" name="radioButton_separate_mode_succ_rename_on">
+                        <property name="geometry">
+                          <rect>
+                            <x>0</x>
+                            <y>0</y>
+                            <width>40</width>
+                            <height>16</height>
+                          </rect>
+                        </property>
+                        <property name="layoutDirection">
+                          <enum>Qt::RightToLeft</enum>
+                        </property>
+                        <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                          </sizepolicy>
+                        </property>
+                        <property name="text">
+                          <string>开</string>
+                        </property>
+                        <property name="checked">
+                          <bool>true</bool>
+                        </property>
+                      </widget>
+                      <widget class="QRadioButton" name="radioButton_separate_mode_succ_rename_off">
+                        <property name="geometry">
+                          <rect>
+                            <x>0</x>
+                            <y>33</y>
+                            <width>40</width>
+                            <height>16</height>
+                          </rect>
+                        </property>
+                        <property name="layoutDirection">
+                          <enum>Qt::RightToLeft</enum>
+                        </property>
+                        <property name="sizePolicy">
+                          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                            <horstretch>0</horstretch>
+                            <verstretch>0</verstretch>
+                          </sizepolicy>
+                        </property>
+                        <property name="text">
+                          <string>关</string>
+                        </property>
+                      </widget>
                     </widget>
                   </widget>
                   <widget class="QGroupBox" name="groupBox_53">

@@ -618,3 +618,177 @@ def test_separate_mode_title_hints_red_not_inside_grid_layout():
         parent = _find_widget_by_name(root, box)
         assert parent is not None, f"{box} 不存在"
         assert w.getparent() is parent, f"{name} 应与 {box} 同父（挂在组框上而非布局内）"
+
+
+# ---------- 刮削模式页「分离模式…」右侧开/关按钮 —— 归属/齐平/对齐/互斥隔离回归锁 ----------
+
+# 组框内左侧（通用）开/关 vs 右侧（分离模式）开/关。
+# 结构上右侧必须再套一层 QWidget 容器：Qt 的 QRadioButton 自动互斥组按「共同父控件」
+# 分组，若右侧两个 radio 直接挂到组框上，就会和左侧两个 radio 挤进同一个互斥组，
+# 点右侧「开」会把左侧「开」点掉——所以容器不是装饰，是隔离手段。
+#
+# key -> (组框, 容器名, 右侧开, 右侧关)
+_SEPARATE_MODE_RADIO_PAIRS = {
+    "succ_rename": (
+        "groupBox_18",
+        "widget_separate_mode_succ_rename",
+        "radioButton_separate_mode_succ_rename_on",
+        "radioButton_separate_mode_succ_rename_off",
+    ),
+    "succ_move": (
+        "groupBox_27",
+        "widget_separate_mode_succ_move",
+        "radioButton_separate_mode_succ_move_on",
+        "radioButton_separate_mode_succ_move_off",
+    ),
+    "fail_move": (
+        "groupBox_15",
+        "widget_separate_mode_fail_move",
+        "radioButton_separate_mode_fail_move_on",
+        "radioButton_separate_mode_fail_move_off",
+    ),
+    "del_empty_folder": (
+        "groupBox_30",
+        "widget_separate_mode_del_empty_folder",
+        "radioButton_separate_mode_del_empty_folder_on",
+        "radioButton_separate_mode_del_empty_folder_off",
+    ),
+}
+
+# 容器设计几何：(x, y, 宽, 高)。x=611 是按「右侧到组框右边界的距离 == 左侧到左边界的
+# 距离」反解的：左侧 radio 墨迹左沿在组框内绝对 x=50（左内边距 50），右侧 radio 墨迹
+# 右沿在组框内绝对 x=647（右内边距 697-1-647=50），两边实测都是 50px。
+# x=611 + 宽 40 = 651 亦命中宽幅同步的 _DOCK_RIGHT（651+1 >= 组宽 701*0.9），
+# 最大化时右缘锚定、随组框同步平移 extra。
+_SEPARATE_RADIO_HOLDER_RECT = (611, 41, 40, 49)
+# 容器内两个 radio 的局部几何：开 (0,0)、关 (0,33)。
+# 容器 y=41 + 局部 y=0/33 -> 组框内绝对 y=41/74，与左侧 radio 的 y=41/74 完全重合
+# （左侧 y 由 gridLayout 的行高 16 + vspacing 6 + 上下各 11 余量均分实测得来）。
+_SEPARATE_RADIO_INNER_RECTS = ((0, 0, 40, 16), (0, 33, 40, 16))
+_SEPARATE_RADIO_Y = (41, 74)
+# 左侧网格容器宽 560（原 631）：收窄让出右侧 611 起的 radio 区，避免两者几何重叠
+# （test_ui_geometry 的绝对定位重叠检查会直接判红）。网格自然宽仅 343，收窄不改变
+# 任何行列实际位置——第 0 列被 minimumSize 锁 90，第 1 列标签左对齐。
+_SEPARATE_GRID_WIDGET_WIDTH = 560
+# 组框设计宽 701。右侧 radio 右缘到组框右边界的距离（701 - 651）必须等于
+# 左侧 radio 左缘到组框左边界的距离（网格容器 x=50 + radio 局部 x=0），
+# 两者都是 50——即「右侧离右边界多远，左侧就离左边界多远」。
+_SEPARATE_BOX_WIDTH = 701
+_SEPARATE_SIDE_MARGIN = 50
+
+
+def test_separate_mode_radios_green_exist_and_isolated_in_holder():
+    """绿：四组右侧开/关都存在，且各自包在自己的容器里（与左侧互斥组隔离）。"""
+    root = _parse_ui()
+    problems = []
+    for key, (box, holder, on_name, off_name) in _SEPARATE_MODE_RADIO_PAIRS.items():
+        gb = _find_widget_by_name(root, box)
+        holder_w = _find_widget_by_name(root, holder)
+        if gb is None or holder_w is None:
+            problems.append(f"{key}: {box} 或 {holder} 不存在")
+            continue
+        # 容器必须是组框的直接子控件（绝对定位挂上去），不能躺进网格布局
+        if holder_w.getparent() is not gb:
+            problems.append(f"{holder} 应直接挂在 {box} 上")
+        for nm, want in ((on_name, "开"), (off_name, "关")):
+            w = _find_widget_by_name(root, nm)
+            if w is None:
+                problems.append(f"{nm} 不存在")
+                continue
+            if _parent_widget_name(w) != holder:
+                problems.append(f"{nm} 的父控件应为 {holder}（隔离容器），实际 {_parent_widget_name(w)}")
+            if _widget_string_prop(w, "text") != want:
+                problems.append(f"{nm} 文案应为 {want}，实际 {_widget_string_prop(w, 'text')}")
+    assert not problems, "分离模式开/关按钮问题:\n" + "\n".join(problems)
+
+
+def test_separate_mode_radios_yellow_level_with_left_and_column_aligned():
+    """黄：右侧开/关与左侧同排（水平齐平），四组之间严格上下对齐，几何完全一致。"""
+    root = _parse_ui()
+    problems = []
+    on_rects = set()
+    off_rects = set()
+    holder_rects = set()
+    for _key, (_box, holder, on_name, off_name) in _SEPARATE_MODE_RADIO_PAIRS.items():
+        hw = _find_widget_by_name(root, holder)
+        on = _find_widget_by_name(root, on_name)
+        off = _find_widget_by_name(root, off_name)
+        if hw is None or on is None or off is None:
+            problems.append(f"{holder} 及其 radio 缺失")
+            continue
+        hr = _widget_rect(hw)
+        if hr != _SEPARATE_RADIO_HOLDER_RECT:
+            problems.append(f"{holder} 几何 {hr} != {_SEPARATE_RADIO_HOLDER_RECT}")
+        holder_rects.add(hr)
+        if _widget_rect(on) != _SEPARATE_RADIO_INNER_RECTS[0]:
+            problems.append(f"{on_name} 几何 {_widget_rect(on)} != {_SEPARATE_RADIO_INNER_RECTS[0]}")
+        if _widget_rect(off) != _SEPARATE_RADIO_INNER_RECTS[1]:
+            problems.append(f"{off_name} 几何 {_widget_rect(off)} != {_SEPARATE_RADIO_INNER_RECTS[1]}")
+        # 开/关二字必须落在指示点圆圈的左边：RTL 会镜像 QRadioButton 的绘制顺序，
+        # LTR 下 Qt 默认画成「圆圈 + 文字」，与需求相反。
+        for nm, w in ((on_name, on), (off_name, off)):
+            if _widget_enum_prop(w, "layoutDirection") != "Qt::RightToLeft":
+                problems.append(f"{nm} layoutDirection 应为 Qt::RightToLeft（文字才会跑到指示点左侧）")
+        # 换算成组框内绝对 y：容器 y + radio 局部 y，必须等于左侧 radio 的 41 / 74
+        for nm, w, idx in ((on_name, on, 0), (off_name, off, 1)):
+            r = _widget_rect(w)
+            if r is None:
+                continue
+            abs_y = hr[1] + r[1]
+            if abs_y != _SEPARATE_RADIO_Y[idx]:
+                problems.append(f"{nm} 组框内 y={abs_y} != 左侧齐平基准 {_SEPARATE_RADIO_Y[idx]}")
+            (on_rects if idx == 0 else off_rects).add((r[0], abs_y, r[2], r[3]))
+    # 四组的右缘开/关必须落在同一列
+    if len(on_rects) != 1:
+        problems.append(f"四组右侧「开」未对齐: {sorted(on_rects)}")
+    if len(off_rects) != 1:
+        problems.append(f"四组右侧「关」未对齐: {sorted(off_rects)}")
+    if len(holder_rects) != 1:
+        problems.append(f"四个容器几何不一致: {sorted(holder_rects)}")
+    assert not problems, "分离模式开/关对齐问题:\n" + "\n".join(problems)
+
+
+def test_separate_mode_radios_red_holder_absolutely_positioned_and_grid_not_overlapping():
+    """红（回归）：容器必须绝对定位、且左侧网格容器不得侵入右侧 radio 区。
+
+    两处都会导致重影/错位，故分别锁定：
+    1. 容器带 geometry 且与组框同父——若被塞进 gridLayout，radio 会落到标题行下方；
+    2. 网格容器宽度锁 560（右缘 610 < 容器左缘 611）——不锁则几何重叠检查判红，
+       且宽态下网格右缘会继续右伸吃掉 radio 区。
+    """
+    root = _parse_ui()
+    problems = []
+    for key, (box, holder, _on, _off) in _SEPARATE_MODE_RADIO_PAIRS.items():
+        hw = _find_widget_by_name(root, holder)
+        if hw is None:
+            problems.append(f"{holder} 不存在")
+            continue
+        if hw.find("property[@name='geometry']") is None:
+            problems.append(f"{holder} 应绝对定位（带 geometry）")
+        if hw.find("layout") is not None:
+            problems.append(f"{holder} 不应带 layout（带 layout 会被宽幅同步误判为 _STRETCH 拉宽，radio 指示点会漂移）")
+    # 四个网格容器宽度
+    for key, (box, holder, _on, _off) in _SEPARATE_MODE_RADIO_PAIRS.items():
+        gw = None
+        for w in _find_widget_by_name(root, box).iter("widget"):
+            if _widget_rect(w) is not None and _widget_rect(w)[1] == 30 and _widget_rect(w)[2] > 400:
+                gw = w
+        if gw is None:
+            problems.append(f"{box} 下未找到 y=30 的网格容器")
+            continue
+        width = _widget_rect(gw)[2]
+        if width != _SEPARATE_GRID_WIDGET_WIDTH:
+            problems.append(f"{box} 的 {gw.get('name')} 宽度 {width} != {_SEPARATE_GRID_WIDGET_WIDTH}")
+        # 右缘必须严格小于容器左缘，确保不重叠
+        grid_right = _widget_rect(gw)[0] + width
+        holder_left = _SEPARATE_RADIO_HOLDER_RECT[0]
+        if grid_right >= holder_left:
+            problems.append(f"{box} 网格右缘 {grid_right} >= radio 容器左缘 {holder_left}，会重叠")
+        # 两端留白对称：左侧 radio 左缘到组框左边界的距离 == 右侧容器右缘到右边界的距离
+        left_margin = _widget_rect(gw)[0] + _SEPARATE_RADIO_INNER_RECTS[0][0]
+        right_margin = _SEPARATE_BOX_WIDTH - (holder_left + _SEPARATE_RADIO_HOLDER_RECT[2])
+        if left_margin != _SEPARATE_SIDE_MARGIN:
+            problems.append(f"{box} 左侧留白 {left_margin} != {_SEPARATE_SIDE_MARGIN}")
+        if right_margin != left_margin:
+            problems.append(f"{box} 左右留白不对称：左 {left_margin} vs 右 {right_margin}")
+    assert not problems, "分离模式开/关容器/网格几何问题:\n" + "\n".join(problems)
