@@ -55,7 +55,7 @@ def test_three_card_slots_follow_intro_text_order():
     """槽位数恒为 3，且顺序与 _INTRO_TEXT 的 1/2/3 一致。"""
     assert dw._CARD_COUNT == 3
     assert len(dw.DonateDialog._donate_icons()) == dw._CARD_COUNT
-    assert "1.微信支付 2.支付宝付款 3.拿支付宝红包" in dw._INTRO_TEXT
+    assert "1.微信支付 2.支付宝付款 3.支付宝红包" in dw._INTRO_TEXT
 
 
 def test_card_geometry_matches_reference(dialog):
