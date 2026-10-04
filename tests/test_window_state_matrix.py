@@ -938,16 +938,20 @@ def test_left_status_badges_follow_window_bottom(win, app):
     回归背景：label_show_version/label_local_number 固定在设计 y 坐标，
     窗口最大化后留在上半区，与侧栏贴底的「正常模式」字段分离，
     视觉上像状态条移位（用户图 3 红框标注「不正常应该下移」）。
-    窗口 1920x1170 时 label_show_version 应移至 y≈929（1170-201-40），
-    label_local_number 移至 y≈1109（1170-21-40）。
+    不变量是「底边贴底并预留 40px」，而不是矩形顶 y 的具体数值——顶 y 依赖
+    label_show_version 的矩形高（底对齐文字块 + _DOCK_TEXT_GAP 推导的矩形高），
+    随文案行数变化，改设计高就会变，故只断言底边。
     """
     _goto(win, app, "page_main")
     win.resize(1920, 1170)
     win.show()
     app.processEvents()
 
-    assert win.Ui.label_show_version.y() == 929, (
-        f"label_show_version 未贴底预留 40px: y={win.Ui.label_show_version.y()}"
+    status = win.Ui.label_show_version
+    pad = win._DOCK_STATUS_BOTTOM_PAD
+    assert status.y() + status.height() == 1170 - pad, (
+        f"label_show_version 底边应贴底预留 {pad}px: "
+        f"y={status.y()} height={status.height()} → 底={status.y() + status.height()}"
     )
     assert win.Ui.label_local_number.y() == 1109, (
         f"label_local_number 未贴底预留 40px: y={win.Ui.label_local_number.y()}"
@@ -1021,17 +1025,29 @@ def test_left_dock_adapts_to_large_ui_scale(win, app):
             assert btn.height() >= win._DOCK_NAV_BTN_H_MIN, f"{w}x{h}: 导航按钮被压到 {btn.height()}"
             assert btn.height() <= win._DOCK_NAV_BTN_H, f"{w}x{h}: 导航按钮被拉高到 {btn.height()}"
 
-    # ③ 窗口拉高后逐值复原设计几何（1920x1170：状态区 y=929/高 201，导航 390）
+    # ③ 窗口拉高后逐值复原设计几何（1920x1170：状态区贴底、导航用设计高/间距）
+    # 设计值一律从 _DOCK_* 常量推导：改一次设计不必再改这里的硬编码
     win.resize(1920, 1170)
     app.processEvents()
     nav_top = ui.widget_buttons.y()
-    assert status.y() == 1170 - 201 - 40 and status.height() == 201
+    btn_h, spacing = win._DOCK_NAV_BTN_H, win._DOCK_NAV_SPACING
+    # 状态区是「底对齐锚定」：底边恒贴底留 40px，矩形高按文案行数推导（收款码块
+    # 从下方顶上来时只会把矩形压矮，不会移动底边），故断言底边而非顶 y/固定高
+    assert status.y() + status.height() == 1170 - win._DOCK_STATUS_BOTTOM_PAD, (
+        f"设计态状态区底边未贴底留 {win._DOCK_STATUS_BOTTOM_PAD}px: "
+        f"y={status.y()} height={status.height()}"
+    )
+    assert status.height() >= win._DOCK_STATUS_H_MIN, (
+        f"设计态状态区高 {status.height()} < {win._DOCK_STATUS_H_MIN}"
+    )
     assert ui.widget_buttons.height() == win._DOCK_NAV_H
-    assert ui.verticalLayout.spacing() == 8
+    assert ui.verticalLayout.spacing() == spacing
     btns = visible_nav()
     for index, btn in enumerate(btns):
-        assert btn.height() == 40 and btn.maximumHeight() == 40
-        assert btn.y() == index * 48, f"设计态第 {index} 个导航按钮 y={btn.y()}，期望 {index * 48}"
+        assert btn.height() == btn_h and btn.maximumHeight() == btn_h
+        assert btn.y() == index * (btn_h + spacing), (
+            f"设计态第 {index} 个导航按钮 y={btn.y()}，期望 {index * (btn_h + spacing)}"
+        )
     assert btns[-1].y() + btns[-1].height() <= nav_top + win._DOCK_NAV_H, "设计态按钮越出导航容器"
     assert ui.label_local_number.y() == 1109
 
@@ -1042,8 +1058,59 @@ def test_left_dock_adapts_to_large_ui_scale(win, app):
     app.processEvents()
     btns = visible_nav()
     assert len(btns) == 6
-    assert [b.y() for b in btns] == [0, 48, 96, 144, 192, 240], "隐藏导航项后间距未按设计重排"
+    step = btn_h + spacing
+    assert [b.y() for b in btns] == [i * step for i in range(6)], "隐藏导航项后间距未按设计重排"
     assert status.y() >= nav_bottom()
+
+
+def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
+    """收款码块在任意窗口高度下：边长恒定且居中 + 「[赞助作者]→状态文字」间距恒定。
+
+    回归背景：① 二维码块原先顶对齐在导航区下方，多余空间全落下方，而状态文字是
+    底对齐（rect 越高文字越靠下），两边叠加导致最大化后「[赞助作者]」与
+    「正常模式·字段优先」的间距从 17px 暴涨到 331px（用户反馈截图），
+    改为底部锚定后两者都应与窗口高度无关；② 二维码边长上限先后在「侧栏宽（满宽不留
+    白）」与「恒定 _DONATE_QR_SIZE（两侧固定留白）」之间来回改过，两档不一致被用户
+    指出（最大化时直接顶到左右边界），现固定为恒定边长 + 居中。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    qr, link, status = ui.label_donate_qr, ui.label_donate_link, ui.label_show_version
+    side_w = ui.widget_setting.width()
+    gaps: dict[int, int] = {}
+
+    for height in (700, 737, 900, 1080, 1200):
+        win.resize(1032, height)
+        win.show()
+        app.processEvents()
+        assert not qr.isHidden() and not link.isHidden(), f"{height}: 收款码块被隐藏"
+        # 水平居中，左右留白相等（奇数边长时差 1px 属正常取整）
+        pad_l, pad_r = qr.x(), side_w - qr.x() - qr.width()
+        assert abs(pad_l - pad_r) <= 1, f"{height}: 二维码左右留白不等 {pad_l}/{pad_r}"
+        # 边长恒为 _DONATE_QR_SIZE（不随窗口高度变大），只有太矮放不下才等比缩小
+        assert qr.width() <= win._DONATE_QR_SIZE, (
+            f"{height}: 二维码 {qr.width()} 超过设计边长 {win._DONATE_QR_SIZE}"
+        )
+        if height >= 800:  # 此高度以上可用高度充足，应正好等于设计边长
+            assert qr.width() == win._DONATE_QR_SIZE, (
+                f"{height}: 二维码 {qr.width()} != 设计边长 {win._DONATE_QR_SIZE}"
+            )
+            assert pad_l == (side_w - win._DONATE_QR_SIZE) // 2, f"{height}: 左右留白 {pad_l}"
+        # 「[赞助作者]」底边到状态文字首行的间距。文字在矩形内底对齐，故文字顶 =
+        # 矩形底 − 文字块高（_dock_status_text_h 按字体度量算，不用写死）
+        link_bottom = link.y() + link.height()
+        text_top = status.y() + status.height() - win._dock_status_text_h()
+        gaps[height] = text_top - link_bottom
+        # 三者仍不重叠
+        for a, b in ((qr, link), (link, status), (qr, status)):
+            assert a.geometry().intersects(b.geometry()) is False, (
+                f"{height}: {a.objectName()} 与 {b.objectName()} 矩形相交"
+            )
+
+    # 间距不小于设计下限，且**与窗口高度无关**（这才是用户反馈的回归点）
+    assert min(gaps.values()) >= win._DONATE_TEXT_GAP, f"间距 {gaps} 小于 {_DONATE_TEXT_GAP}"
+    assert len(set(gaps.values())) == 1, f"间距随窗口高度变化：{gaps}"
 
 
 def test_adaptive_window_sizes_matrix():

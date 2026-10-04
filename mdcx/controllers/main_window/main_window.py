@@ -3514,7 +3514,10 @@ class MyMAinWindow(QMainWindow):
     _DOCK_NAV_BTN_H_MIN = 36  # 压缩下限：border-width 9px×2 + 14px 字号仍能显示文字
     _DOCK_NAV_SPACING = 8  # verticalLayout 设计间距
     _DOCK_NAV_SPACING_MIN = 2  # 压缩下限（再小按钮会粘连）
-    _DOCK_NAV_H = 390  # widget_buttons 设计高（含 14px 底部余量）
+    # widget_buttons 设计高（= 8*40 + 7*8 = 376 的内容高 + 14px 底部余量）
+    # 注：曾为「让下方收款码满宽」把按钮/间距收紧到 38/4、容器收到 340，用户反馈后已
+    # 撤回——满宽不是必需的，收款码按可用高度自适应即可（见 _layout_donate）。
+    _DOCK_NAV_H = 390
     _DOCK_STATUS_H = 201  # label_show_version 设计高
     _DOCK_STATUS_H_MIN = 72  # 状态区压缩下限（13px 字号约 4 行，超出裁上方空行）
     _DOCK_STATUS_GAP = 12  # 导航底与状态区顶的最小间距
@@ -3524,11 +3527,17 @@ class MyMAinWindow(QMainWindow):
     _DOCK_LOCAL_H = 21  # label_local_number 设计高
 
     # region 侧栏「使用说明」下方的微信收款码 + [赞助作者] 链接
-    _DONATE_QR_SIZE = 76  # 收款码边长（侧栏宽 210，留足左右留白）
-    _DONATE_LINK_H = 18  # [赞助作者] 文字行高
-    _DONATE_LINK_GAP = 4  # 二维码与文字间距
+    _DONATE_LINK_FONT_PX = 16  # 文档用：字号实际由 style.py 的 QSS 决定，此处仅备查
+    # 16px 的 fontMetrics().height() = 19，行高 22 留 3px 余量；_DONATE_LINK_H 须 ≥ 它
+    _DONATE_LINK_H = 22
+    _DONATE_LINK_GAP = 6  # 二维码与文字间距
     _DONATE_PAD = 6  # 与导航区/状态区的间距
-    _DONATE_BLOCK_H = _DONATE_QR_SIZE + _DONATE_LINK_GAP + _DONATE_LINK_H  # 整个色块占位 98
+    _DONATE_TEXT_GAP = 17  # [赞助作者] 底边到状态文字首行的间距（同样取自最紧凑时的 17px）
+    # 二维码边长恒定：侧栏宽 210，两侧各留 17px 空白 → 176。
+    # 不随窗口高度变大（否则最大化时正好 210 顶到左右边界，与最小时留白不一致），
+    # 只在窗口太矮放不下时才等比缩小。
+    _DONATE_QR_SIZE = 176
+    _DONATE_QR_MIN = 40  # 二维码最小边长（再小宁可不显示，也不能叠字——军规③）
     _DONATE_LINK_COLOR = "#0078D7"  # 与「赞助作者」页 [赞助作者] 链接同色
     _DONATE_LINK_COLOR_DARK = "#4DA6FF"  # 暗黑模式提亮，保证可读
 
@@ -3544,21 +3553,10 @@ class MyMAinWindow(QMainWindow):
         qr = QLabel(parent=parent)
         qr.setObjectName("label_donate_qr")
         qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        qr.setFixedSize(self._DONATE_QR_SIZE, self._DONATE_QR_SIZE)
+        # 边长由 _layout_donate 按「满宽 / 等比缩小」动态决定，这里只给个下限占位
+        qr.setFixedSize(self._DONATE_QR_MIN, self._DONATE_QR_MIN)
         qr.setToolTip(" 微信扫码赞助 ")
-        pixmap = QPixmap(resources.donate_wechat_icon)
-        if pixmap.isNull():
-            qr.setText("二维码\n加载失败")
-            qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        else:
-            qr.setPixmap(
-                pixmap.scaled(
-                    self._DONATE_QR_SIZE,
-                    self._DONATE_QR_SIZE,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-            )
+        qr.hide()  # 位置/尺寸由 _layout_donate 摆好后再显示，避免首帧错位
         link = QLabel(parent=parent)
         link.setObjectName("label_donate_link")
         link.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -3567,14 +3565,22 @@ class MyMAinWindow(QMainWindow):
         link.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         link.setToolTip(" 点击查看赞助方式 ")
         link.linkActivated.connect(lambda _url: self.show_donate_dialog())
+        link.hide()
         ui.label_donate_qr = qr
         ui.label_donate_link = link
+        self._donate_qr_cache = QPixmap()
+        self._donate_qr_cache_size = 0
         qr.raise_()
         link.raise_()
         self._style_donate_link()
 
     def _style_donate_link(self) -> None:
-        """[赞助作者] 富文本链接：亮色 #0078D7 / 暗黑提亮。"""
+        """[赞助作者] 富文本链接：颜色亮色 #0078D7 / 暗黑提亮。
+
+        字号不在这里写——style.py 的 `QLabel#label_donate_link{font-size:14px}` 与
+        导航按钮同一套 QSS 机制（QLabel.setFont 会被样式表覆盖而失效，只有 QSS
+        或富文本内联 font-size 起作用），避免两处字号各自漂移。
+        """
         link = getattr(self.Ui, "label_donate_link", None)
         if link is None:
             return
@@ -3596,35 +3602,89 @@ class MyMAinWindow(QMainWindow):
             if widget is not None:
                 widget.setVisible(False)
 
-    def _layout_donate(self, nav_bottom: int, status_y: int, status_h: int) -> tuple[int, int]:
-        """在导航区与状态区之间安放收款码色块，返回校正后的 (status_y, status_h)。
+    def _dock_status_text_h(self) -> int:
+        """状态区（正常模式·字段优先 / 配置文件 / 版本号 / 点击检查）文字块高度。
 
-        状态区 label_show_version 是底对齐文字，把它的顶边下移不会移动文字，
-        故空间不足时可「压状态区」腾位；压到 _DOCK_STATUS_H_MIN 以下仍不够时
-        隐藏二维码（宁可少一个入口，也不能叠字/裁字——军规③）。
+        label_show_version 是 AlignBottom 的：压低矩形高度文字不动，矩形留高文字也不动。
+        收款码块要挂在「状态文字上方固定间距」上，就得先知道文字顶边在哪，故按字体度量
+        动态算行数×行高——文本行数会随刮削进度变化（show_scrape_info 的 before_info
+        与 <br> 换行），不能写死常量。
+        """
+        label = self.Ui.label_show_version
+        fm = label.fontMetrics()
+        text = label.text()
+        breaks = text.count("\n") + text.count("<br>")
+        # show_scrape_info 的文本以换行开头（f"\n{scrape_info}..."），那一行是空的、
+        # 只在块顶部留白而无墨迹。label 是底对齐的，这行空白不移动末行，故要扣掉，
+        # 否则间距会整整多出一个行高（实测 15px）。
+        stripped = text.lstrip("\n\r")
+        breaks -= text[: len(text) - len(stripped)].count("\n")
+        return fm.lineSpacing() * breaks + fm.height()
+
+    def _layout_donate(self, nav_bottom: int, status_y: int, status_h: int) -> tuple[int, int]:
+        """在导航区与状态区之间安放收款码，返回校正后的 (status_y, status_h)。
+
+        **底部锚定**：二维码块下沿恒定挂在状态文字上方 _DONATE_TEXT_GAP 处（label 底对齐，
+        矩形变高时文字不动，故基准取「矩形底 − 文字高」），窗口拉高时整块随之下移而不是
+        留在导航区下方留出大片空白。二维码边长恒为 _DONATE_QR_SIZE（两侧固定留白，窗口
+        拉高不跟着变大），高度不够时按可用高度等比缩小，连 _DONATE_QR_MIN 都放不下
+        时才隐藏（军规③：宁可不显示也不叠字）。
         """
         ui = self.Ui
         qr = getattr(ui, "label_donate_qr", None)
         link = getattr(ui, "label_donate_link", None)
         if qr is None or link is None:
             return status_y, status_h
-        top = nav_bottom + self._DONATE_PAD
-        want_bottom = top + self._DONATE_BLOCK_H
-        status_bottom = status_y + status_h
-        if want_bottom + self._DONATE_PAD > status_y:
-            # 空间不够：下移状态区顶边（底对齐，文字不动）来腾位
-            new_y = want_bottom + self._DONATE_PAD
-            if new_y > status_bottom - self._DOCK_STATUS_H_MIN:
-                qr.setVisible(False)
-                link.setVisible(False)
-                return status_y, status_h
-            status_y = new_y
-            status_h = status_bottom - new_y
         side_w = ui.widget_setting.width()
-        qr.setGeometry((side_w - self._DONATE_QR_SIZE) // 2, top, self._DONATE_QR_SIZE, self._DONATE_QR_SIZE)
-        link.setGeometry(
-            0, want_bottom - self._DONATE_LINK_H, side_w, self._DONATE_LINK_H
+        # 状态文字块：底对齐 ⇒ 文字顶 = 矩形底 − 文字高（status_bottom 是文字不会动的锚点）
+        status_bottom = status_y + status_h
+        text_h = self._dock_status_text_h()
+        text_top = status_bottom - text_h
+        # 间距不得小于「状态区压缩下限」反推出来的值：状态矩形顶被 [赞助作者] 顶下去后
+        # 高 = 文字高 + 间距 − 内缩，间距太小就会把左下角文字裁掉（军规③）。
+        gap = max(
+            self._DONATE_TEXT_GAP,
+            self._DOCK_STATUS_H_MIN + self._DONATE_PAD - text_h,
         )
+        link_bottom = text_top - gap
+        link_top = link_bottom - self._DONATE_LINK_H
+        qr_bottom = link_top - self._DONATE_LINK_GAP
+        # 边长恒为 _DONATE_QR_SIZE（两侧固定留白）；高度不够则等比缩小（绝不叠字）
+        qr_size = min(
+            self._DONATE_QR_SIZE,
+            qr_bottom - self._DONATE_PAD - nav_bottom,
+        )
+        if qr_size < self._DONATE_QR_MIN:
+            qr.setVisible(False)
+            link.setVisible(False)
+            return status_y, status_h
+        # 状态矩形顶不得高于 [赞助作者] 底边（否则两者包围盒相交）；底对齐 ⇒ 压高度文字不动。
+        # 矩形顶仍需低于文字顶（link_bottom + _DONATE_TEXT_GAP），故这 6px 内缩不会裁字。
+        status_y = max(status_y, link_bottom + self._DONATE_PAD)
+        status_h = status_bottom - status_y
+        qr.setFixedSize(qr_size, qr_size)
+        qr.move((side_w - qr_size) // 2, qr_bottom - qr_size)
+        link.setGeometry(0, link_top, side_w, self._DONATE_LINK_H)
+        # 源图 900×900，缩放结果按边长缓存，避免拖动窗口时反复解码
+        if self._donate_qr_cache_size != qr_size:
+            source = QPixmap(resources.donate_wechat_icon)
+            if source.isNull():
+                self._donate_qr_cache_size = qr_size
+                self._donate_qr_cache = QPixmap()
+                qr.setText("二维码\n加载失败")
+                qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            else:
+                self._donate_qr_cache = source.scaled(
+                    qr_size,
+                    qr_size,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                self._donate_qr_cache_size = qr_size
+                qr.setText("")
+                qr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        if not self._donate_qr_cache.isNull():
+            qr.setPixmap(self._donate_qr_cache)
         qr.setVisible(True)
         link.setVisible(True)
         return status_y, status_h

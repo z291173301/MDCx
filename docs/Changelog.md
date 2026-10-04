@@ -1,5 +1,40 @@
 # Changelog
 
+## v2.2.4 (2026-10-07)
+
+### 新增
+
+- **左侧导航栏「使用说明」按钮下方新增微信收款二维码 + `[赞助作者]` 链接（点击弹出赞助窗口）**：二维码与链接由 `main_window.py` 在运行时注入 `widget_setting`（`label_donate_qr` / `label_donate_link`，`raise_()` 压在 `left_backgroud_widget` 之上），**刻意不改 `.ui` / `MDCx.py`**，避免 pyuic 同步测试受影响。链接为富文本 `<a href="#donate">`，亮色 `#0078D7` / 暗黑 `#4DA6FF`（`_DONATE_LINK_COLOR` / `_DONATE_LINK_COLOR_DARK`），`linkActivated` 接 `show_donate_dialog()`。定位逻辑 `_layout_donate()` 挂在 `_sync_dock_layout()` 的空间充足/过矮两条路径上，极矮窗口另有 `_hide_donate()` 兜底。尺寸常量集中在 `# region 侧栏「使用说明」下方…` 内：`_DONATE_QR_SIZE=176`、`_DONATE_QR_MIN=40`、`_DONATE_LINK_H=22`、`_DONATE_LINK_GAP=6`、`_DONATE_PAD=6`、`_DONATE_TEXT_GAP=17`。**布局军规**：任何窗口高度下二维码、链接、状态文字三者包围盒两两不相交，且左下角「正常模式·字段优先 / actor.json / 版本号」永不被裁——实测 600~1200 全区间重叠面积 0
+- **新增独立赞助窗口 `mdcx/views/donate_window.py`（`DonateDialog`）**：展示微信/支付宝两张收款码 + 新人榜Top10 / 土豪榜Top10 两个 10 行 3 列（用户名 / 日期时间 / 金额）榜单 + 底部一行说明。榜单按配置渲染真实数据，无数据时复刻空表框架。窗口 `setFixedSize(657, 637)`（客户区），整窗正好 657×677，与参考截图 1:1。`resources.py` 新增 `donate_wechat_icon` / `donate_alipay_icon` 两个资源属性（`tests/conftest.py` 的 `_DummyResources._ICON_ATTRS` 同步补齐）。**未照抄参考图里 BTSOU 的群号**，底部改为 MDCx 自有中性文案
+
+### 界面调整
+
+- **软件界面左侧导航栏背景色统一为「软件设置」页的 `#EEF3FF`**：此前主界面用 `#F5F5F6` + `#EDEDED` 边框、设置页用 `#EEF3FF` + `#D8E2FF`，来回切页时侧栏底色会跳变。现 `main_window.py::pushButton_main_clicked()` 与 `pushButton_setting_clicked()` 完全一致，`style.py` 的 `QWidget#widget_setting` 同步改 `#EEF3FF`，消除 `left_backgroud_widget` 未覆盖处的露底断层；暗黑模式分支未动
+- **赞助窗口按参考截图 1:1 复刻版式、字体与配色**：客户区 `657×637`，背景 `#F0F0F0`；全部子控件绝对定位，坐标直接取自参考图像素。三处关键取证：① 参考图是 **125% DPI 截图**（标题栏高约 40px、客户区 657×637 是**设备**像素），换算 `logical_x = ref_x / 1.25`、`logical_y = (ref_y - 40) / 1.25`；② 正文是**宋体 SimSun** 而非雅黑——雅黑在宽度对上的前提下墨迹高会到 25 设备px（参考只有 17），差 47%；③ **Qt 样式表会覆盖 `setFont()`**，`_style_dialog()` 改用 `QPalette`（Window/WindowText）+ `setAutoFillBackground(True)` 且必须在 `_build_ui()` 之前调用，`_label()` 的文字颜色也走 label 自己的 `QPalette`。字号按「墨迹宽 + 墨迹高」双指标网格搜索拟合（`_FONT_SPECS`），实测与参考图误差 0~1%：说明行 577 vs 579、灰色小字 534.6 vs 534、榜单标题 104.8 vs 105、行距 28.8 vs 28.78、金额列右端 308.9 vs 309
+- **榜单去掉「微信支付 / 支付宝付款」标题，卡片改为纯白无边框方块**：与参考图一致（卡片只是白方块直接放在灰底上，无圆角无描边）
+- **榜单框内不画横线与竖线**：`QTableWidget` 设 `showGrid=False` + `NoFrame` + 隐藏表头 + 关闭滚动条，只保留 1px `#DCDCDC` 外框；10 行全是数据行（参考图无表头），列对齐为用户名左 / 日期时间居中 / 金额右
+- **说明行与两个榜单标题改黑色加粗**（`_FONT_SPECS` 的 `intro` / `rank_title` 由常规改加粗，字距回调到 0——加粗后笔画本身变宽，不回调会超宽）
+- **榜单标题框线在字体两侧截断**：标题改为**不透明底色块**（`QPalette` 设 `Window` = 底色 + `setAutoFillBackground(True)`），宽度按 `QFontMetrics.horizontalAdvance()` 只包住文字，不再拉满整条边线。**坑**：底色块左缘最初对齐框左（`_RANK_TITLE_DX=0`），把左竖线在标题带内整段盖掉了；逐像素探针打印才发现参考图的左竖线在标题带内是完整的、只有上边线被遮，故底色块必须内缩（`_RANK_TITLE_DX=12`）。实测左框上边线 16..27 可见 → 28..133 截断 → 134 起恢复（参考 16..24 → 137 起恢复），四角与左竖线均完整
+- **赞助窗口从 524×509 放大到整窗 657×677**（参考截图的实际大小）
+- **收款码与 `[赞助作者]` 改为底部锚定，随窗口高度下移**：此前二维码块顶对齐在导航区下方，多余空间全落下方，而状态文字在矩形内是 `AlignBottom`（矩形越高文字越靠下），两边叠加导致最大化时「`[赞助作者]`」与「正常模式·字段优先」的间距从 17px 暴涨到 **331px**。现改为从状态文字往上倒推（`status_bottom → text_top → link_bottom → qr_bottom`），间距恒定。新增 `_dock_status_text_h()` 按字体度量算状态文字块高——**坑**：`show_scrape_info()` 构造的文本以 `\n` 开头（`f"\n{scrape_info}…"`），那一行是空的、只在块顶部留白而无墨迹，不扣掉会多算一整行高（间距变 31.6 而非 17）；且文案行数随刮削进度变化、还有 `\n` ↔ `<br>` 两种写法，故必须动态算不能写死。实测各高度间距恒定 16.4px（目标 17，差 0.6 是字距取整误差）
+- **二维码边长恒定 176、两侧固定留 17px**：`_DONATE_QR_SIZE=176`（侧栏宽 210），不随窗口高度变大，只在窗口太矮放不下时才等比缩小（下限 `_DONATE_QR_MIN=40`，再小宁可不显示也不叠字）。实测窗口高 ≥800 时恒为 176×176、左右各留 17
+- **`[赞助作者]` 字号提到 16px**：见下方「修复」条的实测结论
+
+### 修复
+
+- **`[赞助作者]` 看起来比「软件设置 / 使用说明」小**：先按「某个控件没跟着 125% 缩放」排查，**实测证伪**——`font().pixelSize()` 两侧都是 14，`font().family()` 都是 `Consolas`、`horizontalAdvance('赞')` 都是 14，14px 时两侧墨迹高**完全相同**（都是 13.60 逻辑px）。真实差异是**墨迹密度**：`QPushButton` 走 `QStyle::drawItemText` + CJK 回退，`QLabel` 走 `QTextDocument`，同一 14px 解析出的实际字形不同——按钮 ink 487 / density 0.409，链接 ink 427 / density 0.364（**少 12%**），放大后肉眼可见链接汉字笔画明显更细，故读成「字更小」；链接的浅蓝 `#0078D7` 也比按钮的纯黑淡，进一步压低视觉重量。又做了 A/B 排除富文本：同一 QLabel 纯文本 vs `<a href>` 包裹逐像素一致（427/427），**富文本不是原因**。处理：字号提到 16px（w=63.2 比按钮 56 宽 13%、h=16.0 比按钮 13.6 高 18%，肉眼可辨「不小于」），`style.py` 明暗两处 `widget_setting` 样式表新增 `QLabel#label_donate_link{font-size:16px}`——**注意 `QLabel.setFont()` 会被样式表覆盖失效**（实测 `setFont(QFont(px=16))` 后 `font().pixelSize()` 仍是原值），只有 QSS 或富文本内联 `font-size` 起作用，故 `_style_donate_link()` 只管颜色、字号统一交给 QSS
+- **wiki UA 两个用例断言失效**：`tests/test_wiki_rate_limit.py::test_wiki_headers_use_identifiable_user_agent` 与 `test_search_wiki_sends_identifiable_user_agent` 断言 UA 里必须含 `"mdcx-diy"`，但 #183 已把仓库从 `cdlongbow/mdcx-diy` 换成 `z291173301/MDCx`，这两个断言是当时漏改的旧字面量。改为断言 `mdcx.consts.GITHUB_REPO`（单一来源），以后再换仓库不会失效；生产代码 `mdcx/tools/wiki.py` 的 `_WIKI_USER_AGENT` 未动
+
+### 测试
+
+- **新增 `tests/test_window_state_matrix.py::test_donate_block_is_centered_and_keeps_text_gap_at_any_height`**：遍历 700 / 737 / 900 / 1080 / 1200 五档窗口高，断言二维码左右留白相等（奇数边长差 ≤1px）、`qr.width() <= _DONATE_QR_SIZE`、height ≥ 800 时 `qr.width() == _DONATE_QR_SIZE` 且 `pad_l == (side_w - _DONATE_QR_SIZE) // 2`；并断言「`[赞助作者]` 底边到状态文字首行」的间距跨高度**恒定**且 ≥ `_DONATE_TEXT_GAP`（文字在矩形内底对齐，故文字顶 = 矩形底 − `_dock_status_text_h()`）；三者包围盒两两不相交
+- **两个旧用例的断言从「写死实现细节」改为「断言不变量」**：`test_left_status_badges_follow_window_bottom` 原断言 `label_show_version.y() == 929`（依赖 201 高的矩形，底对齐锚定后矩形高随文案行数变化），改为断言底边贴底 `status.y() + status.height() == height - _DOCK_STATUS_BOTTOM_PAD`；`test_left_dock_adapts_to_large_ui_scale` 的导航设计态断言（`spacing()==8` / `height()==40` / `y()==index*48` / `[0,48,96,…]` / `1170-201-40`）全部改为从 `_DOCK_*` 常量推导（`step = _DOCK_NAV_BTN_H + _DOCK_NAV_SPACING`），以后再调设计不必改测试
+- **回归结果**：UI + wiki 六个套件（`test_window_state_matrix` / `test_ui_geometry` / `test_ui_structure` / `test_left_status_icons` / `test_main_window_startup` / `test_wiki_rate_limit`）**105 项全过**；全量 **2399 passed / 6 failed / 5 skipped**，6 个失败与改动前完全相同（3 个 `tests/crawlers/test_aventertainments.py` 联网 curl 35 Connection was reset、3 个 `tests/test_scraper_remain_list.py` 的 `fake_clean_empty_folders() got an unexpected keyword argument 'allow_empty'`），均为预先存在的问题，无新增回归
+
+### 文档
+
+- **`docs/Development.md` 新增两节界面取证规范**：① 「『这个字看起来比那个小』——高 DPI 下字体大小问题的取证顺序」8 条（先量 `devicePixelRatio()` 别猜；QSS 的 `font-size: Npx` 是逻辑像素会被 dpr 自动缩放，「没缩放」这个假设通常是错的；别只看 `font().pixelSize()`，要 `grab()` 取设备像素图逐像素判 `min(R,G,B)<=140` 量墨迹 bbox，且 `geometry()` 是逻辑、`grab()` 是设备必须 ×dpr 换算；区分**尺寸**与**墨迹密度**；同尺寸不同密度 ⇒ 字体回退/渲染路径差异；别把富文本当嫌疑人除非做过 A/B；颜色也改变视觉重量；测字体必须 `QT_QPA_PLATFORM=windows`，offscreen 下 `QFontDatabase.families()` 返回 0 个字体、中文空白但截图「看起来正常」）；② 「离屏渲染校验流程（字体/几何类改动）」5 条（monkeypatch 掉联网/落盘副作用；**不要 stub `set_style()`**，否则 QSS 从不生效、`font().pixelSize()` 返回 -1；`resources.qtr` 指向真实 resources 否则走降级文本；遍历尺寸区间逐档断言几何并把关键档位 `grab()` 存 PNG 肉眼复核；断言落在不变量上而非写死 y 值）
+
 ## v2.2.3 (2026-10-06)
 
 ### 新增

@@ -339,6 +339,17 @@ def set_style(self: "MyMAinWindow"):
             color: rgba(20, 20, 20, 250);
             border: 0px solid rgba(255, 255, 255, 80);
         }}
+        /* 侧栏「[赞助作者]」链接字号。
+           实测（1032x900，dpr 1.25，跳过按钮图标盒量文字墨迹）：导航按钮 14px 的
+           文字墨迹是 w=56.0 h=13.6 ink=487 density=0.409；QLabel 走 QTextDocument
+           富文本渲染，同样 14px 只有 w=56.0 h=13.6 ink=479 density=0.403——尺寸相同
+           但墨迹少约 12%，且肉眼笔画明显更细，视觉上就读成「字更小」（用户两次反馈）。
+           提到 16px 后 w=63.2 / h=16.0，比按钮宽 13%、高 18%，肉眼可辨不小于按钮。
+           富文本 anchor 继承控件字体，故 QSS 是唯一能统一字号的机制（QLabel.setFont
+           会被本样式表覆盖而失效）。颜色由 _style_donate_link 按明暗主题写入富文本。*/
+        QLabel#label_donate_link{{
+            font-size: 16px;
+        }}
         """)
     # 主界面
     self.Ui.page_main.setStyleSheet("""
@@ -819,6 +830,9 @@ def set_dark_style(self: "MyMAinWindow"):
             font-size: 13px;
             color: rgba(210, 210, 210, 250);
             border: 0px solid rgba(255, 255, 255, 80);
+        }}
+        QLabel#label_donate_link{{
+            font-size: 16px;
         }}
         """)
     # 主界面

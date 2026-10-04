@@ -488,6 +488,27 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 - **宣称「已修复」前先问一句：这个探针能不能判别出故障？** 若把有 bug 的代码喂给它也返回「一切正常」，说明它没有判别力，此时的「通过」是假阳性。本案靠这一条才逼出真因。
 - **宣布失败要干脆。** 用户实测没变化就直说没修好，别用「属性已全部正确」之类的读数去解释成成功。
 
+### 「这个字看起来比那个小」——高 DPI 下字体大小问题的取证顺序（2026-10 立规）
+
+用户报「`[赞助作者]` 看着比 `软件设置`/`使用说明` 小」，第一直觉是「某个控件没跟着系统缩放」。**这个直觉通常是错的**，照着它改会白改几轮。按下面顺序查：
+
+1. **先量系统缩放，别猜。** `app.primaryScreen().devicePixelRatio()`。本项目开发机的 dpr = **1.25**（Windows 125%），用户提供的参考截图 `@赞助.png`（657×677）也是 125% 截图——含约 40px 原生标题栏，故其**客户区 657×637 是设备像素**（= 524×509 逻辑像素）。**拿设备像素的参考图去对逻辑像素的布局，等于凭空差 25%。**
+2. **QSS 里的 `font-size: Npx` 是逻辑像素，会被 dpr 自动缩放**，不存在「这个控件没缩放、那个缩放了」的情况。`QLabel.setFont()` 会被祖先样式表覆盖而**完全失效**，字号只能靠 QSS 或富文本内联 `font-size` 写——先确认写的那一处真的生效（见第 3 条），再谈数值。
+3. **别只看 `font().pixelSize()`，要量墨迹。** `widget.grab().toImage()` 取**设备**像素图，逐像素判 `min(R,G,B) <= 140`（避开抗锯齿灰边与 ClearType 色边）求包围盒。**注意 `geometry()` 是逻辑像素、`grab()` 是设备像素，必须 × dpr 换算**——本项目曾因漏换算把别的控件当成按钮文字，测出「18.00 px/字」的假数据，绕了一整轮。
+4. **区分「尺寸」与「墨迹密度」两个独立量。** 尺寸 = 墨迹 bbox 宽高 / 每字 advance；密度 = 墨迹像素数 ÷ bbox 面积。**同尺寸、不同密度 ⇒ 观感上的「大小」差异来自笔画粗细，不是字号。**
+5. **同尺寸但密度不同，多半是字体回退/渲染路径差异，不是字号没设上。** QPushButton 走 `QStyle::drawItemText` + CJK 回退字体，QLabel 走 QTextDocument；同一 14px 下按钮 density **0.409**（ink 487）、QLabel **0.364**（ink 427），少 12% ⇒ 同样高度但更淡，肉眼就读成「字更小」。`font().family()` 两者都是 `Consolas`（无 CJK，走回退）且 `adv('赞')` 都是 14，正说明**尺寸确实相同、都已被 dpr 缩放**。
+6. **别把富文本当嫌疑人，除非做过 A/B。** 同一 QLabel 纯文本 vs `<a href>` 包裹实测逐像素一致（427/427），两条渲染路径无差异，可直接排除。
+7. **颜色也会改变视觉重量。** 浅蓝 `#0078D7` 的链接比纯黑 `color: black` 的按钮淡一档，叠加笔画更细，观感差被放大。**要「一样大」时，优先保证不小于**（本项目最终取 16px：w 63.2 vs 按钮 56、h 16.0 vs 13.6），而不是纠结 14 还是 15。
+8. **离屏验证字体必须用真实平台插件。** `QT_QPA_PLATFORM=offscreen` 下 `QFontDatabase.families()` 返回 **0 个字体**，中文全是豆腐块或空白——截图会「看起来正常」而毫无内容。**测字体一律 `QT_QPA_PLATFORM=windows`。** 同理，探针里 stub 掉 `set_style()` 会让样式表从不生效（`font().pixelSize()` 返回 -1），此时量到的全是无样式状态。
+
+### 离屏渲染校验流程（字体/几何类改动）
+
+1. 探针里 monkeypatch 掉联网/落盘的副作用方法（`run_startup_health_checks` / `show_netstatus` / `check_version` / `save_remain_list` 等）为 lambda。
+2. **不要 stub `set_style()`**——否则 QSS 不生效，量到的字号/配色全错。要拦的是它内部的网络与主题部分（如 `apply_site_priority_theme`）。
+3. `resources.qtr` 指向真实 resources 目录，否则图片加载失败会走降级文本分支。
+4. 遍历目标尺寸区间逐档断言几何（不重叠、不越界、留白恒定），并**把关键档位 `grab()` 存 PNG 肉眼复核**。
+5. 断言要落在**不变量**上（底边贴底、间距恒定、边长恒定），不要写死具体 y 值——否则改一次设计就得改一次测试。
+
 - **格式化**：ruff（行宽 120，启用 isort/pyupgrade/flake8）
 - **类型检查**：mypy（全项目零 `disable_error_code`；`mdcx/controllers/main_window/init.py`、`load_config.py`、`views/`、`gen/` 等豁免，CI `ci.yaml` 强制执行）；pyright 仅在 `pyproject.toml` 中保留配置，未纳入 CI 门禁
 - **Git 钩子**：项目不要求安装 pre-commit；统一使用 `uv run quick-check` 和 `uv run check --skip-hook-install` 完成检查

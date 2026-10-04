@@ -10,6 +10,7 @@ import asyncio
 import pytest
 
 from mdcx.config.manager import manager
+from mdcx.consts import GITHUB_REPO
 from mdcx.models.emby import EMbyActressInfo
 from mdcx.tools import wiki
 from mdcx.web_async import (
@@ -67,11 +68,15 @@ async def test_composite_limiter_gates_by_tightest_bucket():
 
 
 def test_wiki_headers_use_identifiable_user_agent():
-    """wiki 请求头须携带可识别 UA，避免被划入「未识别」档。"""
+    """wiki 请求头须携带可识别 UA，避免被划入「未识别」档。
+
+    #183 已把仓库从 cdlongbow/mdcx-diy 换成 z291173301/MDCx，UA 随之更新；
+    此处断言 GITHUB_REPO 常量（单一来源），以后再换仓库也不会失效。
+    """
     headers = wiki._wiki_headers()
     ua = headers["User-Agent"]
     assert "Mozilla" not in ua
-    assert "mdcx-diy" in ua
+    assert GITHUB_REPO in ua
 
 
 @pytest.mark.asyncio
@@ -93,4 +98,4 @@ async def test_search_wiki_sends_identifiable_user_agent(monkeypatch):
     assert "wikidata.org" in captured["url"]
     ua = captured["headers"]["User-Agent"]
     assert "Mozilla" not in ua
-    assert "mdcx-diy" in ua
+    assert GITHUB_REPO in ua
