@@ -12203,7 +12203,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </size>
                             </property>
                             <property name="text">
-                              <string>-1</string>
+                              <string>-001</string>
                             </property>
                             <property name="autoExclusive">
                               <bool>true</bool>
@@ -12222,7 +12222,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>数字，-1、-2</string>
+                              <string>数字，-1、-2、-3</string>
                             </property>
                           </widget>
                         </item>
@@ -14425,7 +14425,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           &lt;/p&gt;&lt;p&gt;查看规则：&lt;a
                           href="https://support.emby.media/support/solutions/articles/44001159102-movie-naming"&gt;&lt;span
                           style=" text-decoration: underline;
-                          color:#094fd1;"&gt;https://support.emby.media/support/solutions/articles/44001159102-movie-naming&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p&gt;2）分集视频默认会显示为附加视频，如果要以多版本样式显示，分集命名规则还需要选择「-1」&lt;/p&gt;</string>
+                          color:#094fd1;"&gt;https://support.emby.media/support/solutions/articles/44001159102-movie-naming&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p&gt;2）分集视频默认会显示为附加视频，如果要以多版本样式显示，分集命名规则还需要选择-001&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>

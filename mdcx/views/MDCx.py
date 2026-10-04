@@ -13627,8 +13627,8 @@ class Ui_MDCx(object):
         self.radioButton_cd_part_lower.setText(_translate("MDCx", "-cd1"))
         self.label_97.setText(_translate("MDCx", "小写，-cd1，-cd2"))
         self.radioButton_cd_part_upper.setText(_translate("MDCx", "-CD1"))
-        self.radioButton_cd_part_digital.setText(_translate("MDCx", "-1"))
-        self.label_349.setText(_translate("MDCx", "数字，-1、-2"))
+        self.radioButton_cd_part_digital.setText(_translate("MDCx", "-001"))
+        self.label_349.setText(_translate("MDCx", "数字，-1、-2、-3"))
         self.label_99.setText(
             _translate("MDCx", "默认识别分集：-CD1｜-PART1｜-HD1｜-1.mp4，文件名称中含有这些字符时将识别其中的分集信息")
         )
@@ -13781,7 +13781,7 @@ class Ui_MDCx(object):
                 "                          </p><p>查看规则：<a\n"
                 '                          href="https://support.emby.media/support/solutions/articles/44001159102-movie-naming"><span\n'
                 '                          style=" text-decoration: underline;\n'
-                '                          color:#094fd1;">https://support.emby.media/support/solutions/articles/44001159102-movie-naming</span></a></p><p>2）分集视频默认会显示为附加视频，如果要以多版本样式显示，分集命名规则还需要选择「-1」</p>',
+                '                          color:#094fd1;">https://support.emby.media/support/solutions/articles/44001159102-movie-naming</span></a></p><p>2）分集视频默认会显示为附加视频，如果要以多版本样式显示，分集命名规则还需要选择-001</p>',
             )
         )
         self.label_351.setText(
