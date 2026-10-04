@@ -1,0 +1,18 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - link [ref=e7] [cursor=pointer]:
+          - /url: https://open.alipay.com/
+          - img "支付宝文档中心" [ref=e8]
+        - generic [ref=e9]: 文档中心
+      - img "right" [ref=e11]
+      - list
+    - generic [ref=e15]:
+      - generic [ref=e18]:
+        - textbox [ref=e19]
+        - img "search-icon" [ref=e22] [cursor=pointer]
+      - link "控制台" [ref=e23] [cursor=pointer]:
+        - /url: https://open.alipay.com/develop/manage
+      - generic [ref=e24]: 登录
+  - main [ref=e28]
