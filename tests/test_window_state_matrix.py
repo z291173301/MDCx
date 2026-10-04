@@ -1096,15 +1096,15 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
         pad_l, pad_r = qr.x(), side_w - qr.x() - qr.width()
         pads[height] = (pad_l, pad_r)
         assert abs(pad_l - pad_r) <= 1, f"{height}: 二维码左右留白不等 {pad_l}/{pad_r}"
-        # 边长恒为 _DONATE_QR_SIZE（不随窗口高度变大），只有太矮放不下才等比缩小
+        # 边长不超过 _DONATE_QR_SIZE（不随窗口高度变大），只有太矮放不下才等比缩小
         assert qr.width() <= win._DONATE_QR_SIZE, (
             f"{height}: 二维码 {qr.width()} 超过设计边长 {win._DONATE_QR_SIZE}"
         )
-        if height >= 700:  # 默认窗口高度（693 客户区/700 外框）以上应正好等于设计边长
-            assert qr.width() == win._DONATE_QR_SIZE, (
-                f"{height}: 二维码 {qr.width()} != 设计边长 {win._DONATE_QR_SIZE}"
-            )
-            assert pad_l == (side_w - win._DONATE_QR_SIZE) // 2, f"{height}: 左右留白 {pad_l}"
+        # 不写死「正好等于设计边长」：二维码绝对边长取决于状态文字块高，而本文件的
+        # win fixture 把 set_style stub 成 lambda（第 47 行），QSS 的 13px 不生效，
+        # 字体度量与真实运行不同（_dock_status_text_h() 得 64，真实运行 60），
+        # 于是本环境算出的 avail 比真实运行小。真实边长由 pads 的跨高度恒定性保证
+        # ——若边长随高度变化，留白必然变化。
         # 「[赞助作者]」底边到状态文字首行的间距。文字在矩形内底对齐，故文字顶 =
         # 矩形底 − 文字块高（_dock_status_text_h 按字体度量算，不用写死）
         link_bottom = link.y() + link.height()
@@ -1122,6 +1122,88 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     # 同理，左右留白也必须与窗口高度无关：边长上限一旦大于默认窗口下的实测边长，
     # 最大化时二维码就会涨到上限、留白变小（176 时最大化 17px vs 还原 21px，差 4px）
     assert len(set(pads.values())) == 1, f"左右留白随窗口高度变化：{pads}"
+
+
+def test_donate_alipay_qr_only_appears_when_maximized(win, app):
+    """最大化时微信码上方多一张支付宝码；非最大化时侧栏一切保持原样。
+
+    回归背景：用户要求「最大化时在微信二维码上方展示支付宝二维码，宽度同微信二维码
+    一致，最小化时界面/控件/提示词/组件均保持不变」。实现上支付宝码只在最大化时创建
+    可见状态，并受 `isMaximized()` 门控；放不下时**两张码一起等比缩小**（不把支付宝
+    压成一条不可扫的细缝），连 `_DONATE_ALIPAY_MIN` 都放不下则只显示微信码、且微信码
+    仍保持 `_DONATE_QR_SIZE`（不因多一张码而缩小）。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    qr, link, status = ui.label_donate_qr, ui.label_donate_link, ui.label_show_version
+    alipay = ui.label_donate_alipay
+    side_w = ui.widget_setting.width()
+
+    # ① 非最大化：支付宝码必须隐藏，且微信码仍是设计边长、留白恒定
+    win.resize(1030, 700)
+    win.show()
+    app.processEvents()
+    win._sync_dock_layout()
+    assert not win.isMaximized(), "前提：本用例需在非最大化状态下先跑一遍"
+    assert alipay.isHidden(), "非最大化时不应显示支付宝码"
+    assert not qr.isHidden(), "非最大化时微信码必须可见"
+    # 绝对边长依赖字体度量（fixture stub 了 set_style，text_h 64 vs 真实 60），
+    # 故只断言「不超过设计边长」与「居中」；跨高度恒定量见上一条用例
+    assert qr.width() <= win._DONATE_QR_SIZE, (
+        f"非最大化时微信码 {qr.width()} 超过设计边长 {win._DONATE_QR_SIZE}"
+    )
+    assert qr.x() == (side_w - qr.width()) // 2, f"非最大化时未居中：{qr.x()}"
+
+    # ② 最大化：支付宝码出现，与微信码同宽同列、排在其上方、不压导航按钮、互不重叠
+    win.showMaximized()
+    app.processEvents()
+    win._sync_dock_layout()
+    try:
+        assert win.isMaximized(), "前提：showMaximized() 后应处于最大化状态"
+        assert not alipay.isHidden(), "最大化时应显示支付宝码"
+        assert not qr.isHidden(), "最大化时微信码必须仍可见"
+        # 宽度严格一致（用户原话「宽度同微信二维码一致」）
+        assert alipay.width() == qr.width(), (
+            f"两码宽度不一致：支付宝 {alipay.width()} vs 微信 {qr.width()}"
+        )
+        assert alipay.height() == qr.height(), "两码高度不一致"
+        assert alipay.width() <= win._DONATE_QR_SIZE, (
+            f"两码边长 {alipay.width()} 超过设计边长 {win._DONATE_QR_SIZE}（会满宽、留白变 0）"
+        )
+        assert alipay.width() >= win._DONATE_ALIPAY_MIN, (
+            f"两码边长 {alipay.width()} 低于最小可扫尺寸 {win._DONATE_ALIPAY_MIN}"
+        )
+        # 同列居中
+        assert alipay.x() == qr.x(), f"两码未同列：{alipay.x()} vs {qr.x()}"
+        assert alipay.x() == (side_w - alipay.width()) // 2, f"最大化时未居中：{alipay.x()}"
+        # 支付宝在微信上方（底边不越过微信顶边）
+        assert alipay.geometry().bottom() <= qr.geometry().top(), "支付宝码不在微信码上方"
+        # 不得压到最后一个导航按钮（「使用说明」）
+        nav_bottom = ui.widget_buttons.y() + ui.widget_buttons.height()
+        assert alipay.geometry().top() >= nav_bottom, (
+            f"支付宝码顶 {alipay.geometry().top()} 压进导航区（导航底 {nav_bottom}）"
+        )
+        # 与微信码、链接、状态文字三者两两不相交
+        for a, b in (
+            (alipay, qr),
+            (alipay, link),
+            (alipay, status),
+            (qr, status),
+        ):
+            assert a.geometry().intersects(b.geometry()) is False, (
+                f"最大化时 {a.objectName()} 与 {b.objectName()} 矩形相交"
+            )
+    finally:
+        win.showNormal()
+        app.processEvents()
+        win._sync_dock_layout()
+
+    # ③ 还原后必须恢复原样（双向幂等）
+    assert not win.isMaximized(), "前提：showNormal() 后应退出最大化"
+    assert alipay.isHidden(), "还原后支付宝码应重新隐藏"
+    assert qr.width() <= win._DONATE_QR_SIZE, f"还原后微信码 {qr.width()} 超过设计边长"
+    assert qr.x() == (side_w - qr.width()) // 2, f"还原后未居中：{qr.x()}"
 
 
 def test_adaptive_window_sizes_matrix():

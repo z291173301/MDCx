@@ -3546,6 +3546,11 @@ class MyMAinWindow(QMainWindow):
     # 最大化时涨到上限、留白变小（实测上限 176 时最大化留白 17px 而还原 21px，差 4px；
     # 奇数边长还会左右差 1px）。只在窗口比默认更矮时才等比缩小。
     _DONATE_QR_SIZE = 180
+    # 最大化时在微信码**上方**再加一张支付宝码（宽度与微信码严格一致）。
+    # 空间不够时不把支付宝压成一条小缝，而是**两张码一起等比缩小**到能放下的最大尺寸，
+    # 保证「宽度同微信一致」且都还能扫；连 _DONATE_ALIPAY_MIN 都放不下就只显示微信码
+    # （微信码仍保持 _DONATE_QR_SIZE，不因多一张码而缩小）。
+    _DONATE_ALIPAY_MIN = 90  # 支付宝码最小边长（低于此值屏上扫码已不可靠，宁可不显示）
     _DONATE_QR_MIN = 40  # 二维码最小边长（再小宁可不显示，也不能叠字——军规③）
     _DONATE_LINK_COLOR = "#0078D7"  # 与「赞助作者」页 [赞助作者] 链接同色
     _DONATE_LINK_COLOR_DARK = "#4DA6FF"  # 暗黑模式提亮，保证可读
@@ -3575,11 +3580,22 @@ class MyMAinWindow(QMainWindow):
         link.setToolTip(" 点击查看赞助方式 ")
         link.linkActivated.connect(lambda _url: self.show_donate_dialog())
         link.hide()
+        # 支付宝码：只在最大化时显示（见 _layout_donate），宽度与微信码严格一致
+        alipay = QLabel(parent=parent)
+        alipay.setObjectName("label_donate_alipay")
+        alipay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        alipay.setFixedSize(self._DONATE_ALIPAY_MIN, self._DONATE_ALIPAY_MIN)
+        alipay.setToolTip(" 支付宝扫码赞助 ")
+        alipay.hide()
         ui.label_donate_qr = qr
         ui.label_donate_link = link
+        ui.label_donate_alipay = alipay
         self._donate_qr_cache = QPixmap()
         self._donate_qr_cache_size = 0
+        self._donate_alipay_cache = QPixmap()
+        self._donate_alipay_cache_size = 0
         qr.raise_()
+        alipay.raise_()
         link.raise_()
         self._style_donate_link()
 
@@ -3606,7 +3622,7 @@ class MyMAinWindow(QMainWindow):
 
     def _hide_donate(self) -> None:
         """空间完全不够时隐藏收款码（极矮窗口，导航独占整列）。"""
-        for name in ("label_donate_qr", "label_donate_link"):
+        for name in ("label_donate_qr", "label_donate_link", "label_donate_alipay"):
             widget = getattr(self.Ui, name, None)
             if widget is not None:
                 widget.setVisible(False)
@@ -3638,11 +3654,18 @@ class MyMAinWindow(QMainWindow):
         留在导航区下方留出大片空白。二维码边长恒为 _DONATE_QR_SIZE（两侧固定留白，窗口
         拉高不跟着变大），高度不够时按可用高度等比缩小，连 _DONATE_QR_MIN 都放不下
         时才隐藏（军规③：宁可不显示也不叠字）。
+
+        **最大化时上方多一张支付宝码**（宽度与微信码严格一致，见 _DONATE_ALIPAY_MIN）：
+        上方空间够放两张 _DONATE_QR_SIZE 就都保持设计边长；不够就把**两张一起等比缩小**
+        到能放下的最大边长（不把支付宝压成一条缝，否则屏上扫不出来）；连
+        _DONATE_ALIPAY_MIN 都放不下则只显示微信码，且微信码仍为 _DONATE_QR_SIZE
+        ——不因多一张码而缩小。非最大化状态一律不显示支付宝码，其余一切不变。
         """
         ui = self.Ui
         qr = getattr(ui, "label_donate_qr", None)
         link = getattr(ui, "label_donate_link", None)
-        if qr is None or link is None:
+        alipay = getattr(ui, "label_donate_alipay", None)
+        if qr is None or link is None or alipay is None:
             return status_y, status_h
         side_w = ui.widget_setting.width()
         # 状态文字块：底对齐 ⇒ 文字顶 = 矩形底 − 文字高（status_bottom 是文字不会动的锚点）
@@ -3658,21 +3681,55 @@ class MyMAinWindow(QMainWindow):
         link_bottom = text_top - gap
         link_top = link_bottom - self._DONATE_LINK_H
         qr_bottom = link_top - self._DONATE_LINK_GAP
-        # 边长恒为 _DONATE_QR_SIZE（两侧固定留白）；高度不够则等比缩小（绝不叠字）
-        qr_size = min(
+        # 单码可用高度与「两码等宽都放得下」的边长（支付宝码在微信码上方，微信码下沿不动）
+        one_size = qr_bottom - self._DONATE_PAD - nav_bottom
+        # 两码等宽时支付宝码顶必须 ≥ nav_bottom + PAD，而微信码下沿固定在 qr_bottom：
+        #   qr_bottom - 2s - PAD ≥ nav_bottom + PAD  ⇒  s ≤ (qr_bottom - nav_bottom - 2*PAD)/2
+        # 上限再压到 _DONATE_QR_SIZE，保证最大化时也不会比普通窗口更大（否则最大化
+        # 变成满宽 210、留白 0，与普通窗口的 180/留白 15 不一致——用户反馈过这类不一致）
+        two_size = min(
             self._DONATE_QR_SIZE,
-            qr_bottom - self._DONATE_PAD - nav_bottom,
+            (qr_bottom - nav_bottom - 2 * self._DONATE_PAD) // 2,
         )
+        # 支付宝码只在最大化时出现；放不下时两张一起缩小，绝不把支付宝压成一条缝
+        show_alipay = self.isMaximized() and two_size >= self._DONATE_ALIPAY_MIN
+        qr_size = two_size if show_alipay else min(self._DONATE_QR_SIZE, one_size)
         if qr_size < self._DONATE_QR_MIN:
             qr.setVisible(False)
             link.setVisible(False)
+            alipay.setVisible(False)
             return status_y, status_h
         # 状态矩形顶不得高于 [赞助作者] 底边（否则两者包围盒相交）；底对齐 ⇒ 压高度文字不动。
         # 矩形顶仍需低于文字顶（link_bottom + _DONATE_TEXT_GAP），故这 6px 内缩不会裁字。
         status_y = max(status_y, link_bottom + self._DONATE_PAD)
         status_h = status_bottom - status_y
+        qr_x = (side_w - qr_size) // 2
         qr.setFixedSize(qr_size, qr_size)
-        qr.move((side_w - qr_size) // 2, qr_bottom - qr_size)
+        qr.move(qr_x, qr_bottom - qr_size)
+        if show_alipay:
+            # 支付宝码与微信码同宽同列，排在微信码上方 _DONATE_PAD 处
+            alipay.setFixedSize(qr_size, qr_size)
+            alipay.move(qr_x, qr_bottom - 2 * qr_size - self._DONATE_PAD)
+            if self._donate_alipay_cache_size != qr_size:
+                source = QPixmap(resources.donate_alipay_icon)
+                if source.isNull():
+                    self._donate_alipay_cache = QPixmap()
+                    self._donate_alipay_cache_size = qr_size
+                    alipay.setText("二维码\n加载失败")
+                else:
+                    self._donate_alipay_cache = source.scaled(
+                        qr_size,
+                        qr_size,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                    self._donate_alipay_cache_size = qr_size
+                    alipay.setText("")
+            if not self._donate_alipay_cache.isNull():
+                alipay.setPixmap(self._donate_alipay_cache)
+            alipay.setVisible(True)
+        else:
+            alipay.setVisible(False)
         link.setGeometry(0, link_top, side_w, self._DONATE_LINK_H)
         # 源图 900×900，缩放结果按边长缓存，避免拖动窗口时反复解码
         if self._donate_qr_cache_size != qr_size:
