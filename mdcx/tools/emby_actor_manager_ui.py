@@ -12,6 +12,7 @@ from PyQt6.QtCore import pyqtSignal as Signal
 from PyQt6.QtGui import QColor, QGuiApplication
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -57,6 +58,30 @@ from .emby_actor_manager import (
     search_actor_info,
     sync_batch_async,
 )
+
+# 演员管理器（主窗 + 设置 / 数据源测试 / 演员详情 / 选择媒体库 等子窗口）整体字号放大一号。
+# 走 QSS 而非 setFont：Qt 里样式表的 font-size 会覆盖控件字体，且样式表沿 QObject 父子链
+# 级联，子对话框（独立顶层窗口）一并生效——setFont 对顶层窗口不继承，只对子控件生效。
+_FONT_SIZE_STEP = 1
+
+
+def _ui_font_pt(step: int | None = None) -> str:
+    """返回「应用默认字号 + step」的磅值文本，供 QSS `font-size` 使用。
+
+    step 缺省取模块级 `_FONT_SIZE_STEP`（运行时读取，便于测试改档）。
+    基准取 `QApplication.font()`，随系统/主界面字号浮动；应用若用像素字号
+    （pointSize <= 0）按 96dpi 折算成磅值，两者都取不到时以 9pt 为基准。
+    窗口标题栏文字（Emby/Jellyfin演员管理器 / Emby/Jellyfin 演员设置）由系统窗口框绘制，
+    不受 QSS 影响，故不在本项放大范围内。
+    """
+    if step is None:
+        step = _FONT_SIZE_STEP
+    font = QApplication.font()
+    pt = font.pointSizeF()
+    if pt <= 0:
+        px = font.pixelSize()
+        pt = px * 72.0 / 96.0 if px > 0 else 9.0
+    return f"{pt + step:g}pt"
 
 
 def scan_actor_data_noise(actors: list[ActorInfo]) -> list[tuple[ActorInfo, str, bool]]:
@@ -565,17 +590,21 @@ class EmbyActorManagerDialog(QDialog):
         return gen is not None and gen != self._session_gen
 
     def _load_stylesheet(self) -> str:
-        return """
-        QGroupBox { font-weight: bold; border: 1px solid #cccccc; border-radius: 4px; margin-top: 8px; padding-top: 14px; }
-        QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }
-        QTableWidget { gridline-color: #e0e0e0; selection-background-color: #bbdefb; }
-        QTableWidget::item:selected { background-color: #42a5f5; color: #ffffff; }
-        QPushButton#btnSync { background-color: #2e7d32; color: #ffffff; font-weight: bold; }
-        QPushButton#btnSync:hover { background-color: #388e3c; }
-        QPushButton#btnDanger { background-color: #c62828; color: #ffffff; }
-        QPushButton#btnDanger:hover { background-color: #d32f2f; }
-        QPushButton#btnPrimary { background-color: #1565c0; color: #ffffff; }
-        QPushButton#btnPrimary:hover { background-color: #1976d2; }
+        # 首条 QWidget 规则统一下发放大后的字号：写在最前且只含 font-size，
+        # 下方各控件规则（QGroupBox 加粗 / 按钮配色等）仍照常合并生效。
+        # 控件自身样式表里若再写死 font-size 会盖掉本规则（故提示文字只留颜色）。
+        return f"""
+        QWidget {{ font-size: {_ui_font_pt()}; }}
+        QGroupBox {{ font-weight: bold; border: 1px solid #cccccc; border-radius: 4px; margin-top: 8px; padding-top: 14px; }}
+        QGroupBox::title {{ subcontrol-origin: margin; left: 10px; padding: 0 4px; }}
+        QTableWidget {{ gridline-color: #e0e0e0; selection-background-color: #bbdefb; }}
+        QTableWidget::item:selected {{ background-color: #42a5f5; color: #ffffff; }}
+        QPushButton#btnSync {{ background-color: #2e7d32; color: #ffffff; font-weight: bold; }}
+        QPushButton#btnSync:hover {{ background-color: #388e3c; }}
+        QPushButton#btnDanger {{ background-color: #c62828; color: #ffffff; }}
+        QPushButton#btnDanger:hover {{ background-color: #d32f2f; }}
+        QPushButton#btnPrimary {{ background-color: #1565c0; color: #ffffff; }}
+        QPushButton#btnPrimary:hover {{ background-color: #1976d2; }}
         """
 
     def _init_ui(self):
@@ -709,7 +738,11 @@ class EmbyActorManagerDialog(QDialog):
             "使用说明：① 填写地址和密钥 → ② 连接/获取演员列表 → ③ 选择模式获取数据 → "
             "④ 绿色行=待更新 → ⑤ 开始同步到服务器。双击行可查看当前头像/简介/出生日期/影片数等详情。"
         )
-        help_label.setStyleSheet("color: #888888; font-size: 12px; padding: 2px 0;")
+        # 不写 font-size：跟随 _load_stylesheet 里放大后的统一字号，写死 12px 会反盖回去。
+        # 允许折行：这行说明是单行长文本，不折行时它的 sizeHint 会成为整个对话框的最小宽度
+        # （字号放大后 1128 → 1222px，1280 宽的小屏会被撑出屏外）；折行后最小宽度回到按钮行决定。
+        help_label.setWordWrap(True)
+        help_label.setStyleSheet("color: #888888; padding: 2px 0;")
         grid.addWidget(help_label, 2, 0, 1, 4)
         parent_layout.addWidget(group)
 
@@ -760,7 +793,8 @@ class EmbyActorManagerDialog(QDialog):
         self.txt_search.textChanged.connect(self._on_filter_changed)
         filter_layout.addWidget(self.txt_search)
         hint = QLabel("双击行可编辑")
-        hint.setStyleSheet("color: #888888; font-size: 12px;")
+        # 同上：不钉死字号，跟随统一放大的字号
+        hint.setStyleSheet("color: #888888;")
         filter_layout.addWidget(hint)
         filter_layout.addStretch()
         parent_layout.addLayout(filter_layout)
