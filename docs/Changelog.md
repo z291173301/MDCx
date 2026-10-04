@@ -17,7 +17,7 @@
 - **榜单标题框线在字体两侧截断**：标题改为**不透明底色块**（`QPalette` 设 `Window` = 底色 + `setAutoFillBackground(True)`），宽度按 `QFontMetrics.horizontalAdvance()` 只包住文字，不再拉满整条边线。**坑**：底色块左缘最初对齐框左（`_RANK_TITLE_DX=0`），把左竖线在标题带内整段盖掉了；逐像素探针打印才发现参考图的左竖线在标题带内是完整的、只有上边线被遮，故底色块必须内缩（`_RANK_TITLE_DX=12`）。实测左框上边线 16..27 可见 → 28..133 截断 → 134 起恢复（参考 16..24 → 137 起恢复），四角与左竖线均完整
 - **赞助窗口从 524×509 放大到整窗 657×677**（参考截图的实际大小）
 - **收款码与 `[赞助作者]` 改为底部锚定，随窗口高度下移**：此前二维码块顶对齐在导航区下方，多余空间全落下方，而状态文字在矩形内是 `AlignBottom`（矩形越高文字越靠下），两边叠加导致最大化时「`[赞助作者]`」与「正常模式·字段优先」的间距从 17px 暴涨到 **331px**。现改为从状态文字往上倒推（`status_bottom → text_top → link_bottom → qr_bottom`），间距恒定。新增 `_dock_status_text_h()` 按字体度量算状态文字块高——**坑**：`show_scrape_info()` 构造的文本以 `\n` 开头（`f"\n{scrape_info}…"`），那一行是空的、只在块顶部留白而无墨迹，不扣掉会多算一整行高（间距变 31.6 而非 17）；且文案行数随刮削进度变化、还有 `\n` ↔ `<br>` 两种写法，故必须动态算不能写死。实测各高度间距恒定 16.4px（目标 17，差 0.6 是字距取整误差）
-- **二维码边长恒定 176、两侧固定留 17px**：`_DONATE_QR_SIZE=176`（侧栏宽 210），不随窗口高度变大，只在窗口太矮放不下时才等比缩小（下限 `_DONATE_QR_MIN=40`，再小宁可不显示也不叠字）。实测窗口高 ≥800 时恒为 176×176、左右各留 17
+- **二维码边长恒定 168、两侧固定留 21px**：`_DONATE_QR_SIZE=168`（侧栏宽 210），**取值来自「还原/默认窗口」下的实测边长**（`init.py::_adaptive_window_sizes` 的 `def_w/def_h = 1030x700`，那里高度最紧、二维码被可用高度压到 168）——必须与默认窗口一致，否则上限一旦大于它，最大化时二维码就会涨到上限、留白变小：实测上限取 176 时最大化留白 17px 而还原窗口 21px，**差 4px**（且 175 这类奇数边长还会左右差 1px），用户反馈「最大化后二维码到边界的距离看起来比最小化时小」。只在窗口比默认更矮时才等比缩小（下限 `_DONATE_QR_MIN=40`，再小宁可不显示也不叠字）。实测 693 / 700 / 737 / 800 / 816（最大化） / 1080 / 1170 / 1200 全区间左右留白恒为 21px
 - **`[赞助作者]` 字号提到 16px**：见下方「修复」条的实测结论
 
 ### 修复
@@ -27,7 +27,7 @@
 
 ### 测试
 
-- **新增 `tests/test_window_state_matrix.py::test_donate_block_is_centered_and_keeps_text_gap_at_any_height`**：遍历 700 / 737 / 900 / 1080 / 1200 五档窗口高，断言二维码左右留白相等（奇数边长差 ≤1px）、`qr.width() <= _DONATE_QR_SIZE`、height ≥ 800 时 `qr.width() == _DONATE_QR_SIZE` 且 `pad_l == (side_w - _DONATE_QR_SIZE) // 2`；并断言「`[赞助作者]` 底边到状态文字首行」的间距跨高度**恒定**且 ≥ `_DONATE_TEXT_GAP`（文字在矩形内底对齐，故文字顶 = 矩形底 − `_dock_status_text_h()`）；三者包围盒两两不相交
+- **新增 `tests/test_window_state_matrix.py::test_donate_block_is_centered_and_keeps_text_gap_at_any_height`**：遍历 693 / 700 / 737 / 900 / 1080 / 1200 六档窗口高（含实际默认高度 693 与最大化高度），断言二维码左右留白相等（奇数边长差 ≤1px）、`qr.width() <= _DONATE_QR_SIZE`、高度 ≥ 默认窗口时 `qr.width() == _DONATE_QR_SIZE` 且 `pad_l == (side_w - _DONATE_QR_SIZE) // 2`；并断言「`[赞助作者]` 底边到状态文字首行」的间距**与二维码左右留白**都跨高度**恒定**（这两条正是用户两次反馈的回归点）、间距 ≥ `_DONATE_TEXT_GAP`；文字在矩形内底对齐，故文字顶 = 矩形底 − `_dock_status_text_h()`；三者包围盒两两不相交
 - **两个旧用例的断言从「写死实现细节」改为「断言不变量」**：`test_left_status_badges_follow_window_bottom` 原断言 `label_show_version.y() == 929`（依赖 201 高的矩形，底对齐锚定后矩形高随文案行数变化），改为断言底边贴底 `status.y() + status.height() == height - _DOCK_STATUS_BOTTOM_PAD`；`test_left_dock_adapts_to_large_ui_scale` 的导航设计态断言（`spacing()==8` / `height()==40` / `y()==index*48` / `[0,48,96,…]` / `1170-201-40`）全部改为从 `_DOCK_*` 常量推导（`step = _DOCK_NAV_BTN_H + _DOCK_NAV_SPACING`），以后再调设计不必改测试
 - **回归结果**：UI + wiki 六个套件（`test_window_state_matrix` / `test_ui_geometry` / `test_ui_structure` / `test_left_status_icons` / `test_main_window_startup` / `test_wiki_rate_limit`）**105 项全过**；全量 **2399 passed / 6 failed / 5 skipped**，6 个失败与改动前完全相同（3 个 `tests/crawlers/test_aventertainments.py` 联网 curl 35 Connection was reset、3 个 `tests/test_scraper_remain_list.py` 的 `fake_clean_empty_folders() got an unexpected keyword argument 'allow_empty'`），均为预先存在的问题，无新增回归
 

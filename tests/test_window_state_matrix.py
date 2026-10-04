@@ -1070,8 +1070,9 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     底对齐（rect 越高文字越靠下），两边叠加导致最大化后「[赞助作者]」与
     「正常模式·字段优先」的间距从 17px 暴涨到 331px（用户反馈截图），
     改为底部锚定后两者都应与窗口高度无关；② 二维码边长上限先后在「侧栏宽（满宽不留
-    白）」与「恒定 _DONATE_QR_SIZE（两侧固定留白）」之间来回改过，两档不一致被用户
-    指出（最大化时直接顶到左右边界），现固定为恒定边长 + 居中。
+    白）」、「恒定 176」与「恒定 168」之间来回改过，两档不一致被用户指出（最大化时直接
+    顶到左右边界；176 时最大化留白 17px 而还原窗口 21px，差 4px），现固定为 168
+    —— 取「还原/默认窗口」（1030x700）下的实测边长，两态完全一致。
     """
     _goto(win, app, "page_main")
     win.setMinimumSize(0, 0)
@@ -1079,20 +1080,22 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     qr, link, status = ui.label_donate_qr, ui.label_donate_link, ui.label_show_version
     side_w = ui.widget_setting.width()
     gaps: dict[int, int] = {}
+    pads: dict[int, tuple[int, int]] = {}
 
-    for height in (700, 737, 900, 1080, 1200):
+    for height in (693, 700, 737, 900, 1080, 1200):
         win.resize(1032, height)
         win.show()
         app.processEvents()
         assert not qr.isHidden() and not link.isHidden(), f"{height}: 收款码块被隐藏"
         # 水平居中，左右留白相等（奇数边长时差 1px 属正常取整）
         pad_l, pad_r = qr.x(), side_w - qr.x() - qr.width()
+        pads[height] = (pad_l, pad_r)
         assert abs(pad_l - pad_r) <= 1, f"{height}: 二维码左右留白不等 {pad_l}/{pad_r}"
         # 边长恒为 _DONATE_QR_SIZE（不随窗口高度变大），只有太矮放不下才等比缩小
         assert qr.width() <= win._DONATE_QR_SIZE, (
             f"{height}: 二维码 {qr.width()} 超过设计边长 {win._DONATE_QR_SIZE}"
         )
-        if height >= 800:  # 此高度以上可用高度充足，应正好等于设计边长
+        if height >= 700:  # 默认窗口高度（693 客户区/700 外框）以上应正好等于设计边长
             assert qr.width() == win._DONATE_QR_SIZE, (
                 f"{height}: 二维码 {qr.width()} != 设计边长 {win._DONATE_QR_SIZE}"
             )
@@ -1111,6 +1114,9 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     # 间距不小于设计下限，且**与窗口高度无关**（这才是用户反馈的回归点）
     assert min(gaps.values()) >= win._DONATE_TEXT_GAP, f"间距 {gaps} 小于 {_DONATE_TEXT_GAP}"
     assert len(set(gaps.values())) == 1, f"间距随窗口高度变化：{gaps}"
+    # 同理，左右留白也必须与窗口高度无关：边长上限一旦大于默认窗口下的实测边长，
+    # 最大化时二维码就会涨到上限、留白变小（176 时最大化 17px vs 还原 21px，差 4px）
+    assert len(set(pads.values())) == 1, f"左右留白随窗口高度变化：{pads}"
 
 
 def test_adaptive_window_sizes_matrix():
