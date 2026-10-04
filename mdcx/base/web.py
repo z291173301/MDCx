@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 import asyncio
+import html
+import json
+import os
 import re
 import threading
 import time
@@ -16,7 +19,7 @@ from lxml import etree
 from PIL import Image
 
 from ..config.manager import manager
-from ..consts import GITHUB_RELEASES_API_LIST
+from ..consts import GITHUB_RELEASES_API_LIST, GITHUB_RELEASES_ATOM
 from ..models.log_buffer import LogBuffer
 from ..network_fingerprint import build_amazon_headers, build_fingerprint_headers, select_fingerprint
 from ..signals import signal
@@ -1089,73 +1092,237 @@ def is_remote_version_newer(remote: RemoteVersion, local_tag: int, local_name: s
 
 
 def check_version() -> RemoteVersion | None:
-    if manager.config.update_check:
-        url = GITHUB_RELEASES_API_LIST
-        headers = {
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "mdcx-update-check",
-            "X-GitHub-Api-Version": "2022-11-28",
-        }
-        try:
-            timeout = max(float(manager.config.timeout), 5.0)
-        except (TypeError, ValueError):
-            timeout = 5.0
-        configured_proxy = manager.config.proxy.strip() if manager.config.use_proxy and manager.config.proxy else ""
-        request_proxies = [configured_proxy] if configured_proxy else []
-        request_proxies.append("")
+    """检测是否有新版本；返回远端最新 release（失败返回 None）。
 
-        last_error = ""
-        for proxy in dict.fromkeys(request_proxies):
-            try:
-                client_kwargs: dict[str, Any] = {"timeout": timeout, "follow_redirects": True}
-                if proxy:
-                    client_kwargs["proxy"] = proxy
-                with httpx.Client(**client_kwargs) as client:
-                    response = client.get(url, headers=headers)
-            except Exception as e:
-                last_error = str(e)
-                continue
+    取数走**两级**（任一级成功即止），外加一层本地缓存：
 
-            if response.status_code != 200:
-                if response.status_code == 403 and response.headers.get("x-ratelimit-remaining") == "0":
-                    reset_raw = response.headers.get("x-ratelimit-reset", "")
-                    if reset_raw.isdigit():
-                        reset_at = time.strftime("%H:%M:%S", time.localtime(int(reset_raw)))
-                        last_error = f"GitHub API 限流（403，剩余 0，预计重置 {reset_at}）"
-                    else:
-                        last_error = "GitHub API 限流（403，剩余 0）"
-                else:
-                    last_error = f"HTTP {response.status_code}"
-                continue
+    1. GitHub REST API（`api.github.com/repos/.../releases`）——信息最全，但匿名调用
+       只有 **60 次/小时/出口 IP** 的配额，且同一出口 IP（CGNAT / 公司网关 / 代理池）
+       下的所有用户共用这一个桶。配额耗尽时返回 403，此前实现直接判失败 → 用户看到
+       的就是「检测新版本时灵时不灵」，且本地版本比较逻辑完全无辜。
+    2. `github.com/.../releases.atom`——**站点主机**，不受上面那个 API 配额约束，
+       API 因限流/超时/5xx 失败时兜底，解析出同样的 `RemoteVersion`。
 
-            try:
-                releases = response.json()
-                if not isinstance(releases, list):
-                    last_error = "响应格式异常（非数组）"
-                    continue
-                # 取 **tag 最大** 的那条，而不是列表第一条：/releases 按 created_at 倒序
-                # 而非 tag 倒序，而发版工作流四个平台用同一 tag + overwrite（先删后建）
-                # 重建 release，补发/重跑旧 tag 会把它的 created_at 刷成当前时间、顶到
-                # 第一条——取第一条会让已发布的新版本整体被遮住，用户永远看不到更新提示。
-                remote: RemoteVersion | None = None
-                for release in releases:
-                    tag = str(release.get("tag_name", "")).strip()
-                    if not tag.isdigit():
-                        continue
-                    if remote is None or int(tag) > remote.tag:
-                        remote = RemoteVersion(tag=int(tag), name=str(release.get("name", "")).strip())
-                if remote is not None:
-                    return remote
-                tags = [str(r.get("tag_name", "?")) for r in releases[:5]]
-                signal.add_log(f"❌ 未找到 MDCx 版本发布（最近发布: {', '.join(tags)}）")
-                return None
-            except Exception:
-                signal.add_log("❌ 获取最新版本失败！响应解析异常")
-                return None
+    缓存（`userdata/version_check_cache.json`）解决两个问题：TTL 内重复启动不再消耗
+    那 60 次配额（同一 IP 下多人同时启动最容易把它打空），以及两条网络路径都失败时
+    仍能沿用上次成功结果，不让「有没有新版本」随网络抖动飘。
+    """
+    if not manager.config.update_check:
+        return None
 
-        if last_error:
-            signal.add_log(f"❌ 获取最新版本失败！{last_error}")
+    cached = _read_version_cache(_VERSION_CACHE_TTL)
+    if cached is not None:
+        # 缓存新鲜：一个请求都不发。日志里留痕，用户反馈「检测不到」时可对照排查。
+        signal.add_log(f"ℹ️ 使用本地缓存的最新版本记录（{_format_checked_at(cached[1])} 检查）: {cached[0].display}")
+        return cached[0]
+
+    try:
+        timeout = max(float(manager.config.timeout), 5.0)
+    except (TypeError, ValueError):
+        timeout = 5.0
+    configured_proxy = manager.config.proxy.strip() if manager.config.use_proxy and manager.config.proxy else ""
+    request_proxies = [configured_proxy] if configured_proxy else []
+    request_proxies.append("")
+
+    remote, last_error = _fetch_remote_version(timeout, list(dict.fromkeys(request_proxies)))
+    if remote is not None:
+        _write_version_cache(remote)
+        return remote
+
+    # 两条网络路径都失败：宁可给一条可能稍旧的记录，也不要让「有没有新版本」随网络抖动。
+    stale = _read_version_cache(float("inf"))
+    if stale is not None:
+        signal.add_log(f"🔶 获取最新版本失败（{last_error}），改用上次成功记录: {stale[0].display}")
+        return stale[0]
+
+    if last_error:
+        signal.add_log(f"❌ 获取最新版本失败！{last_error}")
     return None
+
+
+def _fetch_remote_version(timeout: float, proxies: list[str]) -> tuple[RemoteVersion | None, str]:
+    """按「REST API → releases.atom」顺序取最新 release，返回 (版本, 失败原因)。
+
+    两级都失败时，失败原因取 API 的那条（配额/限流信息比站点 HTML 的解析失败更有诊断价值）。
+    """
+    api_headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "mdcx-update-check",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    remote, api_error = _fetch_remote_version_from_api(timeout, proxies, api_headers)
+    if remote is not None:
+        return remote, ""
+    atom_remote, _atom_error = _fetch_remote_version_from_atom(timeout, proxies)
+    if atom_remote is not None:
+        signal.add_log(
+            f"🔄 GitHub API 暂不可用（{api_error}），已改用 releases.atom 获取最新版本: {atom_remote.display}"
+        )
+        return atom_remote, ""
+    return None, api_error
+
+
+def _fetch_remote_version_from_api(timeout: float, proxies: list[str], headers: dict[str, str]):
+    """走 REST API 取 **tag 最大** 的 release，返回 (版本, 失败原因)。
+
+    取 tag 最大而非列表第一条：`/releases` 按 `created_at` 倒序而非 tag 倒序，而发版
+    工作流四个平台用同一 tag + `overwrite`（先删后建）重建 release，补发/重跑旧 tag 会
+    把它的 `created_at` 刷成当前时间、顶到第一条——取第一条会让已发布的新版本整体被
+    遮住，用户永远看不到更新提示。
+    """
+    last_error = ""
+    for proxy in proxies:
+        try:
+            response = _github_request(GITHUB_RELEASES_API_LIST, headers, timeout, proxy)
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+        if response.status_code != 200:
+            last_error = _describe_github_http_error(response)
+            continue
+
+        try:
+            releases = response.json()
+            if not isinstance(releases, list):
+                last_error = "响应格式异常（非数组）"
+                continue
+            remote: RemoteVersion | None = None
+            for release in releases:
+                tag = str(release.get("tag_name", "")).strip()
+                if not tag.isdigit():
+                    continue
+                if remote is None or int(tag) > remote.tag:
+                    remote = RemoteVersion(tag=int(tag), name=str(release.get("name", "")).strip())
+            if remote is not None:
+                return remote, ""
+            tags = [str(r.get("tag_name", "?")) for r in releases[:5]]
+            last_error = f"未找到 MDCx 版本发布（最近发布: {', '.join(tags)}）"
+        except Exception:
+            last_error = "响应解析异常"
+        return None, last_error
+
+    return None, last_error
+
+
+def _fetch_remote_version_from_atom(timeout: float, proxies: list[str]):
+    """走 `github.com` 的 releases.atom 兜底取数，返回 (版本, 失败原因)。"""
+    headers = {"User-Agent": "mdcx-update-check", "Accept": "application/atom+xml"}
+    last_error = ""
+    for proxy in proxies:
+        try:
+            response = _github_request(GITHUB_RELEASES_ATOM, headers, timeout, proxy)
+        except Exception as e:
+            last_error = str(e)
+            continue
+        if response.status_code != 200:
+            last_error = f"HTTP {response.status_code}"
+            continue
+        try:
+            remote = parse_release_atom(response.text)
+        except Exception:
+            remote = None
+        if remote is not None:
+            return remote, ""
+        last_error = "atom 源解析异常"
+    return None, last_error
+
+
+def _github_request(url: str, headers: dict[str, str], timeout: float, proxy: str):
+    """按给定代理发一次 GET（配置代理优先，其次直连），返回 httpx 响应。"""
+    client_kwargs: dict[str, Any] = {"timeout": timeout, "follow_redirects": True}
+    if proxy:
+        client_kwargs["proxy"] = proxy
+    with httpx.Client(**client_kwargs) as client:
+        return client.get(url, headers=headers)
+
+
+def _describe_github_http_error(response) -> str:
+    """把 GitHub 的非 200 响应翻译成能定位问题的中文说明。"""
+    if response.status_code == 403 and response.headers.get("x-ratelimit-remaining") == "0":
+        reset_raw = response.headers.get("x-ratelimit-reset", "")
+        if reset_raw.isdigit():
+            reset_at = time.strftime("%H:%M:%S", time.localtime(int(reset_raw)))
+            return f"GitHub API 限流（403，剩余 0，预计重置 {reset_at}）"
+        return "GitHub API 限流（403，剩余 0）"
+    if response.status_code == 403:
+        return "HTTP 403（可能被 GitHub 或代理拦截）"
+    return f"HTTP {response.status_code}"
+
+
+_ATOM_ENTRY_RE = re.compile(r"<entry>(.*?)</entry>", re.DOTALL)
+_ATOM_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.DOTALL)
+_ATOM_TAG_RE = re.compile(r"releases/tag/(\d+)")
+
+
+def parse_release_atom(text: str) -> RemoteVersion | None:
+    """从 `releases.atom` 解析最新 release，返回 `RemoteVersion`（解析不出返回 None）。
+
+    与 API 那条路径同取 **tag 最大**的 entry（而非 feed 第一条）：atom 同样按发布时间
+    倒序，补发旧 tag 会把旧版本顶到第一条。标题走 HTML 反转义后作为 `name`，格式仍是
+    `vX.Y.Z (YYYYMMDD)`，故 `parse_release_version` / `display` 的行为与 API 路径完全一致。
+    """
+    remote: RemoteVersion | None = None
+    for entry in _ATOM_ENTRY_RE.findall(text or ""):
+        tag_match = _ATOM_TAG_RE.search(entry)
+        if tag_match is None:
+            continue
+        tag = int(tag_match.group(1))
+        title_match = _ATOM_TITLE_RE.search(entry)
+        name = html.unescape(title_match.group(1)).strip() if title_match else ""
+        if remote is None or tag > remote.tag:
+            remote = RemoteVersion(tag=tag, name=name)
+    return remote
+
+
+# 本地缓存：TTL 内直接复用，不再发请求（省 GitHub 匿名 API 的 60 次/小时配额）
+_VERSION_CACHE_FILE = "version_check_cache.json"
+_VERSION_CACHE_TTL = 6 * 3600.0
+
+
+def _version_cache_path() -> Path:
+    from ..config.resources import resources
+
+    return resources.u(_VERSION_CACHE_FILE)
+
+
+def _format_checked_at(checked_at: float) -> str:
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(checked_at))
+
+
+def _read_version_cache(max_age: float) -> tuple[RemoteVersion, float] | None:
+    """读上次成功记录，返回 (版本, 检查时间戳)；无记录 / 损坏 / 超龄返回 None。
+
+    `max_age` 由调用方按场景传入（TTL / 不限龄），**不设默认值**——写成默认参数会在函数
+    定义时就绑定当时的常量，之后改常量对调用点不生效。读失败一律静默当没有缓存：检查更新
+    本身是锦上添花，缓存坏了不该在日志里刷错误、更不该让调用方崩。
+    """
+    try:
+        raw = json.loads(_version_cache_path().read_text(encoding="UTF-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(raw, dict):
+        return None
+    try:
+        remote = RemoteVersion(tag=int(raw["tag"]), name=str(raw["name"]))
+        checked_at = float(raw["checked_at"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if time.time() - checked_at > max_age:
+        return None
+    return remote, checked_at
+
+
+def _write_version_cache(remote: RemoteVersion) -> None:
+    """原子写（tmp + os.replace）缓存记录；写失败只影响下次省配额，不影响本次检测。"""
+    path = _version_cache_path()
+    payload = {"tag": remote.tag, "name": remote.name, "checked_at": time.time()}
+    try:
+        tmp = path.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="UTF-8")
+        os.replace(tmp, path)
+    except (OSError, TypeError, ValueError):
+        return
 
 
 def check_theporndb_api_token() -> str:

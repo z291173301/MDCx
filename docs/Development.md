@@ -561,6 +561,10 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 
 **③ 源码版本号高于线上时不提示。** `LOCAL_VERSION` 是发版日，通常先于线上 release bump，故拿当前源码打包自测**永远不会**看到新版本提示——这是正确的，不是 bug。要测提示链得拿**上一个已发布 tag** 的包去比线上最新。
 
+**④ API 失败必须回退到 `releases.atom`（v2.2.5 起，治「时灵时不灵」）。** `check_version()` 主路径是匿名 `api.github.com`，配额 **60 次/小时/出口 IP**（不是/用户、不是/实例）——同一出口 IP 下所有 MDCx 用户共享一个计数桶，耗尽即 403 → 返回 `None` → 主窗口打绿色「你使用的是最新版本！🎉」，用户观感就是「一会儿能检测到一会儿检测不到」。故任何一次 API 失败（403 限流 / 超时 / 5xx / 非数组 JSON / 全非数字 tag）都必须再走 `github.com` 站点的 `GITHUB_RELEASES_ATOM`（`consts.py`，**不受该配额约束**）。atom 侧用 `parse_release_atom()` 解析，同样**取最大 tag**——不变量 ① 对两条源同时成立，改一条必须同时改另一条。atom 解析入口是公开函数（便于脱离网络单测），标题要过 `html.unescape()`。
+
+**⑤ 结果要落 6 小时本地缓存（v2.2.5 起）。** `userdata/version_check_cache.json`（`_VERSION_CACHE_TTL = 6 * 3600`），写入用 tmp + `os.replace` 原子替换，路径走 `resources.u()`（运行时状态不进配置也不进 git，约定同 `core/image_host_cooldown.py`）。三条行为：**新鲜缓存命中 → 一个请求都不发**；**网络失败 → 回退用任意年龄的缓存**（`_read_version_cache(float("inf"))`）；**缓存损坏 / 路径不可写 → 静默降级为纯联网**，绝不抛异常打断启动自检。`_read_version_cache(max_age)` **刻意不给默认参数**——默认值会在 def 时把 TTL 绑死，之后 monkeypatch `_VERSION_CACHE_TTL` 失效、TTL 用例假通过；所有调用方显式传 `_VERSION_CACHE_TTL` 或 `float("inf")`。写 `check_version()` 相关测试时**必须**把 `_version_cache_path` monkeypatch 到 `tmp_path`，否则上一个用例刚写的缓存会让下一个用例直接短路返回、把网络断言全部架空。
+
 `check_version()` 的返回值是 `RemoteVersion(tag, name)` NamedTuple（带 `display` 属性：无标题时退回纯数字 tag），不是裸 `int`；调用方与测试桩都要跟着换。主窗口侧 `_notified_new_version` 也存 `RemoteVersion`，用于 12h `timer_update` 复查的 transition 去重。改返回类型时注意 `tests/` 下另有 12 处 `lambda: None` 桩（桩成 `None` 的不受影响，桩成版本号数值的会挂）。
 
 ## 构建

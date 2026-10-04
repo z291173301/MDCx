@@ -66,6 +66,17 @@ def _stub(monkeypatch: pytest.MonkeyPatch, payload, status_code: int = 200, head
 
 
 @pytest.fixture(autouse=True)
+def _isolated_cache(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    """把 check_version 的本地缓存重定向到临时目录。
+
+    缓存（`userdata/version_check_cache.json`）是 check_version 新增的一层状态：TTL 内
+    直接复用、不发请求。测试必须隔离它，否则本文件里前一个用例写下的新鲜缓存会被后一个
+    用例当成有效结果直接返回，用例之间互相污染（断言的是网络返回值，不是缓存返回值）。
+    """
+    monkeypatch.setattr(base_web, "_version_cache_path", lambda: tmp_path / "version_check_cache.json")
+
+
+@pytest.fixture(autouse=True)
 def _quiet_detail_log(monkeypatch: pytest.MonkeyPatch):
     """失败分支写 signal.add_log（详情日志框），桩掉免得污染断言与真实日志。"""
     logs: list[str] = []

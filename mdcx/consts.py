@@ -3,8 +3,8 @@ import platform
 import sys
 from pathlib import Path
 
-LOCAL_VERSION = 20261007  # 数值版本号(纯数字 YYYYMMDD): 用于版本比较/更新检查/bump构建脚本; 注意 GitHub release 的 Tag 也必须是纯数字(因 check_version 对 tag_name 做 int()), 切勿用 vX.Y.Z 格式
-VERSION_NAME = "v2.2.4"  # 展示用版本名: 平时只用于显示, 更新检查时与 LOCAL_VERSION 一起作为版本号维度参与比较(见 base/web.py 的 is_remote_version_newer: 版本号优先, 版本号相等才比日期)
+LOCAL_VERSION = 20261008  # 数值版本号(纯数字 YYYYMMDD): 用于版本比较/更新检查/bump构建脚本; 注意 GitHub release 的 Tag 也必须是纯数字(因 check_version 对 tag_name 做 int()), 切勿用 vX.Y.Z 格式
+VERSION_NAME = "v2.2.5"  # 展示用版本名: 平时只用于显示, 更新检查时与 LOCAL_VERSION 一起作为版本号维度参与比较(见 base/web.py 的 is_remote_version_newer: 版本号优先, 版本号相等才比日期)
 
 # 系统信息（进程启动时计算一次）。
 # 不用 platform.platform()：它在旧版 Python 上会执行 `cmd /c ver` 启动子进程，
@@ -15,6 +15,10 @@ GITHUB_REPO = "z291173301/MDCx"
 GITHUB_RELEASES_URL = f"https://github.com/{GITHUB_REPO}/releases"
 GITHUB_RELEASES_API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 GITHUB_RELEASES_API_LIST = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=10"
+# releases.atom 走 github.com 而非 api.github.com：匿名调 API 只有 60 次/小时/出口 IP 的配额
+# （同出口 IP 的所有用户共享），配额耗尽后 check_version() 只会拿到 403 → 检测时灵时不灵；
+# github.com 站点的 atom 源不受该配额约束，作为 API 失败后的兜底（见 base/web.py 的 check_version）。
+GITHUB_RELEASES_ATOM = f"https://github.com/{GITHUB_REPO}/releases.atom"
 GITHUB_ISSUES_URL = f"https://github.com/{GITHUB_REPO}/issues/new/choose"
 
 os_name = platform.system()
