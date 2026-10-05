@@ -4,7 +4,7 @@
 
 1. 「收紧国产番号、动漫番号、MyWifes、锁定类型之间的上下间距使得更紧凑，将文字
    说明之间的间距由当前改成一行汉字的高度」；
-2. 「有码番号、无码番号、素人番号、个摄番号、欧美番号、国产番号下方的绿色文字说明
+2. 「有码番号、无码番号、素人番号、FC2 番号、欧美番号、国产番号下方的绿色文字说明
    向上移动一行，文字下方的控件、组件等同步向上移动一行」。
 
 改前实测（真实主窗口 1014 宽，主题字体下一行说明文字高 17px）：`.ui` 里
@@ -354,6 +354,33 @@ def test_wrapped_desc_texts_regression():
         if actual != expected:
             mismatches[name] = actual
     assert not mismatches, f"类型刮削网站三段说明文案与预期不符: {mismatches}"
+
+
+# 六条番号提示词文案（用户把「个摄番号：」改名为「FC2 番号：」后一并锁死，
+# 防止日后无声改回谐音写法，或某一条被单独改成别的品牌名）
+_NUMBER_LABELS = {
+    "label_153": "有码番号：",
+    "label_151": "无码番号：",
+    "label_152": "素人番号：",
+    "label_148": "FC2 番号：",
+    "label_149": "欧美番号：",
+    "label_217": "国产番号：",
+}
+
+
+def test_number_label_texts_regression():
+    """六条番号提示词文案锁：第四行必须是「FC2 番号：」（改回「个摄番号：」即失败）。"""
+    ui_src = _ui_src()
+    mismatches = {}
+    for name, expected in _NUMBER_LABELS.items():
+        block = _widget_block(ui_src, name)
+        raw = block[block.index('<property name="text">') :]
+        raw = raw[: raw.index("</property>")]
+        start = raw.index("<string")
+        actual = raw[raw.index(">", start) + 1 : raw.index("</string>")]
+        if actual != expected:
+            mismatches[name] = actual
+    assert not mismatches, f"六条番号提示词文案与预期不符: {mismatches}"
 
 
 # --------------------------------------------------------------------------- #

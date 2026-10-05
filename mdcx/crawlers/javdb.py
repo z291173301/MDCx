@@ -13,6 +13,28 @@ from ..models.model_types import CrawlerResult
 from ..number import match_number, number_search_variants
 from .base import BaseCrawler, CrawlerData, CrawlerException, DetailPageParser, extract_all_texts, extract_text
 
+# 欧美短年份尾缀：YY.MM.DD / YY-MM-DD（如 Blackedraw.26.09.18）。
+# 前面不能是数字，避免 2026.09.18 的后半截 26.09.18 被二次转换。
+_OUMEI_SHORT_DATE_SUFFIX_RE = re.compile(r"(?<!\d)(\d{2})[.\-](\d{2})[.\-](\d{2})$")
+
+
+def normalize_oumei_short_date(number: str) -> str:
+    """欧美短年份转长年份：Blackedraw.26.09.18 -> Blackedraw.2026.09.18。
+
+    Javdb 收录欧美番号使用 4 位年份，而番号解析多为 2 位年份，
+    搜索与匹配都必须用转换后的番号，否则搜得到也匹配不上。
+    非欧美番号（IPX-535 等）与已是 4 位年份的番号原样返回。
+    """
+    cleaned = (number or "").strip()
+    if not cleaned:
+        return cleaned
+    m = _OUMEI_SHORT_DATE_SUFFIX_RE.search(cleaned)
+    if not m:
+        return cleaned
+    prefix = cleaned[: m.start()]
+    long_date = f"20{m.group(1)}.{m.group(2)}.{m.group(3)}"
+    return f"{prefix}{long_date}"
+
 
 class Parser(DetailPageParser):
     async def number(self, ctx, html: Selector) -> str:
@@ -194,19 +216,20 @@ class JavdbCrawler(BaseCrawler):
 
     @override
     async def _generate_search_url(self, ctx) -> list[str]:
-        number = ctx.input.number.strip()
+        original = ctx.input.number.strip()
+        converted = normalize_oumei_short_date(original)
+        if converted != original:
+            ctx.debug(f"欧美短日期番号转换: {original} -> {converted}")
 
-        # 处理日期格式的番号
-        if "." in number:
-            old_date = re.findall(r"\D+(\d{2}\.\d{2}\.\d{2})$", number)
-            if old_date:
-                old_date = old_date[0]
-                new_date = "20" + old_date
-                number = number.replace(old_date, new_date)
-
-        search_urls = [
-            f"{self.base_url}/search?q={candidate}&locale=zh" for candidate in self._search_candidates(number)
-        ]
+        ordered_numbers = [converted] if converted == original else [converted, original]
+        search_urls: list[str] = []
+        seen: set[str] = set()
+        for number in ordered_numbers:
+            for candidate in self._search_candidates(number):
+                url = f"{self.base_url}/search?q={candidate}&locale=zh"
+                if url not in seen:
+                    seen.add(url)
+                    search_urls.append(url)
         ctx.debug(f"搜索地址: {search_urls}")
         return search_urls
 
@@ -236,18 +259,24 @@ class JavdbCrawler(BaseCrawler):
             if href:
                 info_list.append([href, title, meta])
 
-        # 精确匹配
-        number = ctx.input.number
-        for href, title, _meta in info_list:
-            if title and match_number(title, number):
-                return [self._with_locale_zh(urljoin(self.base_url, href))]
+        # 精确匹配：同时尝试转换后番号与原始番号。
+        # 欧美短日期 26.09.18 在 javdb 站内为 2026.09.18，搜索用转换后番号，
+        # 匹配也必须用转换后番号，否则搜得到也匹配不上。
+        original_number = ctx.input.number
+        converted_number = normalize_oumei_short_date(original_number)
+        match_numbers = list(dict.fromkeys([converted_number, original_number]))
+        for number in match_numbers:
+            for href, title, _meta in info_list:
+                if title and match_number(title, number):
+                    return [self._with_locale_zh(urljoin(self.base_url, href))]
 
-        # 模糊匹配
-        clean_number = number.upper().replace(".", "").replace("-", "").replace(" ", "")
-        for href, title, meta in info_list:
-            clean_content = ((title or "") + (meta or "")).upper().replace("-", "").replace(".", "").replace(" ", "")
-            if match_number(clean_content, clean_number):
-                return [self._with_locale_zh(urljoin(self.base_url, href))]
+        # 模糊匹配同样尝试两者
+        for number in match_numbers:
+            clean_number = number.upper().replace(".", "").replace("-", "").replace(" ", "")
+            for href, title, meta in info_list:
+                clean_content = ((title or "") + (meta or "")).upper().replace("-", "").replace(".", "").replace(" ", "")
+                if match_number(clean_content, clean_number):
+                    return [self._with_locale_zh(urljoin(self.base_url, href))]
 
         return None
 
