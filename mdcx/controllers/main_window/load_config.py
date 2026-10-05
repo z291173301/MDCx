@@ -599,9 +599,10 @@ def load_config(self: "MyMAinWindow"):
             (self.Ui.radioButton_separate_mode_del_empty_folder_off, False),
             default=self.Ui.radioButton_separate_mode_del_empty_folder_off,
         )
-        # 分离模式：为本地视频生成STRM链接地址
+        # 分离模式：为本地视频生成STRM链接地址（覆盖项以其为前提，未生成时置灰）
         self.Ui.checkBox_separate_generate_strm.setChecked(manager.config.separate_generate_strm)
         self.Ui.checkBox_separate_overwrite_strm.setChecked(manager.config.separate_overwrite_strm)
+        self.Ui.checkBox_separate_overwrite_strm.setEnabled(self.Ui.checkBox_separate_generate_strm.isChecked())
         self.Ui.checkBox_separate_reuse_meta.setChecked(manager.config.separate_reuse_metadata)
         self.Ui.checkBox_separate_overwrite_meta.setChecked(manager.config.separate_overwrite_meta)
         # 复用/覆盖互斥：手改配置若两开，以覆盖为准（运行时同样覆盖优先）

@@ -1362,9 +1362,9 @@ class Scraper:
 
         # 如果 final_pic_path 没处理过，这时才需要下载和加水印
         # 分离模式复用元数据：三张 final 图片都已存在时跳过下载（保留已有文件）
-        reuse_meta = should_reuse_metadata()
+        reuse_meta = should_reuse_metadata(meta_root)
         # 运行时覆盖优先：勾选覆盖元数据时即使复用也生效重下重写（界面互斥保证两者不同时勾选，此处防手改配置双开）
-        overwrite_meta = should_overwrite_meta()
+        overwrite_meta = should_overwrite_meta(meta_root)
         reuse_images = (
             reuse_meta
             and not overwrite_meta
@@ -1412,13 +1412,15 @@ class Scraper:
         # 分离模式：为本地视频生成STRM链接地址（与nfo/封面同目录，内容为视频最终绝对路径）
         # 仅分离模式生效，其他模式下即使勾选也不生成
         if should_generate_strm(meta_root, skip_reorganize):
+            strm_path = meta_folder / f"{naming_rule}.strm"
+            # 视频最终落点：开启移动时是 file_new_path；不开移动时视频原地不动，
+            # 必须写 file_path（此时 file_new_path 指向未使用的目标目录）
+            video_final = file_new_path if eff_success_file_move() else Path(file_path)
             try:
-                video_final = Path(file_info.file_path) if eff_success_file_move() else Path(file_path)
-                strm_path = meta_folder / f"{naming_rule}.strm"
                 if not strm_path.exists() or should_overwrite_strm():
-                    strm_path.write_text(str(video_final), encoding="utf-8")
-            except OSError:
-                signal.show_log_text(f" 🔴 STRM文件写入失败: {meta_folder / naming_rule}.strm")
+                    await asyncio.to_thread(strm_path.write_text, str(video_final), encoding="utf-8")
+            except Exception as e:
+                signal.show_log_text(f" 🔴 STRM文件写入失败: {strm_path} ({e!s})")
 
         # 创建软链接及复制文件（由 auto_link 独立控制）
         if manager.config.auto_link:

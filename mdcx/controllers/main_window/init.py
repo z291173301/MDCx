@@ -527,6 +527,8 @@ def Init_Singal(self: "MyMAinWindow"):
     # 复用/覆盖元数据互斥：只允许同时选中一个（界面层），运行时覆盖优先兜底。
     self.Ui.checkBox_separate_reuse_meta.toggled.connect(self.checkBox_separate_reuse_meta_changed)
     self.Ui.checkBox_separate_overwrite_meta.toggled.connect(self.checkBox_separate_overwrite_meta_changed)
+    # STRM：生成是覆盖的前提，未勾选生成时覆盖框置灰（不影响其勾选值）
+    self.Ui.checkBox_separate_generate_strm.toggled.connect(self.checkBox_separate_generate_strm_changed)
     for _lbl in (
         self.Ui.label_11,
         self.Ui.label_separate_mode,

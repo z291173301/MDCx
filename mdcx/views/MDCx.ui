@@ -5234,7 +5234,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string>覆盖本地已存在的STRM链接文本</string>
                                 </property>
                                 <property name="toolTip">
-                                  <string>勾选后，已存在的STRM链接文本将被覆盖；不勾选则跳过已存在项</string>
+                                  <string>需先勾选「为本地视频文件生成STRM链接文本」；勾选后，已存在的STRM链接文本将被覆盖，不勾选则跳过已存在项</string>
                                 </property>
                               </widget>
                             </item>
@@ -23982,7 +23982,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>（时:分:秒），自动开始刮削（读取配置时开始计时）</string>
+                                  <string>（时:分:秒），自动开始刮削视频，读取配置时开始计时</string>
                                 </property>
                                 <property name="alignment">
                                   <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>

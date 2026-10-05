@@ -307,6 +307,29 @@ def test_reuse_overwrite_meta_mutually_exclusive(win, app):
     app.processEvents()
 
 
+def test_overwrite_strm_disabled_without_generate(win, app):
+    """生成是覆盖的前提：未勾选生成时覆盖框置灰，重新勾选生成后恢复（勾选值保留）。"""
+    ui = win.Ui
+    win.show()
+    _goto_guaxiaomoshi(win, app)
+    generate = ui.checkBox_separate_generate_strm
+    overwrite = ui.checkBox_separate_overwrite_strm
+    generate.setChecked(False)
+    app.processEvents()
+    assert not overwrite.isEnabled(), "未勾选生成时覆盖框应置灰"
+    overwrite.setChecked(True)
+    app.processEvents()
+    generate.setChecked(True)
+    app.processEvents()
+    assert overwrite.isEnabled(), "勾选生成后覆盖框应恢复可用"
+    assert overwrite.isChecked(), "置灰期间覆盖框的勾选值应保留"
+    generate.setChecked(False)
+    app.processEvents()
+    assert not overwrite.isEnabled(), "取消生成后覆盖框应再次置灰"
+    generate.setChecked(False)
+    app.processEvents()
+
+
 def _ui_geometry(name):
     """静态辅助：.ui 里 widget 的 design geometry，返回 (x, y, w, h)。"""
     tree = ET.parse(UI_PATH)

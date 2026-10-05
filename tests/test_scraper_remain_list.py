@@ -14,7 +14,8 @@ def _patch_scraper_env(monkeypatch: pytest.MonkeyPatch, main_mode: int = 1):
     async def fake_save_success_list(_old_path=None, _new_path=None):
         return None
 
-    async def fake_clean_empty_folders(_path: Path, _file_mode: FileMode):
+    async def fake_clean_empty_folders(_path: Path, _file_mode: FileMode, allow_empty=None):
+        # allow_empty：分离模式下刮削结束对数据存放目录另传右侧开关，桩必须一并接收
         return None
 
     def fake_get_movie_path_setting(_file_path=None, movie_path_override=None):

@@ -10120,6 +10120,10 @@ class MyMAinWindow(QMainWindow):
         if checked:
             self.Ui.checkBox_separate_reuse_meta.setChecked(False)
 
+    # 分离模式-STRM：生成是覆盖的前提，未勾选生成时覆盖项置灰（保留其勾选值，重新勾选生成后自动恢复）
+    def checkBox_separate_generate_strm_changed(self, checked):
+        self.Ui.checkBox_separate_overwrite_strm.setEnabled(bool(checked))
+
     # 设置-刮削目录-同意清理(我已知晓/我已同意)
     def checkBox_i_agree_clean_clicked(self):
         if self.Ui.checkBox_i_understand_clean.isChecked() and self.Ui.checkBox_i_agree_clean.isChecked():

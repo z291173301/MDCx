@@ -276,6 +276,32 @@ def test_move_other_file_splits_meta_and_video(monkeypatch, tmp_path):
     assert not (old / "ABC-123.nfo").exists()
 
 
+def test_move_other_file_routes_existing_strm_to_meta_dir(monkeypatch, tmp_path):
+    """源目录已有的 .strm 属元数据，须进数据目录而非跟随视频。"""
+    from mdcx.base.file import move_other_file
+    from mdcx.config.manager import manager
+
+    old = tmp_path / "old_strm"
+    video_new = tmp_path / "video_new_strm"
+    meta_new = tmp_path / "meta_new_strm"
+    old.mkdir()
+    video_new.mkdir()
+    meta_new.mkdir()
+    (old / "ABC-123.strm").write_text("/media/ABC-123.mp4", encoding="utf-8")
+
+    monkeypatch.setattr(manager.config, "soft_link", 0)
+    monkeypatch.setattr(manager.config, "main_mode", 2)
+    monkeypatch.setattr(manager.config, "success_file_move", True)
+    monkeypatch.setattr(manager.config, "success_file_rename", True)
+    monkeypatch.setattr(manager.config, "media_type", [".mp4"])
+
+    asyncio.run(move_other_file("ABC-123", old, video_new, "ABC-123", "ABC-123", meta_new))
+
+    assert (meta_new / "ABC-123.strm").exists()
+    assert not (video_new / "ABC-123.strm").exists()
+    assert not (old / "ABC-123.strm").exists()
+
+
 def test_move_other_file_without_meta_behaves_as_before(monkeypatch, tmp_path):
     from mdcx.base.file import move_other_file
     from mdcx.config.manager import manager
@@ -533,10 +559,11 @@ def test_should_generate_strm_only_in_separate_mode(monkeypatch, tmp_path):
 
 
 def test_should_overwrite_strm_only_in_separate_mode(monkeypatch):
-    """STRM 覆盖开关只在分离模式下生效：其他模式即使勾选也不覆盖。"""
+    """STRM 覆盖开关只在分离模式 + 已勾选生成时生效。"""
     from mdcx.config.extend import should_overwrite_strm
     from mdcx.config.manager import manager
 
+    monkeypatch.setattr(manager.config, "separate_generate_strm", True)
     monkeypatch.setattr(manager.config, "separate_overwrite_strm", True)
     for mode in (1, 3, 4, 5):
         monkeypatch.setattr(manager.config, "main_mode", mode)
@@ -547,34 +574,53 @@ def test_should_overwrite_strm_only_in_separate_mode(monkeypatch):
     assert should_overwrite_strm() is False
 
 
-def test_should_reuse_metadata_only_in_separate_mode(monkeypatch):
-    """元数据复用开关只在分离模式下生效：其他模式即使勾选也不复用。"""
+def test_should_overwrite_strm_requires_generate_flag(monkeypatch):
+    """未勾选「生成STRM」时，勾选覆盖也不生效（不生成自然无从覆盖）。"""
+    from mdcx.config.extend import should_overwrite_strm
+    from mdcx.config.manager import manager
+
+    monkeypatch.setattr(manager.config, "main_mode", 2)
+    monkeypatch.setattr(manager.config, "separate_overwrite_strm", True)
+    monkeypatch.setattr(manager.config, "separate_generate_strm", False)
+    assert should_overwrite_strm() is False
+    monkeypatch.setattr(manager.config, "separate_generate_strm", True)
+    assert should_overwrite_strm() is True
+
+
+def test_should_reuse_metadata_only_in_separate_mode(monkeypatch, tmp_path):
+    """元数据复用开关只在分离模式 + 元数据根有效时生效。"""
     from mdcx.config.extend import should_reuse_metadata
     from mdcx.config.manager import manager
 
+    meta = tmp_path / "meta"
+    meta.mkdir()
     monkeypatch.setattr(manager.config, "separate_reuse_metadata", True)
     for mode in (1, 3, 4, 5):
         monkeypatch.setattr(manager.config, "main_mode", mode)
-        assert should_reuse_metadata() is False
+        assert should_reuse_metadata(meta) is False
     monkeypatch.setattr(manager.config, "main_mode", 2)
-    assert should_reuse_metadata() is True
+    assert should_reuse_metadata(None) is False, "无数据存放目录时不应复用（否则会误跳下载与写nfo）"
+    assert should_reuse_metadata(meta) is True
     monkeypatch.setattr(manager.config, "separate_reuse_metadata", False)
-    assert should_reuse_metadata() is False
+    assert should_reuse_metadata(meta) is False
 
 
-def test_should_overwrite_meta_only_in_separate_mode(monkeypatch):
-    """元数据覆盖开关只在分离模式下生效：其他模式即使勾选也不覆盖。"""
+def test_should_overwrite_meta_only_in_separate_mode(monkeypatch, tmp_path):
+    """元数据覆盖开关只在分离模式 + 元数据根有效时生效。"""
     from mdcx.config.extend import should_overwrite_meta
     from mdcx.config.manager import manager
 
+    meta = tmp_path / "meta2"
+    meta.mkdir()
     monkeypatch.setattr(manager.config, "separate_overwrite_meta", True)
     for mode in (1, 3, 4, 5):
         monkeypatch.setattr(manager.config, "main_mode", mode)
-        assert should_overwrite_meta() is False
+        assert should_overwrite_meta(meta) is False
     monkeypatch.setattr(manager.config, "main_mode", 2)
-    assert should_overwrite_meta() is True
+    assert should_overwrite_meta(None) is False, "无数据存放目录时不应覆盖"
+    assert should_overwrite_meta(meta) is True
     monkeypatch.setattr(manager.config, "separate_overwrite_meta", False)
-    assert should_overwrite_meta() is False
+    assert should_overwrite_meta(meta) is False
 
 
 def test_should_generate_strm_requires_flag_meta_and_reorganize(monkeypatch, tmp_path):

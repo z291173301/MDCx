@@ -13228,7 +13228,10 @@ class Ui_MDCx(object):
         self.checkBox_separate_generate_strm.setText(_translate("MDCx", "为本地视频文件生成STRM链接文本"))
         self.checkBox_separate_overwrite_strm.setText(_translate("MDCx", "覆盖本地已存在的STRM链接文本"))
         self.checkBox_separate_overwrite_strm.setToolTip(
-            _translate("MDCx", "勾选后，已存在的STRM链接文本将被覆盖；不勾选则跳过已存在项")
+            _translate(
+                "MDCx",
+                "需先勾选「为本地视频文件生成STRM链接文本」；勾选后，已存在的STRM链接文本将被覆盖，不勾选则跳过已存在项",
+            )
         )
         self.checkBox_separate_reuse_meta.setText(_translate("MDCx", "复用数据存放目录中的元数据文件"))
         self.checkBox_separate_overwrite_meta.setText(_translate("MDCx", "覆盖本地保存的视频元数据文件"))
@@ -14376,7 +14379,7 @@ class Ui_MDCx(object):
         self.checkBox_show_dialog_exit.setText(_translate("MDCx", "退出软件时"))
         self.checkBox_show_dialog_stop_scrape.setText(_translate("MDCx", "停止刮削时"))
         self.checkBox_timed_scrape.setText(_translate("MDCx", "每次间隔"))
-        self.label_84.setText(_translate("MDCx", "（时:分:秒），自动开始刮削（读取配置时开始计时）"))
+        self.label_84.setText(_translate("MDCx", "（时:分:秒），自动开始刮削视频，读取配置时开始计时"))
         self.label_308.setText(_translate("MDCx", "自动任务："))
         self.label_309.setText(_translate("MDCx", "自动刮削："))
         self.label_277.setText(_translate("MDCx", "弹窗确认："))

@@ -44,8 +44,12 @@ def parse_media_paths(media_path: str | Path | None = None) -> list[Path]:
 SEPARATE_MAIN_MODE = 2
 """分离模式的 main_mode 值：视频与元数据分开存放，其余逻辑同正常模式。"""
 
-SEPARATE_META_EXTS = frozenset({".nfo", ".jpg", ".jpeg", ".png", ".webp"})
-"""分离模式下归入数据存放目录的元数据文件扩展名（小写）。"""
+SEPARATE_META_EXTS = frozenset({".nfo", ".jpg", ".jpeg", ".png", ".webp", ".strm"})
+"""分离模式下归入数据存放目录的元数据文件扩展名（小写）。
+
+含 .strm：STRM 与 nfo/封面同属元数据，放在数据存放目录才能被播放库直接扫描，
+若跟随视频留在刮削目录会与「为本地视频文件生成STRM链接文本」的存放位置冲突。
+"""
 
 
 def is_separate_mode() -> bool:
@@ -68,30 +72,33 @@ def should_generate_strm(meta_root: Path | None, skip_reorganize: bool) -> bool:
 
 
 def should_overwrite_strm() -> bool:
-    """是否覆盖已存在 STRM：仅分离模式 + 已勾选时生效。
+    """是否覆盖已存在 STRM：仅分离模式 + 已勾选生成 STRM + 已勾选覆盖时生效。
 
-    与 should_generate_strm 同门：即使勾选了「覆盖本地已存在的STRM链接文本」，
-    非分离模式下也不生效（调用方不得直接读 manager.config.separate_overwrite_strm）。
+    与 should_generate_strm 同门：未勾选「为本地视频文件生成STRM链接文本」时，
+    根本不会生成 STRM，也就不存在「覆盖本地已存在的STRM链接文本」这件事，
+    此时即使勾选覆盖开关也不生效（调用方不得直接读 manager.config.separate_overwrite_strm）。
     """
-    return is_separate_mode() and manager.config.separate_overwrite_strm
+    return is_separate_mode() and manager.config.separate_generate_strm and manager.config.separate_overwrite_strm
 
 
-def should_reuse_metadata() -> bool:
-    """是否复用数据存放目录中的元数据文件：仅分离模式 + 已勾选时生效。
+def should_reuse_metadata(meta_root: Path | None) -> bool:
+    """是否复用数据存放目录中的元数据文件：仅分离模式 + 元数据根有效 + 已勾选时生效。
 
-    与 should_overwrite_strm 同门：即使勾选了「复用数据存放目录中的元数据文件」，
-    非分离模式下也不生效（调用方不得直接读 manager.config.separate_reuse_metadata）。
+    与 should_generate_strm 同门：非分离模式下不生效；数据存放目录无效（data_path
+    为空/不可创建，元数据退回视频目录）时同样不生效 —— 没有数据存放目录就无从
+    「复用其中的元数据」，此时若仍生效会误跳图片下载与 NFO 写入（调用方不得直接读
+    manager.config.separate_reuse_metadata）。
     """
-    return is_separate_mode() and manager.config.separate_reuse_metadata
+    return meta_root is not None and is_separate_mode() and manager.config.separate_reuse_metadata
 
 
-def should_overwrite_meta() -> bool:
-    """是否覆盖本地保存的视频元数据文件：仅分离模式 + 已勾选时生效。
+def should_overwrite_meta(meta_root: Path | None) -> bool:
+    """是否覆盖本地保存的视频元数据文件：仅分离模式 + 元数据根有效 + 已勾选时生效。
 
     与 should_reuse_metadata 互斥：界面层二者只许其一（勾选其一自动取消另一）；
     若配置被手改成两开，运行时以覆盖为准（调用方不得直接读配置项）。
     """
-    return is_separate_mode() and manager.config.separate_overwrite_meta
+    return meta_root is not None and is_separate_mode() and manager.config.separate_overwrite_meta
 
 
 def eff_success_file_move() -> bool:

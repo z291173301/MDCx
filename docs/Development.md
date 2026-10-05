@@ -294,9 +294,17 @@ FileInfo → CrawlerInput → CrawlTask
 ### 分离模式元数据复用/覆盖与冲突处理（改前必读）
 
 - **两个开关**：`separate_reuse_metadata`（复用数据存放目录中的元数据文件：目标已存在则跳过图片下载与 NFO 写入）与 `separate_overwrite_meta`（覆盖本地保存的视频元数据文件：存在也重下重写），默认 False，`save_config.py` / `load_config.py` 接线并写入 JSON。
-- **仅分离模式生效**：`extend.py: should_reuse_metadata() / should_overwrite_meta()` 均为 `is_separate_mode() and 配置值`；`scraper.py` 复用跳过条件额外含 `not overwrite_meta`，故手改 JSON 把两项都写成 true 时运行时仍以覆盖优先为准，不会出现既跳过又重写的不确定行为（`load_config` 读到双开时也以覆盖为准落盘显示）。
+- **仅分离模式 + 数据存放目录有效时生效**：`extend.py: should_reuse_metadata(meta_root) / should_overwrite_meta(meta_root)` 均为 `meta_root is not None and is_separate_mode() and 配置值`——`meta_root` 无效（data_path 为空/不可创建、元数据退回视频目录）时没有「数据存放目录」可复用/可覆盖，若仍生效会让复用开关在回退路径上误跳图片下载与 NFO 写入；`scraper.py` 复用跳过条件额外含 `not overwrite_meta`，故手改 JSON 把两项都写成 true 时运行时仍以覆盖优先为准，不会出现既跳过又重写的不确定行为（`load_config` 读到双开时也以覆盖为准落盘显示）。
 - **界面互斥**：`checkBox_separate_reuse_meta_changed / checkBox_separate_overwrite_meta_changed`（`main_window.py`）在勾选时自动取消另一项，去勾选不动作（无回环）；`init.py` 接 `toggled` 信号。
 - **对齐**：覆盖框与「覆盖本地已存在的STRM链接文本」框上下严格对齐，由 `_sync_reuse_meta_gap_align()`（`main_window.py`，`_sync_page_layouts` 尾部调用）按两框实测 x 差闭环收敛钉死 gap 宽，窄宽往返冻结；行内子项顺序与文案由 `tests/test_ui_structure.py` 锁定。
+
+### 分离模式 STRM 生成/覆盖的前置依赖（改前必读）
+
+- **两个开关**：`separate_generate_strm`（为本地视频文件生成STRM链接文本）与 `separate_overwrite_strm`（覆盖本地已存在的STRM链接文本），默认 False。
+- **覆盖以生成为前提**：`extend.py: should_overwrite_strm()` = `is_separate_mode() and separate_generate_strm and separate_overwrite_strm`。不生成 STRM 自然不存在「覆盖」，故未勾选生成时勾选覆盖不生效（其他模式同理不生效，调用方不得直读 `manager.config.separate_overwrite_strm`）。
+- **生成条件**：`should_generate_strm(meta_root, skip_reorganize)` = 元数据根有效 + 非跳过整理 + 分离模式 + 已勾选生成。写入位置为元数据镜像目录 `meta_folder`（与 nfo/封面同目录），内容为视频最终绝对路径：开移动写 `file_new_path`，不开移动写 `file_path`（此时 `file_new_path` 指向未使用的目标目录）。
+- **界面联动**：`checkBox_separate_generate_strm_changed`（`main_window.py`）在生成框勾选状态变化时置灰/恢复 `checkBox_separate_overwrite_strm`（只改 enabled，保留其勾选值，故重新勾选生成即恢复）；`init.py` 接 `toggled`，`load_config.py` 回读后同步 enabled 状态；tooltip 写明前置条件。
+- **.strm 属元数据**：`SEPARATE_META_EXTS` 含 `.strm`，`move_other_file` 因此把源目录已有 .strm 搬进数据目录而非跟随视频。
 
 ### 文件爬虫（mdcx/core/file_crawler.py）
 
