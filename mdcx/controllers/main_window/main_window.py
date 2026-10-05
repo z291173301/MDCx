@@ -6598,12 +6598,16 @@ class MyMAinWindow(QMainWindow):
     # 组底留白。设计值里容器底部有 7px、组底 9px，两处都太松，合并成常量。
     _FANYI_INTRO_GRID_GAP = 10
     _FANYI_BOX_BOT_PAD = 9
-    # groupBox_84（演员）：行首上方留白。Qt 会把容器多出来的高度在「顶 / 行间 /
+    # groupBox_84（演员）：行首留白。Qt 会把容器多出来的高度在「顶 / 行间 /
     # 底」之间均分（实测 layoutWidget_20 418 vs 网格 sizeHint 352，多出的 66px
-    # 被均分成 顶16 / 行间各+16 / 底18），长说明文字的行顶因此落在 120，整体
-    # 比设计值低了一行多。改为由本控制器显式给定：行首留白 30 时，说明文字行顶
-    # 落在 102，正好上移一行（该标签行高 20px）。
-    _FANYI_ACTOR_TOP_PAD = 30
+    # 被均分成 顶16 / 行间各+16 / 底18），长说明文字的行顶因此落在 120。
+    # 改为由本控制器显式给定：留白 30 时首行「演员语言」行顶落在组内 52，标题
+    # 下方空着将近两行（用户截图「内容整体向上移动两行，移动完成后删掉下方多出
+    # 来的空白空间」）。留白归 0 后首行行顶回到 layoutWidget_20 的设计 y=22，
+    # 标题下方不再有整行空白；组高是「容器底 + _FANYI_BOX_BOT_PAD」算出来的，
+    # 行首少 30 组高就同步收 30，其后各组随 delta_actor 整体上移，空出来的
+    # 30px 不会被留成组底/组间空档。
+    _FANYI_ACTOR_TOP_PAD = 0
     # groupBox_trans（翻译引擎）：组底留白。设计值里 layoutWidget_2 底到组底 10px。
     _FANYI_TRANS_BOT_PAD = 10
     # groupBox_trans 之后、简介组（groupBox_83）之前的组：翻译引擎组一收紧，
@@ -6636,7 +6640,10 @@ class MyMAinWindow(QMainWindow):
            gridLayout_50 的 sizeHint 352 被容器 418 拉出 66px，同样被均分成
            顶16/行间各+16/底18，文字行顶落在 120；文字本身 14 行 × 20px = 280
            正好等于标签高度，最后一行贴着组框内框。用户要求「整体上移一行，
-           同时从底部去掉一行高度」。
+           同时从底部去掉一行高度」。后续追加要求「内容整体向上移动两行，
+           移动完成后删掉下方多出来的空白空间」——那 30px 行首留白（首行行顶
+           52）正是标题下方的整行空白，去掉后首行行顶回到容器设计位 22，组高
+           同步收 30，组底留白仍是 _FANYI_BOX_BOT_PAD。
         ③ 翻译引擎组（groupBox_trans）「DeepLX URL」与提示文字
            label_baidu_hint 之间空着一整行，其下的「百度 APP / 百度密钥」两行
            被整体下推（用户截图：提示词向上移动一行，百度 APP、百度密钥同步
@@ -6754,7 +6761,8 @@ class MyMAinWindow(QMainWindow):
             intro.setGeometry(intro.x(), intro_y, intro.width(), intro_h)
             delta_intro = self._fanyi_design["intro_h"] - intro_h
 
-            # 4) 演员组：容器按网格 sizeHint 收紧（行首留白已折进 topMargin）。
+            # 4) 演员组：容器按网格 sizeHint 收紧（行首留白已折进 topMargin，
+            #    留白 0 时首行行顶 = 容器设计 y，标题下方不再空一整行）。
             actor_lw_h = g_actor.sizeHint().height()
             lw20.setGeometry(lw20.x(), lw20.y(), lw20.width(), actor_lw_h)
             actor_h = lw20.y() + actor_lw_h + self._FANYI_BOX_BOT_PAD
