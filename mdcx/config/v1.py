@@ -300,7 +300,7 @@ class ConfigV1:
     netdisk_path: str = r""
     localdisk_path: str = r""
     window_title: str = r"hide"
-    switch_on: str = r"rest_scrape,remain_task,show_dialog_stop_scrape,show_logs,ipv4_only,hide_none,"
+    switch_on: str = r"rest_scrape,remain_task,infinite_scrape,show_dialog_stop_scrape,show_logs,ipv4_only,hide_none,"
     timed_interval: str = r"00:30:00"
     rest_count: int = 20
     rest_time: str = r"00:01:02"

@@ -303,6 +303,9 @@ class Scraper:
                 if full_library_scan:
                     cache.cleanup_missing(existing)
                 force = file_mode != FileMode.Default  # Again/单文件等模式视为强制重新刮削
+                # 高级 → 保留任务 → 无限次刮削（默认勾选）：勾选后失败文件无限重试，
+                # 不再按 MAX_RETRY_COUNT 跳过超限文件；未勾选时保持原断点续刮逻辑
+                infinite = Switch.INFINITE_SCRAPE in manager.config.switch_on
                 if force:
                     skipped = 0
                 else:
@@ -315,15 +318,17 @@ class Scraper:
                             # failed 且重试次数耗尽的文件跳过（MAX_RETRY_COUNT 语义
                             # 对主扫描路径生效——原实现只判 done，注定失败的文件
                             # 每次全量刮削都无限重试，全库审查 B5）
-                            state = cache.get_state(p)
-                            if (
-                                state is not None
-                                and state.status == "failed"
-                                and state.fail_count >= MAX_RETRY_COUNT
-                                and abs(state.mtime - mtime) < 1e-6
-                            ):
-                                exhausted += 1
-                                continue
+                            # 无限次刮削勾选时跳过此分支：失败文件全部重新入队
+                            if not infinite:
+                                state = cache.get_state(p)
+                                if (
+                                    state is not None
+                                    and state.status == "failed"
+                                    and state.fail_count >= MAX_RETRY_COUNT
+                                    and abs(state.mtime - mtime) < 1e-6
+                                ):
+                                    exhausted += 1
+                                    continue
                             filtered.append(p)
                     skipped = before - len(filtered)
                     if skipped:
@@ -334,7 +339,7 @@ class Scraper:
                             f" ⏭ 断点续刮：跳过 {exhausted} 个连续失败超过 {MAX_RETRY_COUNT} 次的文件"
                             f"（如需强行重刮：软件日志页点「失败」展开失败列表，然后点「一键重新刮削当前失败文件」）"
                         )
-                pending = cache.list_pending(existing)
+                pending = cache.list_pending(existing, max_retries=(10**9 if infinite else MAX_RETRY_COUNT))
                 if pending:
                     # 去重：未超限的失败文件本次扫描已包含（failed 状态不会被 should_skip
                     # 过滤），直接追加会造成同一文件入队两次——用户实测失败 11 个、

@@ -1084,6 +1084,7 @@ def load_config(self: "MyMAinWindow"):
             (self.Ui.checkBox_auto_exit, Switch.AUTO_EXIT),
             (self.Ui.checkBox_rest_scrape, Switch.REST_SCRAPE),
             (self.Ui.checkBox_remain_task, Switch.REMAIN_TASK),
+            (self.Ui.checkBox_infinite_scrape, Switch.INFINITE_SCRAPE),
             (self.Ui.checkBox_show_dialog_exit, Switch.SHOW_DIALOG_EXIT),
             (self.Ui.checkBox_show_dialog_stop_scrape, Switch.SHOW_DIALOG_STOP_SCRAPE),
             (self.Ui.checkBox_dark_mode, Switch.DARK_MODE),

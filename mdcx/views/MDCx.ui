@@ -24215,7 +24215,26 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>记住未完成的刮削任务，即使退出或中止，下次仍可继续刮削未完成任务</string>
+                                  <string>记住未完成的刮削任务，重启后仍可继续刮削</string>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <widget class="QCheckBox" name="checkBox_infinite_scrape">
+                                <property name="sizePolicy">
+                                  <sizepolicy hsizetype="Minimum" vsizetype="Maximum">
+                                    <horstretch>0</horstretch>
+                                    <verstretch>0</verstretch>
+                                  </sizepolicy>
+                                </property>
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>100</width>
+                                    <height>30</height>
+                                  </size>
+                                </property>
+                                <property name="text">
+                                  <string>无限次刮削</string>
                                 </property>
                               </widget>
                             </item>

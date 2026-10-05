@@ -3779,6 +3779,10 @@ class MyMAinWindow(QMainWindow):
     # 为什么不动状态文字：默认窗口下它底边只剩 10px 余量，再下移文字会被窗底裁掉，
     # 而这三个间距收窄是零代价的（gap 的另一个来源 STATUS_H_MIN+text_h 项也随之下降）。
     _DONATE_LINK_GAP = 2  # 二维码与 [赞助作者] 的间距
+    # 用户反馈：[赞助作者] 底边会压住状态区首行（正在刮削中…/刮削完成…）上沿约 1~2px
+    # （状态文本多一行时 text_top 上移一行高、而布局只在 resize 时重算，首行顶到链接底边）。
+    # 整块（链接 + 二维码 + 支付宝码）额外上移 3px 留出安全间隙，走可用高度里的富余空间。
+    _DONATE_LIFT = 3  # 赞助块整体上移量（用户要求约 3px，直接加在 gap 上，保证任何窗口高度都生效）
     # 最大化时支付宝码与微信码之间的间距：取「一行汉字的高度」，即侧栏 [赞助作者]
     # 的行高（_DONATE_LINK_H / _DONATE_LINK_FONT_PX=16 实测 fontMetrics().height()=19、
     # 行高约 22），使两码之间的视觉分隔与正文行距统一（用户第 14 轮要求）。
@@ -3788,10 +3792,12 @@ class MyMAinWindow(QMainWindow):
     _DONATE_PAD = 2  # 与导航区/状态区的内边距（在 gap 公式里也出现一次，故收窄收益翻倍）
     _DONATE_TEXT_GAP = 10  # [赞助作者] 底边到状态文字首行的间距
     # 二维码边长恒定 180：侧栏宽 210，两侧各留 15px 空白（210 - 2*15 = 180）。
-    # **必须等于默认窗口（def_w/def_h = 1030x700，init.py::_adaptive_window_sizes）下的
-    # 实测 avail**，否则两态留白会不一致：上限小于它则最大化时也涨不上去，大于它则
-    # 最大化时涨到上限、留白变小（实测上限 176 时最大化留白 17px 而还原 21px，差 4px；
-    # 奇数边长还会左右差 1px）。只在窗口比默认更矮时才等比缩小。
+    # 高度预算：avail = 198 − max(TEXT_GAP, PAD + STATUS_H_MIN − text_h) − LINK_GAP − PAD − LIFT
+    #   = 198 − max(10, 72+2−60=14) − 2 − 2 − 3 = 177（默认 700 高时）。
+    # 用户实测当前窗口上限有 186，可用高度比 180 多 6px，上移 3px 后仍有富余、二维码保持
+    # 180 不变；只有窗口矮到 avail < 180 时才按原有逻辑等比缩小（min 取小，见 _layout_donate）。
+    # 注意：此举放宽了「上限必须等于默认窗口实测 avail」的旧约束——700 高时二维码显示 177、
+    # 更高窗口显示 180，两侧留白差约 1px（用户明确要求保 180，优先满足）。
     _DONATE_QR_SIZE = 180
     # 最大化时在微信码**上方**再加一张支付宝码（宽度与微信码严格一致）。
     # 空间不够时不把支付宝压成一条小缝，而是**两张码一起等比缩小**到能放下的最大尺寸，
@@ -3922,9 +3928,12 @@ class MyMAinWindow(QMainWindow):
         text_top = status_bottom - text_h
         # 间距不得小于「状态区压缩下限」反推出来的值：状态矩形顶被 [赞助作者] 顶下去后
         # 高 = 文字高 + 间距 − 内缩，间距太小就会把左下角文字裁掉（军规③）。
-        gap = max(
-            self._DONATE_TEXT_GAP,
-            self._DOCK_STATUS_H_MIN + self._DONATE_PAD - text_h,
+        gap = (
+            max(
+                self._DONATE_TEXT_GAP,
+                self._DOCK_STATUS_H_MIN + self._DONATE_PAD - text_h,
+            )
+            + self._DONATE_LIFT
         )
         link_bottom = text_top - gap
         link_top = link_bottom - self._DONATE_LINK_H
@@ -4608,9 +4617,7 @@ class MyMAinWindow(QMainWindow):
         # （还原态单列一条需求，最大化态一个像素都不碰）。必须排在上面这个方法
         # **之后**：它末尾那批 gridLayout_20.activate() 会把两行重新排一遍，提前
         # 量到的是过期几何；且它自带早退分支，不能从里面挂钩子。
-        self._sync_advanced_page_rest_interval_align(
-            self._scroll_stretch_extra(self._adv_scroll) > 0
-        )
+        self._sync_advanced_page_rest_interval_align(self._scroll_stretch_extra(self._adv_scroll) > 0)
 
         # ============ page_setting / 演员页: 两行控件对齐到各自基准线 ============
         # 同样排在通用拉伸之后：本方法先落设计几何再按最大化分支覆盖。
@@ -4925,6 +4932,29 @@ class MyMAinWindow(QMainWindow):
             for lay in (lay_a, lay_b, lay_d, lay_c):
                 lay.invalidate()
                 lay.activate()
+            ui.gridLayout_20.invalidate()
+            ui.gridLayout_20.activate()
+
+        # ---- 保留任务行：「无限次刮削」落到「停止刮削时」同一竖线（两态生效） ----
+        # 「停止刮削时」自身位置保持不变，只钉前导项「记住未完成的刮削任务」。
+        # 必须排在上面那批 activate 之后：stop 的终态 x 由 lay_a 那批钉宽决定，
+        # 提前量到的是等分旧值。row5 与 row6 同处 gridLayout_20 的 col1，
+        # 行左缘天然相等，但仍按实测分开起算，避免布局边距假设。
+        lay_r = ui.horizontalLayout_89
+        remain_task = ui.checkBox_remain_task
+        infinite_scrape = ui.checkBox_infinite_scrape
+        row5_x = col_x(remain_task)
+        want_r = col_x(stop_scrape)
+        col_w_r = host.width() - row5_x
+        pin_r = want_r - row5_x - lay_r.spacing()
+        ok_r = (
+            want_r > row5_x
+            and pin_r >= remain_task.sizeHint().width()
+            and col_w_r - pin_r - lay_r.spacing() >= infinite_scrape.sizeHint().width()
+        )
+        if self._pin_row_lead_width(remain_task, pin_r if ok_r else None):
+            lay_r.invalidate()
+            lay_r.activate()
             ui.gridLayout_20.invalidate()
             ui.gridLayout_20.activate()
 

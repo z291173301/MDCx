@@ -190,6 +190,24 @@ def _migrate_builtin_naming_templates(data: dict[str, Any]) -> None:
         data[key] = mapping.get(value, convert_braced_template(value))
 
 
+def _ensure_switch(data: dict[str, Any], value: str) -> None:
+    """老配置缺新开关时默认补上（默认勾选语义）。
+
+    switch_on 在 v2 json 里是 list，兼容 str（逗号分隔）形态。
+    """
+    current = data.get("switch_on")
+    if isinstance(current, str):
+        items = _str_to_list(current, ",")
+        if value not in items:
+            items.append(value)
+            data["switch_on"] = ",".join(items)
+    elif isinstance(current, list | set | tuple):
+        values = [str(_enum_value(item)) for item in current]
+        if value not in values:
+            data["switch_on"] = [*current, value]
+    # switch_on 缺失（全新默认配置）时不动：走 pydantic default_factory，本身已默认勾选
+
+
 def migrate_config_data(data: dict[str, Any]) -> list[str]:
     """
     统一处理配置结构变更.
@@ -294,6 +312,10 @@ def migrate_config_data(data: dict[str, Any]) -> list[str]:
 
     if note := _migrate_main_mode(data):
         warnings.append(note)
+
+    # 无限次刮削开关（高级 → 保留任务右侧）：默认勾选，老配置缺键时自动补上
+    # 不带 [迁移] 前缀即会被视为致命错误触发 _failed.json 保护分支，故此处静默补齐不告警
+    _ensure_switch(data, "infinite_scrape")
 
     data["config_version"] = CURRENT_CONFIG_VERSION
     return warnings

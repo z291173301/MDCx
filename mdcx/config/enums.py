@@ -374,6 +374,7 @@ class Switch(Enum):
     REST_SCRAPE = "rest_scrape"
     TIMED_SCRAPE = "timed_scrape"
     REMAIN_TASK = "remain_task"
+    INFINITE_SCRAPE = "infinite_scrape"
     SHOW_DIALOG_EXIT = "show_dialog_exit"
     SHOW_DIALOG_STOP_SCRAPE = "show_dialog_stop_scrape"
     SORT_DEL = "sort_del"
@@ -402,6 +403,7 @@ class Switch(Enum):
             "Rest Scrape",
             "Timed Scrape",
             "Remain Task",
+            "Infinite Scrape",
             "Show Dialog Exit",
             "Show Dialog Stop Scrape",
             "Sort Del",

@@ -855,6 +855,7 @@
   "window_title": "hide",
   "switch_on": [
     "remain_task",
+    "infinite_scrape",
     "copy_netdisk_nfo",
     "show_logs",
     "hide_mini"
