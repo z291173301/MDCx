@@ -342,6 +342,10 @@ def Init_Ui(self: "MyMAinWindow"):
     # 软件工具页卡片右缘向左收到与软件设置页齐平：左缘不动，内部相对位置不变。
     # 差值 800~2200 窗宽下实测恒定 4px（见 tests/test_tool_page_right_align.py）。
     self.Ui.scrollArea_10.set_content_right_trim(4)
+    # 软件工具页滚动区底部无浮框遮挡（页脚在滚动区外单独留了 75px），默认 72px
+    # 底部余量（给设置页浮框带留的）会变成刮削缓存管理下方的空白滚动区。
+    # 收紧到 20px（= 设计内容高 2309 - 末组框底边 2289），保留设计呼吸感。
+    self.Ui.scrollArea_10.set_content_bottom_margin(20)
     # stackedWidget 中未显示的页面不会触发 resize/show 事件，统一初始化
     # 自定义滚动区内容最小高度，保证首次切换到任一页面垂直滚动即可用
     from mdcx.views.CustomClass import CustomScrollArea
@@ -445,8 +449,11 @@ def Init_Singal(self: "MyMAinWindow"):
     self.Ui.pushButton_show_hide_logs.clicked.connect(self.pushButton_show_hide_logs_clicked)
     self.Ui.pushButton_view_failed_list.clicked.connect(self.pushButton_show_hide_failed_list_clicked)
     self.Ui.pushButton_save_new_config.clicked.connect(self.pushButton_save_new_config_clicked)
+    self.Ui.pushButton_save_new_config_tool.clicked.connect(self.pushButton_save_new_config_clicked)
     self.Ui.pushButton_save_config.clicked.connect(self.pushButton_save_config_clicked)
+    self.Ui.pushButton_save_config_tool.clicked.connect(self.pushButton_save_config_clicked)
     self.Ui.pushButton_init_config.clicked.connect(self.pushButton_init_config_clicked)
+    self.Ui.pushButton_init_config_tool.clicked.connect(self.pushButton_init_config_clicked)
     self.Ui.pushButton_move_mp4.clicked.connect(self.pushButton_move_mp4_clicked)
     self.Ui.pushButton_check_net.clicked.connect(self.pushButton_check_net_clicked)
     self.Ui.pushButton_net_retry.clicked.connect(self.pushButton_net_retry_clicked)
@@ -552,6 +559,7 @@ def Init_Singal(self: "MyMAinWindow"):
     self.Ui.horizontalSlider_javdb_time.valueChanged.connect(self.lcdNumber_javdb_time_change)
     self.Ui.horizontalSlider_thread_time.valueChanged.connect(self.lcdNumber_thread_time_change)
     self.Ui.comboBox_change_config.textActivated.connect(self.config_file_change)
+    self.Ui.comboBox_change_config_tool.textActivated.connect(self.config_file_change)
     self.Ui.comboBox_custom_website.textActivated.connect(self.switch_custom_website_change)
     self.Ui.pushButton_right_menu.clicked.connect(self.main_open_right_menu)
     self.Ui.pushButton_play.clicked.connect(self.main_play_click)

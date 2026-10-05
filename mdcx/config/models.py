@@ -252,6 +252,11 @@ class Config(BaseModel):
     )
     scrape_softlink_path: bool = Field(default=False, title="刮削软链接路径")
     auto_link: bool = Field(default=False, title="自动创建软链接")
+    actor_db_alias_all: bool = Field(default=False, title="演员库维护全量更新")
+    actor_db_sync_offset: int = Field(default=0, title="演员库同步起始行")
+    actor_db_sync_limit: int = Field(default=5000, title="演员库同步限量")
+    cover_backfill_overwrite: bool = Field(default=False, title="封面补图覆盖已有图片")
+    cover_backfill_watermark: bool = Field(default=False, title="封面补图添加水印")
     # endregion
 
     # region: Cleaning Settings

@@ -463,7 +463,7 @@ def set_style(self: "MyMAinWindow"):
             font-size:13px;
             border:0px solid rgba(0, 0, 0, 80);
         }
-        QLabel#label_config{
+        QLabel#label_config,#label_config_tool{
             font-size:13px;
             border:0px solid rgba(230, 230, 230, 80);
             background: rgba(246, 246, 246, 220);
@@ -711,7 +711,7 @@ def set_style(self: "MyMAinWindow"):
             background: #E2E8F0;
             border: 1px solid #94A3B8;
         }}
-        QPushButton#pushButton_save_new_config,#pushButton_init_config,#pushButton_success_list_close,#pushButton_success_list_save,#pushButton_success_list_clear,#pushButton_show_tips_close,#pushButton_nfo_close,#pushButton_nfo_save,#pushButton_show_pic_actor,#pushButton_add_actor_pic,#pushButton_add_actor_info,#pushButton_add_actor_pic_kodi,#pushButton_del_actor_folder,#pushButton_move_mp4,#pushButton_select_file,#pushButton_select_local_library,#pushButton_select_netdisk_path,#pushButton_select_localdisk_path,#pushButton_creat_symlink,#pushButton_find_missing_number,#pushButton_select_thumb,#pushButton_start_single_file,#pushButton_select_file_clear_info,#pushButton_add_sub_for_all_video,#pushButton_view_failed_list,#pushButton_select_media_folder,#pushButton_select_media_folder_setting_page,#pushButton_select_data_dir,#pushButton_select_softlink_folder,#pushButton_select_sucess_folder,#pushButton_select_failed_folder,#pushButton_view_success_file,#pushButton_select_subtitle_folder,#pushButton_select_actor_photo_folder,#pushButton_select_gfriends_local,#pushButton_select_actor_info_db,#pushButton_select_config_folder,#pushButton_add_all_extrafanart_copy,#pushButton_del_all_extrafanart_copy,#pushButton_add_all_extras,#pushButton_del_all_extras,#pushButton_add_all_theme_videos,#pushButton_del_all_theme_videos,#pushButton_check_and_clean_files,#pushButton_search_by_number,#pushButton_search_by_url{{
+        QPushButton#pushButton_save_new_config,#pushButton_save_new_config_tool,#pushButton_init_config,#pushButton_init_config_tool,#pushButton_success_list_close,#pushButton_success_list_save,#pushButton_success_list_clear,#pushButton_show_tips_close,#pushButton_nfo_close,#pushButton_nfo_save,#pushButton_show_pic_actor,#pushButton_add_actor_pic,#pushButton_add_actor_info,#pushButton_add_actor_pic_kodi,#pushButton_del_actor_folder,#pushButton_move_mp4,#pushButton_select_file,#pushButton_actor_db_pick_nfo_dir,#pushButton_actor_db_sync_aliases,#pushButton_select_local_library,#pushButton_select_netdisk_path,#pushButton_select_localdisk_path,#pushButton_creat_symlink,#pushButton_find_missing_number,#pushButton_select_thumb,#pushButton_start_single_file,#pushButton_select_file_clear_info,#pushButton_add_sub_for_all_video,#pushButton_view_failed_list,#pushButton_select_media_folder,#pushButton_select_media_folder_setting_page,#pushButton_select_data_dir,#pushButton_select_softlink_folder,#pushButton_select_sucess_folder,#pushButton_select_failed_folder,#pushButton_view_success_file,#pushButton_select_subtitle_folder,#pushButton_select_actor_photo_folder,#pushButton_select_gfriends_local,#pushButton_select_actor_info_db,#pushButton_select_config_folder,#pushButton_add_all_extrafanart_copy,#pushButton_del_all_extrafanart_copy,#pushButton_add_all_extras,#pushButton_del_all_extras,#pushButton_add_all_theme_videos,#pushButton_del_all_theme_videos,#pushButton_check_and_clean_files,#pushButton_search_by_number,#pushButton_search_by_url,#pushButton_cover_backfill_start{{
             font-size:14px;
             background-color: rgba(220, 220,220, 255);
             border-color:black;
@@ -730,19 +730,19 @@ def set_style(self: "MyMAinWindow"):
             border-width:14px;
             font-weight:bold;
         }}
-        QPushButton#pushButton_save_config,#pushButton_nfo_lib_save,#pushButton_nfo_lib_batch_save,#pushButton_nfo_lib_crop{{
+        QPushButton#pushButton_save_config,#pushButton_save_config_tool,#pushButton_nfo_lib_save,#pushButton_nfo_lib_batch_save,#pushButton_nfo_lib_crop{{
             color: white;
             font-size:14px;
             background-color:#4C6EFF;
             border-radius:25px;
             padding: 2px, 2px;
         }}
-        QPushButton:hover#pushButton_save_config,:hover#pushButton_save_new_config,:hover#pushButton_init_config,:hover#pushButton_success_list_close,:hover#pushButton_success_list_save,:hover#pushButton_success_list_clear,:hover#pushButton_show_tips_close,:hover#pushButton_nfo_close,:hover#pushButton_nfo_save,:hover#pushButton_nfo_lib_save,:hover#pushButton_nfo_lib_batch_save,:hover#pushButton_nfo_lib_crop,:hover#pushButton_scraper_failed_list{{
+        QPushButton:hover#pushButton_save_config,:hover#pushButton_save_config_tool,:hover#pushButton_save_new_config,:hover#pushButton_save_new_config_tool,:hover#pushButton_init_config,:hover#pushButton_init_config_tool,:hover#pushButton_success_list_close,:hover#pushButton_success_list_save,:hover#pushButton_success_list_clear,:hover#pushButton_show_tips_close,:hover#pushButton_nfo_close,:hover#pushButton_nfo_save,:hover#pushButton_nfo_lib_save,:hover#pushButton_nfo_lib_batch_save,:hover#pushButton_nfo_lib_crop,:hover#pushButton_scraper_failed_list{{
             color: white;
             background-color: rgba(76,110,255,240);
             font-weight:bold;
             }}
-        QPushButton:pressed#pushButton_save_config,:pressed#pushButton_save_new_config,:pressed#pushButton_init_config,:pressed#pushButton_success_list_close,:pressed#pushButton_success_list_save,:pressed#pushButton_success_list_clear,:pressed#pushButton_show_tips_close,:pressed#pushButton_nfo_close,:pressed#pushButton_nfo_save,:pressed#pushButton_nfo_lib_save,:pressed#pushButton_nfo_lib_batch_save,:pressed#pushButton_nfo_lib_crop,:pressed#pushButton_scraper_failed_list{{
+        QPushButton:pressed#pushButton_save_config,:pressed#pushButton_save_config_tool,:pressed#pushButton_save_new_config,:pressed#pushButton_save_new_config_tool,:pressed#pushButton_init_config,:pressed#pushButton_init_config_tool,:pressed#pushButton_success_list_close,:pressed#pushButton_success_list_save,:pressed#pushButton_success_list_clear,:pressed#pushButton_show_tips_close,:pressed#pushButton_nfo_close,:pressed#pushButton_nfo_save,:pressed#pushButton_nfo_lib_save,:pressed#pushButton_nfo_lib_batch_save,:pressed#pushButton_nfo_lib_crop,:pressed#pushButton_scraper_failed_list{{
             background-color:#4C6EE0;
             border-color:black;
             border-width:14px;
@@ -756,12 +756,12 @@ def set_style(self: "MyMAinWindow"):
             padding: 2px, 2px;
             font-weight:bold;
         }}
-        QPushButton:hover#pushButton_start_cap,:hover#pushButton_start_cap2,:hover#pushButton_check_net,:hover#pushButton_move_mp4,:hover#pushButton_select_file,:hover#pushButton_select_local_library,:hover#pushButton_select_netdisk_path,:hover#pushButton_select_localdisk_path,:hover#pushButton_creat_symlink,:hover#pushButton_find_missing_number,:hover#pushButton_select_thumb,:hover#pushButton_start_single_file,:hover#pushButton_select_file_clear_info{{
+        QPushButton:hover#pushButton_start_cap,:hover#pushButton_start_cap2,:hover#pushButton_check_net,:hover#pushButton_move_mp4,:hover#pushButton_select_file,:hover#pushButton_actor_db_pick_nfo_dir,:hover#pushButton_actor_db_sync_aliases,:hover#pushButton_select_local_library,:hover#pushButton_select_netdisk_path,:hover#pushButton_select_localdisk_path,:hover#pushButton_creat_symlink,:hover#pushButton_find_missing_number,:hover#pushButton_select_thumb,:hover#pushButton_start_single_file,:hover#pushButton_select_file_clear_info,:hover#pushButton_cover_backfill_start{{
             color: white;
             background-color: rgba(76,110,255,240);
             font-weight:bold;
             }}
-        QPushButton:pressed#pushButton_start_cap,:pressed#pushButton_start_cap2,:pressed#pushButton_check_net,:pressed#pushButton_move_mp4,:pressed#pushButton_select_file,:pressed#pushButton_select_local_library,:pressed#pushButton_select_netdisk_path,:pressed#pushButton_select_localdisk_path,:pressed#pushButton_creat_symlink,:pressed#pushButton_find_missing_number,:pressed#pushButton_select_thumb,:pressed#pushButton_start_single_file,:press#pushButton_select_file_clear_info{{
+        QPushButton:pressed#pushButton_start_cap,:pressed#pushButton_start_cap2,:pressed#pushButton_check_net,:pressed#pushButton_move_mp4,:pressed#pushButton_select_file,:pressed#pushButton_actor_db_pick_nfo_dir,:pressed#pushButton_actor_db_sync_aliases,:pressed#pushButton_select_local_library,:pressed#pushButton_select_netdisk_path,:pressed#pushButton_select_localdisk_path,:pressed#pushButton_creat_symlink,:pressed#pushButton_find_missing_number,:pressed#pushButton_select_thumb,:pressed#pushButton_start_single_file,:press#pushButton_select_file_clear_info,:pressed#pushButton_cover_backfill_start{{
             background-color:#4C6EE0;
             border-color:black;
             border-width:12px;
@@ -936,7 +936,7 @@ def set_dark_style(self: "MyMAinWindow"):
             font-size:13px;
             border:0px solid rgba(0, 0, 0, 80);
         }
-        QLabel#label_config{
+        QLabel#label_config,#label_config_tool{
             font-size:13px;
             border:0px solid rgba(0, 0, 0, 80);
             background: rgba(31,39,47,230);
@@ -1174,7 +1174,7 @@ def set_dark_style(self: "MyMAinWindow"):
             background: #2B3A4C;
             border: 1px solid #566374;
         }}
-        QPushButton#pushButton_save_new_config,#pushButton_init_config,#pushButton_success_list_close,#pushButton_success_list_save,#pushButton_success_list_clear,#pushButton_show_tips_close,#pushButton_nfo_close,#pushButton_nfo_save,#pushButton_show_pic_actor,#pushButton_add_actor_pic,#pushButton_add_actor_info,#pushButton_add_actor_pic_kodi,#pushButton_del_actor_folder,#pushButton_move_mp4,#pushButton_select_file,#pushButton_select_local_library,#pushButton_select_netdisk_path,#pushButton_select_localdisk_path,#pushButton_creat_symlink,#pushButton_find_missing_number,#pushButton_select_thumb,#pushButton_start_single_file,#pushButton_select_file_clear_info,#pushButton_add_sub_for_all_video,#pushButton_view_failed_list,#pushButton_select_media_folder,#pushButton_select_media_folder_setting_page,#pushButton_select_data_dir,#pushButton_select_softlink_folder,#pushButton_select_sucess_folder,#pushButton_select_failed_folder,#pushButton_view_success_file,#pushButton_select_subtitle_folder,#pushButton_select_actor_photo_folder,#pushButton_select_gfriends_local,#pushButton_select_actor_info_db,#pushButton_select_config_folder,#pushButton_add_all_extrafanart_copy,#pushButton_del_all_extrafanart_copy,#pushButton_add_all_extras,#pushButton_del_all_extras,#pushButton_add_all_theme_videos,#pushButton_del_all_theme_videos,#pushButton_check_and_clean_files,#pushButton_search_by_number,#pushButton_search_by_url{{
+        QPushButton#pushButton_save_new_config,#pushButton_save_new_config_tool,#pushButton_init_config,#pushButton_init_config_tool,#pushButton_success_list_close,#pushButton_success_list_save,#pushButton_success_list_clear,#pushButton_show_tips_close,#pushButton_nfo_close,#pushButton_nfo_save,#pushButton_show_pic_actor,#pushButton_add_actor_pic,#pushButton_add_actor_info,#pushButton_add_actor_pic_kodi,#pushButton_del_actor_folder,#pushButton_move_mp4,#pushButton_select_file,#pushButton_actor_db_pick_nfo_dir,#pushButton_actor_db_sync_aliases,#pushButton_select_local_library,#pushButton_select_netdisk_path,#pushButton_select_localdisk_path,#pushButton_creat_symlink,#pushButton_find_missing_number,#pushButton_select_thumb,#pushButton_start_single_file,#pushButton_select_file_clear_info,#pushButton_add_sub_for_all_video,#pushButton_view_failed_list,#pushButton_select_media_folder,#pushButton_select_media_folder_setting_page,#pushButton_select_data_dir,#pushButton_select_softlink_folder,#pushButton_select_sucess_folder,#pushButton_select_failed_folder,#pushButton_view_success_file,#pushButton_select_subtitle_folder,#pushButton_select_actor_photo_folder,#pushButton_select_gfriends_local,#pushButton_select_actor_info_db,#pushButton_select_config_folder,#pushButton_add_all_extrafanart_copy,#pushButton_del_all_extrafanart_copy,#pushButton_add_all_extras,#pushButton_del_all_extras,#pushButton_add_all_theme_videos,#pushButton_del_all_theme_videos,#pushButton_check_and_clean_files,#pushButton_search_by_number,#pushButton_search_by_url,#pushButton_cover_backfill_start{{
             font-size:14px;
             background-color: rgba(220, 220,220, 50);
             border-color:black;
@@ -1193,19 +1193,19 @@ def set_dark_style(self: "MyMAinWindow"):
             border-width:14px;
             font-weight:bold;
         }}
-        QPushButton#pushButton_save_config,#pushButton_nfo_lib_save,#pushButton_nfo_lib_batch_save,#pushButton_nfo_lib_crop{{
+        QPushButton#pushButton_save_config,#pushButton_save_config_tool,#pushButton_nfo_lib_save,#pushButton_nfo_lib_batch_save,#pushButton_nfo_lib_crop{{
             color: white;
             font-size:14px;
             background-color:#4C6EFF;
             border-radius:25px;
             padding: 2px, 2px;
         }}
-        QPushButton:hover#pushButton_save_config,:hover#pushButton_save_new_config,:hover#pushButton_init_config,:hover#pushButton_success_list_close,:hover#pushButton_success_list_save,:hover#pushButton_success_list_clear,:hover#pushButton_show_tips_close,:hover#pushButton_nfo_close,:hover#pushButton_nfo_save,:hover#pushButton_nfo_lib_save,:hover#pushButton_nfo_lib_batch_save,:hover#pushButton_nfo_lib_crop{{
+        QPushButton:hover#pushButton_save_config,:hover#pushButton_save_config_tool,:hover#pushButton_save_new_config,:hover#pushButton_save_new_config_tool,:hover#pushButton_init_config,:hover#pushButton_init_config_tool,:hover#pushButton_success_list_close,:hover#pushButton_success_list_save,:hover#pushButton_success_list_clear,:hover#pushButton_show_tips_close,:hover#pushButton_nfo_close,:hover#pushButton_nfo_save,:hover#pushButton_nfo_lib_save,:hover#pushButton_nfo_lib_batch_save,:hover#pushButton_nfo_lib_crop{{
             color: white;
             background-color: rgba(76,110,255,240);
             font-weight:bold;
         }}
-        QPushButton:pressed#pushButton_save_config,:pressed#pushButton_save_new_config,:pressed#pushButton_init_config,:pressed#pushButton_success_list_close,:pressed#pushButton_success_list_save,:pressed#pushButton_success_list_clear,pressed#pushButton_show_tips_close,:pressed#pushButton_nfo_close,:pressed#pushButton_nfo_save,pressed#pushButton_nfo_lib_save,pressed#pushButton_nfo_lib_batch_save,pressed#pushButton_nfo_lib_crop{{
+        QPushButton:pressed#pushButton_save_config,:pressed#pushButton_save_config_tool,:pressed#pushButton_save_new_config,:pressed#pushButton_save_new_config_tool,:pressed#pushButton_init_config,:pressed#pushButton_init_config_tool,:pressed#pushButton_success_list_close,:pressed#pushButton_success_list_save,:pressed#pushButton_success_list_clear,pressed#pushButton_show_tips_close,:pressed#pushButton_nfo_close,:pressed#pushButton_nfo_save,pressed#pushButton_nfo_lib_save,pressed#pushButton_nfo_lib_batch_save,pressed#pushButton_nfo_lib_crop{{
             background-color:#4C6EE0;
             border-color:black;
             border-width:14px;
@@ -1219,12 +1219,12 @@ def set_dark_style(self: "MyMAinWindow"):
             padding: 2px, 2px;
             font-weight:bold;
         }}
-        QPushButton:hover#pushButton_start_cap,:hover#pushButton_start_cap2,:hover#pushButton_check_net,:hover#pushButton_move_mp4,:hover#pushButton_select_file,:hover#pushButton_select_local_library,:hover#pushButton_select_netdisk_path,:hover#pushButton_select_localdisk_path,:hover#pushButton_creat_symlink,:hover#pushButton_find_missing_number,:hover#pushButton_select_thumb,:hover#pushButton_start_single_file,:hover#pushButton_select_file_clear_info{{
+        QPushButton:hover#pushButton_start_cap,:hover#pushButton_start_cap2,:hover#pushButton_check_net,:hover#pushButton_move_mp4,:hover#pushButton_select_file,:hover#pushButton_actor_db_pick_nfo_dir,:hover#pushButton_actor_db_sync_aliases,:hover#pushButton_select_local_library,:hover#pushButton_select_netdisk_path,:hover#pushButton_select_localdisk_path,:hover#pushButton_creat_symlink,:hover#pushButton_find_missing_number,:hover#pushButton_select_thumb,:hover#pushButton_start_single_file,:hover#pushButton_select_file_clear_info,:hover#pushButton_cover_backfill_start{{
             color: white;
             background-color: rgba(76,110,255,240);
             font-weight:bold;
             }}
-        QPushButton:pressed#pushButton_start_cap,:pressed#pushButton_start_cap2,:pressed#pushButton_check_net,:pressed#pushButton_move_mp4,:pressed#pushButton_select_file,:pressed#pushButton_select_local_library,:pressed#pushButton_select_netdisk_path,:pressed#pushButton_select_localdisk_path,:pressed#pushButton_creat_symlink,:pressed#pushButton_find_missing_number,:pressed#pushButton_select_thumb,:pressed#pushButton_start_single_file,:press#pushButton_select_file_clear_info{{
+        QPushButton:pressed#pushButton_start_cap,:pressed#pushButton_start_cap2,:pressed#pushButton_check_net,:pressed#pushButton_move_mp4,:pressed#pushButton_select_file,:pressed#pushButton_actor_db_pick_nfo_dir,:pressed#pushButton_actor_db_sync_aliases,:pressed#pushButton_select_local_library,:pressed#pushButton_select_netdisk_path,:pressed#pushButton_select_localdisk_path,:pressed#pushButton_creat_symlink,:pressed#pushButton_find_missing_number,:pressed#pushButton_select_thumb,:pressed#pushButton_start_single_file,:press#pushButton_select_file_clear_info,:pressed#pushButton_cover_backfill_start{{
             background-color:#4C6EE0;
             border-color:black;
             border-width:12px;

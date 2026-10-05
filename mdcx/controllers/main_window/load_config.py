@@ -91,12 +91,15 @@ def load_config(self: "MyMAinWindow"):
         # ======================================================================================获取配置文件夹中的配置文件列表
         all_config_files = manager.list_configs()
         all_config_files.sort()
-        self.Ui.comboBox_change_config.clear()
-        self.Ui.comboBox_change_config.addItems(all_config_files)
-        if config_file in all_config_files:
-            self.Ui.comboBox_change_config.setCurrentIndex(all_config_files.index(config_file))
-        else:
-            self.Ui.comboBox_change_config.setCurrentIndex(all_config_files.index("config.json"))
+        for _combo in (self.Ui.comboBox_change_config, self.Ui.comboBox_change_config_tool):
+            _combo.blockSignals(True)
+            _combo.clear()
+            _combo.addItems(all_config_files)
+            if config_file in all_config_files:
+                _combo.setCurrentIndex(all_config_files.index(config_file))
+            else:
+                _combo.setCurrentIndex(all_config_files.index("config.json"))
+            _combo.blockSignals(False)
 
         # region media
         # 视频目录
@@ -1185,6 +1188,11 @@ def load_config(self: "MyMAinWindow"):
         # endregion
 
         self.Ui.checkBox_create_link.setChecked(manager.config.auto_link)
+        self.Ui.checkBox_actor_db_alias_all.setChecked(manager.config.actor_db_alias_all)
+        self.Ui.spinBox_actor_db_sync_offset.setValue(manager.config.actor_db_sync_offset)
+        self.Ui.spinBox_actor_db_sync_limit.setValue(manager.config.actor_db_sync_limit)
+        self.Ui.checkBox_cover_backfill_overwrite.setChecked(manager.config.cover_backfill_overwrite)
+        self.Ui.checkBox_cover_backfill_watermark.setChecked(manager.config.cover_backfill_watermark)
 
         # ======================================================================================END
         # 根据是否同意改变清理按钮状态

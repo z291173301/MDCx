@@ -789,6 +789,11 @@ def save_config(self: "MyMAinWindow"):
 
     # endregion
     manager.config.auto_link = get_checkbox(self.Ui.checkBox_create_link)  # 刮削中自动创建软链接
+    manager.config.actor_db_alias_all = get_checkbox(self.Ui.checkBox_actor_db_alias_all)  # 全量更新
+    manager.config.actor_db_sync_offset = self.Ui.spinBox_actor_db_sync_offset.value()  # 起始行
+    manager.config.actor_db_sync_limit = self.Ui.spinBox_actor_db_sync_limit.value()  # 限量
+    manager.config.cover_backfill_overwrite = get_checkbox(self.Ui.checkBox_cover_backfill_overwrite)  # 覆盖已有图片
+    manager.config.cover_backfill_watermark = get_checkbox(self.Ui.checkBox_cover_backfill_watermark)  # 添加水印
 
     # 保存
     manager.save()

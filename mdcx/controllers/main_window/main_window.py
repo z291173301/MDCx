@@ -110,7 +110,7 @@ from mdcx.utils.file import (
     resolve_success_record_source_sync,
 )
 from mdcx.utils.path import safe_rmtree
-from mdcx.views.CustomClass import CustomScrollArea, wrapped_label_height
+from mdcx.views.CustomClass import CustomScrollArea
 from mdcx.views.donate_window import DonateDialog
 from mdcx.views.MDCx import Ui_MDCx
 from mdcx.views.similar_window import SimilarDialog
@@ -1035,51 +1035,32 @@ class MyMAinWindow(QMainWindow):
                 content.updateGeometry()
         scroll.sync_content_min_height()
 
-    # 软件工具页演员库分组内部常态几何（紧凑排布）：
-    # 提示条移到顶部说明下方单行显示；中文名缺项+打开库说明合并为一条；
-    # 打开行 140→112，剔除男演员行 168→140；minnano 新文案需三行，校验行及以下
-    # 再下移 20（校验 196/200）。_sync 按此摆常态，最大化只加宽（y/h 取字典）。
+    # 软件工具页演员库分组内部常态几何（紧凑排布）。
+    # _sync 按此摆常态，最大化只加宽（y/h 取字典）。
     _ACTOR_DB_TOOL_DESIGN = {
         "label_actor_db_desc": (40, 30, 621, 22),
         "label_actor_db_note": (40, 52, 621, 20),
-        "label_actor_db_translate_desc": (460, 80, 221, 36),
         "pushButton_actor_db_open": (40, 112, 200, 28),
         "pushButton_actor_db_stop": (260, 112, 200, 28),
         "pushButton_actor_db_clean_male": (40, 140, 200, 30),
         "pushButton_actor_db_fill_minnano": (260, 140, 200, 30),
-        "label_actor_db_fill_minnano_desc": (460, 140, 221, 30),
         "pushButton_actor_db_verify_tmdbid": (40, 170, 200, 30),
-        "label_actor_db_verify_tmdbid_desc": (40, 206, 220, 40),
         "pushButton_actor_db_check": (260, 170, 200, 30),
-        "label_actor_db_check_desc": (260, 206, 220, 40),
-        "lineEdit_actor_db_nfo_dir": (40, 252, 300, 30),
-        "pushButton_actor_db_pick_nfo_dir": (350, 252, 80, 30),
-        "pushButton_actor_db_update_nfo_tmdbid": (440, 252, 170, 30),
-        "label_actor_db_update_nfo_desc": (40, 288, 621, 28),
-        "pushButton_actor_db_sync_aliases": (40, 316, 200, 32),
-        "comboBox_actor_db_alias_source": (260, 316, 140, 32),
-        "checkBox_actor_db_alias_all": (420, 316, 180, 32),
-        "label_actor_db_sync_offset": (40, 372, 56, 28),
-        "spinBox_actor_db_sync_offset": (100, 372, 90, 28),
-        "label_actor_db_sync_limit": (210, 372, 56, 28),
-        "spinBox_actor_db_sync_limit": (270, 372, 110, 28),
-        "label_actor_db_sync_slice_hint": (400, 372, 261, 28),
-        "label_actor_db_sync_aliases_desc": (40, 408, 621, 42),
-        "pushButton_actor_db_fill_zh_javdb": (40, 458, 200, 30),
-        "label_actor_db_fill_zh_javdb_desc": (260, 462, 421, 30),
+        "pushButton_actor_db_update_nfo_tmdbid": (40, 206, 200, 30),
+        "pushButton_actor_db_fill_zh_javdb": (260, 206, 200, 30),
+        "lineEdit_actor_db_nfo_dir": (40, 244, 451, 30),
+        "pushButton_actor_db_pick_nfo_dir": (510, 239, 151, 40),
+        "label_actor_db_update_nfo_desc": (40, 282, 621, 28),
+        "pushButton_actor_db_sync_aliases": (510, 314, 151, 40),
+        "comboBox_actor_db_alias_source": (40, 318, 451, 32),
+        "checkBox_actor_db_alias_all": (40, 358, 150, 28),
+        "label_actor_db_sync_offset": (194, 358, 44, 28),
+        "spinBox_actor_db_sync_offset": (242, 358, 76, 28),
+        "label_actor_db_sync_limit": (322, 358, 36, 28),
+        "spinBox_actor_db_sync_limit": (362, 358, 84, 28),
+        "label_actor_db_sync_slice_hint": (450, 358, 211, 28),
+        "label_actor_db_sync_aliases_desc": (40, 394, 621, 42),
     }
-
-    # 顶部两条提示词原文（两态都合并为一条显示在 LibreDMM 按钮右侧，与
-    # minnano 说明一样是单条紧凑标签；高度按内容 heightForWidth 自适应，保证不断尾）
-    _ACTOR_DB_HINT_T1 = "扫描已有演员TMDB ID但是缺少中文姓名的条目"
-    _ACTOR_DB_HINT_T2 = "用默认程序打开xlxs查看与编辑"
-    # 校验行两说明的双行原文（与 .ui/.py 静态文本保持一致；最大化单行显示时去掉硬换行）
-    _ACTOR_DB_VERIFY_DESC = "失效ID清除后自动按名字重搜补新\nID，搜索不到则保持无ID刮削兜底"
-    _ACTOR_DB_CHECK_DESC = "检查格式错误和数据异常，安全项\n自动修复，TMDB给出人工修复步骤"
-    # 最大化单行重排时右列按钮左缘 = 左说明右缘 + 此间距
-    _ACTOR_DB_TOOL_COL_GAP = 20
-    # 右列按钮固定宽度（与常态一致，只平移不拉宽）
-    _ACTOR_DB_TOOL_COL_BTN_W = 200
 
     # 「清除所有.actors 文件夹」与 checkBox_actor_photo_ne_new（请求 Graphis 最新
     # 图片）左缘对齐——用户截图上它仍停在最右，未纳入后续对齐需求。
@@ -1345,12 +1326,9 @@ class MyMAinWindow(QMainWindow):
         背景：scrollArea_10 内 groupBox_actor_db_maintenance 最大化时被通用逻辑拉宽，
         而内部绝对定位子项默认只有拉伸/右缘锚定两种跟随（说明被钉到最右侧、
         输入框/下拉拉伸盖住按钮）。本方法在 _sync_page_layouts 末尾执行
-        （通用拉伸之后覆盖），接管组内全部 27 个控件：
-        - 常态（最小化/还原）：按 _ACTOR_DB_TOOL_DESIGN 紧凑排布，提示条在顶部
-          说明下方单行显示（颜色不变），右列为合并后单条提示（两行显示）；
-        - 最大化：宽幅控件拉宽，顶部合并提示词一行显示；校验行两说明去硬换行
-          单行显示，右列按钮（LibreDMM/停止/minnano/检查）及右侧提示同步右移，
-          宽度不足时回落双列双行。
+        （通用拉伸之后覆盖），接管组内全部 23 个控件：
+        - 常态（最小化/还原）：按 _ACTOR_DB_TOOL_DESIGN 紧凑排布；
+        - 最大化：宽幅控件拉宽，右列按钮（LibreDMM/停止/minnano/检查）保持在右列。
         """
         ui = getattr(self, "Ui", None)
         if ui is None:
@@ -1362,109 +1340,82 @@ class MyMAinWindow(QMainWindow):
         widgets = {name: getattr(ui, name, None) for name in self._ACTOR_DB_TOOL_DESIGN}
         if any(w is None for w in widgets.values()):
             return
-        # 链接缺项说明、打开库说明已删除（两态隐藏，均已并入顶部合并提示词）
+        # 链接缺项说明、打开库说明、JavDB中文名空说明已删除（两态隐藏）
         ui.label_actor_db_link_desc.hide()
         ui.label_actor_db_open_desc.hide()
+        ui.label_actor_db_fill_zh_javdb_desc.hide()
         maxed = self.isMaximized()
         box_w = box.width()
         # 先按常态紧凑几何落位
         for name, (x, y, w, h) in self._ACTOR_DB_TOOL_DESIGN.items():
             widgets[name].setGeometry(x, y, w, h)
-        tdesc = widgets["label_actor_db_translate_desc"]
         note = widgets["label_actor_db_note"]
-        minnano_desc = widgets["label_actor_db_fill_minnano_desc"]
-        tdesc.setText(self._ACTOR_DB_HINT_T1 + "，" + self._ACTOR_DB_HINT_T2)
         if not maxed:
-            tdesc.setWordWrap(True)
-            # 文字顶部对齐：默认垂直居中会把文字往下顶，顶边贴住按钮顶边
-            tdesc.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-            # 按内容自动算高（heightForWidth 实测不可靠，见 wrapped_label_height），
-            # 底边封顶 136，不侵入下方剔除行 y140；顶部锚定 LibreDMM 按钮顶部
-            link = ui.pushButton_actor_db_link
-            tdesc.setGeometry(460, link.y(), 221, wrapped_label_height(tdesc, 221, 36, 56))
-            minnano_desc.setWordWrap(True)
-            minnano_desc.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-            # 同上，底边封顶 196（校验行 y196/200 上方）；顶部锚定 minnano 按钮顶部
-            btn = ui.pushButton_actor_db_fill_minnano
-            minnano_desc.setGeometry(460, btn.y(), 221, wrapped_label_height(minnano_desc, 221, 30, 56))
-            # 最大化曾把校验行两说明改成单行、右列按钮右移；常态全部复位，
-            # 最小化布局与原来逐像素一致
+            # 常态只需复位右列按钮位置，最小化布局与原来逐像素一致
             ui.pushButton_actor_db_link.setGeometry(260, 80, 200, 32)
-            verify_lbl = widgets["label_actor_db_verify_tmdbid_desc"]
-            check_lbl = widgets["label_actor_db_check_desc"]
-            verify_lbl.setText(self._ACTOR_DB_VERIFY_DESC)
-            verify_lbl.setWordWrap(True)
-            check_lbl.setText(self._ACTOR_DB_CHECK_DESC)
-            check_lbl.setWordWrap(True)
+            # 窄窗下通用逻辑会收缩单文件组输入框（右缘 491+extra）并左移其按钮，
+            # nfo 行跟随同量 extra 收缩：nfo 输入框右缘恒等于文件路径输入框右缘，
+            # 选择目录按钮与选择文件按钮保持同列（最大化分支不在此处改动）
+            extra_nb = box_w - 701
+            if extra_nb != 0:
+                nfo_x0, nfo_y0, _, nfo_h0 = self._ACTOR_DB_TOOL_DESIGN["lineEdit_actor_db_nfo_dir"]
+                _, pick_y0, _, pick_h0 = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_pick_nfo_dir"]
+                nfo_w_nb = max(451 + extra_nb, 150)
+                pick_x_nb = max(510 + extra_nb, nfo_x0 + nfo_w_nb + 10)
+                widgets["lineEdit_actor_db_nfo_dir"].setGeometry(nfo_x0, nfo_y0, nfo_w_nb, nfo_h0)
+                widgets["pushButton_actor_db_pick_nfo_dir"].setGeometry(pick_x_nb, pick_y0, 151, pick_h0)
+                # TMDB 下拉右缘与文件路径输入框右缘对齐：输入框通用逻辑按 491+extra 收缩，下拉同公式跟随
+                combo_x0, combo_y0, combo_w0, combo_h0 = self._ACTOR_DB_TOOL_DESIGN[
+                    "comboBox_actor_db_alias_source"
+                ]
+                widgets["comboBox_actor_db_alias_source"].setGeometry(
+                    combo_x0, combo_y0, max(combo_w0 + extra_nb, 150), combo_h0
+                )
+                # 补全别名按钮与清空信息按钮同列：清空信息通用逻辑按 510+extra 左移，本按钮同公式跟随
+                _, alias_y0, alias_w0, alias_h0 = self._ACTOR_DB_TOOL_DESIGN[
+                    "pushButton_actor_db_sync_aliases"
+                ]
+                widgets["pushButton_actor_db_sync_aliases"].setGeometry(
+                    510 + extra_nb, alias_y0, alias_w0, alias_h0
+                )
             return
-        # ---- 最大化：拉宽（顶部合并提示词够宽一行、窄屏换行，均不断尾）----
+        # ---- 最大化：拉宽 ----
         extra = max(box_w - 701, 0)  # 组框相对设计宽度的增量
         widgets["label_actor_db_desc"].setGeometry(40, 30, 621 + extra, 22)
         note.setGeometry(40, 52, 621 + extra, 20)
-        # ---- 校验行单行化：两说明去硬换行单行显示，右列按钮及右侧提示同步右移 ----
-        # verify 单行宽按字体实测；右列左缘 = 左说明右缘 + 间距；check 说明跟随右列
-        # 同样单行。宽度不够时回落常态双列双行（窄屏最大化保护）。
-        verify_lbl = widgets["label_actor_db_verify_tmdbid_desc"]
-        check_lbl = widgets["label_actor_db_check_desc"]
-        verify_single = self._ACTOR_DB_VERIFY_DESC.replace("\n", "")
-        check_single = self._ACTOR_DB_CHECK_DESC.replace("\n", "")
-        verify_w = verify_lbl.fontMetrics().horizontalAdvance(verify_single) + 8
-        check_w = check_lbl.fontMetrics().horizontalAdvance(check_single) + 8
-        col_x = 40 + verify_w + self._ACTOR_DB_TOOL_COL_GAP
-        btn_w = self._ACTOR_DB_TOOL_COL_BTN_W
-        single_ok = (col_x + check_w + 10 <= box_w) and (col_x + btn_w + 200 + 10 <= box_w)
-        if not single_ok:
-            col_x = 260
-        ui.pushButton_actor_db_link.setGeometry(col_x, 80, btn_w, 32)
-        widgets["pushButton_actor_db_stop"].setGeometry(col_x, 112, btn_w, 28)
-        mbtn = widgets["pushButton_actor_db_fill_minnano"]
-        mbtn.setGeometry(col_x, 140, btn_w, 30)
-        widgets["pushButton_actor_db_check"].setGeometry(col_x, 170, btn_w, 30)
-        if single_ok:
-            verify_lbl.setText(verify_single)
-            verify_lbl.setWordWrap(False)
-            verify_lbl.setGeometry(40, 206, verify_w, 40)
-            check_lbl.setText(check_single)
-            check_lbl.setWordWrap(False)
-            check_lbl.setGeometry(col_x, 206, check_w, 40)
-        else:
-            verify_lbl.setText(self._ACTOR_DB_VERIFY_DESC)
-            verify_lbl.setWordWrap(True)
-            verify_lbl.setGeometry(40, 206, 220, 40)
-            check_lbl.setText(self._ACTOR_DB_CHECK_DESC)
-            check_lbl.setWordWrap(True)
-            check_lbl.setGeometry(260, 206, 220, 40)
-        # 右侧提示（顶部合并提示/minnano 说明）：紧贴右列按钮右侧，右缘收到组框内缘
-        prompt_x = col_x + btn_w
-        prompt_w = max(box_w - prompt_x - 10, 200)
-        tdesc.setWordWrap(True)  # 够宽一行显示，窄屏自动换行不断尾
-        tdesc.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        tdesc.setGeometry(
-            prompt_x, ui.pushButton_actor_db_link.y(), prompt_w, wrapped_label_height(tdesc, prompt_w, 32, 56)
-        )
-        minnano_desc.setWordWrap(True)
-        minnano_desc.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        minnano_desc.setGeometry(prompt_x, mbtn.y(), prompt_w, wrapped_label_height(minnano_desc, prompt_w, 30, 56))
-        widgets["label_actor_db_update_nfo_desc"].setGeometry(40, 288, 621 + extra, 28)
-        widgets["label_actor_db_sync_aliases_desc"].setGeometry(40, 408, 621 + extra, 42)
-        widgets["label_actor_db_fill_zh_javdb_desc"].setGeometry(260, 462, 421 + extra, 30)
-        # nfo 目录行：输入框缩为拉伸后一半，两按钮紧随其右侧
-        nfo_w = max((300 + extra) // 2, 150)
+        # ---- 顶部 5×2 维护按钮：两列同步向左右拓宽（extra 均分，列间距 20 不变，高度不变）----
+        half = extra // 2
+        left_w = 200 + half
+        right_x = 260 + half
+        right_w = 200 + extra - half
+        ui.pushButton_actor_db_translate.setGeometry(40, 80, left_w, 32)
+        ui.pushButton_actor_db_link.setGeometry(right_x, 80, right_w, 32)
+        widgets["pushButton_actor_db_open"].setGeometry(40, 112, left_w, 28)
+        widgets["pushButton_actor_db_stop"].setGeometry(right_x, 112, right_w, 28)
+        widgets["pushButton_actor_db_clean_male"].setGeometry(40, 140, left_w, 30)
+        widgets["pushButton_actor_db_fill_minnano"].setGeometry(right_x, 140, right_w, 30)
+        widgets["pushButton_actor_db_verify_tmdbid"].setGeometry(40, 170, left_w, 30)
+        widgets["pushButton_actor_db_check"].setGeometry(right_x, 170, right_w, 30)
+        widgets["pushButton_actor_db_update_nfo_tmdbid"].setGeometry(40, 206, left_w, 30)
+        widgets["pushButton_actor_db_fill_zh_javdb"].setGeometry(right_x, 206, right_w, 30)
+        widgets["label_actor_db_update_nfo_desc"].setGeometry(40, 282, 621 + extra, 28)
+        widgets["label_actor_db_sync_aliases_desc"].setGeometry(40, 394, 621 + extra, 42)
+        # nfo 目录行：选择目录与单文件刮削的选择文件同列同宽 (510+extra, 151x40)，输入框右缘与文件路径输入框右缘对齐 (491+extra)，距按钮 19px 与单文件行一致
         nfo_x, nfo_y, _, nfo_h = self._ACTOR_DB_TOOL_DESIGN["lineEdit_actor_db_nfo_dir"]
+        _, pick_y, _, pick_h = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_pick_nfo_dir"]
+        pick_w = 151
+        pick_x = 510 + extra
+        widgets["pushButton_actor_db_pick_nfo_dir"].setGeometry(pick_x, pick_y, pick_w, pick_h)
+        nfo_w = max(pick_x - nfo_x - 19, 150)
         widgets["lineEdit_actor_db_nfo_dir"].setGeometry(nfo_x, nfo_y, nfo_w, nfo_h)
-        pick_x = nfo_x + nfo_w + 10
-        widgets["pushButton_actor_db_pick_nfo_dir"].setGeometry(pick_x, nfo_y, 80, nfo_h)
-        update_x = pick_x + 80 + 10
-        widgets["pushButton_actor_db_update_nfo_tmdbid"].setGeometry(update_x, nfo_y, 170, nfo_h)
         nfo_right = nfo_x + nfo_w
-        # 别名行：下拉右缘与 nfo 输入框右缘对齐，复选框移到下拉外侧（y 取字典）
-        combo_x = 260
+        # 别名行：下拉左/右缘分别与 nfo 输入框左/右缘对齐（x=40，右缘=nfo_right）；
+        # 补全别名按钮与「选择目录/选择文件」同列同尺寸 (510+extra, 151x40)，与下拉间距 19px 同 nfo 行一致
+        combo_x = 40
         _ax, combo_y, _, _ah = self._ACTOR_DB_TOOL_DESIGN["comboBox_actor_db_alias_source"]
         combo_w = max(nfo_right - combo_x, 80)
         widgets["comboBox_actor_db_alias_source"].setGeometry(combo_x, combo_y, combo_w, 32)
-        check_x = nfo_right + 10
-        check_w = max(box_w - check_x - 10, 140)
-        widgets["checkBox_actor_db_alias_all"].setGeometry(check_x, combo_y, check_w, 32)
+        widgets["pushButton_actor_db_sync_aliases"].setGeometry(pick_x, combo_y - 4, 151, 40)
         # 起始行/限量提示：紧贴 5000 调整框右侧，不随右缘锚定飞到最右边
         spin = ui.spinBox_actor_db_sync_limit
         hint = widgets["label_actor_db_sync_slice_hint"]
@@ -4483,9 +4434,21 @@ class MyMAinWindow(QMainWindow):
         tool_area = ui.page_tool
         scroll_10 = tool_area.findChild(CustomScrollArea)
         if scroll_10 is not None and scroll_10.parentWidget() == tool_area:
-            scroll_10.setGeometry(20, 0, max(tool_area.width() - 20 - 20, 400), max(tool_area.height() - 0, 300))
+            scroll_10.setGeometry(20, 0, max(tool_area.width() - 20 - 20, 400), max(tool_area.height() - 75, 300))
             scroll_10.sync_wide_children_width()
             self._sync_actor_db_tool_layout()
+            # ---- page_tool 底部配置操作栏（当前配置/另存为/恢复默认/保存）----
+            # 与 page_setting 底部栏同组件同功能：滚动区高度收掉 75px 给页脚留位，
+            # 页脚按 (设计页高 692 - 设计 y) 的下缘边距锚定新底部，保存按钮右缘锚定。
+            tp_h = tool_area.height()
+            tp_w = tool_area.width()
+            t_bottom = max(tp_h - (692 - 630), 100)
+            ui.label_config_tool.setGeometry(0, max(tp_h - (692 - 620), 90), max(tp_w - 21, 400), 72)
+            ui.comboBox_change_config_tool.move(100, max(t_bottom + 5, 105))
+            ui.pushButton_save_new_config_tool.move(270, t_bottom)
+            ui.pushButton_init_config_tool.move(380, t_bottom)
+            ui.pushButton_save_config_tool.move(max(tp_w - 241 - 89, 500), t_bottom)
+            ui.label_241_tool.move(20, max(t_bottom - 1, 100))
 
         # ============ page_net: textBrowser_net_main + 右侧按钮 ============
         # 议题 #67: 文本区从按钮条带下方 (y=60) 开始, 按钮不再悬浮遮挡日志首行
@@ -9557,15 +9520,15 @@ class MyMAinWindow(QMainWindow):
 
     # btn_attr → 任务完成后按钮应恢复的 idle 文案
     _ACTOR_DB_IDLE_TEXT_MAP: dict[str, str] = {
-        "actor_db_translate": "补全中文名",
+        "actor_db_translate": "补全演员中文姓名",
         "actor_db_link": "补全LibreDMM链接",
         "actor_db_sync_aliases": "补全别名",
-        "actor_db_fill_minnano": "Minnano-av补全",
-        "actor_db_fill_zh_javdb": "JavDB中文名",
-        "actor_db_clean_male": "剔除男演员",
-        "actor_db_verify_tmdbid": "校验TMDB ID有效性",
-        "actor_db_check": "检查用户库",
-        "actor_db_update_nfo_tmdbid": "更新nfo文件TMDB ID字段",
+        "actor_db_fill_minnano": "Minnano-av 补全",
+        "actor_db_fill_zh_javdb": "JavDB演员中文名",
+        "actor_db_clean_male": "剔除所有男性演员",
+        "actor_db_verify_tmdbid": "校验TMDB ID字段",
+        "actor_db_check": "检查用户演员数据",
+        "actor_db_update_nfo_tmdbid": "更新TMDB ID字段",
     }
     # 由 change_buttons_status/reset_buttons_status 管理的 actor_db 按钮子集；
     # 这些按钮在主刮削时被禁用、刮削结束后若未在跑 actor_db 任务则被恢复。
@@ -10280,6 +10243,7 @@ class MyMAinWindow(QMainWindow):
     # 重置配置
     def pushButton_init_config_clicked(self):
         self.Ui.pushButton_init_config.setEnabled(False)
+        self.Ui.pushButton_init_config_tool.setEnabled(False)
         manager.reset()
         temp_dark = self.dark_mode
         temp_window_radius = self.window_radius
@@ -10288,6 +10252,7 @@ class MyMAinWindow(QMainWindow):
             self.show_flag = True
             self._windows_auto_adjust()
         self.Ui.pushButton_init_config.setEnabled(True)
+        self.Ui.pushButton_init_config_tool.setEnabled(True)
         signal_qt.show_scrape_info(f"💡 配置已重置！{get_current_time()}")
 
     # 设置-命名-分集-字母

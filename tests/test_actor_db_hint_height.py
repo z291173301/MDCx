@@ -4,6 +4,9 @@
 QTextDocument 量出 merged=50、minnano=36（正确）。固定高度导致“默认/钮/日”等
 尾字被裁。本测试锁定 wrapped_label_height 在各档宽度/字号下高度必覆盖内容，
 且底边不侵入下一行。
+
+注：合并提示词与 minnano 说明标签已从 UI 删除，下面的 CASES 仅作为
+wrapped_label_height 通用函数的回归用例保留，不再对应任何界面控件。
 """
 
 import os
@@ -73,13 +76,13 @@ def test_wrapped_label_height_respects_next_row():
         assert y + h <= cap, (text, w, h)
 
 
-def test_hint_tops_flush_with_buttons():
-    """两条提示词顶边必须分别与 LibreDMM 按钮（y80）、minnano 按钮（y140）齐平。"""
+def test_hint_labels_removed_from_design():
+    """合并提示词与 minnano 说明已从 UI 删除，DESIGN 不得再收录。"""
     from mdcx.controllers.main_window.main_window import MyMAinWindow as MW
 
     D = MW._ACTOR_DB_TOOL_DESIGN
-    assert D["label_actor_db_translate_desc"][1] == 80
-    assert D["label_actor_db_fill_minnano_desc"][1] == 140
+    assert "label_actor_db_translate_desc" not in D
+    assert "label_actor_db_fill_minnano_desc" not in D
 
 
 def test_wrapped_label_height_large_font_still_capped():

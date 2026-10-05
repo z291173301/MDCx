@@ -6,6 +6,7 @@
 
 - **软件设置-高级-保留任务行新增「无限次刮削」复选框（默认勾选）**：断点续刮此前对连续失败超 3 次（`scrape_cache.py: MAX_RETRY_COUNT`）的文件直接跳过，用户反馈希望失败无限重试。实现：`config/enums.py` 新增 `Switch.INFINITE_SCRAPE = "infinite_scrape"`；`config/models.py` 默认开关列表、`resources/config/default_config.json` 模板、`config/v1.py` 旧版配置串均默认开启；`config/migrations.py` 的 `_ensure_switch` 给老配置缺键自动补齐；`save_config.py` / `load_config.py` 接线；`MDCx.ui` 的 `horizontalLayout_89` 内追加 `checkBox_infinite_scrape` 并 `pyuic6` 重生成 `MDCx.py`。业务：`core/scraper.py: _run` 中开启时跳过 `exhausted` 过滤、`list_pending` 用 `10**9` 上限，未勾选走原逻辑
 - **「无限次刮削」与「停止刮削时」严格上下对齐（宽窄两态，「停止刮削时」自身不动）**：两行首项文本长度不同（「记住未完成的刮削任务…」对「退出软件时」），第二项自然错位。`main_window.py: _sync_advanced_page_align` 内在弹窗确认行落定后实测「停止刮削时」终态 x，钉死前导项「记住未完成的刮削任务」使末位落到同一竖线（走 `setFixedWidth` 而非 `move()`，布局重排不覆盖；幂等）。落点落在前导项文本自然宽之内时硬钉会裁字，此时按本页既有惯例整行放弃、保持设计态（窄态与全最大化放得下，1100/1366 中间带延后）
+- **软件工具页选项写入配置（全量更新/起始行/限量/覆盖已有图片/添加水印/自动创建软链接）**：6 个控件纳入保存/加载——`checkBox_actor_db_alias_all`（全量更新）、`spinBox_actor_db_sync_offset`（起始行，默认 0）、`spinBox_actor_db_sync_limit`（限量，默认 5000）、`checkBox_cover_backfill_overwrite`（覆盖已有图片）、`checkBox_cover_backfill_watermark`（添加水印）、`checkBox_create_link`（刮削过程中自动创建软链接，沿用已有 `auto_link` 字段）。复选框默认不勾选：`MDCx.ui` 去掉水印框的 `checked=true`（其余复选框本就无勾选，起止/限量默认值 `.ui` 里已是 0/5000）并重生成 `MDCx.py`。`config/models.py` 在 `auto_link` 后新增 5 字段（bool 默认 `False` / offset 默认 `0` / limit 默认 `5000`），pydantic 缺字段取默认值即老配置自动升级；`save_config.py` 在 `auto_link` 保存行后加 5 行（复选框 `get_checkbox`、填入框 `.value()`），点保存即写入；`load_config.py` 在 `checkBox_create_link` 回写后加 5 行（`setChecked`/`setValue`），重置经 `reset()` + 加载生效
 
 ### 测试
 

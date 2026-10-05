@@ -278,10 +278,10 @@ def pushButton_actor_db_sync_aliases_clicked(self):
         + slice_hint
         + "）..."
     )
-    # 下拉项映射：UI "minnano" → 内部 "avwiki"（走みんなのAV）；"JavDB" → "javdb"
+    # 下拉项映射：UI "Minnano" → 内部 "avwiki"（走みんなのAV）；"JavDB" → "javdb"
     if source == "JavDB":
         alias_source = "javdb"
-    elif source == "minnano":
+    elif source == "Minnano":
         alias_source = "avwiki"
     else:
         alias_source = "tmdb"
