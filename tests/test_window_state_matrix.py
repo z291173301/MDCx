@@ -1204,6 +1204,87 @@ def test_dock_status_extra_line_relayouts_donate_block(win, app):
         )
 
 
+def test_dock_geometry_is_frozen_when_status_text_grows_a_line(win, app):
+    """读取/刮削让状态文字多出一行时，导航与收款码块**几何一字不动**（第十三轮）。
+
+    用户原话（附两张截图）：「读取数据后软件界面向上移动了大概5-10px，这是不行的」
+    「读取数据后二维码也向上移动了大概5-10px二维码还变小了」「我需要的是读取或刮削模式
+    下读取或刮削前二维码位置、软件界面、软件日志、软件工具、演员管理、信息管理、
+    软件设置、检测网络、使用说明位置都保持固定！！！注意是固定！固定！固定！」
+
+    成因：`_layout_donate` 曾用**实测**文字块高 `_dock_status_text_h()` 锚定
+    `[赞助作者]` 与二维码下沿。读取完成的 `show_scrape_info("🎉 刮削完成 7/7")` 在
+    文字**顶部**追加一行，实测行数 4→5 → 整块上移一行高；`min(180, one_size)`
+    又让边长跟着缩小；剩下的缺口再把导航上移几像素——三者叠加即用户截图。
+
+    修法：定位改用**固定预留行高** `_dock_status_text_reserve_h()`，边长恒为
+    `_DONATE_QR_SIZE`。于是「行数变化」这件事对几何**完全不可见**。本用例把这条
+    不变量钉死：多档窗高 × 双字号（1.75 = 用户的 175% 界面缩放）下，追加进度行
+    前后 `nav/qr/alipay/link/status` 的 geometry 与二维码边长必须**完全相等**。
+
+    注意 `status` 自身几何也可能变（状态矩形高取决于固定预留，不是实测行数，故这里
+    也应相等）；若将来有人把定位改回实测行数，本用例会立刻失败并打印逐控件差值。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    watched = (
+        ui.widget_buttons,
+        ui.label_donate_qr,
+        ui.label_donate_alipay,
+        ui.label_donate_link,
+        ui.label_show_version,
+    )
+    status = ui.label_show_version
+
+    def snapshot():
+        return tuple((w.geometry().getRect(), w.isHidden()) for w in watched)
+
+    for scale in (1.0, 1.75):
+        if scale != 1.0:
+            f = status.font()
+            f.setPointSizeF(f.pointSizeF() * scale)
+            status.setFont(f)
+        for height in (700, 741, 800, 900, 1080):
+            win.resize(1032, height)
+            win.show()
+            app.processEvents()
+            # 读取前基线：只有配置那几行
+            win.show_scrape_info()
+            app.processEvents()
+            before = snapshot()
+            text_h_before = win._dock_status_text_h()
+            # 读取模式首次读取完成：顶部多一行进度，不触发 resize（真实用户的路径）
+            win.show_scrape_info("🎉 刮削完成 7/7")
+            app.processEvents()
+            assert win._dock_status_text_h() > text_h_before, (
+                f"{scale}x h={height}: 前提不成立——追加进度行后文字块高没变"
+                f"（{text_h_before} → {win._dock_status_text_h()}），本用例测不到漂移"
+            )
+            after = snapshot()
+            moved = [
+                f"{w.objectName() or type(w).__name__} {b[0]} → {a[0]}"
+                for w, b, a in zip(watched, before, after)
+                if b != a
+            ]
+            assert not moved, (
+                f"{scale}x h={height}: 读取后以下控件动了（要求完全固定）：\n  "
+                + "\n  ".join(moved)
+            )
+            # 顺带把「边长恒为 180」这条钉在同一处，避免与别的用例分散
+            qr = ui.label_donate_qr
+            assert (qr.width(), qr.height()) == (win._DONATE_QR_SIZE, win._DONATE_QR_SIZE), (
+                f"{scale}x h={height}: 二维码 {qr.width()}×{qr.height()} != {win._DONATE_QR_SIZE}"
+            )
+        # 双字号循环之间把字号复原，避免累积放大
+        if scale != 1.0:
+            f = status.font()
+            f.setPointSizeF(f.pointSizeF() / scale)
+            status.setFont(f)
+    win.show_scrape_info()
+    app.processEvents()
+
+
 def test_donate_qr_keeps_design_size_across_maximize_restore(win, app):
     """最大化→还原后二维码必须仍是 _DONATE_QR_SIZE（用户问题 2）。
 
@@ -1254,8 +1335,15 @@ def test_donate_qr_nav_raises_to_reach_design_size(win, app):
     """二维码放不满时导航必须上移补缺口，且上移量恰好、不越界、不叠字（用户问题 1）。
 
     断言三件事：① 有缺口时 `nav.y()` **低于**基线（上移了）；② 移动后二维码满
-    _DONATE_QR_SIZE（缺口被补上）；③ 三件（导航/二维码/状态文字）包围盒两两不相交，
+    _DONATE_QR_SIZE（缺口被补上）；③ 四件（导航/链接/二维码/状态文字）包围盒两两不相交，
     且导航顶 ≥ _DOCK_NAV_TOP_MIN。1.75 字号 = 用户的 175% 缩放。
+
+    **窗高由预算反算，不写死**：上一轮把 `_DOCK_NAV_H` 390→376 后，741 高在 1.75
+    字号下已经**不缺**了（原来会缺 25px），写死 741 的旧断言 `nav.y() < 基线` 就失配。
+    这里按 `_layout_donate` 的预算链 `one_size = height − 预留 − gap − LINK_H − LINK_GAP
+    − PAD − nav_bottom` 反推一个「恰好缺 5px」的窗高：缺口 5 ≤ 上移上限
+    (nav_top − _DOCK_NAV_TOP_MIN = 10)，故第二遍布局能补齐、二维码正好 180。
+    仍写死高度的话，这条用例会随字体度量漂移而变成「测不到缺口」的空断言。
     """
     _goto(win, app, "page_main")
     win.setMinimumSize(0, 0)
@@ -1266,13 +1354,31 @@ def test_donate_qr_nav_raises_to_reach_design_size(win, app):
     status.setFont(f)
     base_top = win._dock_nav_top_base()
     size = win._DONATE_QR_SIZE
-    win.resize(1032, 741)
+    # 预算链与 _layout_donate 逐项对齐（含 gap 的两项取大）
+    reserve = win._dock_status_text_reserve_h()
+    gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve) + win._DONATE_LIFT
+    budget = (
+        reserve
+        + gap
+        + win._DONATE_LINK_H
+        + win._DONATE_LINK_GAP
+        + win._DONATE_PAD
+        + base_top
+        + win._DOCK_NAV_H
+    )
+    height = budget + size - 5  # 恰好缺 5px
+    assert base_top - win._DOCK_NAV_TOP_MIN >= 5, (
+        f"前提不成立：导航最多只能上移 {base_top - win._DOCK_NAV_TOP_MIN}px，补不满 5px 缺口"
+    )
+    win.resize(1032, height)
     win.show()
     app.processEvents()
     win.show_scrape_info("🎉 刮削完成 7/7")
     app.processEvents()
-    assert qr.isVisible(), "741 高度下二维码应当可见"
-    assert nav.y() < base_top, f"有缺口时导航应上移，实际 {nav.y()} / 基线 {base_top}"
+    assert qr.isVisible(), f"{height} 高度下二维码应当可见"
+    assert nav.y() == base_top - 5, (
+        f"缺口 5px 时导航应恰好上移 5px，实际 {nav.y()} / 基线 {base_top}"
+    )
     assert nav.y() >= win._DOCK_NAV_TOP_MIN, f"导航顶 {nav.y()} 越过下限 {win._DOCK_NAV_TOP_MIN}"
     assert (qr.width(), qr.height()) == (size, size), f"上移后仍不满：{qr.width()}×{qr.height()} != {size}"
 
@@ -1291,6 +1397,12 @@ def test_donate_qr_nav_raises_to_reach_design_size(win, app):
             ox = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
             oy = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
             assert not (ox > 0 and oy > 0), f"控件 {i} 与 {j} 重叠 {ox}×{oy}：{a} vs {b}"
+
+    # 同一档高度下「读取前 vs 读取后」也必须完全一致（缺口只由固定量算出）
+    before = rects()
+    win.show_scrape_info()
+    app.processEvents()
+    assert rects() == before, f"清掉进度行后几何变了：{before} → {rects()}"
 
 
 def test_dock_nav_top_is_idempotent_across_relayouts(win, app):
