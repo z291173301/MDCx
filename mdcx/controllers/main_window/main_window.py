@@ -5389,7 +5389,7 @@ class MyMAinWindow(QMainWindow):
 
     # 设置-刮削网站：「网站偏好」组里「指定网站」下拉框右缘对齐「锁定类型」下拉框
     _SITE_PREF_COMBO = "comboBox_website_all"  # 指定网站（row 3 col 1，gridLayout_28）
-    _SITE_PREF_COMBO_REF = "comboBox_fixed_scraping_type"  # 锁定类型（row 14 col 1，gridLayout_36）
+    _SITE_PREF_COMBO_REF = "comboBox_fixed_scraping_type"  # 锁定类型（row 17 col 1，gridLayout_36）
     _SITE_PREF_SCROLL = "scrollArea_8"  # 刮削网站页签的滚动区
     # 「刮削不到？看这里！」按钮：groupBox_11 的绝对定位子控件（不在任何 layout 里），
     # y 由 _sync_scrape_note_vertical 按下拉框实时中心重钉，故不随行高/字号漂移。

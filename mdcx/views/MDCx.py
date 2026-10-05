@@ -3661,17 +3661,18 @@ class Ui_MDCx(object):
         self.scrollArea_8.setWidgetResizable(True)
         self.scrollArea_8.setObjectName("scrollArea_8")
         self.scrollAreaWidgetContents_guaxiaowangzhan = QtWidgets.QWidget()
-        self.scrollAreaWidgetContents_guaxiaowangzhan.setGeometry(QtCore.QRect(0, 0, 860, 2470))
+        self.scrollAreaWidgetContents_guaxiaowangzhan.setGeometry(QtCore.QRect(0, 0, 860, 2157))
         self.scrollAreaWidgetContents_guaxiaowangzhan.setObjectName("scrollAreaWidgetContents_guaxiaowangzhan")
         self.groupBox_80 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_guaxiaowangzhan)
-        self.groupBox_80.setGeometry(QtCore.QRect(30, 290, 701, 970))
+        self.groupBox_80.setGeometry(QtCore.QRect(30, 290, 701, 628))
         self.groupBox_80.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_80.setObjectName("groupBox_80")
         self.layoutWidget_6 = QtWidgets.QWidget(parent=self.groupBox_80)
-        self.layoutWidget_6.setGeometry(QtCore.QRect(20, 30, 661, 930))
+        self.layoutWidget_6.setGeometry(QtCore.QRect(20, 30, 661, 558))
         self.layoutWidget_6.setObjectName("layoutWidget_6")
         self.gridLayout_36 = QtWidgets.QGridLayout(self.layoutWidget_6)
         self.gridLayout_36.setContentsMargins(0, 0, 0, 0)
+        self.gridLayout_36.setVerticalSpacing(7)
         self.gridLayout_36.setObjectName("gridLayout_36")
         self.lineEdit_website_oumei = QtWidgets.QLineEdit(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
@@ -3719,7 +3720,7 @@ class Ui_MDCx(object):
             | QtCore.Qt.AlignmentFlag.AlignVCenter
         )
         self.label_316.setObjectName("label_316")
-        self.gridLayout_36.addWidget(self.label_316, 12, 0, 1, 1)
+        self.gridLayout_36.addWidget(self.label_316, 13, 0, 1, 1)
         self.lineEdit_website_fc2 = QtWidgets.QLineEdit(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -3750,7 +3751,7 @@ class Ui_MDCx(object):
             | QtCore.Qt.AlignmentFlag.AlignVCenter
         )
         self.label_322.setObjectName("label_322")
-        self.gridLayout_36.addWidget(self.label_322, 13, 0, 1, 1)
+        self.gridLayout_36.addWidget(self.label_322, 15, 0, 1, 1)
         self.label_232 = QtWidgets.QLabel(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -3758,7 +3759,7 @@ class Ui_MDCx(object):
         sizePolicy.setHeightForWidth(self.label_232.sizePolicy().hasHeightForWidth())
         self.label_232.setSizePolicy(sizePolicy)
         self.label_232.setStyleSheet("color: rgb(8, 128, 128);")
-        self.label_232.setMaximumSize(QtCore.QSize(16777215, 60))
+        self.label_232.setMaximumSize(QtCore.QSize(16777215, 34))
         self.label_232.setAlignment(
             QtCore.Qt.AlignmentFlag.AlignLeading | QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignTop
         )
@@ -3854,22 +3855,34 @@ class Ui_MDCx(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label_318.sizePolicy().hasHeightForWidth())
         self.label_318.setSizePolicy(sizePolicy)
-        self.label_318.setMinimumSize(QtCore.QSize(0, 84))
         self.label_318.setStyleSheet("color: rgb(8, 128, 128);")
+        self.label_318.setMaximumSize(QtCore.QSize(16777215, 34))
         self.label_318.setWordWrap(True)
         self.label_318.setObjectName("label_318")
-        self.gridLayout_36.addWidget(self.label_318, 12, 1, 1, 3)
+        self.gridLayout_36.addWidget(self.label_318, 13, 1, 1, 3)
         self.label_323 = QtWidgets.QLabel(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label_323.sizePolicy().hasHeightForWidth())
         self.label_323.setSizePolicy(sizePolicy)
-        self.label_323.setMinimumSize(QtCore.QSize(0, 84))
         self.label_323.setStyleSheet("color: rgb(8, 128, 128);")
+        self.label_323.setMaximumSize(QtCore.QSize(16777215, 34))
         self.label_323.setWordWrap(True)
         self.label_323.setObjectName("label_323")
-        self.gridLayout_36.addWidget(self.label_323, 13, 1, 1, 3)
+        self.gridLayout_36.addWidget(self.label_323, 15, 1, 1, 3)
+        spacerItem3 = QtWidgets.QSpacerItem(
+            20, 9, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed
+        )
+        self.gridLayout_36.addItem(spacerItem3, 12, 0, 1, 4)
+        spacerItem4 = QtWidgets.QSpacerItem(
+            20, 9, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed
+        )
+        self.gridLayout_36.addItem(spacerItem4, 14, 0, 1, 4)
+        spacerItem5 = QtWidgets.QSpacerItem(
+            20, 9, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed
+        )
+        self.gridLayout_36.addItem(spacerItem5, 16, 0, 1, 4)
         self.label_154 = QtWidgets.QLabel(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -3988,7 +4001,7 @@ class Ui_MDCx(object):
         self.comboBox_fixed_scraping_type.addItem("")
         self.comboBox_fixed_scraping_type.addItem("")
         self.comboBox_fixed_scraping_type.addItem("")
-        self.gridLayout_36.addWidget(self.comboBox_fixed_scraping_type, 14, 1, 1, 1)
+        self.gridLayout_36.addWidget(self.comboBox_fixed_scraping_type, 17, 1, 1, 1)
         self.label_fixed_scraping_type = QtWidgets.QLabel(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -4003,7 +4016,7 @@ class Ui_MDCx(object):
             | QtCore.Qt.AlignmentFlag.AlignVCenter
         )
         self.label_fixed_scraping_type.setObjectName("label_fixed_scraping_type")
-        self.gridLayout_36.addWidget(self.label_fixed_scraping_type, 14, 0, 1, 1)
+        self.gridLayout_36.addWidget(self.label_fixed_scraping_type, 17, 0, 1, 1)
         self.label_fixed_scraping_type_desc = QtWidgets.QLabel(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -4014,7 +4027,7 @@ class Ui_MDCx(object):
         self.label_fixed_scraping_type_desc.setWordWrap(False)
         self.label_fixed_scraping_type_desc.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.NoTextInteraction)
         self.label_fixed_scraping_type_desc.setObjectName("label_fixed_scraping_type_desc")
-        self.gridLayout_36.addWidget(self.label_fixed_scraping_type_desc, 15, 1, 1, 3)
+        self.gridLayout_36.addWidget(self.label_fixed_scraping_type_desc, 18, 1, 1, 3)
         self.pushButton_edit_website_youma = QtWidgets.QPushButton(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -4124,7 +4137,7 @@ class Ui_MDCx(object):
         self.pushButton_priority_website_guochan.setObjectName("pushButton_priority_website_guochan")
         self.gridLayout_36.addWidget(self.pushButton_priority_website_guochan, 10, 3, 1, 1)
         self.groupBox_35 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_guaxiaowangzhan)
-        self.groupBox_35.setGeometry(QtCore.QRect(30, 1340, 701, 1000))
+        self.groupBox_35.setGeometry(QtCore.QRect(30, 1027, 701, 1000))
         self.groupBox_35.setMinimumSize(QtCore.QSize(200, 0))
         self.groupBox_35.setObjectName("groupBox_35")
         self.layoutWidget_14 = QtWidgets.QWidget(parent=self.groupBox_35)
@@ -4862,10 +4875,10 @@ class Ui_MDCx(object):
         self.label_field_priority_try_all_images.setIndent(4)
         self.label_field_priority_try_all_images.setObjectName("label_field_priority_try_all_images")
         self.horizontalLayout_field_priority_options.addWidget(self.label_field_priority_try_all_images)
-        spacerItem3 = QtWidgets.QSpacerItem(
+        spacerItem6 = QtWidgets.QSpacerItem(
             40, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
-        self.horizontalLayout_field_priority_options.addItem(spacerItem3)
+        self.horizontalLayout_field_priority_options.addItem(spacerItem6)
         self.gridLayout_28.addWidget(self.widget_field_priority_options, 2, 1, 1, 1)
         self.pushButton_scrape_note = QtWidgets.QPushButton(parent=self.groupBox_11)
         self.pushButton_scrape_note.setGeometry(QtCore.QRect(529, 140, 151, 26))
@@ -4877,7 +4890,7 @@ class Ui_MDCx(object):
         self.pushButton_scrape_note.setMinimumSize(QtCore.QSize(80, 26))
         self.pushButton_scrape_note.setObjectName("pushButton_scrape_note")
         self.layoutWidget2 = QtWidgets.QWidget(parent=self.scrollAreaWidgetContents_guaxiaowangzhan)
-        self.layoutWidget2.setGeometry(QtCore.QRect(30, 1289, 701, 41))
+        self.layoutWidget2.setGeometry(QtCore.QRect(30, 976, 701, 41))
         self.layoutWidget2.setObjectName("layoutWidget2")
         self.horizontalLayout_107 = QtWidgets.QHBoxLayout(self.layoutWidget2)
         self.horizontalLayout_107.setContentsMargins(0, 0, 0, 0)
@@ -8726,10 +8739,10 @@ class Ui_MDCx(object):
         self.checkBox_nfo_criticrating.setSizePolicy(sizePolicy)
         self.checkBox_nfo_criticrating.setObjectName("checkBox_nfo_criticrating")
         self.gridLayout_66.addWidget(self.checkBox_nfo_criticrating, 0, 1, 1, 1)
-        spacerItem4 = QtWidgets.QSpacerItem(
+        spacerItem7 = QtWidgets.QSpacerItem(
             20, 8, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed
         )
-        self.gridLayout_66.addItem(spacerItem4, 1, 0, 1, 2)
+        self.gridLayout_66.addItem(spacerItem7, 1, 0, 1, 2)
         self.checkBox_nfo_actor = QtWidgets.QCheckBox(parent=self.layoutWidget_10)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -8757,10 +8770,10 @@ class Ui_MDCx(object):
         self.checkBox_nfo_actor_tmdbid = QtWidgets.QCheckBox(parent=self.layoutWidget_10)
         self.checkBox_nfo_actor_tmdbid.setObjectName("checkBox_nfo_actor_tmdbid")
         self.gridLayout_66.addWidget(self.checkBox_nfo_actor_tmdbid, 3, 1, 1, 1)
-        spacerItem5 = QtWidgets.QSpacerItem(
+        spacerItem8 = QtWidgets.QSpacerItem(
             20, 19, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed
         )
-        self.gridLayout_66.addItem(spacerItem5, 4, 0, 1, 2)
+        self.gridLayout_66.addItem(spacerItem8, 4, 0, 1, 2)
         self.checkBox_nfo_series = QtWidgets.QCheckBox(parent=self.layoutWidget_10)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -10125,10 +10138,10 @@ class Ui_MDCx(object):
         self.radioButton_actor_info_ja = QtWidgets.QRadioButton(parent=self.gridLayoutWidget_14)
         self.radioButton_actor_info_ja.setObjectName("radioButton_actor_info_ja")
         self.horizontalLayout_92.addWidget(self.radioButton_actor_info_ja)
-        spacerItem6 = QtWidgets.QSpacerItem(
+        spacerItem9 = QtWidgets.QSpacerItem(
             20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
-        self.horizontalLayout_92.addItem(spacerItem6)
+        self.horizontalLayout_92.addItem(spacerItem9)
         self.gridLayout_14.addLayout(self.horizontalLayout_92, 0, 1, 1, 1)
         self.frame_8 = QtWidgets.QFrame(parent=self.gridLayoutWidget_14)
         self.frame_8.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
@@ -10176,10 +10189,10 @@ class Ui_MDCx(object):
         self.pushButton_select_actor_info_db.setMinimumSize(QtCore.QSize(110, 40))
         self.pushButton_select_actor_info_db.setObjectName("pushButton_select_actor_info_db")
         self.horizontalLayout_155.addWidget(self.pushButton_select_actor_info_db)
-        spacerItem7 = QtWidgets.QSpacerItem(
+        spacerItem10 = QtWidgets.QSpacerItem(
             20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
-        self.horizontalLayout_155.addItem(spacerItem7)
+        self.horizontalLayout_155.addItem(spacerItem10)
         self.gridLayout_14.addLayout(self.horizontalLayout_155, 3, 1, 1, 1)
         self.frame_9 = QtWidgets.QFrame(parent=self.gridLayoutWidget_14)
         self.frame_9.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
@@ -10217,10 +10230,10 @@ class Ui_MDCx(object):
         self.horizontalLayout_160.setObjectName("horizontalLayout_160")
         self.horizontalLayout_159.addLayout(self.horizontalLayout_160)
         self.horizontalLayout_1581.addLayout(self.horizontalLayout_159)
-        spacerItem8 = QtWidgets.QSpacerItem(
+        spacerItem11 = QtWidgets.QSpacerItem(
             20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
-        self.horizontalLayout_1581.addItem(spacerItem8)
+        self.horizontalLayout_1581.addItem(spacerItem11)
         self.gridLayout_14.addLayout(self.horizontalLayout_1581, 4, 1, 1, 1)
         self.label_291 = QtWidgets.QLabel(parent=self.gridLayoutWidget_14)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
@@ -10278,10 +10291,10 @@ class Ui_MDCx(object):
         self.label_106.setObjectName("label_106")
         self.horizontalLayout_100.addWidget(self.label_106)
         self.horizontalLayout_98.addLayout(self.horizontalLayout_100)
-        spacerItem9 = QtWidgets.QSpacerItem(
+        spacerItem12 = QtWidgets.QSpacerItem(
             20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
-        self.horizontalLayout_98.addItem(spacerItem9)
+        self.horizontalLayout_98.addItem(spacerItem12)
         self.gridLayout_14.addLayout(self.horizontalLayout_98, 2, 1, 1, 1)
         self.pushButton_add_actor_info = QtWidgets.QPushButton(parent=self.groupBox_64)
         self.pushButton_add_actor_info.setGeometry(QtCore.QRect(160, 320, 261, 40))
@@ -12335,10 +12348,10 @@ class Ui_MDCx(object):
         self.pushButton_nfo_lib_crop = QtWidgets.QPushButton(parent=self.nfo_lib_preview_panel)
         self.pushButton_nfo_lib_crop.setObjectName("pushButton_nfo_lib_crop")
         self.nfo_lib_preview_layout.addWidget(self.pushButton_nfo_lib_crop)
-        spacerItem10 = QtWidgets.QSpacerItem(
+        spacerItem13 = QtWidgets.QSpacerItem(
             20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
         )
-        self.nfo_lib_preview_layout.addItem(spacerItem10)
+        self.nfo_lib_preview_layout.addItem(spacerItem13)
         self.nfo_lib_content_layout.addWidget(self.nfo_lib_preview_panel)
         self.nfo_library_main_layout.addWidget(self.nfo_lib_content)
         self.stackedWidget.addWidget(self.page_nfo_library)
@@ -12423,10 +12436,10 @@ class Ui_MDCx(object):
         self.pushButton_about.setMaximumSize(QtCore.QSize(16777215, 40))
         self.pushButton_about.setObjectName("pushButton_about")
         self.verticalLayout.addWidget(self.pushButton_about)
-        spacerItem11 = QtWidgets.QSpacerItem(
+        spacerItem14 = QtWidgets.QSpacerItem(
             20, 0, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
         )
-        self.verticalLayout.addItem(spacerItem11)
+        self.verticalLayout.addItem(spacerItem14)
         self.left_backgroud_widget = QtWidgets.QWidget(parent=self.widget_setting)
         self.left_backgroud_widget.setGeometry(QtCore.QRect(0, 0, 210, 700))
         self.left_backgroud_widget.setObjectName("left_backgroud_widget")
@@ -13376,7 +13389,7 @@ class Ui_MDCx(object):
         self.label_323.setText(
             _translate(
                 "MDCx",
-                "<p>「网站偏好」-「指定网站」指定Mywife或文件路径含有Mywife时，将自动使用Mywife刮削，Mywife番号规则：Mywife No.1230</p>",
+                "<p>「网站偏好」-「指定网站」指定Mywife或文件路径含有Mywife时，将自动使用Mywife刮削，MyWife番号规则：MyWife No.1230</p>",
             )
         )
         self.label_154.setText(_translate("MDCx", "比如：MIDE-111，以及不符合以下类型的番号"))

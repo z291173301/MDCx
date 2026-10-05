@@ -3330,9 +3330,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
                             </property>
-                              <property name="wordWrap">
-                                <bool>true</bool>
-                              </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
+                            </property>
                             </widget>
                         </item>
                         <item row="4" column="1">
@@ -4506,9 +4506,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="alignment">
                               <set>Qt::AlignCenter</set>
                             </property>
-                              <property name="wordWrap">
-                                <bool>true</bool>
-                              </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
+                            </property>
                             </widget>
                         </item>
                         <item row="7" column="1">
@@ -8179,7 +8179,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <x>0</x>
                       <y>0</y>
                       <width>860</width>
-                      <height>2470</height>
+                      <height>2157</height>
                     </rect>
                   </property>
                   <widget class="QGroupBox" name="groupBox_80">
@@ -8188,7 +8188,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <x>30</x>
                         <y>290</y>
                         <width>701</width>
-                        <height>970</height>
+                        <height>628</height>
                       </rect>
                     </property>
                     <property name="minimumSize">
@@ -8206,10 +8206,13 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                           <x>20</x>
                           <y>30</y>
                           <width>661</width>
-                          <height>930</height>
+                          <height>558</height>
                         </rect>
                       </property>
                       <layout class="QGridLayout" name="gridLayout_36">
+                        <property name="verticalSpacing">
+                          <number>7</number>
+                        </property>
                         <item row="8" column="1">
                           <widget class="QLineEdit" name="lineEdit_website_oumei">
                             <property name="sizePolicy">
@@ -8260,7 +8263,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="12" column="0">
+                        <item row="13" column="0">
                           <widget class="QLabel" name="label_316">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -8310,7 +8313,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="13" column="0">
+                        <item row="15" column="0">
                           <widget class="QLabel" name="label_322">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -8352,7 +8355,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="maximumSize">
                               <size>
                                 <width>16777215</width>
-                                <height>60</height>
+                                <height>34</height>
                               </size>
                             </property>
                             <property name="text">
@@ -8361,9 +8364,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
                             </property>
-                              <property name="wordWrap">
-                                <bool>true</bool>
-                              </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
+                            </property>
                             </widget>
                         </item>
                         <item row="5" column="1">
@@ -8505,7 +8508,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="12" column="1" colspan="3">
+                        <item row="13" column="1" colspan="3">
                           <widget class="QLabel" name="label_318">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -8513,24 +8516,24 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                 <verstretch>0</verstretch>
                               </sizepolicy>
                             </property>
-                            <property name="minimumSize">
-                              <size>
-                                <width>0</width>
-                                <height>84</height>
-                              </size>
-                            </property>
                             <property name="styleSheet">
                               <string notr="true">color: rgb(8, 128, 128);</string>
+                            </property>
+                            <property name="maximumSize">
+                              <size>
+                                <width>16777215</width>
+                                <height>34</height>
+                              </size>
                             </property>
                             <property name="text">
                               <string>&lt;p&gt;「网站偏好」-「指定网站」指定getchu、dmm等站点或文件路径包含有「里番」、「动漫」时，程序将会自动使用getchu进行刮削&lt;/p&gt;</string>
                             </property>
-                              <property name="wordWrap">
-                                <bool>true</bool>
-                              </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
+                            </property>
                             </widget>
                         </item>
-                        <item row="13" column="1" colspan="3">
+                        <item row="15" column="1" colspan="3">
                           <widget class="QLabel" name="label_323">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -8538,22 +8541,70 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                 <verstretch>0</verstretch>
                               </sizepolicy>
                             </property>
-                            <property name="minimumSize">
-                              <size>
-                                <width>0</width>
-                                <height>84</height>
-                              </size>
-                            </property>
                             <property name="styleSheet">
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
-                            <property name="text">
-                              <string>&lt;p&gt;「网站偏好」-「指定网站」指定Mywife或文件路径含有Mywife时，将自动使用Mywife刮削，Mywife番号规则：Mywife No.1230&lt;/p&gt;</string>
+                            <property name="maximumSize">
+                              <size>
+                                <width>16777215</width>
+                                <height>34</height>
+                              </size>
                             </property>
-                              <property name="wordWrap">
-                                <bool>true</bool>
-                              </property>
+                            <property name="text">
+                              <string>&lt;p&gt;「网站偏好」-「指定网站」指定Mywife或文件路径含有Mywife时，将自动使用Mywife刮削，MyWife番号规则：MyWife No.1230&lt;/p&gt;</string>
+                            </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
+                            </property>
                             </widget>
+                        </item>
+                        <item row="12" column="0" colspan="4">
+                          <spacer name="verticalSpacer_guochan_gap">
+                            <property name="orientation">
+                              <enum>Qt::Vertical</enum>
+                            </property>
+                            <property name="sizeType">
+                              <enum>QSizePolicy::Fixed</enum>
+                            </property>
+                            <property name="sizeHint" stdset="0">
+                              <size>
+                                <width>20</width>
+                                <height>9</height>
+                              </size>
+                            </property>
+                          </spacer>
+                        </item>
+                        <item row="14" column="0" colspan="4">
+                          <spacer name="verticalSpacer_dongman_gap">
+                            <property name="orientation">
+                              <enum>Qt::Vertical</enum>
+                            </property>
+                            <property name="sizeType">
+                              <enum>QSizePolicy::Fixed</enum>
+                            </property>
+                            <property name="sizeHint" stdset="0">
+                              <size>
+                                <width>20</width>
+                                <height>9</height>
+                              </size>
+                            </property>
+                          </spacer>
+                        </item>
+                        <item row="16" column="0" colspan="4">
+                          <spacer name="verticalSpacer_mywifes_gap">
+                            <property name="orientation">
+                              <enum>Qt::Vertical</enum>
+                            </property>
+                            <property name="sizeType">
+                              <enum>QSizePolicy::Fixed</enum>
+                            </property>
+                            <property name="sizeHint" stdset="0">
+                              <size>
+                                <width>20</width>
+                                <height>9</height>
+                              </size>
+                            </property>
+                          </spacer>
                         </item>
                         <item row="1" column="1">
                           <widget class="QLabel" name="label_154">
@@ -8724,7 +8775,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="14" column="1">
+                        <item row="17" column="1">
                           <widget class="QComboBox" name="comboBox_fixed_scraping_type">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -8781,7 +8832,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </item>
                           </widget>
                         </item>
-                        <item row="14" column="0">
+                        <item row="17" column="0">
                           <widget class="QLabel" name="label_fixed_scraping_type">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -8806,7 +8857,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                           </widget>
                         </item>
-                        <item row="15" column="1" colspan="3">
+                        <item row="18" column="1" colspan="3">
                           <widget class="QLabel" name="label_fixed_scraping_type_desc">
                             <property name="sizePolicy">
                               <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -9075,7 +9126,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1340</y>
+                        <y>1027</y>
                         <width>701</width>
                         <height>1000</height>
                       </rect>
@@ -10422,7 +10473,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="geometry">
                       <rect>
                         <x>30</x>
-                        <y>1289</y>
+                        <y>976</y>
                         <width>701</width>
                         <height>41</height>
                       </rect>
@@ -11937,9 +11988,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="text">
                               <string>指在nfo文件中的标题(title)格式在Emby中作为视频标题，支持完整Jinja2语法</string>
                             </property>
-                              <property name="wordWrap">
-                                <bool>true</bool>
-                              </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
+                            </property>
                             </widget>
                         </item>
                         <item row="4" column="0">
@@ -14118,9 +14169,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="text">
                               <string>以视频清晰度的英文缩写来命名不同画质</string>
                             </property>
-                              <property name="wordWrap">
-                                <bool>true</bool>
-                              </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
+                            </property>
                             </widget>
                         </item>
                       </layout>
@@ -22921,9 +22972,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="text">
                               <string>用途：校验Bypass服务落地/重定向后的最终域名，防止第三方服务被劫持时把恶意页面当数据，支持*.example.com子域通配，逗号分隔留空表示不校验，一般不需要配置</string>
                             </property>
-                              <property name="wordWrap">
-                                <bool>true</bool>
-                              </property>
+                            <property name="wordWrap">
+                              <bool>true</bool>
+                            </property>
                             </widget>
                         </item>
                         <item row="8" column="0">
