@@ -8551,7 +8551,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               </size>
                             </property>
                             <property name="text">
-                              <string>&lt;p&gt;「网站偏好」-「指定网站」指定Mywife或文件路径含有Mywife时，将自动使用Mywife刮削，MyWife番号规则：MyWife No.1230&lt;/p&gt;</string>
+                              <string>&lt;p&gt;「网站偏好」-「指定网站」指定MyWife或文件路径含有MyWife时，将自动使用MyWife刮削，MyWife番号规则：MyWife No.1230&lt;/p&gt;</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>

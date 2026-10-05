@@ -13389,7 +13389,7 @@ class Ui_MDCx(object):
         self.label_323.setText(
             _translate(
                 "MDCx",
-                "<p>「网站偏好」-「指定网站」指定Mywife或文件路径含有Mywife时，将自动使用Mywife刮削，MyWife番号规则：MyWife No.1230</p>",
+                "<p>「网站偏好」-「指定网站」指定MyWife或文件路径含有MyWife时，将自动使用MyWife刮削，MyWife番号规则：MyWife No.1230</p>",
             )
         )
         self.label_154.setText(_translate("MDCx", "比如：MIDE-111，以及不符合以下类型的番号"))

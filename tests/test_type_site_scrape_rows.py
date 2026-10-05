@@ -333,14 +333,14 @@ _WRAPPED_DESC_TEXTS = {
         "程序将会自动使用getchu进行刮削</p>"
     ),
     "label_323": (
-        "<p>「网站偏好」-「指定网站」指定Mywife或文件路径含有Mywife时，将自动使用Mywife刮削，"
+        "<p>「网站偏好」-「指定网站」指定MyWife或文件路径含有MyWife时，将自动使用MyWife刮削，"
         "MyWife番号规则：MyWife No.1230</p>"
     ),
 }
 
 
 def test_wrapped_desc_texts_regression():
-    """三段换行说明文案回归锁：番号规则里的品牌大小写（MyWife）改回 Mywife 即失败。"""
+    """三段换行说明文案回归锁：MyWife 品牌大小写（全文统一 MyWife）改回 Mywife 即失败。"""
     ui_src = _ui_src()
     mismatches = {}
     for name, expected in _WRAPPED_DESC_TEXTS.items():
