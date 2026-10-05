@@ -4561,6 +4561,13 @@ class MyMAinWindow(QMainWindow):
         # 按钮 y，而上一步刚改写下拉框的宽度上限（进而影响所在行高与行位置）。
         self._sync_scrape_note_vertical()
 
+        # ============ page_setting / 刮削网站页: 宽态国产番号说明单行时收回空行 ============
+        # 排在通用拉伸之后：本方法量的是该说明的终态宽度与其折行数，只有宽幅同步
+        # 按新视口改写完组框/网格列宽后量到的 need 才是终态（否则宽度还是上一视口
+        # 的旧值，单行判定会迟一拍）。也不影响 _sync_scrape_note_vertical——它锚的是
+        # 另一个组框（groupBox_11）里的「指定网站」下拉框，与本组网格无交集。
+        self._sync_site_type_tip_single_line()
+
         # ============ page_setting / NFO页: 宽幅组落定（先落定再量） ============
         # verify_gb 复验血案：tab 切换时 showEvent 的 wide-sync 跑在级联中途
         # （视口 805），落定到 819 后再无事件触发它，groupBox_81 带着 stale
@@ -5503,6 +5510,81 @@ class MyMAinWindow(QMainWindow):
         target = combo_y + (combo.height() - button.height()) // 2
         if button.y() != target:
             button.move(button.x(), target)
+
+    # 设置-刮削网站：「类型刮削网站」组里国产番号说明（label_232）与「动漫里番」
+    _SITE_TYPE_GRID = "gridLayout_36"  # 类型刮削网站网格（layoutWidget_6 上的四列网格）
+    _SITE_TYPE_GUOCHAN_TIP = "label_232"  # 国产番号说明（row 11 col 1~3，wordWrap）
+    # 单行判定容差：heightForWidth 的返回值与 fontMetrics().height() 有零头差
+    _SITE_TYPE_SINGLE_LINE_SLACK = 3
+    # .ui 给 label_232 声明的 maximumSize 高（34px = 两行）的运行时缓存，首次进入
+    # 记下，窄态据此原样交回设计约束。None = 尚未记下。
+    _site_type_tip_design_max_h: int | None = None
+
+    def _sync_site_type_tip_single_line(self) -> None:
+        """设置-刮削网站：宽态国产番号说明单行时收回空行，「动漫里番」上移一行。
+
+        用户需求：「软件设置-刮削网站-类型刮削网站页最大化时将动漫里番向上移动一行，
+        因为提示词已经在一行显示了，目前最大化时动漫里番离国产番号的间距太大了」，
+        且「最小化时的界面、布局、组件、控件、提示词等等均保持不变」。
+
+        根因：label_232（国产番号说明）开了 wordWrap，.ui 里钉了 maximumSize 高 34
+        （=两行），而 QGridLayout 定行高走 sizeHint 受 maximumSize 夹取、**不走
+        heightForWidth**（离屏实测：把上限放开后各宽度下都取 sizeHint 的 43~78px，
+        从不按实际折行数收缩）。窗口最大化后该说明所在的三列可用宽度足够，提示词
+        只剩一行（实测 heightForWidth = 15px），行高却仍被钉死在 34px，行下方留出
+        约 19px 死白，「动漫里番」整块被顶下去一行——正是用户截图里的大间距。
+        只改 .ui 无解（静态值无法随窗口宽度变化），只能在运行时收敛。
+
+        做法：量出该说明在当前终态宽度下的真实需要高度 need = heightForWidth(width)，
+        仅当它确实只占一行（need ≤ 单行高 + 容差）且该页已被拉宽（见
+        _scroll_stretch_extra）时，把 maximumSize 高收成 need，让网格压缩掉这一行；
+        同一笔高度再以 gridLayout_36 的 bottomMargin 原样还回去，使网格自然高度与
+        容器高度之差（余量 36px）保持不变——否则 QGridLayout 会把少掉的高度摊到 18
+        个 verticalSpacing 上（每档 +1px），「动漫里番」只上移 6px 而非一行（实测）。
+
+        最小化不变：窄态该说明仍需两行及以上（实测 1014 及以下 need ≥ 30px），
+        freed = 0，本方法对控件与布局零改动，与改动前逐像素一致；且宽窄来回切换时
+        两侧都能各自收敛回终态（离屏实测 1014→1400→1920→1014 全程验证）。
+        幂等：两个目标值与现值一致时完全不触碰控件，故在整条 resize 路径上高频
+        调用无副作用。need 与单行高都取自当前字体实测，与 UI 缩放无关。
+        """
+        ui = self.Ui
+        grid = getattr(ui, self._SITE_TYPE_GRID, None)
+        tip = getattr(ui, self._SITE_TYPE_GUOCHAN_TIP, None)
+        if grid is None or tip is None:
+            return
+        scroll = getattr(ui, self._SITE_PREF_SCROLL, None)
+        if scroll is None or not scroll.isVisibleTo(self):
+            # 休眠页签整段早退：从未布局时 tip 停在未经布局的默认宽度，量到的 need
+            # 是假读数，据此收上限会把高度永久钉死在错值上（与
+            # _sync_site_pref_combo_width 同一个假读数陷阱）。切进本页签时
+            # currentChanged 的 settle/beats 会补跑全量同步，那时几何已落定。
+            return
+        # 设计上限取 .ui 声明的 maximumSize 高（34px，两行），首次进入时记下，
+        # 窄态据此原样交回布局——不能拿 QWIDGETSIZE_MAX 顶替，那会永久改掉设计约束。
+        if self._site_type_tip_design_max_h is None:
+            self._site_type_tip_design_max_h = tip.maximumHeight()
+        design_max_h = self._site_type_tip_design_max_h
+        # 尚未布局（宽度为 0）或控件不开 wordWrap 时 heightForWidth 无意义，
+        # 放行交回布局（不做任何改动）。
+        if not tip.hasHeightForWidth() or tip.width() <= 0:
+            if tip.maximumHeight() != design_max_h:
+                tip.setMaximumHeight(design_max_h)
+            return
+        need = tip.heightForWidth(tip.width())
+        line_h = tip.fontMetrics().height()
+        freed = 0
+        if self._scroll_stretch_extra(scroll) > 0 and 0 < need <= line_h + self._SITE_TYPE_SINGLE_LINE_SLACK:
+            # 只在真正单行时收紧：两行及以上说明本来就占满 34px，收了反而截断提示词
+            freed = max(0, design_max_h - need)
+        if tip.maximumHeight() != design_max_h - freed:
+            tip.setMaximumHeight(design_max_h - freed)
+        # 收回的高度以底边距还回，保持网格自然高度不变 → 少掉的行高不会被摊进间隔
+        margins = grid.contentsMargins()
+        if margins.bottom() != freed:
+            grid.setContentsMargins(margins.left(), margins.top(), margins.right(), freed)
+            grid.invalidate()
+            grid.activate()
 
     # 设置-NFO「写入NFO的字段」组：col0 左标签（130px Fixed 右对齐），冒号在右缘
     _NFO_COLON_LABELS = (

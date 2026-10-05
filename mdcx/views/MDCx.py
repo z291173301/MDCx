@@ -1164,6 +1164,21 @@ class Ui_MDCx(object):
         self.gridLayout_7 = QtWidgets.QGridLayout(self.gridLayoutWidget_7)
         self.gridLayout_7.setContentsMargins(0, 0, 0, 0)
         self.gridLayout_7.setObjectName("gridLayout_7")
+        self.label_softlink_dir = QtWidgets.QLabel(parent=self.gridLayoutWidget_7)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_softlink_dir.sizePolicy().hasHeightForWidth())
+        self.label_softlink_dir.setSizePolicy(sizePolicy)
+        self.label_softlink_dir.setMinimumSize(QtCore.QSize(0, 0))
+        self.label_softlink_dir.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
+        self.label_softlink_dir.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight
+            | QtCore.Qt.AlignmentFlag.AlignTrailing
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        self.label_softlink_dir.setObjectName("label_softlink_dir")
+        self.gridLayout_7.addWidget(self.label_softlink_dir, 5, 0, 1, 1)
         self.horizontalLayout_134 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_134.setObjectName("horizontalLayout_134")
         self.lineEdit_movie_softlink_path = QtWidgets.QLineEdit(parent=self.gridLayoutWidget_7)
@@ -13143,6 +13158,7 @@ class Ui_MDCx(object):
         self.pushButton_scrape_cache_reset.setText(_translate("MDCx", "重置选中记录"))
         self.pushButton_scrape_cache_clear.setText(_translate("MDCx", "清空全部缓存"))
         self.groupBox_16.setTitle(_translate("MDCx", "刮削目录"))
+        self.label_softlink_dir.setText(_translate("MDCx", "链接存放目录："))
         self.pushButton_select_softlink_folder.setText(_translate("MDCx", "选择目录"))
         self.label_58.setText(
             _translate("MDCx", "指不想要刮削的视频文件目录，可以填写多个目录，以逗号分开，中英文逗号都可以")
@@ -13793,7 +13809,7 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p>1）Emby支持多版本显示，类似选集，\n"
-                "                          需要：</p><p>视频文件名的开头部分必须包含视频目录名。（比如：SSIS-111/SSIS-111-4K.mp4）\n"
+                "                          需要：</p><p>视频番号文件名称的开头部分必须包含视频目录名，比如：SSIS-111.mp4/SSIS-111-4K.mp4\n"
                 "                          </p><p>查看规则：<a\n"
                 '                          href="https://support.emby.media/support/solutions/articles/44001159102-movie-naming"><span\n'
                 '                          style=" text-decoration: underline;\n'
@@ -13820,7 +13836,7 @@ class Ui_MDCx(object):
         self.checkBox_llm.setText(_translate("MDCx", "LLM"))
         self.checkBox_bing.setText(_translate("MDCx", "Bing"))
         self.checkBox_baidu.setText(_translate("MDCx", "百度"))
-        self.label_164.setText(_translate("MDCx", "当勾选多个时，将随机使用所勾选的其中任一翻译引擎，可降低被封几率"))
+        self.label_164.setText(_translate("MDCx", "当勾选多个时，将随机使用所勾选的其中任一翻译引擎，可以大幅降低被封控的几率"))
         self.label_deepl_api_key.setText(_translate("MDCx", "DeepL API KEY："))
         self.label_80.setText(_translate("MDCx", "DeepLX URL："))
         self.groupBox_llm.setTitle(_translate("MDCx", "LLM 翻译"))
@@ -13832,9 +13848,9 @@ class Ui_MDCx(object):
         self.label_llm_prompt_outline.setText(_translate("MDCx", "简介 Prompt:"))
         self.label_llm_prompt_desc.setText(_translate("MDCx", "提示词模板. 可用变量: {content} 原文 {lang} 目标语言"))
         self.label_llm_max_req_sec.setText(_translate("MDCx", "最大请求速率(/秒):"))
-        self.label_llm_max_req_sec_desc.setText(_translate("MDCx", "根据你使用的 API 提供商的限制设定"))
+        self.label_llm_max_req_sec_desc.setText(_translate("MDCx", "根据你所使用的API提供商的限制设定，每个模型有不同限制"))
         self.label_llm_max_try.setText(_translate("MDCx", "最大尝试次数:"))
-        self.label_llm_max_try_desc.setText(_translate("MDCx", "API 请求失败可能只是因为暂时限流, 因此可多重试几次"))
+        self.label_llm_max_try_desc.setText(_translate("MDCx", "API请求失败可能只是因为被暂时限流, 因此可以多重试几次"))
         self.label_llm_temperature.setText(_translate("MDCx", "Temperature:"))
         self.checkBox_llm_disable_thinking.setText(_translate("MDCx", "关闭思考模式"))
         self.label_llm_disable_thinking_desc.setText(

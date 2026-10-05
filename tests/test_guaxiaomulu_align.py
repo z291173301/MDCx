@@ -269,3 +269,85 @@ def test_narrow_guard_keeps_lead_text_intact(win, app):
     assert _abs(ui, ui.checkBox_auto_clean) == _abs(ui, ui.checkBox_clean_file_ext), (
         "极窄窗口下「刮削时自动清理」未与「启用」对齐（该需求与让位量无关，必须生效）"
     )
+
+
+# --------------------------------------------------------------------------- #
+# 「链接存放目录：」标签（gridLayout_7 第 5 行第 0 列）
+# --------------------------------------------------------------------------- #
+# 用户需求④：「软链接显示输入框左侧加上链接存放目录：的提示词，最大化最小化一同修改」。
+_SOFTLINK_ROW = 5  # gridLayout_7 里 lineEdit_movie_softlink_path 所在行
+_SOFTLINK_ROW_INPUT = "lineEdit_movie_softlink_path"
+_SOFTLINK_ROW_BTN = "pushButton_select_softlink_folder"
+# 同行 col0 的提示词：必须与它们右缘齐平（冒号成一列）
+_ROW0_PEERS = ("label_data_dir", "label_47", "label_48")
+# 标签必须不撑动的东西：col0 由 label_48 的 130px 最小宽决定，行高由选择目录按钮
+# 的 40px 最小高决定，两者都与新标签无关，故插入后必须逐像素不变。
+_ROW5_REFS = (_SOFTLINK_ROW_INPUT, _SOFTLINK_ROW_BTN, "checkBox_scrape_softlink_path", "label_383")
+
+
+def _softlink_row_rects(ui):
+    grid = ui.gridLayout_7
+    inner = ui.gridLayoutWidget_7
+    out = {}
+    for name in ("label_softlink_dir",) + _ROW0_PEERS + _ROW5_REFS:
+        w = getattr(ui, name)
+        p = w.mapTo(inner, w.rect().topLeft())
+        out[name] = (p.x(), p.y(), w.width(), w.height())
+    for col in (0, 1):
+        item = grid.itemAtPosition(_SOFTLINK_ROW, col)
+        assert item is not None, f"gridLayout_7 第 {_SOFTLINK_ROW} 行第 {col} 列没有条目"
+        out[f"item_{_SOFTLINK_ROW}_{col}"] = item.geometry().getRect()
+    out["col0_width"] = grid.itemAtPosition(0, 0).geometry().width()
+    return out
+
+
+def test_softlink_dir_label_sits_left_of_the_input(win, app):
+    """需求④：标签在软链接输入框同一行左侧，右缘与同列提示词对齐（冒号成一列）。"""
+    ui = win.Ui
+    win.show()
+    _goto_guaxiaomulu(win, app)
+
+    for width, height in _NARROW_SIZES + _WIDE_SIZES:
+        _resize(win, app, width, height)
+        label = ui.label_softlink_dir
+        assert label.text() == "链接存放目录：", f"标签文案应为「链接存放目录：」，实为 {label.text()!r}"
+        grid = ui.gridLayout_7
+        assert grid.itemAtPosition(_SOFTLINK_ROW, 0).widget() is label, (
+            "「链接存放目录：」必须落在 gridLayout_7 第 5 行第 0 列（软链接输入框左侧）"
+        )
+        # 右对齐（.ui 声明 AlignRight + RightToLeft），故右缘与同列提示词齐平
+        content = ui.scrollAreaWidgetContents_guaxiaomulu
+        right = label.mapTo(content, QPoint(label.rect().right(), 0)).x()
+        for peer in _ROW0_PEERS:
+            p = getattr(ui, peer)
+            peer_right = p.mapTo(content, QPoint(p.rect().right(), 0)).x()
+            assert peer_right == right, (
+                f"{width} 宽下「链接存放目录：」右缘 {right} 与 {peer} 的右缘 {peer_right} 不齐平（冒号没成一列）"
+            )
+        # 纵向居中在输入框所在行里（Fixed 策略 → 高=文字高，位置由布局居中）
+        lbl_y = label.mapTo(content, label.rect().topLeft()).y()
+        edit = getattr(ui, _SOFTLINK_ROW_INPUT)
+        edit_y = edit.mapTo(content, edit.rect().topLeft()).y()
+        centre_gap = abs((lbl_y + label.height() // 2) - (edit_y + edit.height() // 2))
+        assert centre_gap <= edit.height(), (
+            f"{width} 宽下「链接存放目录：」未与软链接输入框同行（中心相差 {centre_gap}px）"
+        )
+
+
+def test_softlink_dir_label_shifts_nothing_else(win, app):
+    """需求④ 只加提示词：col0 列宽、软链接行几何与同组控件逐像素不变（宽窄两态都验）。"""
+    ui = win.Ui
+    win.show()
+    _goto_guaxiaomulu(win, app)
+
+    for width, height in _NARROW_SIZES + _WIDE_SIZES:
+        _resize(win, app, width, height)
+        # 列宽与行高由既有的 130px 最小宽（label_48）/ 40px 最小高（选择目录按钮）决定，
+        # 与 13px 高的新标签无关，故这两项必须与设计值一致。
+        rects = _softlink_row_rects(ui)
+        assert rects["col0_width"] == 130, f"{width} 宽下 col0 列宽变成 {rects['col0_width']}（应为 130）"
+        row_h = rects[f"item_{_SOFTLINK_ROW}_1"][3]
+        assert row_h == 40, f"{width} 宽下软链接行高变成 {row_h}（应为按钮最小高 40）"
+        # 二次同步不得漂移（幂等）
+        _resize(win, app, width, height)
+        assert _softlink_row_rects(ui) == rects, f"{width} 宽下二次同步后软链接行几何漂移"

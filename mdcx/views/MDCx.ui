@@ -3161,6 +3161,31 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         </rect>
                       </property>
                       <layout class="QGridLayout" name="gridLayout_7">
+                        <item row="5" column="0">
+                          <widget class="QLabel" name="label_softlink_dir">
+                            <property name="sizePolicy">
+                              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                                <horstretch>0</horstretch>
+                                <verstretch>0</verstretch>
+                              </sizepolicy>
+                            </property>
+                            <property name="minimumSize">
+                              <size>
+                                <width>0</width>
+                                <height>0</height>
+                              </size>
+                            </property>
+                            <property name="layoutDirection">
+                              <enum>Qt::RightToLeft</enum>
+                            </property>
+                            <property name="text">
+                              <string>链接存放目录：</string>
+                            </property>
+                            <property name="alignment">
+                              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                            </property>
+                          </widget>
+                        </item>
                         <item row="5" column="1">
                           <layout class="QHBoxLayout" name="horizontalLayout_134">
                             <item>
@@ -14472,7 +14497,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       </property>
                       <property name="text">
                         <string>&lt;p&gt;1）Emby支持多版本显示，类似选集，
-                          需要：&lt;/p&gt;&lt;p&gt;视频文件名的开头部分必须包含视频目录名。（比如：SSIS-111/SSIS-111-4K.mp4）
+                          需要：&lt;/p&gt;&lt;p&gt;视频番号文件名称的开头部分必须包含视频目录名，比如：SSIS-111.mp4/SSIS-111-4K.mp4
                           &lt;/p&gt;&lt;p&gt;查看规则：&lt;a
                           href="https://support.emby.media/support/solutions/articles/44001159102-movie-naming"&gt;&lt;span
                           style=" text-decoration: underline;
@@ -14842,7 +14867,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>当勾选多个时，将随机使用所勾选的其中任一翻译引擎，可降低被封几率</string>
+                              <string>当勾选多个时，将随机使用所勾选的其中任一翻译引擎，可以大幅降低被封控的几率</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -15198,7 +15223,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>根据你使用的 API 提供商的限制设定</string>
+                              <string>根据你所使用的API提供商的限制设定，每个模型有不同限制</string>
                             </property>
                           </widget>
                         </item>
@@ -15234,7 +15259,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>API 请求失败可能只是因为暂时限流, 因此可多重试几次</string>
+                              <string>API请求失败可能只是因为被暂时限流, 因此可以多重试几次</string>
                             </property>
                           </widget>
                         </item>

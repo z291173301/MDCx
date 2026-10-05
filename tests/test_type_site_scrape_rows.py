@@ -33,7 +33,8 @@
 
 已知取舍：窗口窄于约 980 时三段换行说明需要三行（51px），而行高被钉在 34px，会截掉
 第三行——这是为了让默认宽度下的紧凑布局稳定；同样地，窗口很宽时三段说明只有一行，
-34px 的行高会在文字下方留下约 17px 死白，块间视觉间隙相应变大。相应断言见文末。
+34px 的行高会在文字下方留下约 19px 死白，块间视觉间隙相应变大。宽态的死白已由
+运行期收敛处理（见文末「宽态单行收敛」一节）。
 """
 
 import re
@@ -460,3 +461,186 @@ def test_wrapped_desc_text_is_not_clipped(win, app, width):
         label = getattr(win.Ui, name)
         need = label.heightForWidth(label.width())
         assert label.height() >= need, f"{width} 宽下 {name} 高 {label.height()} < 需要 {need}（文字被截断）"
+
+
+# --------------------------------------------------------------------------- #
+# 宽态单行收敛（需求③：最大化时「动漫里番」上移一行，最小化逐像素不变）
+# --------------------------------------------------------------------------- #
+# 用户需求③：「软件设置-刮削网站-类型刮削网站页最大化时将动漫里番向上移动一行，
+# 因为提示词已经在一行显示了，目前最大化时动漫里番离国产番号的间距太大了」，
+# 且「最小化时的界面、布局、组件、控件、提示词等等均保持不变」。
+#
+# 根因：label_232（国产番号说明）开了 wordWrap 且 .ui 钉了 maximumSize 高 34
+# （=两行），而 QGridLayout 定行高走 sizeHint 受 maximumSize 夹取、**不走
+# heightForWidth**——所以任何静态 .ui 值都无法让这一行随窗口宽度收缩。最大化后该
+# 说明只需一行（实测 need=15px），行高却仍钉在 34px，行下方 19px 死白把「动漫里番」
+# 整块顶下去一行。
+#
+# 方案（main_window._sync_site_type_tip_single_line，在 _sync_page_layouts 里排在通用
+# 拉伸之后）：量 need = heightForWidth(width)，确认确实单行且页面已被拉宽时把
+# maximumSize 高收成 need；**同一笔高度必须以 gridLayout_36 的 bottomMargin 归还**
+# ——否则网格自然高度 522→503 而容器仍是 558，QGridLayout 会把少掉的 19px 摊到 18
+# 个 verticalSpacing 上（每档 +1px），结果「动漫里番」只上移 6px 而不是一行（实测）。
+_GUOCHAN_TIP = "label_232"
+_DONGMAN_LABEL = "label_316"  # 「动漫里番：」块标签，用户要求上移的那一行
+# 收敛只允许动这一行下方的东西；这三项必须在宽窄两态保持一致（间距不得变化）
+_STATE_INVARIANTS = ("lineEdit_website_youma", "label_154", "lineEdit_website_guochan")
+_NARROW_WIDTHS = [860, 1014]  # 说明仍需两行 → 不收敛
+_WIDE_SINGLE_LINE_WIDTHS = [1400, 1920]  # 说明只需一行 → 收敛
+
+
+def _tip_state(win):
+    """label_232 的收敛状态：需要高度 / 单行高 / 当前上限 / 已归还的下边距。"""
+    grid = getattr(win.Ui, _GRID)
+    tip = getattr(win.Ui, _GUOCHAN_TIP)
+    return {
+        "need": tip.heightForWidth(tip.width()),
+        "line_h": tip.fontMetrics().height(),
+        "max_h": tip.maximumHeight(),
+        "bottom": grid.contentsMargins().bottom(),
+        "height": tip.height(),
+        "spacing": grid.verticalSpacing(),
+        "natural": grid.sizeHint().height(),
+        "inner_h": getattr(win.Ui, _INNER).height(),
+    }
+
+
+def _baseline_without_convergence(win, app, monkeypatch, take):
+    """摘掉收敛方法并交回设计值后重跑同步，返回「改动前」的读数（随后复位方法）。
+
+    只摘方法不够：本方法把收敛结果**持久**在 label_232 的 maximumHeight 与网格下边距
+    上，no-op 的方法不会自动交回，故必须手工还原成 .ui 的设计值（34 / 0）再量。
+    基线一律在**同一窗口宽度**下取——不同宽度之间列宽本就不同，跨宽度比对会把列宽
+    差异误判成收敛带来的位移。
+    """
+    cls = type(win)
+    original = cls._sync_site_type_tip_single_line
+    monkeypatch.setattr(cls, "_sync_site_type_tip_single_line", lambda self: None)
+    try:
+        tip = getattr(win.Ui, _GUOCHAN_TIP)
+        grid = getattr(win.Ui, _GRID)
+        margins = grid.contentsMargins()
+        tip.setMaximumHeight(_DESC_ROW_H)
+        grid.setContentsMargins(margins.left(), margins.top(), margins.right(), 0)
+        for _ in range(3):
+            win._sync_page_layouts()
+            app.processEvents()
+        return take()
+    finally:
+        monkeypatch.setattr(cls, "_sync_site_type_tip_single_line", original)
+
+
+def _converged(win) -> bool:
+    """当前宽度下说明是否已收敛到单行（need 只占一行高 + 容差）。"""
+    state = _tip_state(win)
+    return state["need"] <= state["line_h"] + win._SITE_TYPE_SINGLE_LINE_SLACK
+
+
+def _freed(win) -> int:
+    return _DESC_ROW_H - _tip_state(win)["need"]
+
+
+@pytest.mark.parametrize("width", _NARROW_WIDTHS)
+def test_narrow_state_keeps_declared_row_height(win, app, width):
+    """需求③ 后半：最小化时说明行仍是 .ui 声明的 34px，网格下边距仍是 0（零改动）。"""
+    _show_at_width(win, app, width)
+
+    state = _tip_state(win)
+    assert state["max_h"] == _DESC_ROW_H, f"{width} 宽下 {_GUOCHAN_TIP} 上限变成 {state['max_h']}，应为 {_DESC_ROW_H}"
+    assert state["bottom"] == 0, f"{width} 宽下网格下边距变成 {state['bottom']}，应为 0（最小化不得改动）"
+    assert state["spacing"] == _SPACING, f"{width} 宽下 verticalSpacing 被改成 {state['spacing']}"
+    assert state["inner_h"] == 558, f"{width} 宽下 layoutWidget_6 高度变成 {state['inner_h']}（声明 558）"
+
+
+@pytest.mark.parametrize("width", _WIDE_SINGLE_LINE_WIDTHS)
+def test_wide_state_collapses_guochan_tip_row_to_one_line(win, app, monkeypatch, width):
+    """需求③：最大化时说明行收到「真实需要高度」，且省下的高度原样归还给下边距。"""
+    _show_at_width(win, app, width)
+
+    state = _tip_state(win)
+    assert state["need"] <= state["line_h"] + win._SITE_TYPE_SINGLE_LINE_SLACK, (
+        f"{width} 宽下前置条件不成立：need={state['need']} 仍需多行，本用例无意义"
+    )
+    freed = _DESC_ROW_H - state["need"]
+    assert freed > 0, f"{width} 宽下没有可回收的高度（need={state['need']}）"
+    assert state["max_h"] == state["need"], f"{width} 宽下上限 {state['max_h']} 应收到 need={state['need']}"
+    assert state["height"] == state["need"], f"{width} 宽下说明高 {state['height']} 应等于 need={state['need']}"
+    assert state["bottom"] == freed, f"{width} 宽下归还的下边距 {state['bottom']} 应为 {freed}"
+
+    # 归还的判据是「网格自然高度与改动前一致」（自然高本身随字体而变，故与基线比、
+    # 不写死）：没归还时自然高会掉 freed，QGridLayout 只能把余量摊进 verticalSpacing。
+    base_natural = _baseline_without_convergence(win, app, monkeypatch, lambda: _tip_state(win)["natural"])
+    assert state["natural"] == base_natural, (
+        f"{width} 宽下网格自然高 {state['natural']} ≠ 改动前 {base_natural}"
+        f"（少掉的 {freed}px 没还回下边距，只会被摊进行间距）"
+    )
+    assert state["spacing"] == _SPACING, f"{width} 宽下 verticalSpacing 被改成 {state['spacing']}"
+    assert state["inner_h"] == 558, f"{width} 宽下 layoutWidget_6 高度变成 {state['inner_h']}（声明 558）"
+
+
+@pytest.mark.parametrize("width", _WIDE_SINGLE_LINE_WIDTHS + _NARROW_WIDTHS)
+def test_wide_state_moves_dongman_up_without_touching_gaps(win, app, monkeypatch, width):
+    """需求③ 正题：宽态「动漫里番」上移恰好一行，且行间距与「改动前」的基线逐项相同。"""
+    _show_at_width(win, app, width)
+    names = (
+        *_STATE_INVARIANTS,
+        _GUOCHAN_TIP,
+        _DONGMAN_LABEL,
+        "label_318",
+        "label_322",
+        "label_fixed_scraping_type_desc",
+    )
+
+    def measure():
+        return (
+            {name: _rect(win, name) for name in names},
+            {
+                "input→desc": _gap(win, _GUOCHAN_TIP, "lineEdit_website_guochan"),
+                "desc→dongman": _gap(win, _DONGMAN_LABEL, _GUOCHAN_TIP),
+                "dongman→mywifes": _gap(win, "label_322", "label_318"),
+            },
+        )
+
+    new_rows, new_gaps = measure()
+    converged = _converged(win)
+    freed = _freed(win)
+    base_rows, base_gaps = _baseline_without_convergence(win, app, monkeypatch, measure)
+
+    if not converged:
+        # 未收敛时必须与改动前逐像素一致（最小化不得有任何改动）
+        assert new_rows == base_rows, f"{width} 宽下说明仍需多行，收敛不应生效：{base_rows} -> {new_rows}"
+        assert new_gaps == base_gaps, f"{width} 宽下间距被改动：{base_gaps} -> {new_gaps}"
+        return
+
+    moved = base_rows[_DONGMAN_LABEL][0] - new_rows[_DONGMAN_LABEL][0]
+    assert moved == freed, f"{width} 宽下「动漫里番」上移 {moved}px，应恰好一行 {freed}px"
+    # 说明行本身收高，上方的行纹丝不动
+    shrunk = base_rows[_GUOCHAN_TIP][2] - new_rows[_GUOCHAN_TIP][2]
+    assert shrunk == freed, f"{width} 宽下国产说明行高只收了 {shrunk}px，应为 {freed}px"
+    for name in _STATE_INVARIANTS:
+        assert new_rows[name] == base_rows[name], f"{width} 宽下 {name} 被带偏: {base_rows[name]} -> {new_rows[name]}"
+    # 间距不变：省下的高度若没归还就会被摊进 verticalSpacing
+    assert new_gaps == base_gaps, f"{width} 宽下间距变化: {base_gaps} -> {new_gaps}"
+    assert abs(new_gaps["desc→dongman"] - _GAP_BLOCK) <= _TOL_BLOCK, (
+        f"{width} 宽下 国产说明 → 动漫里番 间隙 {new_gaps['desc→dongman']}px，应约 {_GAP_BLOCK}px"
+    )
+
+
+def test_single_line_convergence_is_idempotent_and_round_trips(win, app):
+    """幂等 + 宽↔窄往返自愈：重复同步不漂移，窄→宽→窄 逐项复原。"""
+    _show_at_width(win, app, 1014)
+    narrow = {name: _rect(win, name) for name in _STATE_INVARIANTS + (_GUOCHAN_TIP, _DONGMAN_LABEL)}
+    narrow_state = _tip_state(win)
+    _show_at_width(win, app, 1014)
+    assert {name: _rect(win, name) for name in narrow} == narrow, "窄态二次同步漂移"
+    assert _tip_state(win) == narrow_state, "窄态二次同步状态漂移"
+
+    _show_at_width(win, app, 1920)
+    wide = {name: _rect(win, name) for name in narrow}
+    assert wide != narrow, "宽态未产生任何位移，收敛机制本身失效"
+    _show_at_width(win, app, 1920)
+    assert {name: _rect(win, name) for name in wide} == wide, "宽态二次同步漂移"
+
+    _show_at_width(win, app, 1014)
+    assert {name: _rect(win, name) for name in narrow} == narrow, "窄→宽→窄 往返未复原"
+    assert _tip_state(win) == narrow_state, "窄→宽→窄 往返后收敛状态未复原（上限/下边距没交回设计值）"
