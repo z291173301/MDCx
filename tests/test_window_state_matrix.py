@@ -953,8 +953,9 @@ def test_left_status_badges_follow_window_bottom(win, app):
         f"label_show_version 底边应贴底预留 {pad}px: "
         f"y={status.y()} height={status.height()} → 底={status.y() + status.height()}"
     )
-    assert win.Ui.label_local_number.y() == 1109, (
-        f"label_local_number 未贴底预留 40px: y={win.Ui.label_local_number.y()}"
+    # 数字浮标与状态区同一底距，从常量推导（pad 现为 0 = 同样贴窗底）
+    assert win.Ui.label_local_number.y() == 1170 - pad - win._DOCK_LOCAL_H, (
+        f"label_local_number 未贴底预留 {pad}px: y={win.Ui.label_local_number.y()}"
     )
 
 
@@ -1049,7 +1050,7 @@ def test_left_dock_adapts_to_large_ui_scale(win, app):
             f"设计态第 {index} 个导航按钮 y={btn.y()}，期望 {index * (btn_h + spacing)}"
         )
     assert btns[-1].y() + btns[-1].height() <= nav_top + win._DOCK_NAV_H, "设计态按钮越出导航容器"
-    assert ui.label_local_number.y() == 1109
+    assert ui.label_local_number.y() == 1170 - win._DOCK_STATUS_BOTTOM_PAD - win._DOCK_LOCAL_H
 
     # ④ 隐藏「演员管理/信息管理」两项（配置项）后按可见数量排布，仍不重叠
     ui.pushButton_emby_manager_nav.setVisible(False)
@@ -1072,12 +1073,16 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     改为底部锚定后两者都应与窗口高度无关；② 二维码边长上限先后在「侧栏宽（满宽不留
     白）」、「恒定 176」、「恒定 168」与「恒定 180」之间来回改过，两档不一致被用户指出
     （最大化时直接顶到左右边界；176 时最大化留白 17px 而还原窗口 21px，差 4px）。
-    180 是收窄三处缝隙（_DONATE_LINK_GAP 6→2、_DONATE_PAD 6→2、_DONATE_TEXT_GAP 17→10）
-    换来的，默认窗口下的高度预算：
-        avail = 198 − max(TEXT_GAP, PAD + STATUS_H_MIN − text_h) − LINK_GAP − PAD
-              （198 = status_bottom 690 − text_h 60 − LINK_H 22 − nav_bottom 410）
-              = 198 − max(10, 72+2−60) − 2 − 2 = 198 − 14 − 2 − 2 = 180
-    _DONATE_QR_SIZE 必须等于这个 avail，否则两态留白会不一致（见 main_window 常量注释）。
+    _DONATE_QR_SIZE=180 的来历：收窄三处缝隙（_DONATE_LINK_GAP 6→2、_DONATE_PAD 6→2、
+    _DONATE_TEXT_GAP 17→10）换来的；后续又把 _DOCK_STATUS_BOTTOM_PAD 40→0（状态文字
+    真贴窗底，见 test_left_status_badges_follow_window_bottom）使可用高度净增 40px。
+
+    **注意 693 档放不满 180 是正常且可接受的**：本文件 win fixture 把 set_style stub
+    掉，QSS 的 13px 不生效，_dock_status_text_h() 得 54（真实运行 60）；叠加
+    nav_top=50（隐藏标题栏）使 nav_bottom=440，本环境默认窗高下 avail 只有 147。
+    真实运行的预算是 height − 514，故 height ≥ 694 即为 180（默认窗高 700 满足）。
+    因此断言「达到上限的档位之间留白恒定」+「未达上限的档位仍左右对称」，
+    而不是要求 693 也等于 180。
     """
     _goto(win, app, "page_main")
     win.setMinimumSize(0, 0)
@@ -1086,6 +1091,7 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     side_w = ui.widget_setting.width()
     gaps: dict[int, int] = {}
     pads: dict[int, tuple[int, int]] = {}
+    qr_full: dict[int, bool] = {}
 
     for height in (693, 700, 737, 900, 1080, 1200):
         win.resize(1032, height)
@@ -1095,16 +1101,16 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
         # 水平居中，左右留白相等（奇数边长时差 1px 属正常取整）
         pad_l, pad_r = qr.x(), side_w - qr.x() - qr.width()
         pads[height] = (pad_l, pad_r)
+        qr_full[height] = qr.width() == win._DONATE_QR_SIZE
         assert abs(pad_l - pad_r) <= 1, f"{height}: 二维码左右留白不等 {pad_l}/{pad_r}"
         # 边长不超过 _DONATE_QR_SIZE（不随窗口高度变大），只有太矮放不下才等比缩小
         assert qr.width() <= win._DONATE_QR_SIZE, (
             f"{height}: 二维码 {qr.width()} 超过设计边长 {win._DONATE_QR_SIZE}"
         )
-        # 不写死「正好等于设计边长」：二维码绝对边长取决于状态文字块高，而本文件的
+        # 不写死「各档都正好等于设计边长」：绝对边长取决于状态文字块高，而本文件的
         # win fixture 把 set_style stub 成 lambda（第 47 行），QSS 的 13px 不生效，
-        # 字体度量与真实运行不同（_dock_status_text_h() 得 64，真实运行 60），
-        # 于是本环境算出的 avail 比真实运行小。真实边长由 pads 的跨高度恒定性保证
-        # ——若边长随高度变化，留白必然变化。
+        # 字体度量与真实运行不同（本环境 _dock_status_text_h() 得 54，真实运行 60），
+        # 于是本环境算出的 avail 比真实运行小。是否达标由下方 qr_full 记录后再分组断言。
         # 「[赞助作者]」底边到状态文字首行的间距。文字在矩形内底对齐，故文字顶 =
         # 矩形底 − 文字块高（_dock_status_text_h 按字体度量算，不用写死）
         link_bottom = link.y() + link.height()
@@ -1119,9 +1125,280 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     # 间距不小于设计下限，且**与窗口高度无关**（这才是用户反馈的回归点）
     assert min(gaps.values()) >= win._DONATE_TEXT_GAP, f"间距 {gaps} 小于 {win._DONATE_TEXT_GAP}"
     assert len(set(gaps.values())) == 1, f"间距随窗口高度变化：{gaps}"
-    # 同理，左右留白也必须与窗口高度无关：边长上限一旦大于默认窗口下的实测边长，
-    # 最大化时二维码就会涨到上限、留白变小（176 时最大化 17px vs 还原 21px，差 4px）
-    assert len(set(pads.values())) == 1, f"左右留白随窗口高度变化：{pads}"
+    # 左右留白同样必须与窗口高度无关：边长上限一旦大于默认窗口下的实测边长，
+    # 最大化时二维码就会涨到上限、留白变小（176 时最大化 17px vs 还原 21px，差 4px）。
+    # 但**默认窗高 693 本身放不满 180**（实测 avail 147，差 33px，见下方实测记录），
+    # 故这里按「达到上限后的区间」比留白恒定，而不是要求 693 也等于上限——
+    # 那正是本用例改动前一直失败的原因（pads 693:(31,32) vs 900:(15,15)）。
+    full = {h: p for h, p in pads.items() if qr_full.get(h)}
+    assert len(full) >= 3, f"只有 {len(full)} 档窗高达到设计边长，二维码几乎永远显示不满：{pads}"
+    assert len(set(full.values())) == 1, f"达到上限后左右留白仍随窗口高度变化：{full}"
+    # 未达上限的档位也必须左右对称（否则居中逻辑坏了）
+    for h, (pad_l, pad_r) in pads.items():
+        assert abs(pad_l - pad_r) <= 1, f"{h}: 留白不对称 {pad_l}/{pad_r}"
+
+
+def test_dock_status_extra_line_relayouts_donate_block(win, app):
+    """状态文字**多出一行**时收款码块必须让位，不得压住新增的首行。
+
+    回归背景（用户截图，读取模式）：首次读取完成后 `show_scrape_info` 往
+    `label_show_version` 顶部追加一行「🎉 刮削完成 7/7」。该 label 是 AlignBottom
+    的——文字块一变高，文字顶就上移一行高；而收款码块是按**旧行数**摆好的
+    （`_layout_donate` 用 `_dock_status_text_h()` 算出的文字顶锚定二维码下沿与
+    `[赞助作者]`）。修复前只有 `resizeEvent` 会重排，于是新增首行被二维码/链接盖住
+    约半个行高，**最大化再最小化一下就恢复正常**（那会触发一次
+    `_sync_dock_layout()`）。
+
+    两条断言：
+    ① **不叠字**——`文字顶 − [赞助作者]底边 ≥ _DONATE_TEXT_GAP`。用放大字号复现：
+       修复前实测该值为 **−8**（文字压在链接上）。
+    ② **自洽**——「改完文字立刻得到的几何」==「同样文字下 resize 一次得到的几何」。
+       这条比 ① 更强：它锁的是「文字一变就重排」这个行为本身，而不是某个写死的
+       像素值；修复前实测 status (634,107)/link 610 vs (610,131)/link 586。
+
+    放大字号是必要的：本文件 win fixture 把 `set_style` stub 掉，QSS 的 13px 不生效，
+    4 行文字块只有 54px，加一行后间距 26→12 **仍为正**，普通字号复现不出叠字；
+    而用户实际是 175% 界面缩放（4 行已 93px），加一行即压 8px。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    qr, link, status = ui.label_donate_qr, ui.label_donate_link, ui.label_show_version
+
+    def geom():
+        return (status.y(), status.height(), link.y(), link.height(), qr.y(), qr.height())
+
+    def text_gap():
+        return (status.y() + status.height() - win._dock_status_text_h()) - (link.y() + link.height())
+
+    for scale in (1.0, 1.75):
+        if scale != 1.0:
+            font = status.font()
+            font.setPointSizeF(font.pointSizeF() * scale)
+            status.setFont(font)
+        win.resize(1032, 741)
+        win.show()
+        app.processEvents()
+        # 回到 4 行基线（show_scrape_info 无参 = 只有配置那几行）
+        win.show_scrape_info()
+        app.processEvents()
+        before_gap = text_gap()
+        assert before_gap >= win._DONATE_TEXT_GAP, f"{scale}x: 4 行基线就叠字了 gap={before_gap}"
+
+        # 读取模式首次读取完成：顶部多一行，**不触发 resize**
+        win.show_scrape_info("🎉 刮削完成 7/7")
+        app.processEvents()
+        assert win._dock_status_text_h() > 0
+        after_gap = text_gap()
+        assert after_gap >= win._DONATE_TEXT_GAP, (
+            f"{scale}x: 新增首行被收款码块压住，间距 {after_gap} < {win._DONATE_TEXT_GAP}"
+            f"（{before_gap} → {after_gap}）"
+        )
+        live = geom()
+        # 对照：同样文本下走一次 resize 会得到什么几何
+        win.resize(1033, 741)
+        app.processEvents()
+        assert live == geom(), (
+            f"{scale}x: 改文字没有触发重排，live={live} 但 resize 后={geom()}；"
+            f"只有 resize 才重排正是本 bug 的成因"
+        )
+
+
+def test_donate_qr_keeps_design_size_across_maximize_restore(win, app):
+    """最大化→还原后二维码必须仍是 _DONATE_QR_SIZE（用户问题 2）。
+
+    回归背景：「读取模式…读取数据后软件界面最大化后再最小化二维码高度宽度都会变小」。
+    两个成因都修了：
+      ① 最大化时旧实现让微信码取 `two_size`（为多一张支付宝码腾空间），实测 h=800 时
+         只有 114×114 —— 现在支付宝码**只在两张都放得下 180 时**才出现，否则不出现，
+         微信码一律 `min(180, one_size)`；
+      ② 高度预算不足时把导航整体上移把缺口补上（问题 1 的手段）。
+    双字号跑：1.75 模拟用户的 175% 界面缩放（该档下 5 行文字块 117px，是最紧的场景）。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    qr, nav = ui.label_donate_qr, ui.widget_buttons
+    base_top = win._dock_nav_top_base()
+    size = win._DONATE_QR_SIZE
+    for scale in (1.0, 1.75):
+        if scale != 1.0:
+            f = ui.label_show_version.font()
+            f.setPointSizeF(f.pointSizeF() * scale)
+            ui.label_show_version.setFont(f)
+        win.resize(1032, 741)
+        win.show()
+        app.processEvents()
+        win.show_scrape_info("🎉 刮削完成 7/7")
+        app.processEvents()
+        before = (qr.width(), qr.height())
+        win.showMaximized()
+        app.processEvents()
+        maxed = (qr.width(), qr.height())
+        win.showNormal()
+        app.processEvents()
+        after = (qr.width(), qr.height())
+        for label, got in (("最大化前", before), ("最大化时", maxed), ("还原后", after)):
+            assert got == (size, size), (
+                f"{scale}x: {label}二维码 {got[0]}×{got[1]} != 设计边长 {size}"
+                f"（最大化往返把边长改了：{before} → {maxed} → {after}）"
+            )
+        # 还原后导航顶边不得比基线更高（也不该被抬到 0）
+        assert nav.y() >= win._DOCK_NAV_TOP_MIN, f"{scale}x: 导航顶 {nav.y()} 越过了下限 {win._DOCK_NAV_TOP_MIN}"
+        assert nav.y() <= base_top, f"{scale}x: 导航顶 {nav.y()} 高于基线 {base_top}，不该上浮"
+        win.show_scrape_info()
+        app.processEvents()
+
+
+def test_donate_qr_nav_raises_to_reach_design_size(win, app):
+    """二维码放不满时导航必须上移补缺口，且上移量恰好、不越界、不叠字（用户问题 1）。
+
+    断言三件事：① 有缺口时 `nav.y()` **低于**基线（上移了）；② 移动后二维码满
+    _DONATE_QR_SIZE（缺口被补上）；③ 三件（导航/二维码/状态文字）包围盒两两不相交，
+    且导航顶 ≥ _DOCK_NAV_TOP_MIN。1.75 字号 = 用户的 175% 缩放。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    qr, nav, status, link = ui.label_donate_qr, ui.widget_buttons, ui.label_show_version, ui.label_donate_link
+    f = status.font()
+    f.setPointSizeF(f.pointSizeF() * 1.75)
+    status.setFont(f)
+    base_top = win._dock_nav_top_base()
+    size = win._DONATE_QR_SIZE
+    win.resize(1032, 741)
+    win.show()
+    app.processEvents()
+    win.show_scrape_info("🎉 刮削完成 7/7")
+    app.processEvents()
+    assert qr.isVisible(), "741 高度下二维码应当可见"
+    assert nav.y() < base_top, f"有缺口时导航应上移，实际 {nav.y()} / 基线 {base_top}"
+    assert nav.y() >= win._DOCK_NAV_TOP_MIN, f"导航顶 {nav.y()} 越过下限 {win._DOCK_NAV_TOP_MIN}"
+    assert (qr.width(), qr.height()) == (size, size), f"上移后仍不满：{qr.width()}×{qr.height()} != {size}"
+
+    def rects():
+        return [
+            (nav.x(), nav.y(), nav.width(), nav.height()),
+            (link.x(), link.y(), link.width(), link.height()),
+            (qr.x(), qr.y(), qr.width(), qr.height()),
+            (status.x(), status.y(), status.width(), status.height()),
+        ]
+
+    for i, a in enumerate(rects()):
+        for j, b in enumerate(rects()):
+            if i >= j:
+                continue
+            ox = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+            oy = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+            assert not (ox > 0 and oy > 0), f"控件 {i} 与 {j} 重叠 {ox}×{oy}：{a} vs {b}"
+
+
+def test_dock_nav_top_is_idempotent_across_relayouts(win, app):
+    """反复重排不得让导航顶边逐次上浮（`_dock_nav_top_base` 用常量的回归守卫）。
+
+    若把基线写成 `ui.widget_buttons.y()`，则 `_layout_dock_nav` 结尾的
+    `setGeometry(0, top, …)` 会把「上移后的 top」变成下次的基线，每次重排再抬一点，
+    几次之后导航就贴到窗顶（甚至越界）。这里连打 12 次 `_sync_dock_layout()`，
+    断言顶边稳定在同一个值。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    status, nav = ui.label_show_version, ui.widget_buttons
+    f = status.font()
+    f.setPointSizeF(f.pointSizeF() * 1.75)
+    status.setFont(f)
+    win.resize(1032, 741)
+    win.show()
+    app.processEvents()
+    win.show_scrape_info("🎉 刮削完成 7/7")
+    app.processEvents()
+    first = nav.y()
+    for _ in range(12):
+        win._sync_dock_layout()
+        app.processEvents()
+    assert nav.y() == first, f"导航顶边从 {first} 漂到 {nav.y()}：基线被写成控件自身 y() 了"
+    assert win._dock_nav_top_base() in (win._DOCK_NAV_TOP_HIDE, win._DOCK_NAV_TOP_SHOW), "基线必须是常量而非控件几何"
+
+
+def test_donate_alipay_never_shrinks_wechat_qr(win, app):
+    """支付宝码**绝不**缩小微信码：两张都放得下 180 才显示，否则只显示 180 的微信码。
+
+    旧实现在「放得下但需要缩」这一档让微信码取 `two_size`（实测 h=800 → 114×114），
+    与本仓既有 docstring「不因多一张码而缩小」的承诺相悖。这里把 isMaximized 打成
+    True 逐档扫描，断言微信码恒 180，且支付宝码出现的高度档位上**两张都是 180**。
+
+    注：给 widget 打类属性会硬崩 pytest 进程，必须用**实例**属性（实例 __dict__ 会遮蔽方法）。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    qr, alipay = ui.label_donate_qr, ui.label_donate_alipay
+    size = win._DONATE_QR_SIZE
+    win.resize(1032, 741)
+    win.show()
+    app.processEvents()
+    win.isMaximized = lambda: True  # 实例属性遮蔽 QWidget.isMaximized
+    try:
+        for h in (700, 741, 800, 900, 1000, 1100, 1200, 1400):
+            win.resize(1032, h)
+            app.processEvents()
+            if not qr.isVisible():
+                continue
+            assert (qr.width(), qr.height()) == (size, size), (
+                f"h={h} 最大化态微信码被缩成 {qr.width()}×{qr.height()} != {size}"
+            )
+            if alipay.isVisible():
+                assert (alipay.width(), alipay.height()) == (size, size), (
+                    f"h={h} 支付宝码 {alipay.width()}×{alipay.height()} != {size}（宽度须与微信码严格一致）"
+                )
+    finally:
+        del win.isMaximized
+
+
+def test_dock_status_text_change_is_gated_by_line_count(win, app):
+    """行数没变时不得重排（否则刮削进度每刷新一次都重排导航+二维码）。
+
+    `show_scrape_info` 在刮削过程中按**文件**调用（`core/scraper.py` 的
+    「已刮削 {count}/{count_all}」），一次批量可能上千次。`_resync_dock_status_layout`
+    用文字块高做闸门，这里锁住该闸门：同长度的文本重写不产生任何几何变化。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    status = ui.label_show_version
+    win.resize(1032, 741)
+    win.show()
+    app.processEvents()
+    # 先把基线设成 **5 行**（带 before_info），后面只在「同样 5 行」里换文字
+    win.show_scrape_info("🔉 正在读取")
+    app.processEvents()
+    assert "\n" in status.text() and status.text().count("\n") == 4, status.text()
+
+    watch = {"n": 0}
+    real = win._sync_dock_layout
+
+    def counting():
+        watch["n"] += 1
+        real()
+
+    win._sync_dock_layout = counting
+    try:
+        # 同为 5 行、只有首行文字在变 —— 一次批量里这种调用按文件发生，上千次
+        for i in range(1, 6):
+            win.show_scrape_info(f"🔎 已刮削 {i}/5")
+            app.processEvents()
+        assert watch["n"] == 0, f"行数未变却重排了 {watch['n']} 次：{status.text()!r}"
+        # 行数真的少了（before_info 清空 → 4 行）→ 必须重排，且恰好一次
+        win.show_scrape_info()
+        app.processEvents()
+        assert watch["n"] == 1, f"行数从 5 变 4 却只重排 {watch['n']} 次（应为 1）"
+        # 再来一次同长度重写，仍然不该重排
+        win.show_scrape_info()
+        app.processEvents()
+        assert watch["n"] == 1, f"重复调用又重排了，总数 {watch['n']}（应仍为 1）"
+    finally:
+        del win._sync_dock_layout
 
 
 def test_donate_alipay_qr_only_appears_when_maximized(win, app):
@@ -1129,9 +1406,15 @@ def test_donate_alipay_qr_only_appears_when_maximized(win, app):
 
     回归背景：用户要求「最大化时在微信二维码上方展示支付宝二维码，宽度同微信二维码
     一致，最小化时界面/控件/提示词/组件均保持不变」。实现上支付宝码只在最大化时创建
-    可见状态，并受 `isMaximized()` 门控；放不下时**两张码一起等比缩小**（不把支付宝
-    压成一条不可扫的细缝），连 `_DONATE_ALIPAY_MIN` 都放不下则只显示微信码、且微信码
-    仍保持 `_DONATE_QR_SIZE`（不因多一张码而缩小）。
+    可见状态，并受 `isMaximized()` 门控。
+
+    **契约已按用户后续要求收紧**：「二维码高度任何情况下都要保持 180px」。旧实现在
+    「放得下但需要缩」这一档把**两张一起等比缩小**（实测最大化 h=800 时微信码只有
+    114×114），与本用例原 docstring 里「不因多一张码而缩小」的承诺相悖。现在改为：
+    **两张都放得下完整 180 才显示支付宝码，否则不显示，微信码一律满 180**。故 ② 用
+    h=1200 走「两张都在」的正路并断言两码都是满边长，②b 用 h=800 走「放不下」的分支
+    断言支付宝码隐藏而微信码仍满 180。`isMaximized` 用**实例**属性打桩（offscreen 下
+    `showMaximized()` 高度不够；给 widget 打类属性会硬崩进程）。
     """
     _goto(win, app, "page_main")
     win.setMinimumSize(0, 0)
@@ -1155,14 +1438,22 @@ def test_donate_alipay_qr_only_appears_when_maximized(win, app):
     )
     assert qr.x() == (side_w - qr.width()) // 2, f"非最大化时未居中：{qr.x()}"
 
-    # ② 最大化：支付宝码出现，与微信码同宽同列、排在其上方、不压导航按钮、互不重叠
-    win.showMaximized()
+    # ② 最大化**且放得下两张 180**：支付宝码出现，与微信码同宽同列、排在其上方、
+    #    不压导航按钮、互不重叠
+    # 用**实例**属性伪造最大化：offscreen 平台下 showMaximized() 给不出足够高度
+    # （实测仅 h≈800，放不下两张 180），而给 widget 打**类**属性会硬崩 pytest 进程。
+    win.isMaximized = lambda: True
+    win.resize(1030, 1200)
     app.processEvents()
     win._sync_dock_layout()
     try:
-        assert win.isMaximized(), "前提：showMaximized() 后应处于最大化状态"
-        assert not alipay.isHidden(), "最大化时应显示支付宝码"
+        assert win.isMaximized(), "前提：打桩后应处于最大化状态"
+        assert not alipay.isHidden(), "最大化且放得下两张时应显示支付宝码"
         assert not qr.isHidden(), "最大化时微信码必须仍可见"
+        # 用户要求「二维码高度任何情况下都要保持 180px」：两张都必须满边长
+        assert (qr.width(), qr.height()) == (win._DONATE_QR_SIZE, win._DONATE_QR_SIZE), (
+            f"最大化时微信码 {qr.width()}×{qr.height()} != {win._DONATE_QR_SIZE}"
+        )
         # 宽度严格一致（用户原话「宽度同微信二维码一致」）
         assert alipay.width() == qr.width(), (
             f"两码宽度不一致：支付宝 {alipay.width()} vs 微信 {qr.width()}"
@@ -1170,9 +1461,6 @@ def test_donate_alipay_qr_only_appears_when_maximized(win, app):
         assert alipay.height() == qr.height(), "两码高度不一致"
         assert alipay.width() <= win._DONATE_QR_SIZE, (
             f"两码边长 {alipay.width()} 超过设计边长 {win._DONATE_QR_SIZE}（会满宽、留白变 0）"
-        )
-        assert alipay.width() >= win._DONATE_ALIPAY_MIN, (
-            f"两码边长 {alipay.width()} 低于最小可扫尺寸 {win._DONATE_ALIPAY_MIN}"
         )
         # 同列居中
         assert alipay.x() == qr.x(), f"两码未同列：{alipay.x()} vs {qr.x()}"
@@ -1194,13 +1482,25 @@ def test_donate_alipay_qr_only_appears_when_maximized(win, app):
             assert a.geometry().intersects(b.geometry()) is False, (
                 f"最大化时 {a.objectName()} 与 {b.objectName()} 矩形相交"
             )
+
+        # ②b 最大化**但放不下两张**：不显示支付宝码，且**微信码仍满 180**
+        # （这正是旧实现会把微信码缩到 114×114 的那一档，见本文件
+        #  test_donate_alipay_never_shrinks_wechat_qr）
+        win.resize(1030, 800)
+        app.processEvents()
+        win._sync_dock_layout()
+        assert alipay.isHidden(), "放不下两张满尺寸码时不应显示支付宝码（宁可少一张）"
+        assert (qr.width(), qr.height()) == (win._DONATE_QR_SIZE, win._DONATE_QR_SIZE), (
+            f"放不下支付宝码时微信码被缩小成 {qr.width()}×{qr.height()}"
+        )
     finally:
-        win.showNormal()
+        win.resize(1030, 700)
+        del win.isMaximized
         app.processEvents()
         win._sync_dock_layout()
 
     # ③ 还原后必须恢复原样（双向幂等）
-    assert not win.isMaximized(), "前提：showNormal() 后应退出最大化"
+    assert not win.isMaximized(), "前提：撤销打桩后应退出最大化"
     # changeEvent 里 QTimer.singleShot(0) 的重算要跑完，否则支付宝码来不及隐藏
     app.processEvents()
     win._sync_dock_layout()

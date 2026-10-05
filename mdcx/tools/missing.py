@@ -22,12 +22,14 @@ from ..utils.file import write_file_atomic_async
 from .actor_sources import (
     _JavbusRotator,
     fetch_censored,
+    fetch_dongman,
+    fetch_fc2,
     fetch_guochan,
     fetch_uncensored,
     fetch_western,
 )
 
-_ACTOR_TYPE_PATTERN = re.compile(r"[（(]\s*(有码|无码|欧美|国产)\s*[)）]")
+_ACTOR_TYPE_PATTERN = re.compile(r"[（(]\s*(有码|无码|欧美|国产|动漫|FC2)\s*[)）]", re.IGNORECASE)
 
 
 def _parse_actor_entry(entry: str) -> tuple[str, str]:
@@ -35,11 +37,15 @@ def _parse_actor_entry(entry: str) -> tuple[str, str]:
 
     格式: "波多野結衣" 或 "水菜麗(无码)" 或 "Angela White(欧美)"。
     不标注的默认有码。
+
+    动漫 / FC2 不是演员名，填的是 JavDB 关键字（社团名/作品关键词、FC2 卖家名）。
     """
     entry = entry.strip()
     m = _ACTOR_TYPE_PATTERN.search(entry)
     if m:
         actor_type = m.group(1)
+        if actor_type.upper() == "FC2":  # 允许用户写 (fc2)
+            actor_type = "FC2"
         name = _ACTOR_TYPE_PATTERN.sub("", entry).strip()
         return name, actor_type
     return entry, "有码"
@@ -53,6 +59,10 @@ async def _fetch_actor_numbers(name: str, actor_type: str, rotator: _JavbusRotat
         return await fetch_western(name, rotator)
     if actor_type == "国产":
         return await fetch_guochan(name, rotator)
+    if actor_type == "动漫":
+        return await fetch_dongman(name, rotator)
+    if actor_type == "FC2":
+        return await fetch_fc2(name, rotator)
     return await fetch_censored(name, rotator)
 
 

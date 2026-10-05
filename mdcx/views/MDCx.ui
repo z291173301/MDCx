@@ -1625,7 +1625,7 @@
                     </rect>
                   </property>
                   <property name="text">
-                    <string>*番号网址：</string>
+                    <string>番号网址：</string>
                   </property>
                   <property name="alignment">
                     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -1654,7 +1654,7 @@
                     </rect>
                   </property>
                   <property name="text">
-                    <string>*文件路径：</string>
+                    <string>文件路径：</string>
                   </property>
                   <property name="alignment">
                     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -1827,7 +1827,7 @@
                           <enum>Qt::RightToLeft</enum>
                         </property>
                         <property name="text">
-                          <string>演员名：</string>
+                          <string>演员名查缺：</string>
                         </property>
                         <property name="alignment">
                           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -2146,7 +2146,7 @@
                     <rect>
                       <x>140</x>
                       <y>180</y>
-                      <width>241</width>
+                      <width>351</width>
                       <height>40</height>
                     </rect>
                   </property>
@@ -2270,31 +2270,6 @@
                     </item>
                   </layout>
                 </widget>
-                <widget class="QCheckBox" name="checkBox_create_link">
-                  <property name="geometry">
-                    <rect>
-                      <x>410</x>
-                      <y>180</y>
-                      <width>191</width>
-                      <height>40</height>
-                    </rect>
-                  </property>
-                  <property name="sizePolicy">
-                    <sizepolicy hsizetype="Minimum" vsizetype="Maximum">
-                      <horstretch>0</horstretch>
-                      <verstretch>0</verstretch>
-                    </sizepolicy>
-                  </property>
-                  <property name="minimumSize">
-                    <size>
-                      <width>0</width>
-                      <height>30</height>
-                    </size>
-                  </property>
-                  <property name="text">
-                    <string>刮削过程中自动创建软链接</string>
-                  </property>
-                </widget>
               </widget>
               <widget class="QGroupBox" name="groupBox_actor_db_maintenance">
                  <property name="geometry">
@@ -2314,7 +2289,7 @@
                       <x>40</x>
                       <y>30</y>
                       <width>621</width>
-                      <height>40</height>
+                      <height>22</height>
                     </rect>
                   </property>
                   <property name="styleSheet">
@@ -2356,8 +2331,8 @@
                 <widget class="QLabel" name="label_actor_db_link_desc">
                   <property name="geometry">
                     <rect>
-                      <x>260</x>
-                      <y>120</y>
+                      <x>460</x>
+                      <y>82</y>
                       <width>200</width>
                       <height>20</height>
                     </rect>
@@ -2373,7 +2348,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>140</y>
+                      <y>112</y>
                       <width>200</width>
                       <height>28</height>
                     </rect>
@@ -2385,8 +2360,8 @@
                 <widget class="QPushButton" name="pushButton_actor_db_stop">
                   <property name="geometry">
                     <rect>
-                      <x>480</x>
-                      <y>140</y>
+                      <x>260</x>
+                      <y>112</y>
                       <width>200</width>
                       <height>28</height>
                     </rect>
@@ -2398,8 +2373,8 @@
                 <widget class="QLabel" name="label_actor_db_open_desc">
                   <property name="geometry">
                     <rect>
-                      <x>260</x>
-                      <y>144</y>
+                      <x>460</x>
+                      <y>114</y>
                       <width>200</width>
                       <height>20</height>
                     </rect>
@@ -2415,9 +2390,9 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>176</y>
+                      <y>52</y>
                       <width>621</width>
-                      <height>28</height>
+                      <height>20</height>
                     </rect>
                   </property>
                   <property name="styleSheet">
@@ -2434,20 +2409,20 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>206</y>
+                      <y>140</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
                   </property>
                   <property name="text">
-                    <string>剔除所有男性演员</string>
+                    <string>删除所有男性演员</string>
                   </property>
                 </widget>
                 <widget class="QPushButton" name="pushButton_actor_db_fill_minnano">
                   <property name="geometry">
                     <rect>
                       <x>260</x>
-                      <y>206</y>
+                      <y>140</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2456,14 +2431,14 @@
                      <string>从Minnano-av补全缺生日/简介的条目，已有生日且简介非空的行跳过，只补空缺不覆盖已有值，作用于当前用户演员库，补全时会将出身/爱好/事务所/标签等日文字段翻译成中文，事务所/标签优先用内置信息库映射，其余用已配置的翻译引擎，需联网</string>
                    </property>
                   <property name="text">
-                    <string>Minnano-av 补全</string>
+                    <string>Minnano-AV补全</string>
                   </property>
                 </widget>
                 <widget class="QPushButton" name="pushButton_actor_db_verify_tmdbid">
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>242</y>
+                      <y>170</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2472,14 +2447,14 @@
                     <string>校验库中所有TMDB ID是否仍有效，TMDB是公开平台，个人ID可能被删除/重建，失效ID会被清除并自动按名字重新搜索补回新ID，搜索不到则保持无ID，刮削按名字兜底搜索，需配置TMDB API KEY</string>
                   </property>
                   <property name="text">
-                    <string>校验TMDB ID 字段</string>
+                    <string>校验TMDB ID字段</string>
                   </property>
                 </widget>
                 <widget class="QPushButton" name="pushButton_actor_db_check">
                   <property name="geometry">
                     <rect>
-                      <x>40</x>
-                      <y>280</y>
+                      <x>260</x>
+                      <y>170</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2494,8 +2469,8 @@
                 <widget class="QPushButton" name="pushButton_actor_db_fill_zh_javdb">
                   <property name="geometry">
                     <rect>
-                      <x>40</x>
-                      <y>530</y>
+                      <x>260</x>
+                      <y>206</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2504,16 +2479,16 @@
                     <string>从JavDB移动端API查询演员的中文名/繁体名，仅处理「中文名==日文原名」的行，即未做中文化、且日文原名含汉字的条目，用JavDB的name_zht/name字段补全正式中文名，繁体转简体写入中文名列，繁体写入繁体名列，无需TMDB API KEY按日文原名搜索，配合「起始行/限量」可分片续跑</string>
                   </property>
                   <property name="text">
-                    <string>JavDB 演员中文名</string>
+                    <string>JavDB演员中文名</string>
                   </property>
                 </widget>
                 <widget class="QLabel" name="label_actor_db_fill_zh_javdb_desc">
                   <property name="geometry">
                     <rect>
-                      <x>260</x>
-                      <y>534</y>
-                      <width>421</width>
-                      <height>30</height>
+                      <x>460</x>
+                      <y>208</y>
+                      <width>200</width>
+                      <height>20</height>
                     </rect>
                   </property>
                   <property name="styleSheet">
@@ -2530,20 +2505,20 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>324</y>
+                      <y>244</y>
                       <width>451</width>
                       <height>30</height>
                     </rect>
                   </property>
                   <property name="placeholderText">
-                    <string>选择nfo目录</string>
+                    <string>选择NFO文件目录</string>
                   </property>
                 </widget>
                 <widget class="QPushButton" name="pushButton_actor_db_pick_nfo_dir">
                   <property name="geometry">
                     <rect>
                       <x>510</x>
-                      <y>319</y>
+                      <y>239</y>
                       <width>151</width>
                       <height>40</height>
                     </rect>
@@ -2555,8 +2530,8 @@
                 <widget class="QPushButton" name="pushButton_actor_db_update_nfo_tmdbid">
                   <property name="geometry">
                     <rect>
-                      <x>260</x>
-                      <y>280</y>
+                      <x>40</x>
+                      <y>206</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2565,14 +2540,14 @@
                     <string>批量更新指定目录下所有NFO中Actor的TMDB ID，用本地演员库已校验+补回的新ID覆盖NFO旧ID，NFO原本没有TMDB ID的也补上，仅改TMDB ID值，保留NFO其他内容</string>
                   </property>
                   <property name="text">
-                    <string>更新TMDB ID 字段</string>
+                    <string>更新TMDB ID字段</string>
                   </property>
                 </widget>
                 <widget class="QLabel" name="label_actor_db_update_nfo_desc">
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>360</y>
+                      <y>282</y>
                       <width>621</width>
                       <height>28</height>
                     </rect>
@@ -2591,7 +2566,7 @@
                   <property name="geometry">
                     <rect>
                       <x>510</x>
-                      <y>346</y>
+                      <y>314</y>
                       <width>151</width>
                       <height>40</height>
                     </rect>
@@ -2607,7 +2582,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>350</y>
+                      <y>318</y>
                       <width>451</width>
                       <height>32</height>
                     </rect>
@@ -2632,7 +2607,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>390</y>
+                      <y>358</y>
                       <width>150</width>
                       <height>28</height>
                     </rect>
@@ -2648,7 +2623,7 @@
                   <property name="geometry">
                     <rect>
                       <x>194</x>
-                      <y>390</y>
+                      <y>358</y>
                       <width>44</width>
                       <height>28</height>
                     </rect>
@@ -2662,7 +2637,7 @@
                   <property name="geometry">
                     <rect>
                       <x>242</x>
-                      <y>390</y>
+                      <y>358</y>
                       <width>76</width>
                       <height>28</height>
                     </rect>
@@ -2694,7 +2669,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>322</x>
-                      <y>390</y>
+                      <y>358</y>
                       <width>36</width>
                       <height>28</height>
                     </rect>
@@ -2708,7 +2683,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>362</x>
-                      <y>390</y>
+                      <y>358</y>
                       <width>84</width>
                       <height>28</height>
                     </rect>
@@ -2746,7 +2721,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>450</x>
-                      <y>390</y>
+                      <y>358</y>
                       <width>211</width>
                       <height>28</height>
                     </rect>
@@ -2765,7 +2740,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>426</y>
+                      <y>394</y>
                       <width>621</width>
                       <height>42</height>
                     </rect>
@@ -2869,6 +2844,31 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <string>添加水印</string>
                   </property>
                 </widget>
+                <widget class="QCheckBox" name="checkBox_create_link">
+                  <property name="geometry">
+                    <rect>
+                      <x>410</x>
+                      <y>120</y>
+                      <width>191</width>
+                      <height>30</height>
+                    </rect>
+                  </property>
+                  <property name="sizePolicy">
+                    <sizepolicy hsizetype="Minimum" vsizetype="Maximum">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                    </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                    <size>
+                      <width>0</width>
+                      <height>30</height>
+                    </size>
+                  </property>
+                  <property name="text">
+                    <string>刮削过程中自动创建软链接</string>
+                  </property>
+                </widget>
                 <widget class="QLabel" name="label_cover_backfill_note">
                   <property name="geometry">
                     <rect>
@@ -2918,7 +2918,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <property name="text"><string>总计：0</string></property>
                   </widget>
                   <widget class="QPushButton" name="pushButton_scrape_cache_refresh">
-                    <property name="geometry"><rect><x>560</x><y>28</y><width>131</width><height>26</height></rect></property>
+                    <property name="geometry"><rect><x>550</x><y>28</y><width>131</width><height>26</height></rect></property>
                     <property name="text"><string>刷新统计</string></property>
                   </widget>
                   <widget class="QLabel" name="label_scrape_cache_dbpath">
@@ -2946,7 +2946,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   </widget>
                   <widget class="QPushButton" name="pushButton_scrape_cache_export">
                     <property name="geometry"><rect><x>20</x><y>300</y><width>160</width><height>28</height></rect></property>
-                    <property name="text"><string>导出失败列表 CSV</string></property>
+                    <property name="text"><string>导出失败列表CSV</string></property>
                   </widget>
                   <widget class="QPushButton" name="pushButton_scrape_cache_reset">
                     <property name="geometry"><rect><x>190</x><y>300</y><width>130</width><height>28</height></rect></property>
@@ -25667,7 +25667,7 @@ p, li { white-space: pre-wrap; }
                                     <string notr="true">color: rgb(8, 128, 128);</string>
                                   </property>
                                   <property name="text">
-                                    <string>用法：先在左侧nfo列表选中多条记录，再填写内容点对应按钮，替换演员名/加标签/删标签/统一系列名，最后点击「批量保存」统一写盘生效。</string>
+                                    <string>用法：先在左侧NFO列表选中多条记录，再填写内容点对应按钮，替换演员名、加标签、删标签、统一系列名，最后点击「批量保存」统一写盘生效</string>
                                   </property>
                                     <property name="wordWrap">
                                       <bool>true</bool>

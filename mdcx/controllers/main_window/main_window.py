@@ -1062,6 +1062,16 @@ class MyMAinWindow(QMainWindow):
         "label_actor_db_sync_aliases_desc": (40, 394, 621, 42),
     }
 
+    # 软件工具页封面补图组三选项行的常态几何（与 MDCx.ui 一致；y 中心同为 135）。
+    # _sync_cover_backfill_option_row 按此落常态，最大化只把两处间隙等量拉开。
+    _COVER_BACKFILL_OPTION_DESIGN = {
+        "checkBox_cover_backfill_overwrite": (40, 125, 161, 20),
+        "checkBox_cover_backfill_watermark": (220, 125, 161, 20),
+        "checkBox_create_link": (410, 120, 191, 30),
+    }
+    # groupBox_cover_backfill 的 .ui 设计宽度（30, 962, 701, 200）：增量基准。
+    _COVER_BACKFILL_DESIGN_W = 701
+
     # 「清除所有.actors 文件夹」与 checkBox_actor_photo_ne_new（请求 Graphis 最新
     # 图片）左缘对齐——用户截图上它仍停在最右，未纳入后续对齐需求。
     _ACTOR_PAGE_GRAPHIS_TARGETS = ("pushButton_del_actor_folder",)
@@ -1420,6 +1430,48 @@ class MyMAinWindow(QMainWindow):
         spin = ui.spinBox_actor_db_sync_limit
         hint = widgets["label_actor_db_sync_slice_hint"]
         hint.setGeometry(spin.x() + spin.width() + 10, spin.y(), 261, spin.height())
+
+    def _sync_cover_backfill_option_row(self) -> None:
+        """软件工具页封面补图组三选项行：最大化时同步拉开间距。
+
+        背景：scrollArea_10 内 groupBox_cover_backfill 最大化时被通用逻辑拉宽，
+        而组内三枚复选框（覆盖已有图片 / 添加水印 / 刮削过程中自动创建软链接）
+        在通用登记表里都判为 None——宽度 161/191 不足「拉伸」阈值 340，右缘 601
+        也不到「右缘锚定」阈值 631，于是被整体丢下：组框变宽而三框仍挤在
+        40/220/410，右侧空出一大片。本方法在 _sync_page_layouts 中紧随通用拉伸
+        与 _sync_actor_db_tool_layout 之后执行（务必晚于 sync_wide_children_width，
+        否则读到的组宽还是旧的），接管这三枚复选框的水平位置。
+
+        公式（x 只动、y/w/h 恒定）：
+        - extra = max(组宽 - 701, 0)：组框相对设计宽度的增量；
+        - half = extra // 2：两处间隙各摊一半，首框贴左缘、末框贴右缘；
+        - 覆盖已有图片 40 固定，添加水印 220+half，软链接 410+extra。
+        于是 gap1 = 19+half、gap2 = 29+half（差恒为 10，与常态一致），
+        末框右缘 601+extra 与组内缘 701+extra 的距离恒为 100px。
+
+        判据用几何量而非 isMaximized()：最大化时窗口管理器先发尺寸、状态位稍后
+        才生效，用 isMaximized() 会先停在常态、再跳到宽态（见
+        _actor_page_stretch_extra 的坑）。extra==0 时三框恰好写回常态几何，
+        故本方法天然幂等，缩小还原也能逐像素复原。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        box = getattr(ui, "groupBox_cover_backfill", None)
+        if box is None or not box.isVisibleTo(self):
+            # 休眠页跳过（切页 showEvent 后 _sync_page_layouts 会补齐）
+            return
+        opts = {name: getattr(ui, name, None) for name in self._COVER_BACKFILL_OPTION_DESIGN}
+        if any(w is None for w in opts.values()):
+            return
+        extra = max(box.width() - self._COVER_BACKFILL_DESIGN_W, 0)
+        half = extra // 2
+        x1, y1, w1, h1 = self._COVER_BACKFILL_OPTION_DESIGN["checkBox_cover_backfill_overwrite"]
+        x2, y2, w2, h2 = self._COVER_BACKFILL_OPTION_DESIGN["checkBox_cover_backfill_watermark"]
+        x3, y3, w3, h3 = self._COVER_BACKFILL_OPTION_DESIGN["checkBox_create_link"]
+        opts["checkBox_cover_backfill_overwrite"].setGeometry(x1, y1, w1, h1)
+        opts["checkBox_cover_backfill_watermark"].setGeometry(x2 + half, y2, w2, h2)
+        opts["checkBox_create_link"].setGeometry(x3 + extra, y3, w3, h3)
 
     @staticmethod
     def _scroll_stretch_extra(scroll) -> int:
@@ -3710,13 +3762,35 @@ class MyMAinWindow(QMainWindow):
     # 注：曾为「让下方收款码满宽」把按钮/间距收紧到 38/4、容器收到 340，用户反馈后已
     # 撤回——满宽不是必需的，收款码按可用高度自适应即可（见 _layout_donate）。
     _DOCK_NAV_H = 390
+    # 导航区顶边的两个取值，与 _windows_auto_adjust 里的 widget_buttons.move(0, 50/20)
+    # 必须一致——那条 move 只在启动/标题栏设置变更时跑一次，_sync_dock_layout 随后会
+    # 读 .y() 把它当基线。写成常量而不是读 .y()：_layout_dock_nav 结尾会
+    # setGeometry(0, top, …) 把读回来的值又写回去，若基线来自自身就会被逐次抬高。
+    _DOCK_NAV_TOP_HIDE = 50  # 隐藏窗口标题栏（window_title == "hide"）
+    _DOCK_NAV_TOP_SHOW = 20  # 显示窗口标题栏
+    # 导航区可上移到离窗顶多近。用户原话「软件界面容器上方还有10px以上的空间」——
+    # 即要求二维码显示不满时把导航整体上移利用这段空间，但**不能顶到 0**（留 10px，
+    # 否则第一个按钮贴着窗口边框、圆角与阴影会被切）。
+    _DOCK_NAV_TOP_MIN = 10
     _DOCK_STATUS_H = 201  # label_show_version 设计高
     _DOCK_STATUS_H_MIN = 72  # 状态区压缩下限（13px 字号约 4 行，超出裁上方空行）
     _DOCK_STATUS_GAP = 12  # 导航底与状态区顶的最小间距
-    _DOCK_STATUS_BOTTOM_PAD = 40  # 状态区贴底预留（议题 #102）
+    # 状态区贴底预留。原为 40（议题 #102：贴底太靠下），但 label_show_version 是
+    # AlignBottom 的——文字只占矩形底部约 3~4 行，矩形底与文字底之间那 40px 全是死区，
+    # 用户截图里「读取模式·字段优先 / actor.json / MDCx 版本号 / 点击检查最新版本」
+    # 四行整体悬在窗底上方、下面空一截。改为 0：四行文字真正贴到窗底。
+    # 顺带把二维码的高度预算也放宽 40px（见 _layout_donate 的 one_size 公式），
+    # 这是「二维码保持 180px」能稳定成立的关键——原先默认窗高下预算只有 177。
+    # 注：置 0 后 _DOCK_STATUS_Y_MIN 在公式里被 min(..., height-_DOCK_STATUS_H) 覆盖
+    # （min(max(x, 489), x) ≡ x），该下限对「空间够」分支不再生效，仅矮窗分支仍用。
+    _DOCK_STATUS_BOTTOM_PAD = 0  # 状态区贴底预留（0 = 文字真贴窗底）
     _DOCK_STATUS_Y_MIN = 489  # 状态区不低于设计 y
     _DOCK_LOCAL_Y_MIN = 680  # label_local_number 不低于设计 y
     _DOCK_LOCAL_H = 21  # label_local_number 设计高
+    # 状态文字块高（_dock_status_text_h）的上次测量值，-1 = 从未测量。作「行数是否变了」
+    # 的闸门：show_scrape_info 在刮削过程中按**文件**刷新同一行进度文案（可达上千次），
+    # 不设闸门就会每个文件重排一次左侧导航 + 收款码（见 _resync_dock_status_layout）。
+    _dock_status_text_h_last = -1
 
     # region 侧栏「使用说明」下方的微信收款码 + [赞助作者] 链接
     _DONATE_LINK_FONT_PX = 16  # 文档用：字号实际由 style.py 的 QSS 决定，此处仅备查
@@ -3732,8 +3806,9 @@ class MyMAinWindow(QMainWindow):
     _DONATE_LINK_GAP = 2  # 二维码与 [赞助作者] 的间距
     # 用户反馈：[赞助作者] 底边会压住状态区首行（正在刮削中…/刮削完成…）上沿约 1~2px
     # （状态文本多一行时 text_top 上移一行高、而布局只在 resize 时重算，首行顶到链接底边）。
-    # 整块（链接 + 二维码 + 支付宝码）额外上移 3px 留出安全间隙，走可用高度里的富余空间。
-    _DONATE_LIFT = 3  # 赞助块整体上移量（用户要求约 3px，直接加在 gap 上，保证任何窗口高度都生效）
+    # 整块（链接 + 二维码 + 支付宝码）额外上移留出安全间隙，走可用高度里的富余空间。
+    # 用户第二轮要求「再向上移动 3px」：3 → 6。仍加在 gap 上，任何窗口高度都生效。
+    _DONATE_LIFT = 6  # 赞助块整体上移量（3 + 用户追加 3）
     # 最大化时支付宝码与微信码之间的间距：取「一行汉字的高度」，即侧栏 [赞助作者]
     # 的行高（_DONATE_LINK_H / _DONATE_LINK_FONT_PX=16 实测 fontMetrics().height()=19、
     # 行高约 22），使两码之间的视觉分隔与正文行距统一（用户第 14 轮要求）。
@@ -3743,12 +3818,13 @@ class MyMAinWindow(QMainWindow):
     _DONATE_PAD = 2  # 与导航区/状态区的内边距（在 gap 公式里也出现一次，故收窄收益翻倍）
     _DONATE_TEXT_GAP = 10  # [赞助作者] 底边到状态文字首行的间距
     # 二维码边长恒定 180：侧栏宽 210，两侧各留 15px 空白（210 - 2*15 = 180）。
-    # 高度预算：avail = 198 − max(TEXT_GAP, PAD + STATUS_H_MIN − text_h) − LINK_GAP − PAD − LIFT
-    #   = 198 − max(10, 72+2−60=14) − 2 − 2 − 3 = 177（默认 700 高时）。
-    # 用户实测当前窗口上限有 186，可用高度比 180 多 6px，上移 3px 后仍有富余、二维码保持
-    # 180 不变；只有窗口矮到 avail < 180 时才按原有逻辑等比缩小（min 取小，见 _layout_donate）。
-    # 注意：此举放宽了「上限必须等于默认窗口实测 avail」的旧约束——700 高时二维码显示 177、
-    # 更高窗口显示 180，两侧留白差约 1px（用户明确要求保 180，优先满足）。
+    # 高度预算（真实运行：nav_bottom 410、text_h 60）：
+    #   avail = (height − text_h) − max(TEXT_GAP, PAD + STATUS_H_MIN − text_h)
+    #           − LINK_GAP − PAD − LIFT − nav_bottom
+    #         = height − 60 − max(10, 74−60=14) − 2 − 2 − 6 − 410 = height − 514
+    # 用户第二轮同时要求「二维码仍保持 180」+「状态文字移到底」：_DOCK_STATUS_BOTTOM_PAD
+    # 40 → 0 使 status_bottom 贴窗底，可用高度净增 40px，减去追加的 LIFT 3px 后仍 +37px。
+    # 故默认窗高（≥ 514+180 = 694）起二维码恒为 180；只有更矮的窗口才等比缩小。
     _DONATE_QR_SIZE = 180
     # 最大化时在微信码**上方**再加一张支付宝码（宽度与微信码严格一致）。
     # 空间不够时不把支付宝压成一条小缝，而是**两张码一起等比缩小**到能放下的最大尺寸，
@@ -3850,7 +3926,42 @@ class MyMAinWindow(QMainWindow):
         breaks -= text[: len(text) - len(stripped)].count("\n")
         return fm.lineSpacing() * breaks + fm.height()
 
-    def _layout_donate(self, nav_bottom: int, status_y: int, status_h: int) -> tuple[int, int]:
+    def _resync_dock_status_layout(self) -> None:
+        """状态文字**行数变了**之后重排贴底区，避免新增的行被收款码块盖住。
+
+        回归背景（用户截图，读取模式）：首次读取完成后 `show_scrape_info` 往
+        `label_show_version` **顶部**追加一行「🎉 刮削完成 7/7」。该 label 是
+        `AlignBottom` 的——文字块一变高，文字顶就随之上移一行高；而收款码块是按
+        **旧行数**摆好的（`_layout_donate` 用 `_dock_status_text_h()` 算出的文字顶
+        来锚定二维码下沿与 `[赞助作者]`）。原先只有 `resizeEvent` 会重排，于是两者
+        叠字：新增的首行上半截被二维码盖住，**最大化再最小化一下就恢复正常**，
+        因为那会触发一次 `_sync_dock_layout()`。
+
+        用文字块高做闸门：行数没变就不动。`show_scrape_info` 在刮削过程中按文件调用
+        （`scraper.py: 已刮削 {count}/{count_all}`），不设闸门会每个文件重排一次
+        左侧导航 + 收款码。
+        """
+        if getattr(self, "Ui", None) is None:
+            return
+        text_h = self._dock_status_text_h()
+        if text_h == self._dock_status_text_h_last:
+            return
+        self._dock_status_text_h_last = text_h
+        self._sync_dock_layout()
+
+    def set_dock_status_text(self, text: str) -> None:
+        """`label_show_version` 的唯一入口：写文本 + 行数变了就重排贴底区。
+
+        原先 `init.py` 把 `label_show_version` 信号直接连到 `QLabel.setText`，文本变了
+        没人重排，新行就被收款码块盖住（见 `_resync_dock_status_layout`）。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        ui.label_show_version.setText(text)
+        self._resync_dock_status_layout()
+
+    def _layout_donate(self, nav_bottom: int, status_y: int, status_h: int) -> tuple[int, int, int]:
         """在导航区与状态区之间安放收款码，返回校正后的 (status_y, status_h)。
 
         **底部锚定**：二维码块下沿恒定挂在状态文字上方 _DONATE_TEXT_GAP 处（label 底对齐，
@@ -3859,19 +3970,27 @@ class MyMAinWindow(QMainWindow):
         拉高不跟着变大），高度不够时按可用高度等比缩小，连 _DONATE_QR_MIN 都放不下
         时才隐藏（军规③：宁可不显示也不叠字）。
 
-        **最大化时上方多一张支付宝码**（宽度与微信码严格一致，见 _DONATE_ALIPAY_MIN）：
-        上方空间够放两张 _DONATE_QR_SIZE 就都保持设计边长；不够就把**两张一起等比缩小**
-        到能放下的最大边长（不把支付宝压成一条缝，否则屏上扫不出来）；连
-        _DONATE_ALIPAY_MIN 都放不下则只显示微信码，且微信码仍为 _DONATE_QR_SIZE
-        ——不因多一张码而缩小。两码之间留 _DONATE_ALIPAY_GAP（一行汉字高）。
-        非最大化状态一律不显示支付宝码，其余一切不变。
+        **最大化时上方多一张支付宝码**：**只在两张码都能保持完整 _DONATE_QR_SIZE 时才显示**
+        （上方净高 ≥ 2×_DONATE_QR_SIZE + _DONATE_ALIPAY_GAP）。放不下就**只显示微信码**，
+        微信码**绝不因为多一张码而缩小**——用户要求「二维码高度任何情况下都要保持 180px」，
+        而旧实现在「放得下但需要缩」这一档会把微信码缩到 two_size（实测最大化 h=800 时
+        微信码只有 114×114），与本函数原 docstring 里「不因多一张码而缩小」的承诺相悖。
+        两码之间留 _DONATE_ALIPAY_GAP（一行汉字高）。非最大化一律不显示支付宝码。
+
+        **返回二维码缺口** `(status_y, status_h, qr_deficit)`：第三个值是
+        `max(0, _DONATE_QR_SIZE - 实际边长)`，即「还差多少像素才能满 180」。调用方
+        `_sync_dock_layout` 用它把导航区整体上移来补（见那里的两遍布局），故本函数
+        保持纯计算、不自行挪导航——挪多少是布局策略问题。
         """
         ui = self.Ui
         qr = getattr(ui, "label_donate_qr", None)
         link = getattr(ui, "label_donate_link", None)
         alipay = getattr(ui, "label_donate_alipay", None)
         if qr is None or link is None or alipay is None:
-            return status_y, status_h
+            # 收款码控件还没建好（_init_donate_widgets 未跑）：无从谈缺口，返回 0 表示
+            # 「不欠尺寸」，调用方据此不会去上移导航。**必须返回三元组**——签名是三元，
+            # 少一个会让 _sync_dock_layout 的解包直接 ValueError。
+            return status_y, status_h, 0
         side_w = ui.widget_setting.width()
         # 状态文字块：底对齐 ⇒ 文字顶 = 矩形底 − 文字高（status_bottom 是文字不会动的锚点）
         status_bottom = status_y + status_h
@@ -3889,26 +4008,27 @@ class MyMAinWindow(QMainWindow):
         link_bottom = text_top - gap
         link_top = link_bottom - self._DONATE_LINK_H
         qr_bottom = link_top - self._DONATE_LINK_GAP
-        # 单码可用高度与「两码等宽都放得下」的边长（支付宝码在微信码上方，微信码下沿不动）
+        # 微信码可用高度：下沿固定在 qr_bottom（随状态文字走），上沿不得高于导航底 + PAD。
         one_size = qr_bottom - self._DONATE_PAD - nav_bottom
-        # 两码等宽时支付宝码顶必须 ≥ nav_bottom + PAD，而微信码下沿固定在 qr_bottom：
-        #   qr_bottom - 2s - ALIPAY_GAP ≥ nav_bottom + PAD
-        #     ⇒  s ≤ (qr_bottom - nav_bottom - PAD - ALIPAY_GAP) / 2
-        # 两码之间留 _DONATE_ALIPAY_GAP（一行汉字高，见常量区），故净高要减掉它。
-        # 上限再压到 _DONATE_QR_SIZE，保证最大化时也不会比普通窗口更大（否则最大化
-        # 变成满宽 210、留白 0，与普通窗口的 180/留白 15 不一致——用户反馈过这类不一致）
-        two_size = min(
-            self._DONATE_QR_SIZE,
-            (qr_bottom - nav_bottom - self._DONATE_PAD - self._DONATE_ALIPAY_GAP) // 2,
+        # 支付宝码在微信码**上方**、同宽同列。要两张都是完整 _DONATE_QR_SIZE，净高得够放
+        #   2×_DONATE_QR_SIZE + ALIPAY_GAP
+        # 旧实现在这里用 two_size（两者同时缩小）填 _DONATE_QR_MIN 那一档，于是最大化时
+        # 微信码被「顺带」缩成 114×114（实测 h=800）。用户要求二维码高度任何情况保持 180，
+        # 故改为：不够 2 张满尺寸就**根本不显示支付宝码**，微信码一律按 one_size 取
+        # min(180, one_size) ——宁可少一张码，也不缩小微信码。
+        show_alipay = self.isMaximized() and (
+            (qr_bottom - nav_bottom - self._DONATE_PAD - self._DONATE_ALIPAY_GAP)
+            >= 2 * self._DONATE_QR_SIZE
         )
-        # 支付宝码只在最大化时出现；放不下时两张一起缩小，绝不把支付宝压成一条缝
-        show_alipay = self.isMaximized() and two_size >= self._DONATE_ALIPAY_MIN
-        qr_size = two_size if show_alipay else min(self._DONATE_QR_SIZE, one_size)
+        qr_size = min(self._DONATE_QR_SIZE, one_size)
+        # 还差多少才满 180：交给调用方上移导航来补（只对「微信码本身放不满」负责，
+        # 不为支付宝码腾空间——那是「要不要显示第二张码」的决策，不是缩小第一张的理由）
+        qr_deficit = max(0, self._DONATE_QR_SIZE - qr_size)
         if qr_size < self._DONATE_QR_MIN:
             qr.setVisible(False)
             link.setVisible(False)
             alipay.setVisible(False)
-            return status_y, status_h
+            return status_y, status_h, qr_deficit
         # 状态矩形顶不得高于 [赞助作者] 底边（否则两者包围盒相交）；底对齐 ⇒ 压高度文字不动。
         # 矩形顶仍需低于文字顶（link_bottom + _DONATE_TEXT_GAP），故这 6px 内缩不会裁字。
         status_y = max(status_y, link_bottom + self._DONATE_PAD)
@@ -3963,7 +4083,7 @@ class MyMAinWindow(QMainWindow):
             qr.setPixmap(self._donate_qr_cache)
         qr.setVisible(True)
         link.setVisible(True)
-        return status_y, status_h
+        return status_y, status_h, qr_deficit
 
     # endregion 侧栏收款码
 
@@ -3971,6 +4091,21 @@ class MyMAinWindow(QMainWindow):
         """当前可见的导航按钮（配置可隐藏「演员管理/信息管理」两项）。"""
         ui = self.Ui
         return [b for b in (getattr(ui, name) for name in self._DOCK_NAV_BTNS) if not b.isHidden()]
+
+    def _dock_nav_top_base(self) -> int:
+        """导航区顶边的**设计基线**（50 隐藏标题栏 / 20 显示标题栏）。
+
+        与 `_windows_auto_adjust` 里的 `widget_buttons.move(0, 50|20)` 取同一判据
+        （`manager.config.window_title == "hide"`），但**不读 `ui.widget_buttons.y()`**：
+        `_layout_dock_nav` 结尾会用 `setGeometry(0, top, …)` 把 top 写回去，若基线
+        读自身则「上移导航」的结果会变成下次的基线，被逐次抬到窗顶。这里返回常量，
+        「上移多少」完全由 `_sync_dock_layout` 的缺口计算决定，两边不互相污染。
+        """
+        try:
+            hidden = manager.config.window_title == "hide"
+        except Exception:  # 配置未就绪（启动早期）：按显示标题栏的保守值
+            hidden = False
+        return self._DOCK_NAV_TOP_HIDE if hidden else self._DOCK_NAV_TOP_SHOW
 
     def _layout_dock_nav(self, top: int, btn_h: int, spacing: int, container_h: int) -> None:
         """按给定按钮高/间距重排导航按钮（每个按钮 min=max=btn_h，布局无自由度，
@@ -4008,8 +4143,15 @@ class MyMAinWindow(QMainWindow):
         ui = getattr(self, "Ui", None)
         if ui is None:
             return
+        # 无论走哪条分支都刷新闸门基线：本函数是唯一的「权威重排」入口，走完之后
+        # 布局所依据的文字块高就是当前值，下一次文字变化才能被正确识别为「变了」。
+        # 放在最前面是因为下面有多处 return，而重排本身很贵、这次测量很便宜。
+        self._dock_status_text_h_last = self._dock_status_text_h()
         height = self.height()
-        nav_top = ui.widget_buttons.y()  # 隐藏标题栏 50 / 显示标题栏 20（_windows_auto_adjust）
+        # 导航顶边基线取常量（50/20）而非 ui.widget_buttons.y()：_layout_dock_nav 结尾会
+        # setGeometry(0, top, …) 把 top 写回控件，读自身会让「上移导航」的结果变成下次的
+        # 基线、被逐次抬到窗顶。判据与 _windows_auto_adjust 的 move(0, 50|20) 保持一致。
+        nav_top = self._dock_nav_top_base()
         nav = self._dock_nav_buttons()
         status = ui.label_show_version
         local = ui.label_local_number
@@ -4019,10 +4161,34 @@ class MyMAinWindow(QMainWindow):
             height - self._DOCK_STATUS_H,
         )
         if status_y >= nav_top + self._DOCK_NAV_H + self._DOCK_STATUS_GAP:
-            self._layout_dock_nav(nav_top, self._DOCK_NAV_BTN_H, self._DOCK_NAV_SPACING, self._DOCK_NAV_H)
-            status_h = self._DOCK_STATUS_H
+            # 状态矩形的**原始**几何：两遍布局都从这两个值起算，不复用上一遍的返回值。
+            # _layout_donate 会「压低状态矩形顶」（status_y = max(status_y,
+            # link_bottom + PAD)），把它的输出再喂回去等于在已压低的地基上继续压。
+            # （当前公式里 link_bottom 与 nav_bottom 无关、两遍取值相同，故这步是等价变换；
+            #   但显式保留原始值才能让「两遍从同一起点」成为不变量，而不是靠巧合成立。）
+            status_y0, status_h0 = status_y, self._DOCK_STATUS_H
             # 收款码插在导航区与状态区之间；不够就压状态区（底对齐，文字不动）
-            status_y, status_h = self._layout_donate(nav_top + self._DOCK_NAV_H, status_y, status_h)
+            status_y, status_h, qr_deficit = self._layout_donate(
+                nav_top + self._DOCK_NAV_H, status_y0, status_h0
+            )
+            # 收款码没满 _DONATE_QR_SIZE（典型：状态文字多出一行、或窗口偏矮）时，把导航
+            # 整体上移来把缺口补上——用户原话「如果下方实在没空间展示…就将…整体向上移动，
+            # 上方还有一些空间，二维码图片高度还是要保持180px，软件界面容器上方还有10px以上
+            # 的空间」。上移量按缺口**恰好**取 min(缺口, 基线 − _DOCK_NAV_TOP_MIN)：
+            #   · 恰好取缺口 ⇒ one_size 正好补到 180，不多占位（导航不会无谓上浮）；
+            #   · 上限 _DOCK_NAV_TOP_MIN ⇒ 导航顶不越过 10px，第一个按钮不贴窗框圆角；
+            #   · 仍不够就认 deficit，_layout_donate 已把码按可用高度缩小（军规③）。
+            if qr_deficit > 0:
+                raise_by = min(qr_deficit, nav_top - self._DOCK_NAV_TOP_MIN)
+                if raise_by > 0:
+                    nav_top -= raise_by
+                    self._layout_dock_nav(
+                        nav_top, self._DOCK_NAV_BTN_H, self._DOCK_NAV_SPACING, self._DOCK_NAV_H
+                    )
+                    status_y, status_h, qr_deficit = self._layout_donate(
+                        nav_top + self._DOCK_NAV_H, status_y0, status_h0
+                    )
+            self._layout_dock_nav(nav_top, self._DOCK_NAV_BTN_H, self._DOCK_NAV_SPACING, self._DOCK_NAV_H)
             status.setGeometry(0, status_y, status.width(), status_h)
             status.setVisible(True)
             local.setVisible(True)
@@ -4061,7 +4227,9 @@ class MyMAinWindow(QMainWindow):
         status.setVisible(True)
         local.setVisible(True)
         status_y = nav_top + content_h + self._DOCK_STATUS_GAP
-        status_y, status_h = self._layout_donate(nav_top + content_h, status_y, status_h)
+        # 这条分支是「窗口确实过矮」（状态区已进压缩阶梯），导航已按下限排布、无上移余量，
+        # 故忽略返回的 qr_deficit：此时二维码按剩余高度缩小是正确取舍，不该再抢导航空间。
+        status_y, status_h, _qr_deficit = self._layout_donate(nav_top + content_h, status_y, status_h)
         status.setGeometry(0, status_y, status.width(), status_h)
         # 数字浮标贴状态区左下角，且不得超出窗底
         local.move(0, min(status_y + status_h - self._DOCK_LOCAL_H, height - self._DOCK_LOCAL_H))
@@ -4437,6 +4605,9 @@ class MyMAinWindow(QMainWindow):
             scroll_10.setGeometry(20, 0, max(tool_area.width() - 20 - 20, 400), max(tool_area.height() - 75, 300))
             scroll_10.sync_wide_children_width()
             self._sync_actor_db_tool_layout()
+            # 封面补图组三选项行随组框拉宽同步拉开间距（须在 sync_wide_children_width
+            # 之后，才能读到拉宽后的组宽）
+            self._sync_cover_backfill_option_row()
             # ---- page_tool 底部配置操作栏（当前配置/另存为/恢复默认/保存）----
             # 与 page_setting 底部栏同组件同功能：滚动区高度收掉 75px 给页脚留位，
             # 页脚按 (设计页高 692 - 设计 y) 的下缘边距锚定新底部，保存按钮右缘锚定。
@@ -9523,9 +9694,9 @@ class MyMAinWindow(QMainWindow):
         "actor_db_translate": "补全演员中文姓名",
         "actor_db_link": "补全LibreDMM链接",
         "actor_db_sync_aliases": "补全别名",
-        "actor_db_fill_minnano": "Minnano-av 补全",
+        "actor_db_fill_minnano": "Minnano-AV补全",
         "actor_db_fill_zh_javdb": "JavDB演员中文名",
-        "actor_db_clean_male": "剔除所有男性演员",
+        "actor_db_clean_male": "删除所有男性演员",
         "actor_db_verify_tmdbid": "校验TMDB ID字段",
         "actor_db_check": "检查用户演员数据",
         "actor_db_update_nfo_tmdbid": "更新TMDB ID字段",

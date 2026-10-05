@@ -176,9 +176,19 @@ class CustomScrollArea(QScrollArea):
 
     # 演员库维护三行由 MainWindow._sync_actor_db_tool_layout 接管（最大化才重排，
     # 还原恢复设计几何），此处不再自动拉伸/右缘锚定，避免通用逻辑覆盖定制布局。
+    # 封面补图组三枚复选框（覆盖已有图片 / 添加水印 / 刮削过程中自动创建软链接）
+    # 由 MainWindow._sync_cover_backfill_option_row 接管：它们按设计几何本就判为
+    # None（宽 161/191 < 340、右缘 601 < 631），此处显式登记归属，防止日后组内
+    # 几何变化被通用逻辑误判为 _DOCK_RIGHT 而与定制布局打架。
     # 命名页「. 小数点」也列入：右移对齐后右缘 560+110+1=671 ≥ 组宽 720*0.9=648，
     # 会被通用逻辑误判为 _DOCK_RIGHT 而在宽态额外右移 extra，与同行的「空格」
     # （420，右缘 531 → 不登记）拉开距离，破坏「同步等距右移」的诉求。
+    #
+    # 反向提醒——软链接助手组的「一键创建软链接」刻意不列入：它与下方移动组的
+    # 「开始移动」同设计几何（x=140、宽 351、右缘 491），按通用规则判为 _STRETCH，
+    # 两按钮左右边界在任何窗宽下都恒等，最大化时同步放大（这正是用户要的）。
+    # 把它改窄到内半宽 340.5 以下、或塞进本集合，都会让它悄悄脱离拉伸而与
+    # 「开始移动」错开；改动前请先看 tests/test_symlink_button_width.py。
     _MANUAL_WIDGET_NAMES = frozenset(
         {
             "checkBox_cd_part_point",
@@ -206,6 +216,9 @@ class CustomScrollArea(QScrollArea):
             "pushButton_actor_db_fill_zh_javdb",
             "label_actor_db_fill_zh_javdb_desc",
             "label_actor_db_desc",
+            "checkBox_cover_backfill_overwrite",
+            "checkBox_cover_backfill_watermark",
+            "checkBox_create_link",
         }
     )
 

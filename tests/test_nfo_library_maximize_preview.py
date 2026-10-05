@@ -885,12 +885,17 @@ def test_crop_button_warns_when_no_selection(win, app, monkeypatch):
 
 
 def test_save_buttons_share_blue_save_style(win, app, monkeypatch):
-    """「批量保存」「保存当前nfo文件」「裁剪封面」与软件设置主页面的保存按钮同款蓝底。"""
+    """「批量保存」「保存当前nfo文件」「裁剪封面」与两个主保存按钮同款蓝底。
+
+    selector 必须与 style.py 里的完整连续串一致：软件工具页的保存按钮
+    （pushButton_save_config_tool）后来被合法地并进同一条规则，写死旧串会
+    因「连续子串不再存在」而误报——所以这里按当前样式表同步维护。
+    """
     from mdcx.controllers.main_window import style as style_mod
 
     selector = (
-        "QPushButton#pushButton_save_config,#pushButton_nfo_lib_save,"
-        "#pushButton_nfo_lib_batch_save,#pushButton_nfo_lib_crop{"
+        "QPushButton#pushButton_save_config,#pushButton_save_config_tool,"
+        "#pushButton_nfo_lib_save,#pushButton_nfo_lib_batch_save,#pushButton_nfo_lib_crop{"
     )
     for dark in (False, True):
         win.dark_mode = dark

@@ -356,20 +356,22 @@ def test_wrapped_desc_texts_regression():
     assert not mismatches, f"类型刮削网站三段说明文案与预期不符: {mismatches}"
 
 
-# 六条番号提示词文案（用户把「个摄番号：」改名为「FC2 番号：」后一并锁死，
-# 防止日后无声改回谐音写法，或某一条被单独改成别的品牌名）
+# 六条番号提示词文案（用户把「个摄番号：」改名为「FC2番号：」后一并锁死，
+# 防止日后无声改回谐音写法，或某一条被单独改成别的品牌名）。
+# 注意：2026-10-05 全站文案去空格统一后，FC2 后不再带空格，此处与 .ui 保持一致
+# （v2.2.5 改名历史里记的是带空格的旧写法，见 docs/Changelog.md）。
 _NUMBER_LABELS = {
     "label_153": "有码番号：",
     "label_151": "无码番号：",
     "label_152": "素人番号：",
-    "label_148": "FC2 番号：",
+    "label_148": "FC2番号：",
     "label_149": "欧美番号：",
     "label_217": "国产番号：",
 }
 
 
 def test_number_label_texts_regression():
-    """六条番号提示词文案锁：第四行必须是「FC2 番号：」（改回「个摄番号：」即失败）。"""
+    """六条番号提示词文案锁：第四行必须是「FC2番号：」（改回「个摄番号：」或加回空格即失败）。"""
     ui_src = _ui_src()
     mismatches = {}
     for name, expected in _NUMBER_LABELS.items():

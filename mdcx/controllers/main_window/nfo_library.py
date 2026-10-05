@@ -106,7 +106,7 @@ def pushButton_nfo_library_clicked(self: MyMAinWindow) -> None:
     self.set_left_button_style()
     self.Ui.pushButton_nfo_library.setStyleSheet("font-weight: bold; background-color: rgba(160,160,165,60);")
     if self.Ui.listWidget_nfo_lib.count() == 0:
-        _add_empty_hint(self, "请先选择上方目录加载nfo文件")
+        _add_empty_hint(self, "请先选择上方目录加载NFO文件")
     # 议题 #117：休眠页期间窗口缩放不会触发表单高度自适应，切页时补一次
     self._sync_nfo_lib_form_fields()
 

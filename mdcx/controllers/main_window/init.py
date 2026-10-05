@@ -655,7 +655,9 @@ def Init_Singal(self: "MyMAinWindow"):
     self.pushButton_actor_db_update_nfo_tmdbid.connect(self.Ui.pushButton_actor_db_update_nfo_tmdbid.setText)
     self.actor_db_finished.connect(self._on_actor_db_finished)
     self.label_result.connect(self.Ui.label_result.setText)
-    self.label_show_version.connect(self.Ui.label_show_version.setText)  # endregion
+    # 不直接连 QLabel.setText：状态文字行数会随刮削进度变化（顶部多一行进度），
+    # 而收款码块是按文字顶定位的，文本变了必须重排贴底区，否则新行被二维码盖住。
+    self.label_show_version.connect(self.set_dock_status_text)  # endregion
     self.version_check_done.connect(self._on_version_check_done)
     self.net_check_done.connect(self._on_net_check_done)
     self.net_check_progress.connect(self._on_net_check_progress)

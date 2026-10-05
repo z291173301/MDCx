@@ -1,16 +1,22 @@
 """
 演员作品数据源：为「检查演员缺失番号」提供按演员拉取全部番号的能力。
 
-支持四类数据源（有码/无码/欧美/国产），每类有主源 + 兜底源：
+支持六类数据源（有码/无码/欧美/国产/动漫/FC2），每类有主源 + 兜底源：
 
   有码: libredmm(xlsx href → fuzzy 搜索) → javbus searchstar 兜底
   无码: avsox(getFilterMovies) → javbus uncensored searchstar 兜底
   欧美: avheat(getFilterMovies)
   国产: iqqtv(search.php?s_type=actor 演员页 num 分页)
+  动漫: JavDB 移动端 API 关键字搜索
+  FC2:  avsox(getFilterMovies) → JavDB 移动端 API 关键字搜索兜底(仅 FC2- 番号)
 
 javbus 使用 12 镜像轮询（与 JavbusCrawler 一致），不写死单域名。
+
+动漫与 FC2 没有「演员→作品」页可抓，这两类统一走 JavDB 的**关键字**搜索，
+所以用户填的是社团名/作品关键词（动漫）或卖家名（FC2），不是演员名。
 """
 
+import asyncio
 import json
 import re
 from urllib.parse import quote
@@ -206,6 +212,100 @@ async def fetch_western(name: str, rotator: _JavbusRotator) -> set[str] | None:
         return nums
     _log(f"   {name} 未在 avheat 找到")
     return None
+
+
+# ---------------------------------------------------------------------------
+# JavDB 移动端 API 关键字搜索：动漫 / FC2 共用
+# ---------------------------------------------------------------------------
+
+_JAVDB_APP_LIMIT = 50
+_JAVDB_APP_MAX_PAGES = 20  # 服务端把 page 截断在 20，20 页 × 50 = 最多 1000 条
+_JAVDB_APP_INTERVAL = 0.3  # 页间稍作间隔，避免连续打满移动端 API
+
+
+async def fetch_dongman(name: str, rotator: _JavbusRotator) -> set[str] | None:
+    """动漫番号：JavDB 移动端 API 关键字搜索。
+
+    `name` 是关键字（社团名/作品关键词），不是演员名——JavDB 没有
+    「按名字列出全部作品」的接口，只能用它的搜索接口兜着。
+    """
+    nums = await _javdb_app_search_numbers(name)
+    if nums:
+        _log(f"   [javdb] {name} 找到 {len(nums)} 部 (动漫关键字搜索)")
+        return nums
+    _log(f"   {name} 未在 JavDB 动漫关键字搜索找到")
+    return None
+
+
+async def fetch_fc2(name: str, rotator: _JavbusRotator) -> set[str] | None:
+    """FC2 番号：avsox(getFilterMovies) → JavDB 关键字搜索兜底。
+
+    JavDB 兜底按 FC2- 前缀过滤，避免卖家名同时命中的有码作品混进来。
+    """
+    nums = await _avmoo_fetch_numbers("avsox", "javu", name)
+    if nums:
+        _log(f"   [avsox] {name} 找到 {len(nums)} 部")
+        return nums
+
+    nums = await _javdb_app_search_numbers(name, number_prefix="FC2-")
+    if nums:
+        _log(f"   [javdb] {name} 找到 {len(nums)} 部 (FC2 兜底)")
+        return nums
+
+    _log(f"   {name} 未在任一 FC2 数据源找到")
+    return None
+
+
+async def _javdb_app_search_numbers(keyword: str, *, number_prefix: str | None = None) -> set[str]:
+    """JavDB 移动端 API 关键字搜索，按页收集番号；主域名空结果再切备用域名。
+
+    复用 `crawlers.javdb_app` 的签名与参数构造，不重复实现鉴权细节。
+    """
+    from ..crawlers.javdb_app import (  # 局部导入：避免 crawlers 包的重量级导入链
+        _API_BASE,
+        _API_FALLBACKS,
+        _build_api_params,
+        _get_api_url,
+        make_signature,
+    )
+
+    for host in [_API_BASE, *_API_FALLBACKS]:
+        headers = {"jdsignature": make_signature(), "accept-language": "zh", "User-Agent": "Dart/3.5 (dart:io)"}
+        nums: set[str] = set()
+        page = 1
+        truncated = False
+        while page <= _JAVDB_APP_MAX_PAGES:
+            params = _build_api_params()
+            params.update(
+                {"q": keyword, "page": str(page), "type": "movie", "limit": str(_JAVDB_APP_LIMIT)}
+            )
+            try:
+                async with manager.acquire_computed() as computed:
+                    data, error = await computed.async_client.get_json(
+                        _get_api_url(host, "/api/v2/search", params), headers=headers
+                    )
+            except Exception:
+                break
+            if error or not isinstance(data, dict):
+                break
+            movies = (data.get("data") or {}).get("movies") or []
+            if not movies:
+                break
+            for m in movies:
+                num = str(m.get("number") or "").strip().upper()
+                if not num or (number_prefix and not num.startswith(number_prefix)):
+                    continue
+                nums.add(num)
+            if len(movies) < _JAVDB_APP_LIMIT:
+                break
+            truncated = page == _JAVDB_APP_MAX_PAGES
+            page += 1
+            await asyncio.sleep(_JAVDB_APP_INTERVAL)
+        if nums:
+            if truncated:
+                _log(f"   ⚠️ JavDB 关键字「{keyword}」只翻了前 {_JAVDB_APP_MAX_PAGES} 页，番号可能不完整")
+            return nums
+    return set()
 
 
 # ---------------------------------------------------------------------------
