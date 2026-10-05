@@ -127,12 +127,7 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 - **教训（本议题踩了三次）**：①量设置页滚动条前必须先断言 `page_setting.isVisibleTo(win)`（它在下标 **4**，不是 2），否则整批数据作废；②**只读控件属性会骗人**——属性全对、像素是错的，必须量渲染结果；③要求用户配合点击的诊断设计是失败的（两次日志都记到"从未进入设置页"），诊断脚本应自带导航、在真实事件循环里自动跑完。离屏 pytest 里 `grab()` 拿不到真实绘制（整行同色），绘制宽度断言需容忍这种情况。
 - 另注：短窗口（1030×~330~520）下切到**NFO 页**（`tabWidget` 下标 8）会让本进程直接崩（Windows 退出码 `-1073740791`，`faulthandler` 无 Python 栈）。与本议题无关、未定位，但复现设置页滚动条取证时**不要靠压窗口高度来造溢出**，改用正常窗口 + 逐页切换（1030×650 下 11 页已自然溢出）。
 
-**版本检查定时复查走完整提示链**（用户需求：`timer_update`（12h）只连裸 `check_version`——主线程阻塞做网络且返回值丢弃，定时检查永远不提示）
-
-- 根因：定时器直连 `check_version`（`main_window.py:235`），阻塞主线程做网络 I/O，返回的版本号无处消费；真正会提示的只有启动 `show_version()` 那一次（工作线程 + 比较 + 红字/下载链接/标签刷新全链路）。
-- 修复：定时器改连 `self.show_version`（网络回工作线程，结果走比较+提示链）；`_show_version_thread` 内用 `_notified_new_version` 做 transition 去重——仅首次发现该新版本时执行提示块（红字日志、下载链接、左下角标签刷新），同一版本重复检查不再刷屏，出现更新的版本自动再次提示；`version_check_done` 原样发射（cursor 设置幂等，cookie 检查顺带保鲜）。注意 E3 初版曾把 gate 只套在 `_notified` 赋值上、红字与下载链接露在外面，被回归测试当场抓获——提示副作用必须整体进 gate。
-- 回归测试：`tests/test_version_check_notify.py`（fixture 照 matrix 配方，另桩 `show_version` 禁启动线程抢读桩、`check_theporndb_api_token`/`ActressDB.init_db`/三 cookie 检查禁网络，`signal_qt.show_log_text` 计数红字）：新版本提示一次→同版本复查零新增→更新的版本再提示→已是最新走绿色；另锁定定时器周期仍为 12h。
-- 后续（2026-10-02，v2.1.9）：`check_version` 改为取 tag 最大的 release 并返回 `RemoteVersion`，比较改为版本号+日期双维度，本文件的桩与断言同步换成 `RemoteVersion`，另加两项（提示文案展示 release 标题、同 tag 更高版本号仍须提示）。比较规则与「取 max 而非取第一条」的完整理由见下文「更新检查（客户端自动更新）」一节。
+**版本检查定时复查走完整提示链**（`timer_update` 12h 定时器必须走完整提示链）——与窗口布局无关，已并入下文「更新检查（客户端自动更新）」一节的不变量 ⑥，不在本节重复。
 
 **设置-NFO 左标签冒号与组标题冒号对齐**（用户窄/宽两态截图：标题：/简介：/发行日期：/国家/分级：/年份/时长/想看：/评分：/演员/导演：/系列/标签：/风格/合集：/片商/发行商：/封面/背景/预告片：11 个左标签整体左移、冒号与「写入NFO的字段：」组标题的冒号上下对齐）
 
@@ -141,7 +136,22 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 - 回归测试：`tests/test_window_state_matrix.py::test_nfo_colon_aligns_to_group_title` 锁定「11 标签右缘共线、移到守卫允许最左、墨点空间无裁字、右缘保持、y 不动、窄宽同位、幂等」。墨点断言用 `rect_right − advance + br.x()` 的 ink 空间：advance 是排版宽度，br.x() 为负的左侧轴承会虚报裁字。
 - 注意：休眠 NFO 页（visible REGION 为空）量到的是冻结几何，同步必须跳过（isVisibleTo 守卫）并依赖切 tab 钩子补齐；全量 `activate()` 对「真移动」（非 stale 缓存）bit-identical 无效，不要指望它修复发散。
 
-### 设置页「命名」模板预览区按内容收缩（案例）
+**设置-演员页「选择文件」/「网络头像库」两处对齐（「网络头像库」宽、窄两态各钉一次）**（用户先后给两张截图：1920 最大化，红线画在「选择目录」列，注「最大化时向右移动到这里」「最大化时向左缩进到这里」；随后又要求最小化时把「网络头像库」输入框右缘向左缩进到与两枚路径框右缘严格上下对齐。每一态都要求另一态界面、组件、控件、提示词全部保持不动）
+
+- 两条需求根因不同，**别混为一谈**：① 「选择文件」（`pushButton_select_actor_info_db`）属于演员信息组 `groupBox_64` → `gridLayoutWidget_14` → `gridLayout_14`，而两枚「选择目录」属于头像组 `groupBox_41` → `layoutWidget_8`——**两套网格的列宽互不相关**。此前宽态把 `lineEdit_actor_db_path` 右缘钉在 A2（`checkBox_actor_photo_ne_face` 左缘，1920 实测 652），「选择文件」落在 658，与真正要对齐的「选择目录」列（1469）差 **811px**；A2 是头像组的 Graphis 三等分列，拿它当演员信息组的按钮列是跨网格误用。改法：宽度改由「选择目录」实测左缘反推（`sel_x - row.spacing() - A1`，锚点 `pushButton_select_gfriends_local`，与另一枚 `pushButton_select_actor_photo_folder` 同网格同列），窗口任意宽度成立；下限 `_ACTOR_INFO_PATH_MIN_W`=300（`.ui` 里该输入框的 minimumSize 宽），不足则不钉。② 「网络头像库」输入框 `lineEdit_net_actor_photo` 是 `layoutWidget_8` 网格的**直接项**、右侧无按钮，宽态独占整列富余宽（1920 实测 1393），比另两枚「路径框 + Fixed 110px 选择目录」水平行（1277，右缘止于按钮列 1463）宽出整整一枚按钮的宽；**左缘本就同列**（都是 col1 起点 = A1 = 186），故钉宽即可让左右缘双双相等。实现在 `_sync_actor_page_wide_a2_align` 末尾第 ⑥ 块（`lock_width` + 读回纠偏）。
+- **窄态是同一根因的第二份实现，不是同一份代码**（需求⑮，`_sync_actor_page_narrow_align` 末尾第 ⑤ 块）：`_sync_actor_page_wide_a2_align` 在 `_actor_page_stretch_extra() <= 0` 时直接 return，反之亦然，两态逻辑天生互斥，无法共用一段。宽窄两份逐行镜像（先 `invalidate+activate` 落定、再量参照框终态宽、`lock_width`、一次读回纠偏），但**登记表不同**：宽态进 `_actor_wide_restores`、窄态进 `_actor_narrow_restores`，各自由对应的 `_clear_*_align()` 逆序写回原 min/max，这样对方那一态拿到的是真解锁而不是残留的 `setFixedWidth`。
+- **`layoutWidget_8` 是 pyuic 生成的 QLayoutWidget：`invalidate()` / `activate()` 必须调在它 `.layout()` 返回的网格上，不能调在控件自身**（pyuic 把这两个自定义槽转发到布局；调错对象会静默失效或让整个 pytest 进程以 `Windows fatal exception: access violation` 退出、无任何用例输出）。由此派生两条硬约束：窄态清场 `_clear_actor_narrow_align()` 末尾**必须补一次网格重排**，否则 min/max 已放开、控件却仍留着上一遍的钉宽；`_sync_actor_page_narrow_align` 里原先那串带多个 `return` 的平铺需求⑨ 代码必须先收成嵌套闭包（照既有 `_shift_source_row()` 先例），否则新加的第 ⑤ 块会被早退跳过。
+- **两个必须记住的时序/登记约束**：宽态方法排在 `_sync_actor_info_columns` **之后**（后者末尾 `grid.invalidate()+activate()` 会把网格直接项弹回整列宽）；钉宽必须登记进 `_actor_wide_restores`（记录原 min/max 逆序写回 = 真解锁），不能只 `setFixedWidth`。钉宽能持久是因为通用宽幅同步只拉父容器 `layoutWidget_8`（`_STRETCH` 项）、输入框自身不在 registry 里。「演员信息数据库」路径框在窄态仍由需求⑨ 的 `_ACTOR_NARROW_PATH_ROW` 负责，本条一律不碰。
+- 回归测试：`test_actor_info_columns.py::test_actor_wide_net_photo_input_aligns_with_path_inputs`（**只管宽态**）+ `::test_actor_narrow_net_photo_input_aligns_with_path_inputs`（三档窄态左右缘全等 + 登记在 `_actor_narrow_restores` + 幂等 + 往返复原，末尾再回到最大化态断言整份快照 == 「摘掉 `_sync_actor_page_narrow_align` 及其清场函数」的基线，以此守住「窄态逻辑不碰最大化页面」）；需求⑥ 的断言写在 `test_actor_info_columns_align_when_wide` 里（「路径框右缘 + 行间距 == 「选择目录」左缘 == 「选择文件」左缘」，两枚「选择目录」同列同宽）。`_WIDE_WIDGETS` 收录三枚路径框 + 两枚「选择目录」，让既有 `test_actor_wide_a2_*` 的窄态「整份快照 == 基线」断言顺带守住泄漏。**断言不要写死窗口像素值**（旧版写死 `width() != 466`，窗口一改就哑），一律用「与另一态实测对比」；**对齐类断言要用相对量**（`右缘 == 「选择目录」左缘 − 行间距`），因为极窄窗口下参照行会被挤到自身 300px 下限、此时只能比「三枚等宽 + 已钉死」而不能比按钮列。
+
+**设置-高级页窄态「每次间隔」右缘对齐（唯一一处对齐右缘而非左缘的需求）**（用户最小化截图，红线横跨两行画在 `20` 框右缘处、注「向左缩进到这里」；锚点行及其余控件一律不许动，最大化态一个像素都不碰）
+
+- 根因是**两行长短不同、而只有输入框能被压缩**，不是控件位置错了：「间歇刮削」行 `horizontalLayout_109` 五项、按真实字体需 579px；「每次间隔」行 `horizontalLayout_104` 三项、需 543px。三个 `QLabel` 的 `minimumSizeHint == sizeHint`（**压不动**），三枚 `QLineEdit` 是 Fixed/Fixed 但只有 `minimumSizeHint`（29px）可让——窗口一窄，**先溢出的必然是更长的 109 行**，Qt 把富余差只摊到它那两枚输入框上，104 行还装得下、保持满宽，于是 `lineEdit_timed_interval` 的右缘越过 `lineEdit_rest_count` 的右缘。实现在 `_sync_advanced_page_rest_interval_align(wide)`。
+- **这类「比右缘」的对齐，锚点必须取运行时右缘**（`col_x(anchor) + anchor.width()`），不能取控件宽度更不能写死像素：右缘随字体度量浮动，写死必哑。**沿用 `_sync_advanced_page_debug_row` 的惯用法**「先解除上一轮钉宽并重排 → 量锚点 → 再钉 → 重排 → 读回纠偏」；钉宽复用既有的 `_pin_row_lead_width(box, width)` 静态辅助（它本来就已被用在尾部两枚「关」按钮上，`None` 即真解锁）。**只在 `0 < want < 目标现宽` 且 `want >= 目标 minimumSizeHint 宽` 时才钉**——「行还装得下就不钉、绝不撑宽」同样是需求的一部分。
+- **挂载点必须在 `_sync_advanced_page_align(adv_scroll)` 之后、且挂在它外面**：那个方法末尾有一批 `gridLayout_20.invalidate()+activate()`，提前量到的是过期几何；它还自带多处早退分支（`if anchor <= row_x or col_w <= 0: return` 等），从内部挂钩子不可靠。故新方法在 `_sync_page_layouts()` 里紧跟其后单独调用，`wide` 由 `self._scroll_stretch_extra(self._adv_scroll) > 0` 判定（该辅助对 `None` 滚动区安全）。最大化分支**只解除、不钉**：那一态两行都不溢出、右缘本就相等。
+- **无头环境测不出这条需求**：`QT_QPA_PLATFORM=offscreen` 下 `QFontDatabase.families()` 为空，所有字形退化成同一个内置 Sans Serif、中文与数字同为 13px 前进宽，两行都不溢出，两个框天生等宽等缘（实测全窗口宽度下 delta 恒 0）——照现状断言等于什么都没测。回归测试 `tests/test_advanced_page_tail_align.py`（44 → 55 项）**显式制造压缩**（`anchor.setFixedWidth(sizeHint - 24)`）再断言右缘等齐，并顺带断言锚点自身 x/y/w/h 未动、目标框 `min == max == 压缩量`（真钉宽而非碰巧）。另外三个守卫用例分别守住「装得下时不钉」「绝不撑宽」「宽态整份两行快照 == 摘掉本方法的基线」；`_baseline_without_rest_interval_align` **必须另开一扇窗口**构造（已解除的钉宽会随调用残留，同窗重摘钩子会把基线算歪），`_unpin` 用 `setMinimumWidth(0)` + `setMaximumWidth(QWIDGETSIZE_MAX)` 而非 `setFixedWidth(0)`（后者会把最大宽一并钉成 0）。
+
+
 
 命名页「视频命名规则」（`groupBox_8`）是绝对定位页内的 `QGridLayout`：说明文字 `label_66` 顶端对齐且可换行，「模板预览」多行框垂直策略为 `Expanding`。两者叠加产生两个问题：说明文字行高按更窄宽度的 `sizeHint` 计算（大于当前宽度实际换行高度）→「视频文件名」上方留白；预览框吃满网格剩余空间 → 被撑得过高。
 
@@ -551,7 +561,7 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 
 ### 更新检查（客户端自动更新）
 
-代码在 `mdcx/base/web.py` 的 `check_version()`（拉取）与 `is_remote_version_newer()`（比较），主窗口侧是 `main_window.py` 的 `_show_version_thread()`。有三条不变量，改任一处都要连带另两处。
+代码在 `mdcx/base/web.py` 的 `check_version()`（拉取）与 `is_remote_version_newer()`（比较），主窗口侧是 `main_window.py` 的 `_show_version_thread()`。有六条不变量，改任一处都要连带另几处。
 
 **① 取 tag 最大的 release，不是列表第一条。** `/releases?per_page=10` 按 `created_at` 倒序返回，**不按 tag 倒序**；而本工作流四个 `Create Release` 步骤用同一 tag + `overwrite: true`（`svenstaro/upload-release-action` 先删后建），任何一次补发/重跑都会把那条 release 的 `created_at` 刷成"当前时间"、顶到第一位。原实现取第一条，于是**手动补发一次旧 tag 就让所有用户从此看不到新版本提示且无任何报错**。修法是遍历全部条目收集所有 `tag_name.isdigit()` 的值取 `max`（`tests/test_version_check_pick_latest.py` 守卫）。tag 必须纯数字这条硬约束不变，非纯数字 tag 照旧跳过。
 
@@ -564,6 +574,8 @@ ASIN 数据库（Excel `amazon_asin_database.xlsx`），搜索到的 ASIN 与番
 **④ API 失败必须回退到 `releases.atom`（v2.2.5 起，治「时灵时不灵」）。** `check_version()` 主路径是匿名 `api.github.com`，配额 **60 次/小时/出口 IP**（不是/用户、不是/实例）——同一出口 IP 下所有 MDCx 用户共享一个计数桶，耗尽即 403 → 返回 `None` → 主窗口打绿色「你使用的是最新版本！🎉」，用户观感就是「一会儿能检测到一会儿检测不到」。故任何一次 API 失败（403 限流 / 超时 / 5xx / 非数组 JSON / 全非数字 tag）都必须再走 `github.com` 站点的 `GITHUB_RELEASES_ATOM`（`consts.py`，**不受该配额约束**）。atom 侧用 `parse_release_atom()` 解析，同样**取最大 tag**——不变量 ① 对两条源同时成立，改一条必须同时改另一条。atom 解析入口是公开函数（便于脱离网络单测），标题要过 `html.unescape()`。
 
 **⑤ 结果要落 6 小时本地缓存（v2.2.5 起）。** `userdata/version_check_cache.json`（`_VERSION_CACHE_TTL = 6 * 3600`），写入用 tmp + `os.replace` 原子替换，路径走 `resources.u()`（运行时状态不进配置也不进 git，约定同 `core/image_host_cooldown.py`）。三条行为：**新鲜缓存命中 → 一个请求都不发**；**网络失败 → 回退用任意年龄的缓存**（`_read_version_cache(float("inf"))`）；**缓存损坏 / 路径不可写 → 静默降级为纯联网**，绝不抛异常打断启动自检。`_read_version_cache(max_age)` **刻意不给默认参数**——默认值会在 def 时把 TTL 绑死，之后 monkeypatch `_VERSION_CACHE_TTL` 失效、TTL 用例假通过；所有调用方显式传 `_VERSION_CACHE_TTL` 或 `float("inf")`。写 `check_version()` 相关测试时**必须**把 `_version_cache_path` monkeypatch 到 `tmp_path`，否则上一个用例刚写的缓存会让下一个用例直接短路返回、把网络断言全部架空。
+
+**⑥ 12h 定时复查必须走完整提示链。** `timer_update` 曾直连裸 `check_version`——阻塞主线程做网络 I/O，返回的版本号无处消费，定时检查永远不产生提示，只有启动 `show_version()` 那一次会提示。修法：定时器改连 `self.show_version`（网络回工作线程，结果走比较+提示链）；`_show_version_thread` 内用 `_notified_new_version` 做 transition 去重——仅首次发现该新版本时执行提示块（红字日志、下载链接、左下角标签刷新），同一版本重复检查不再刷屏，出现更新的版本自动再次提示；`version_check_done` 原样发射（cursor 设置幂等，cookie 检查顺带保鲜）。**提示副作用必须整体进 gate**：初版曾把 gate 只套在 `_notified` 赋值上、红字与下载链接露在外面，被回归测试当场抓获。回归测试 `tests/test_version_check_notify.py`（fixture 照 matrix 配方，另桩 `show_version` 禁启动线程抢读桩、`check_theporndb_api_token`/`ActressDB.init_db`/三 cookie 检查禁网络，`signal_qt.show_log_text` 计数红字）：新版本提示一次→同版本复查零新增→更新的版本再提示→已是最新走绿色；另锁定定时器周期仍为 12h。
 
 `check_version()` 的返回值是 `RemoteVersion(tag, name)` NamedTuple（带 `display` 属性：无标题时退回纯数字 tag），不是裸 `int`；调用方与测试桩都要跟着换。主窗口侧 `_notified_new_version` 也存 `RemoteVersion`，用于 12h `timer_update` 复查的 transition 去重。改返回类型时注意 `tests/` 下另有 12 处 `lambda: None` 桩（桩成 `None` 的不受影响，桩成版本号数值的会挂）。
 

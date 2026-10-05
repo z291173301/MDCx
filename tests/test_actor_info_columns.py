@@ -1,6 +1,6 @@
 """演员页「补全Emby/Jellyfin演员信息」组列对齐回归测试。
 
-用户需求（共十三条）：
+用户需求（共十五条）：
   ① 「补全语言：」「演员信息数据库：」与「补全范围：」的**冒号**严格上下对齐（窄宽双态）。
   ② 宽态「中文简体」「所有演员」左缘对齐「使用Graphis背景」。
   ③ 宽态「中文繁体」「使用数据库补全演员信息」左缘对齐「使用Graphis头像」。
@@ -8,7 +8,8 @@
   ⑤ 宽态「使用数据库补全演员信息」「点击下载演员数据库」「不存在中文时，翻译日语为
      中文」「不勾选则无中文时使用日语」左缘对齐「使用Graphis背景」（⑤ 覆盖了③④中
      这两行的旧目标列），三个 Graphis 锚点自身不动。
-  ⑥ 宽态「演员信息数据库：」输入框左缘扩到 A1、右缘缩到 A2，「选择文件」按钮同步左移；
+  ⑥ 宽态「演员信息数据库：」输入框左缘扩到 A1、右缘一路铺到「选择目录」按钮左缘，
+     「选择文件」按钮随之右移到那一列（与下方两枚「选择目录」严格上下对齐）；
      最小化时此行不变。
   ⑦ 窄态「不存在中文时，翻译日语为中文」「不勾选则无中文时使用日语」「使用数据库补全
      演员信息」「点击下载演员数据库」左缘对齐「中文简体」（窄态下「使用Graphis背景」
@@ -31,6 +32,11 @@
   ⑬ 窄态（最小化/还原）把「本地头像库」「点击下载头像包」向左移动到与「使用
      Graphis 头像」严格上下对齐的位置，「使用 Graphis 头像」位置保持不变；最大化
      时的页面布局、控件、提示词等等均保持不变。
+  ⑭ 最大化时把「网络头像库」显示输入框缩到与「Gfridens 本地仓库」「本地头像库」
+     两行显示输入框上下对齐；最小化时的界面、组件、控件、提示词等等均保持不动。
+  ⑮ 最小化时把「网络头像库」显示输入框最右侧向左缩进到与「Gfridens 本地仓库」
+     「本地头像库」右侧严格上下对齐的位置，这两行位置保持不变；最大化时的界面、
+     控件、组件、提示词等等均保持不变。
 
 根因防线（任一回归都会让本文件失败）：
   - gridLayout_14 的 col0 必须钉死 130px，否则 QGridLayout 把富余宽度摊给 col0
@@ -70,6 +76,22 @@
     文字夹没（实测被压到 49px）。只能「stretch 挪给行尾 + 前导项钉窄」。又不能直接
     钉住行尾那枚 QLabel 的现宽——那会改变 hl95 的最小宽、连带把 layoutWidget_8 的
     三等分挤偏（A2 由 356 漂到 362）。
+  - ⑥ 的按钮列不能写死 A2（= 「使用Graphis头像」左缘）：那枚按钮在头像组、演员
+    信息组是**两套网格**，列宽互不相关。要对齐的是同页另两枚「选择目录」按钮，故宽度
+    须由那枚按钮的实测左缘反推（行内 spacing 也算进去），窗口任意宽度都成立；
+    写死 A2 会让「选择文件」停在 658（1920），与真正要对齐的 1469 差 811px。
+  - ⑭ 的「网络头像库」输入框是 layoutWidget_8 网格的**直接项**、右侧无按钮，宽态会
+    独占整列富余宽（1920 实测 1393），比另两枚（1277，右缘被 Fixed 110px 的「选择目录」
+    顶住）宽出整整一枚按钮的宽；三者左缘本就同列（A1），故钉宽即可对齐右缘。它不进
+    任何 registry（父容器才是 _STRETCH 项），通用宽幅同步只拉父容器、不会抹掉钉宽。
+    钉宽必须登记进 _actor_wide_restores（记录原 min/max 写回）并排在
+    _sync_actor_info_columns 之后，否则被其末尾的 grid.activate() 弹回整列宽。
+  - ⑮ 与⑭ 是同一个成因的两个态：钉宽基准不同（宽态钉成参照枚在宽态的宽，窄态钉成
+    参照枚在窄态的宽），必须**各钉各的**——共用一处会有一态失效（那一拍只在宽态/窄态
+    跑）。窄态那一拍登记进 _actor_narrow_restores（真解锁），并必须把 layoutWidget_8
+    的**网格**（不是 layoutWidget_8 本身，它是 QLayoutWidget，invalidate/activate 在
+    它布局上）一并登记进 _clear_actor_narrow_align 的重排行名，否则解锁后网格不重排、
+    控件仍停在窄态钉宽。
 """
 
 import os
@@ -191,7 +213,7 @@ def test_actor_info_labels_colon_align_in_both_states(win, app):
 
 
 def test_actor_info_columns_align_when_wide(win, app):
-    """需求②~⑥：宽态三列对齐、⑤ 两行并入 A1、⑥ 输入框铺 A1→A2 且按钮跟随。"""
+    """需求②~⑥：宽态三列对齐、⑤ 两行并入 A1、⑥ 输入框铺到「选择目录」列且按钮跟随。"""
     ui = win.Ui
     win.show()
     _goto_actor_page(win, app)
@@ -231,12 +253,23 @@ def test_actor_info_columns_align_when_wide(win, app):
     ):
         assert _abs(ui, follower) > _abs(ui, leader), f"宽态 {desc} 未紧随其首控件"
 
-    # 需求⑥：路径输入框左缘 A1、右缘 A2；选择文件按钮紧随输入框右缘
+    # 需求⑥：路径输入框左缘 A1、右缘铺到「选择目录」按钮左缘；「选择文件」随之右移到
+    # 那一列，与下方两枚「选择目录」严格上下对齐（下方两枚自身不动）。
+    sel_gf = ui.pushButton_select_gfriends_local  # Gfriends 本地仓库行的「选择目录」
+    sel_photo = ui.pushButton_select_actor_photo_folder  # 本地头像库行的「选择目录」
+    spacing = ui.horizontalLayout_155.spacing()
+    path_right = _abs(ui, ui.lineEdit_actor_db_path) + ui.lineEdit_actor_db_path.width()
     assert _abs(ui, ui.lineEdit_actor_db_path) == a1, "路径输入框左缘未到 A1"
-    assert _abs(ui, ui.lineEdit_actor_db_path) + ui.lineEdit_actor_db_path.width() == a2, (
-        f"路径输入框右缘未缩到 A2: right={_abs(ui, ui.lineEdit_actor_db_path) + ui.lineEdit_actor_db_path.width()}"
+    assert path_right + spacing == _abs(ui, sel_gf), (
+        f"路径输入框右缘未铺到「选择目录」列: right={path_right} +{spacing} 期望={_abs(ui, sel_gf)}"
     )
-    assert _abs(ui, ui.pushButton_select_actor_info_db) >= a2, "选择文件按钮未随输入框左移"
+    assert _abs(ui, ui.pushButton_select_actor_info_db) == _abs(ui, sel_gf), (
+        f"「选择文件」未与「选择目录」上下对齐: x={_abs(ui, ui.pushButton_select_actor_info_db)} "
+        f"期望={_abs(ui, sel_gf)}"
+    )
+    # 两枚「选择目录」同宽 110px 且同列，右缘相等；本需求只动演员信息组那一枚按钮
+    assert _abs(ui, sel_gf) == _abs(ui, sel_photo), "两个「选择目录」按钮不同列"
+    assert ui.pushButton_select_actor_info_db.width() == 110, "「选择文件」按钮被改宽"
 
     # 「补全范围：」两个单选保持设计宽，不被固定宽间隔挤瘦
     assert (ui.radioButton_actor_info_all.width(), ui.radioButton_actor_info_miss.width()) == (253, 252), (
@@ -291,11 +324,20 @@ def test_actor_info_columns_align_when_narrow(win, app):
         "窄态「中文简体」被带偏"
     )
 
-    # 需求⑥ 明确「最小化时不用变」：路径行在窄态不得被钉到宽态位置
+    # 需求⑥ 明确「最小化时不用变」：路径行在窄态不得被钉到宽态列/宽态钉宽。
+    # 断言写成「与宽态对比」而非写死像素值，避免窗口尺寸无关的脆弱断言。
+    narrow_w = ui.lineEdit_actor_db_path.width()
+    _resize(win, app, 1920, 1170)
     assert _abs(ui, ui.lineEdit_actor_db_path) != _abs(ui, ui.radioButton_actor_info_zh_tw), (
-        "窄态路径输入框被误钉到宽态列"
+        "窄态路径输入框被误钉到宽态列（往返后）"
     )
-    assert ui.lineEdit_actor_db_path.width() != 466, "窄态路径输入框宽度仍停在宽态值"
+    assert ui.lineEdit_actor_db_path.width() > narrow_w, (
+        f"窄态路径输入框宽度未与宽态区分: 窄={narrow_w} 宽={ui.lineEdit_actor_db_path.width()}"
+    )
+    _resize(win, app, 1000, 700)
+    assert ui.lineEdit_actor_db_path.width() == narrow_w, (
+        f"往返回窄态后路径输入框宽度未复原: {ui.lineEdit_actor_db_path.width()} != {narrow_w}"
+    )
 
 
 def test_actor_info_state_restored_after_round_trip(win, app):
@@ -318,6 +360,7 @@ def test_actor_info_state_restored_after_round_trip(win, app):
     )
 
     _resize(win, app, 1920, 1170)
+    wide_w = ui.lineEdit_actor_db_path.width()
     assert snap() != base, "宽态未产生任何位移，钉位机制本身失效"
     assert win._actor_info_spacers, "宽态未注入任何间隔"
 
@@ -337,10 +380,8 @@ def test_actor_info_state_restored_after_round_trip(win, app):
         f"{sorted(row.objectName() for row, _ in win._actor_info_spacers)}"
     )
     # 窄态本身也要钉位（需求⑦/⑧），故宽度锁在窄态非空是正常的；真正要保证的是
-    # 「锁定的是窄态值、不是宽态值」——路径输入框不得停在宽态的 466。
-    assert ui.lineEdit_actor_db_path.width() != 466, (
-        f"还原态路径输入框宽度仍停在宽态值: {ui.lineEdit_actor_db_path.width()}"
-    )
+    # 「锁定的是窄态值、不是宽态值」——路径输入框不得停在宽态的钉宽。
+    assert ui.lineEdit_actor_db_path.width() != wide_w, f"还原态路径输入框宽度仍停在宽态值: {wide_w}"
     # 窄态宽度由「选择目录」按钮位置反推（需求①）：右缘紧贴按钮左缘
     path_right = _abs(ui, ui.lineEdit_actor_db_path) + ui.lineEdit_actor_db_path.width()
     assert path_right < _abs(ui, ui.pushButton_select_actor_info_db), "还原态路径框右缘未与按钮留出间距"
@@ -670,6 +711,16 @@ _WIDE_WIDGETS = tuple(
         + [n for n, _ in _WIDE_LEAD_ITEMS]
         + [n for n, _ in _WIDE_REFS]
         + ["label_download_actor_zip", "layoutWidget_12"]
+        # 需求⑭：「网络头像库」输入框与另两枚路径框（及两枚「选择目录」基准按钮）——
+        # 进快照是为了让窄态「整份快照 == 只有通用逻辑的基线」这条断言顺带覆盖它，
+        # 宽态那侧由 test_actor_wide_net_photo_input_aligns_with_path_inputs 专项断言。
+        + [
+            "lineEdit_net_actor_photo",
+            "lineEdit_gfriends_local_path",
+            "lineEdit_actor_photo_folder",
+            "pushButton_select_gfriends_local",
+            "pushButton_select_actor_photo_folder",
+        ]
     )
 )
 
@@ -766,6 +817,160 @@ def test_actor_wide_a2_idempotent_and_round_trip(win, app, monkeypatch):
 
     _resize(win, app, 1920, 1170)
     assert _wide_snapshot(ui) == first, f"宽→窄→宽 往返未复原: {first} -> {_wide_snapshot(ui)}"
+
+
+def test_actor_wide_net_photo_input_aligns_with_path_inputs(win, app):
+    """需求⑭⑮：两态下「网络头像库」输入框都与另两枚路径框上下对齐。
+
+    背景：三者左缘本就同列（A1 = 「使用Graphis背景」），但另两枚右边各顶着一枚
+    Fixed 110px 的「选择目录」按钮，右缘停在按钮列；「网络头像库」输入框是
+    layoutWidget_8 网格里的直接项、右侧无按钮，会独占整列富余宽（宽态 1920 实测
+    1393 vs 1277，窄态 1030 实测 503 vs 387），故两态各把它钉成与另两枚同宽：
+    宽态由 _sync_actor_page_wide_a2_align 第 ⑥ 步负责（登记 _actor_wide_restores），
+    窄态由 _sync_actor_page_narrow_align 第 ⑤ 步负责（登记 _actor_narrow_restores），
+    两拍互不越界：本用例专断宽态那一拍（钉宽来自宽态登记、窄态无残留宽态登记），
+    窄态那一拍由 test_actor_narrow_net_photo_input_aligns_with_path_inputs 专断。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    net = ui.lineEdit_net_actor_photo
+    refs = (
+        (ui.lineEdit_gfriends_local_path, "Gfridens 本地仓库"),
+        (ui.lineEdit_actor_photo_folder, "本地头像库"),
+    )
+
+    def right(w):
+        return _abs(ui, w) + w.width()
+
+    def _unlocked(w):
+        return w.minimumWidth() == 300 and w.maximumWidth() > 10000
+
+    # ── 宽态：与两枚路径框左缘、右缘都相等 ──
+    _resize(win, app, 1920, 1170)
+    assert win._actor_page_stretch_extra() > 0, "1920 宽下不是宽态，测试前提失效"
+    first = (_abs(ui, net), net.width())
+    assert _unlocked(net) is False, "宽态未钉宽（min/max 应被锁成同一个值）"
+    assert any(obj is net for _kind, obj, _saved in win._actor_wide_restores), (
+        "宽态钉宽未登记进 _actor_wide_restores（清不回去）"
+    )
+    for ref, desc in refs:
+        assert _abs(ui, net) == _abs(ui, ref), f"宽态「网络头像库」输入框左缘未与{desc}对齐"
+        assert net.width() == ref.width(), (
+            f"宽态「网络头像库」输入框宽 {net.width()} 未与{desc}输入框宽 {ref.width()} 一致"
+        )
+        assert right(net) == right(ref), f"宽态「网络头像库」输入框右缘未与{desc}对齐"
+
+    # 钉宽确实「缩进」了：右缘退到「选择目录」按钮列之前，缩进量 = 一枚按钮宽 + 行间距
+    sel = ui.pushButton_select_gfriends_local
+    sel_x = _abs(ui, sel)
+    assert right(net) == sel_x - ui.horizontalLayout_gfriends_local.spacing(), (
+        f"宽态「网络头像库」输入框右缘 {right(net)} 未退到「选择目录」按钮列 {sel_x} 之前"
+    )
+    assert sel_x + sel.width() - right(net) == sel.width() + ui.horizontalLayout_gfriends_local.spacing(), (
+        f"缩进量不是「一枚按钮宽 + 行间距」: {sel_x + sel.width() - right(net)}"
+    )
+
+    # 幂等：二次同步纹丝不动
+    _resize(win, app, 1920, 1170)
+    assert (_abs(ui, net), net.width()) == first, f"宽态二次同步漂移: {first} -> {(_abs(ui, net), net.width())}"
+
+    # ── 窄态：宽态钉宽登记清干净（窄态自身的收窄由需求⑮ 那一拍负责，另有用例断言）──
+    _resize(win, app, 1030, 753)
+    assert win._actor_page_stretch_extra() <= 0, "1030 宽下不是窄态，测试前提失效"
+    assert win._actor_wide_restores == [], "窄态残留宽态钉宽登记"
+    assert _unlocked(net) is False, (
+        f"窄态钉宽未真解锁（应由窄态那一拍重新钉住）: min={net.minimumWidth()} max={net.maximumWidth()}"
+    )
+    assert any(obj is net for _kind, obj, _saved in win._actor_narrow_restores), (
+        "窄态钉宽未登记进 _actor_narrow_restores（清不回去）"
+    )
+    narrow = (_abs(ui, net), net.width())
+
+    # ── 往返：宽态几何逐项复原 ──
+    _resize(win, app, 1920, 1170)
+    assert (_abs(ui, net), net.width()) == first, f"窄→宽往返未复原: {first} -> {(_abs(ui, net), net.width())}"
+    assert _unlocked(net) is False, "往返回宽态后钉宽丢失"
+    _resize(win, app, 1030, 753)
+    assert (_abs(ui, net), net.width()) == narrow, f"宽→窄往返未复原: {narrow} -> {(_abs(ui, net), net.width())}"
+
+
+def test_actor_narrow_net_photo_input_aligns_with_path_inputs(win, app, monkeypatch):
+    """需求⑮：窄态「网络头像库」输入框右缘向左缩进，与另两枚路径框右缘上下对齐。
+
+    用户原话：「软件设置-演员页最小化时网络头像库显示输入框最右侧向左缩进到与
+    Grifends本地仓库、本地头像库右侧严格上下对齐的位置，Grifends本地仓库、本地头像库
+    位置保持不变，最大化时界面、控件、组件、提示词等等均保持不变」。
+
+    成因与宽态需求⑭ 完全相同（网格直系项、右侧无按钮、独占整列富余宽），只是宽度
+    基准不同：窄态钉成「Gfridens本地仓库」那枚的当前宽（1030 实测 387，自身 503）。
+    左缘本就同列，故钉宽即同时对齐左右缘；参照两枚与两枚「选择目录」按钮必须纹丝不动。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_actor_page(win, app)
+    net = ui.lineEdit_net_actor_photo
+    refs = (
+        (ui.lineEdit_gfriends_local_path, "Gfridens本地仓库"),
+        (ui.lineEdit_actor_photo_folder, "本地头像库"),
+    )
+
+    def right(w):
+        return _abs(ui, w) + w.width()
+
+    for width, height in ((1030, 753), (1000, 700), (940, 700)):
+        assert win._actor_page_stretch_extra() <= 0, f"{width} 宽下演员页不是窄态，测试前提失效"
+        _resize(win, app, width, height)
+        # 左缘本就同列，绝不能被左拉（钉宽只改宽，Qt 把控件排在格子左缘）
+        base_left = _abs(ui, net)
+        for ref, desc in refs:
+            assert _abs(ui, net) == _abs(ui, ref) == base_left, (
+                f"{width} 宽下窄态「网络头像库」输入框左缘未与{desc}对齐: {_abs(ui, net)} vs {_abs(ui, ref)}"
+            )
+            assert net.width() == ref.width(), (
+                f"{width} 宽下窄态「网络头像库」输入框宽 {net.width()} 未与{desc}输入框宽 {ref.width()} 一致"
+            )
+            assert right(net) == right(ref), (
+                f"{width} 宽下窄态「网络头像库」输入框右缘 {right(net)} 未与{desc}右缘 {right(ref)} 对齐"
+            )
+            assert net.minimumWidth() == net.maximumWidth() == ref.width(), (
+                f"{width} 宽下窄态「网络头像库」输入框未被钉死: min={net.minimumWidth()} "
+                f"max={net.maximumWidth()} 期望={ref.width()}"
+            )
+        assert any(obj is net for _kind, obj, _saved in win._actor_narrow_restores), (
+            f"{width} 宽下窄态钉宽未登记进 _actor_narrow_restores（清不回去）"
+        )
+
+        # 右缘确实退到了「选择目录」按钮列之前，且缩进量 = 一枚按钮宽 + 行间距。
+        # 仅在参照枚还没被挤到自身最小宽时成立：窗口再窄则「输入框 + 按钮」这一行
+        # 装不下（实测 940 参照枚已到 minimumWidth=300、按钮左缘只差 3px），
+        # 此时对齐基准仍是「与参照枚同宽」，上面前面的断言已覆盖。
+        ref_min = ui.lineEdit_gfriends_local_path.minimumWidth()
+        if ui.lineEdit_gfriends_local_path.width() > ref_min:
+            sel = ui.pushButton_select_gfriends_local
+            sel_x = _abs(ui, sel)
+            assert right(net) == sel_x - ui.horizontalLayout_gfriends_local.spacing(), (
+                f"{width} 宽下窄态「网络头像库」输入框右缘 {right(net)} 未退到「选择目录」按钮列 {sel_x} 之前"
+            )
+
+    # 幂等 + 往返：宽态那一拍重新钉宽，窄态这一拍复原
+    _resize(win, app, 1030, 753)
+    narrow = (_abs(ui, net), net.width(), net.minimumWidth(), net.maximumWidth())
+    _resize(win, app, 1030, 753)
+    assert (_abs(ui, net), net.width(), net.minimumWidth(), net.maximumWidth()) == narrow, f"窄态二次同步漂移: {narrow}"
+    _resize(win, app, 1920, 1170)
+    assert win._actor_narrow_restores == [], "宽态残留窄态钉宽登记"
+    _resize(win, app, 1030, 753)
+    assert (_abs(ui, net), net.width(), net.minimumWidth(), net.maximumWidth()) == narrow, (
+        f"宽→窄往返未复原: {narrow} -> {(_abs(ui, net), net.width(), net.minimumWidth(), net.maximumWidth())}"
+    )
+
+    # 需求⑮ 的另一半：最大化时窄态这一拍一像素都不碰（钉宽登记摘掉后的几何 == 现状）
+    _resize(win, app, 1920, 1170)
+    got = _wide_snapshot(ui)
+    assert got == _baseline_without(
+        win, app, monkeypatch, _wide_snapshot, "_sync_actor_page_narrow_align", win._clear_actor_narrow_align
+    ), "宽态被窄态第 ⑤ 步改动（最大化必须逐像素不变）"
 
 
 def test_actor_narrow_kodi_aligns_to_a2(win, app):

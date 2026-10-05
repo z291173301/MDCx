@@ -23938,7 +23938,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <enum>Qt::LeftToRight</enum>
                                 </property>
                                 <property name="text">
-                                  <string>每隔</string>
+                                  <string>每次间隔</string>
                                 </property>
                               </widget>
                             </item>

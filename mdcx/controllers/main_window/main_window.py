@@ -1091,6 +1091,22 @@ class MyMAinWindow(QMainWindow):
     # 窄态 689 / 宽态 1579 两态右缘恒等，任选其一皆可。
     _ACTOR_PAGE_DEL_BTN = "pushButton_del_actor_folder"
     _ACTOR_PAGE_SEL_BTN = "pushButton_select_actor_photo_folder"
+    # 最大化态：「网络头像库：」显示输入框(lineEdit_net_actor_photo)与「Gfriends 本地
+    # 仓库：」「本地头像库：」两行的显示输入框上下对齐。后两者与一枚 Fixed 110px 的
+    # 「选择目录」按钮同处一个水平行，网格只能按「输入框 + spacing + 按钮」排完，
+    # 右缘自然停在按钮列；而「网络头像库」行的输入框是 layoutWidget_8 网格里的直
+    # 接项、右边没有按钮，宽态下会独占整列富余宽度，比另两枚宽出整整一枚按钮的宽
+    # （1920 实测 1393 vs 1277，右缘 1579 vs 1463），上下参差。故宽态把它钉成与
+    # 「Gfriends 本地仓库」输入框同宽：左缘本就同列（A1），钉宽后右缘也相等。
+    # 参照输入框取 Gfriends 那枚而不是「本地头像库」那枚：两者宽态实测恒等，
+    # 而 Gfriends 那枚与需求① 反推按钮列用的是同一行，几何已在本拍落定。
+    _ACTOR_PAGE_NET_PATH_EDIT = "lineEdit_net_actor_photo"
+    _ACTOR_PAGE_PATH_REF_EDIT = "lineEdit_gfriends_local_path"
+    # 最小化态：同一枚「网络头像库」输入框改由 _sync_actor_page_narrow_align 末尾第 ⑤ 步
+    # 钉宽（用户要求窄态右缘缩进对齐），与宽态第 ⑥ 步互为镜像、同一对控件同一手法。
+    # 该网格（layoutWidget_8）要一并登记进 _clear_actor_narrow_align 的重排行名里，
+    # 否则解锁后网格不重排，控件仍停在窄态钉宽。
+    _ACTOR_PAGE_NET_PATH_GRID = "layoutWidget_8"
     # 与 checkBox_actor_photo_ne_face（使用 Graphis 头像，即 A2 列）左缘对齐的两个
     # 右缘锚定项：「补全完成后自动补全演员头像」「刮削结束后自动补全演员头像」。
     _ACTOR_PAGE_A2_TARGETS = (
@@ -1219,6 +1235,15 @@ class MyMAinWindow(QMainWindow):
     _ACTOR_INFO_SCOPE_W = (253, 252)
     # 宽态把容器拉宽后，「仅缺少信息的演员」右缘 + 内边距留白
     _ACTOR_INFO_SCOPE_PAD = 20
+    # 宽态：「演员信息数据库：」路径输入框的右缘目标列 = 「选择目录」按钮左缘。
+    # 取 Gfriends 本地仓库那枚（pushButton_select_gfriends_local，Fixed 110px 不动）——
+    # 它与「本地头像库」行的 pushButton_select_actor_photo_folder 同处
+    # layoutWidget_8 网格的同一列，两态右缘恒等，故「选择文件」按它对齐即与下方两枚
+    # 「选择目录」严格上下对齐，而下方两枚自身位置一个像素都不动。
+    _ACTOR_INFO_SEL_FOLDER_BTN = "pushButton_select_gfriends_local"
+    # 上面那行路径输入框锁宽的下限：MDCx.ui 里 lineEdit_actor_db_path 的 minimumSize
+    # 宽 300。宽度不足（窗口很窄）时宁可不锁，保持通用布局给出的宽度。
+    _ACTOR_INFO_PATH_MIN_W = 300
 
     # 宽态各行左缘目标（需求① + 上一轮的②③④）：「使用数据库补全演员信息」与
     # 「不存在中文时，翻译日语为中文」连同同排后续控件一并对齐 A1；语言行维持
@@ -1599,6 +1624,8 @@ class MyMAinWindow(QMainWindow):
           ② 「仅缺少头像的演员」「刮削结束后自动创建」向右移动到同一列。
           ③ 「清除所有.actors文件夹」右侧向右移动到与「选择目录」按钮上下对齐
              （右缘对齐，只平移不改宽度）。
+          ④ 「网络头像库：」显示输入框收窄成与「Gfriends 本地仓库：」「本地头像库：」
+             两行显示输入框同宽（上下对齐；左缘本就同列，收窄后右缘也相等）。
 
         A2 锚点是 checkBox_actor_photo_ne_face（使用 Graphis 头像，layoutWidget_8 内
         的 _STRETCH 三等分项），实际 x 一律运行时 mapTo 实测，绝不写死——
@@ -1615,6 +1642,8 @@ class MyMAinWindow(QMainWindow):
           - 容器是固定宽绝对定位件的行：hl96（仅缺少头像的演员）所在的
             layoutWidget_12 恒为 511，塞不下 203px 的右移量，先把容器加宽到
             「2×(目标相对位置) + spacing」让两等分项各占一半，再钉住。
+          - 网格里的直系输入框（lineEdit_net_actor_photo）：钉宽（lock_width），
+            见方法末尾 ⑥ 的注释。
 
         判据用 _actor_page_stretch_extra() 的几何拉伸量而非 isMaximized()，理由见
         _actor_page_stretch_extra docstring。窄态第一步清干净即 return，
@@ -1777,6 +1806,40 @@ class MyMAinWindow(QMainWindow):
             nx = g.x() + dx
             if dx and 0 <= nx and nx + g.width() <= del_btn.parentWidget().width():
                 del_btn.setGeometry(nx, g.y(), g.width(), g.height())
+        # ⑥ 最大化态：「网络头像库：」显示输入框钉成与「Gfriends 本地仓库：」「本地
+        # 头像库：」两行显示输入框同宽（上下对齐）。它在 layoutWidget_8 网格里是直接项、
+        # 右侧无按钮，宽态独占整列富余宽；另两枚右缘被 Fixed 110px 的「选择目录」按钮
+        # 顶住，故差出一枚按钮宽。钉宽是唯一手段（它不进任何 registry，通用宽幅同步
+        # 只按设计宽拉伸它的父容器，不会碰它自身的宽，故钉住的宽不会被抹掉）；
+        # 格子比控件宽时 Qt 把控件排在格子左缘，左缘本就与另两枚同列（A1），
+        # 钉宽后右缘也相等。窄态第一步清干净即 return，一个像素都不碰——
+        # 窄态里同一枚输入框由 _sync_actor_page_narrow_align 末尾第 ⑤ 步负责
+        # （最小化时右缘要向左缩进对齐，成因与手法完全相同）。
+        net = getattr(ui, self._ACTOR_PAGE_NET_PATH_EDIT, None)
+        ref = getattr(ui, self._ACTOR_PAGE_PATH_REF_EDIT, None)
+        net_grid = getattr(ui, "layoutWidget_8", None)
+        if (
+            net is not None
+            and ref is not None
+            and net_grid is not None
+            and net_grid.layout() is not None
+            and net.parentWidget() is net_grid
+            and ref.parentWidget() is not None
+        ):
+            grid8 = net_grid.layout()
+            grid8.invalidate()
+            grid8.activate()  # 先落定，才能量到参照输入框的终态宽
+            want_w = ref.width()
+            if 0 < want_w < net.width() and want_w >= net.minimumWidth():
+                lock_width(net, want_w)
+                grid8.invalidate()
+                grid8.activate()
+                # 读回纠偏：布局重排后若有 1px 级取整误差，用实测差补回去
+                drift = net.width() - want_w
+                if drift:
+                    lock_width(net, want_w - drift)
+                    grid8.invalidate()
+                    grid8.activate()
 
     def _clear_actor_info_spacers(self) -> None:
         """清掉 _sync_actor_info_columns 注入的间隔项与宽度锁（每遍同步先清后建，故幂等）。
@@ -1843,8 +1906,9 @@ class MyMAinWindow(QMainWindow):
           ① 「使用数据库补全演员信息」「不存在中文时，翻译日语为中文」及其同排后续
              控件（点击下载链接 / 不勾选则无中文时使用日语）左缘对齐 A1；
              「中文简体」同在 A1，「中文繁体」A2、「日语」A3 不变。
-          ② 「演员信息数据库：」路径输入框左缘扩到 A1、右缘缩到 A2（宽度 = A2-A1），
-             「选择文件」按钮随之左移到输入框右缘之后。窄态此行不动。
+          ② 「演员信息数据库：」路径输入框左缘扩到 A1、右缘缩到「选择目录」按钮左缘，
+             「选择文件」按钮随之右移到该列，与下方两枚「选择目录」严格上下对齐
+             （下方两枚自身位置不变）。窄态此行不动（窄态由需求⑨ 的钉宽负责）。
         窄态：「不存在中文时，翻译日语为中文」「使用数据库补全演员信息」
           及其同排后续控件左缘对齐 A1（即「中文简体」所在列）；「所有演员」同左移到
           A1；语言行「中文繁体」右移到 A2、「日语」右移到 A3（中文简体不动，
@@ -1972,16 +2036,23 @@ class MyMAinWindow(QMainWindow):
             for name, key in rows:
                 pin(row, name, anchors[key])
 
-        # 宽态需求②：路径输入框左缘 A1、右缘 A2，「选择文件」按钮随之左移。
+        # 宽态需求②：「演员信息数据库：」路径输入框左缘 A1、右缘缩到「选择目录」按钮列，
+        # 「选择文件」随之右移，与下方两枚「选择目录」严格上下对齐（下方两枚自身不动）。
+        # 宽度不写死：由「选择目录」按钮的实测左缘反推（含行内 spacing，故按钮恰好
+        # 落在该列上），窗口任意宽度都成立；宽态三处 A1 恒等，无需插前导间隔。
         if wide:
             path_row = getattr(ui, "horizontalLayout_155", None)
-            if path_row is not None and path_row.parentWidget() is not None:
-                pin(
-                    path_row,
-                    "lineEdit_actor_db_path",
-                    anchors["A1"],
-                    width=anchors["A2"] - anchors["A1"],
-                )
+            sel = getattr(ui, self._ACTOR_INFO_SEL_FOLDER_BTN, None)
+            if (
+                path_row is not None
+                and path_row.parentWidget() is not None
+                and sel is not None
+                and sel.parentWidget() is not None
+            ):
+                sel_x = sel.mapTo(content, sel.rect().topLeft()).x()
+                want_w = sel_x - path_row.spacing() - anchors["A1"]
+                if want_w >= self._ACTOR_INFO_PATH_MIN_W:
+                    pin(path_row, "lineEdit_actor_db_path", anchors["A1"], width=want_w)
 
         # 「补全范围：」行：绝对定位链路。容器左移到 col1 起点后「所有演员」落在 A1，
         # 宽态再拉宽容器并把「仅缺少信息的演员」钉到 A2。
@@ -2065,6 +2136,14 @@ class MyMAinWindow(QMainWindow):
                 continue
             row.invalidate()
             row.activate()
+        # ⑤ 钉宽的那枚「网络头像库」输入框在 layoutWidget_8 的网格里，解锁后必须让它
+        # 重排一次，否则 net 仍停在窄态的钉宽上。注意 layoutWidget_8 本身是 QWidget
+        # （QLayoutWidget），invalidate/activate 在它**布局**上而不是它身上。
+        net_holder = getattr(ui, self._ACTOR_PAGE_NET_PATH_GRID, None)
+        grid8 = None if net_holder is None else net_holder.layout()
+        if grid8 is not None:
+            grid8.invalidate()
+            grid8.activate()
 
     def _sync_actor_page_narrow_align(self, actor_scroll=None) -> None:
         """演员页窄态（最小化/还原）：一组控件左移到 A2 列、另一组右移到各自锚点列。
@@ -2077,9 +2156,12 @@ class MyMAinWindow(QMainWindow):
           「本地头像库」与「点击下载头像包」向左移动到与「使用Graphis头像」上下严格
           对齐；
           「选择文件」右移到与「选择目录」上下对齐，「演员信息数据库」显示框右侧
-          拓展到右移后的「选择文件」按钮左侧。
-        锚点（checkBox_actor_photo_ne_face 与「选择目录」按钮）自身保持不动；最大化时
-        的页面、布局、控件、提示词逐像素不变。
+          拓展到右移后的「选择文件」按钮左侧；
+          「网络头像库」显示输入框最右侧向左缩进到与「Gfridends本地仓库」「本地头像库」
+          两行显示输入框右缘上下严格对齐。
+        锚点（checkBox_actor_photo_ne_face、「选择目录」按钮、「Gfridends本地仓库」
+        「本地头像库」两行显示输入框）自身保持不动；最大化时的页面、布局、控件、
+        提示词逐像素不变。
 
         A2 锚点是 checkBox_actor_photo_ne_face（使用 Graphis 头像），实际 x 运行时
         mapTo 实测。旧锚点 checkBox_actor_info_photo 已在上面「②」里被左移到 A2 列，
@@ -2128,6 +2210,13 @@ class MyMAinWindow(QMainWindow):
              「选择目录」按钮左缘减去行间距，按钮即落到那一列。两者设计宽同为 110px，
              「与选择目录左缘对齐」和「右缘对齐」在这里是同一件事。路径框收窄到
              _ACTOR_NARROW_PATH_MIN_W 以下时宁可不右移。
+
+        收窄组（本方法第 ⑤ 步，宽态第 ⑥ 步的镜像）：「网络头像库：」显示输入框钉成与
+        「Gfridends本地仓库：」同宽。它是 layoutWidget_8 网格里的直系项、右侧没有按钮，
+        故独占整列富余宽度，比另两枚宽出一整枚按钮的宽（1030 实测 503 vs 387）——
+        用户看到的「最右侧超出」正是这个成因。三枚左缘本就同列，故钉宽即同时对齐左右缘。
+        只收窄不撑宽（want >= net.minimumWidth() 才动手）；登记 _actor_narrow_restores，
+        宽态第一步清干净即真解锁。
 
         每行处理完都实测回读一次并按差值修正（容器让位法与 stretch 让位法都只在 Qt
         「有富余就分给可拉伸项」的模型下才精确，回读修正使其不依赖该模型的细节）。
@@ -2428,29 +2517,72 @@ class MyMAinWindow(QMainWindow):
         # 「选择目录」那一列。该行尾部本就有一个 Expanding 间隔，故行内总需求恒等于
         # 行宽时按钮右缘正好等于 col1 右缘——与「选择目录」按钮同宽（110px 设计），
         # 「左右缘对齐」在这里是同一件事。
-        row_name, path_name, btn_name, ref_name = self._ACTOR_NARROW_PATH_ROW
-        row = getattr(ui, row_name, None)
-        path = getattr(ui, path_name, None)
-        btn = getattr(ui, btn_name, None)
-        ref = getattr(ui, ref_name, None)
-        if row is None or path is None or btn is None or ref is None:
-            return
-        row.invalidate()
-        row.activate()
-        if row.indexOf(btn) < 0 or row.indexOf(path) < 0 or ref.parentWidget() is None:
-            return
-        want = left_x(ref) - row.spacing() - left_x(path)
-        if want < self._ACTOR_NARROW_PATH_MIN_W:
-            return  # 会把路径框压到夹不住文字：宁可不右移
-        lock_width(path, want)
-        row.invalidate()
-        row.activate()
-        d = left_x(ref) - left_x(btn)
-        if d:
-            # 回读修正：路径框是 Fixed 宽、按钮紧随其后，差多少补多少即可
-            set_fixed_width(path, want - d)
+        # 同样收成闭包：④ 有多处提前 return，就地 return 会把 ⑤ 整段跳过。
+        def _shift_actor_db_path_row():
+            row_name, path_name, btn_name, ref_name = self._ACTOR_NARROW_PATH_ROW
+            row = getattr(ui, row_name, None)
+            path = getattr(ui, path_name, None)
+            btn = getattr(ui, btn_name, None)
+            ref = getattr(ui, ref_name, None)
+            if row is None or path is None or btn is None or ref is None:
+                return
             row.invalidate()
             row.activate()
+            if row.indexOf(btn) < 0 or row.indexOf(path) < 0 or ref.parentWidget() is None:
+                return
+            want = left_x(ref) - row.spacing() - left_x(path)
+            if want < self._ACTOR_NARROW_PATH_MIN_W:
+                return  # 会把路径框压到夹不住文字：宁可不右移
+            lock_width(path, want)
+            row.invalidate()
+            row.activate()
+            d = left_x(ref) - left_x(btn)
+            if d:
+                # 回读修正：路径框是 Fixed 宽、按钮紧随其后，差多少补多少即可
+                set_fixed_width(path, want - d)
+                row.invalidate()
+                row.activate()
+
+        _shift_actor_db_path_row()
+
+        # ⑤ 最小化态：「网络头像库：」显示输入框右缘向左缩进到与「Gfriends 本地
+        # 仓库：」「本地头像库：」两行显示输入框右缘上下严格对齐；那两枚（连同
+        # 「选择目录」按钮）自身保持不动，最大化态一个像素都不碰。
+        # 与宽态第 ⑥ 步（_sync_actor_page_wide_a2_align 末尾）同一手法、同一对控件：
+        # 「网络头像库」行的输入框是 layoutWidget_8 网格里的直接项，右侧没有按钮，
+        # 于是独占整列富余宽度，比另两枚宽出整整一枚按钮的宽（1030 实测 503 vs
+        # 387，右缘 689 vs 573；1000 实测 473 vs 357）——这正是「最右侧超出」的成因。
+        # 三枚左缘本就同列（A1 恒 186），故钉宽成参照枚的宽即同时满足左右缘对齐。
+        # 只在窄态跑：lock_width 登记进 _actor_narrow_restores，宽态第一步
+        # _clear_actor_narrow_align 即把 min/max 原样写回（真解锁，见该方法 docstring），
+        # 而宽态自身的钉宽由 _sync_actor_page_wide_a2_align 第 ⑥ 步独立负责。
+        net = getattr(ui, self._ACTOR_PAGE_NET_PATH_EDIT, None)
+        ref_edit = getattr(ui, self._ACTOR_PAGE_PATH_REF_EDIT, None)
+        net_holder = getattr(ui, "layoutWidget_8", None)
+        if (
+            net is not None
+            and ref_edit is not None
+            and net_holder is not None
+            and net_holder.layout() is not None
+            and net.parentWidget() is net_holder
+            and ref_edit.parentWidget() is not None
+        ):
+            grid8 = net_holder.layout()
+            grid8.invalidate()
+            grid8.activate()  # 先落定，才能量到参照输入框的终态宽
+            want = ref_edit.width()
+            # 参照宽必须还容得下最小宽（MDCx.ui 给的是 300）才收；已经在该宽或更宽
+            # （窗口更窄时另两枚的「选择目录」行反而更挤）一律不碰，避免反向撑大。
+            if 0 < want < net.width() and want >= net.minimumWidth():
+                lock_width(net, want)
+                grid8.invalidate()
+                grid8.activate()
+                # 回读纠偏：布局重排后若有 1px 级取整误差，用实测差补回去
+                drift = net.width() - want
+                if drift:
+                    lock_width(net, want - drift)
+                    grid8.invalidate()
+                    grid8.activate()
 
     # 刮削目录页文件清理提示的设计宽（MDCx.ui label_271 设计几何 140,490,381,16）。
     _GUAXIAOMULU_TIP_DESIGN_W = 381
@@ -4465,6 +4597,13 @@ class MyMAinWindow(QMainWindow):
         # 必须排在最后：本控制器要量高级页的实时列宽，而宽幅同步会改写
         # groupBox_12 的列宽，放前面量到的是过期值（同 verify_gb 血案）。
         self._sync_advanced_page_align(adv_scroll)
+        # 高级页窄态：「每次间隔」时长框右缘缩到与「间歇刮削」文件数框右缘对齐
+        # （还原态单列一条需求，最大化态一个像素都不碰）。必须排在上面这个方法
+        # **之后**：它末尾那批 gridLayout_20.activate() 会把两行重新排一遍，提前
+        # 量到的是过期几何；且它自带早退分支，不能从里面挂钩子。
+        self._sync_advanced_page_rest_interval_align(
+            self._scroll_stretch_extra(self._adv_scroll) > 0
+        )
 
         # ============ page_setting / 演员页: 两行控件对齐到各自基准线 ============
         # 同样排在通用拉伸之后：本方法先落设计几何再按最大化分支覆盖。
@@ -4807,6 +4946,83 @@ class MyMAinWindow(QMainWindow):
         # 提前量到的是它被等分推到右缘的旧值（用户截图红框里那两个「关」就是这么
         # 被钉歪的）。changed 为假时网格几何本就是终态，照量不误。
         self._sync_advanced_page_tail_align()
+
+    def _sync_advanced_page_rest_interval_align(self, wide: bool) -> None:
+        """还原态：「每次间隔」时长框右缘缩到与「间歇刮削」文件数框右缘严格对齐。
+
+        本批需求②。同一 grid（`gridLayout_20`）col1 上的两行：
+        row3 = `horizontalLayout_109`（间歇刮削：☑连续刮削 + 文件数框 + 「个文件后，
+        自动休息」+ 休息时长框 + 「（时:分:秒）」），row4 = `horizontalLayout_104`
+        （☑每次间隔 + 间隔时长框 + 长说明标签）。**长的是 hl109**（真实字体下需要
+        76+141+117+141+80 + 4×6 = 579，而 hl104 只要 76+141+314 + 2×6 = 543），
+        窄态下 hl109 先放不下，Qt 只能压缩行内**唯一还压得动的项**——两枚
+        `QLineEdit`（它们 sizePolicy 是 Fixed 可以被压，标签的 minimumSizeHint ==
+        sizeHint 故一格不让），于是 `lineEdit_rest_count` 被压窄；hl104 那行却仍有
+        余量、`lineEdit_timed_interval` 保持满宽 141px，右缘于是越过上面那枚的
+        右缘——正是用户红线标出的那截参差。**锚点行与其余控件一律不动**，只缩
+        每次间隔这一枚，钉成「右缘 == 文件数框右缘」：
+            want = (anchor 右缘) - (target 左缘)
+        缩的是 hl104 的第二项，故只有它右侧的 `label_84` 会左移、行内总宽变小；
+        hl104 本来就有余量、不会去挤行外任何东西。
+
+        量目标自然位之前**必须先解除上一遍自己的钉宽并重排**（与
+        `_sync_advanced_page_debug_row` 的「自我强化」同坑：带着旧钉宽去量，量到的
+        是自己钉出来的落点）。`want` 只有在「确实更窄且仍夹得住内容」时才钉，放不下
+        就保持自然态、绝不硬压。最大化态**只做解除**：那一态两枚框本来就都是满宽
+        141px，钉不钉一样，故最大化界面逐像素不变。
+        """
+        ui = self.Ui
+        content = ui.scrollAreaWidgetContents_gaoji
+        if not content.isVisibleTo(self):
+            return
+        anchor_row = ui.horizontalLayout_109
+        target_row = ui.horizontalLayout_104
+        anchor = ui.lineEdit_rest_count
+        target = ui.lineEdit_timed_interval
+        if not (
+            anchor_row is not None
+            and target_row is not None
+            and anchor_row.parentWidget() is not None
+            and target_row.parentWidget() is not None
+            and anchor is not None
+            and target is not None
+            and anchor.isVisibleTo(self)
+            and target.isVisibleTo(self)
+        ):
+            return
+
+        def cx(widget) -> int:
+            """控件左缘映射到滚动内容的绝对 x（跨分支必须经 content 中转）。"""
+            return widget.mapTo(content, QPoint(0, 0)).x()
+
+        def anchor_right() -> int:
+            return cx(anchor) + anchor.width()
+
+        # ---- 最大化态只解除：那一态本来就等宽，钉了也是徒增一次重排 ----
+        if wide:
+            if self._pin_row_lead_width(target, None):
+                target_row.invalidate()
+                target_row.activate()
+            return
+
+        # ---- 还原态：先解除并重排，量到的是自然位而不是自己上遍钉出来的落点 ----
+        if self._pin_row_lead_width(target, None):
+            target_row.invalidate()
+            target_row.activate()
+        anchor_row.invalidate()
+        anchor_row.activate()
+        want = anchor_right() - cx(target)
+        if not (0 < want < target.width() and want >= target.minimumSizeHint().width()):
+            return
+        if self._pin_row_lead_width(target, want):
+            target_row.invalidate()
+            target_row.activate()
+        # 读回纠偏：重排后可能残留 1px 取整误差，补回去。
+        drift = anchor_right() - cx(target) - target.width()
+        if drift:
+            self._pin_row_lead_width(target, target.width() - drift)
+            target_row.invalidate()
+            target_row.activate()
 
     def _sync_advanced_page_debug_row(self, wide: bool) -> None:
         """还原态：调试模式行「显示字段来源信息」右移到与「隐藏NFO库管理」上下对齐。

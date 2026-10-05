@@ -14375,7 +14375,7 @@ class Ui_MDCx(object):
         self.checkBox_auto_exit.setText(_translate("MDCx", "刮削结束后自动退出软件"))
         self.checkBox_show_dialog_exit.setText(_translate("MDCx", "退出软件时"))
         self.checkBox_show_dialog_stop_scrape.setText(_translate("MDCx", "停止刮削时"))
-        self.checkBox_timed_scrape.setText(_translate("MDCx", "每隔"))
+        self.checkBox_timed_scrape.setText(_translate("MDCx", "每次间隔"))
         self.label_84.setText(_translate("MDCx", "（时:分:秒），自动开始刮削（读取配置时开始计时）"))
         self.label_308.setText(_translate("MDCx", "自动任务："))
         self.label_309.setText(_translate("MDCx", "自动刮削："))

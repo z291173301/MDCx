@@ -9,6 +9,9 @@
     「点最小化按钮」与两枚「关」→「隐藏NFO库管理」；同行的「无」→「显示字段内容信息」。
     注意最小化态里「点最小化按钮」的锚点是 nfo 而非 from_log（两态不同），
     而「无」两态同锚；第三组落地后第一组/第二组的宽态结果必须逐位不变。
+  第六组（最小化「向左缩进」，同样要求最大化态一切不变）：「每次间隔」时长框右缘
+    缩到与「间歇刮削」文件数框右缘严格上下对齐——**唯一一处比右缘而不是左缘**的
+    需求，锚点行及其余控件一律不许动。
 
 根因防线（任一回归都会让本文件失败）：
   - 三处手法不同，勿互相套用。①所在行容器是顶层组框的**直接子项**、被通用
@@ -162,6 +165,15 @@ _NARROW_RIGHT = (
     ("radioButton_log_off", "checkBox_show_data_log"),
     ("radioButton_update_off", "checkBox_show_data_log"),
 )
+
+# 第六组（最小化「向左缩进」）：「每次间隔」时长框右缘 → 「间歇刮削」文件数框右缘。
+#   锚点**不是固定像素**而是该框的实时右缘——窄态下 hl109（间歇刮削）比 hl104
+#   （每次间隔）长，先放不下的是 hl109，Qt 只能压行内压得动的项（标签的
+#   minimumSizeHint == sizeHint 故一格不让，QLineEdit 的 sizePolicy 是 Fixed 故压得动），
+#   于是「间歇刮削」的文件数框被压窄、而「每次间隔」那行仍有余量保持满宽，右缘参差。
+#   故锚点宽度本身随字形度量而变，断言必须比**右缘**、且不得写死像素。
+#   宽态不需要这一段：那时两枚框都是满宽，右缘本就相等（见本文件末尾那组用例）。
+#   （对应需求：目标 lineEdit_timed_interval、锚点 lineEdit_rest_count。）
 
 # 第三、四组（最小化态）：目标 -> 窄态锚点。
 #   「点最小化按钮」窄态锚的是 checkBox_hide_nfo_nav 而**不是**
@@ -764,3 +776,221 @@ def test_repeated_sync_is_idempotent(win, app):
             win._sync_page_layouts()
             app.processEvents()
             assert _snapshot(ui) == before, f"{width} 宽下重复同步仍在改几何: {before} -> {_snapshot(ui)}"
+
+# ---------------------------------------------------------------------------
+# 窄态需求：「每次间隔」时长框右缘缩到与「间歇刮削」文件数框右缘严格对齐
+#   （锚点行及其余控件一律不动；最大化态一个像素都不碰）
+# ---------------------------------------------------------------------------
+
+# 本组覆盖的两行全部控件（最大化基线比对与窄态断言共用一份名单）。
+_REST_ROW_NAMES = (
+    "label_321",
+    "checkBox_rest_scrape",
+    "lineEdit_rest_count",
+    "label_52",
+    "lineEdit_rest_time",
+    "label_71",
+    "checkBox_timed_scrape",
+    "lineEdit_timed_interval",
+    "label_84",
+)
+_QWIDGETSIZE_MAX = 16777215
+
+
+def _right(ui, widget) -> int:
+    """控件右缘映射到高级页滚动内容的绝对 x（对齐判据一律比右缘、不比左缘）。"""
+    return _abs(ui, widget) + widget.width()
+
+
+def _rest_row_snapshot(ui):
+    return {n: (_abs(ui, getattr(ui, n)), getattr(ui, n).width()) for n in _REST_ROW_NAMES}
+
+
+def _baseline_without_rest_interval_align(win, app, monkeypatch, width, height):
+    """另起窗口、只摘掉本次新增的那个控制器，量同一组控件的几何（最大化基线）。
+
+    不能在同一个窗口上摘掉方法再跑一次同步——摘掉后就没人解除上一遍留下的钉宽
+    （setFixedWidth 落在控件自身的 min/max 上、跨调用留存），量到的「基线」会带着
+    上一遍的落点，比对就成了自己对自己（与 _without_feature 同一个坑）。
+    """
+    from mdcx.controllers.main_window import main_window as mw_mod
+
+    original = mw_mod.MyMAinWindow._sync_advanced_page_rest_interval_align
+    monkeypatch.setattr(
+        mw_mod.MyMAinWindow,
+        "_sync_advanced_page_rest_interval_align",
+        lambda self, *a, **k: None,
+    )
+    probe = None
+    try:
+        probe = mw_mod.MyMAinWindow()
+        for timer_name in ("timer", "timer_scrape", "timer_update", "timer_remain_task"):
+            getattr(probe, timer_name).stop()
+        probe.show()
+        _goto_advanced(probe, app)
+        _resize(probe, app, width, height)
+        return _rest_row_snapshot(probe.Ui)
+    finally:
+        if probe is not None:
+            probe.close()
+            probe.deleteLater()
+            app.processEvents()
+        monkeypatch.setattr(
+            mw_mod.MyMAinWindow,
+            "_sync_advanced_page_rest_interval_align",
+            original,
+        )
+
+
+def _unpin(widget) -> None:
+    """解除钉宽（不是 setFixedWidth(0)——那会把控件压成零宽）。"""
+    widget.setMinimumWidth(0)
+    widget.setMaximumWidth(_QWIDGETSIZE_MAX)
+
+
+@pytest.mark.parametrize("width,height", _NARROW_SIZES)
+def test_timed_interval_right_edge_matches_rest_count(win, app, width, height):
+    """窄态：「每次间隔」时长框右缘 == 「间歇刮削」文件数框右缘，锚点自身不动。
+
+    根因：hl109（间歇刮削）比 hl104（每次间隔）长，窄态先放不下的是 hl109，
+    而行内标签的 minimumSizeHint == sizeHint（一格不让）、QLineEdit 的 sizePolicy
+    是 Fixed（压得动），故被压的只有 hl109 里那两枚输入框；hl104 那行仍有余量、
+    它的时长框保持满宽，右缘于是越过上面那枚——用户红线标出的那截参差。
+
+    本离屏环境**没有 CJK 字体**、字形宽度不可靠（见文件头 _EXTRA_NAMES 那段），
+    「哪一档窗宽真的开始挤压」在测试环境与生产未必同档，故断言不写成
+    「窗口一窄就必须变窄」那种依赖字体的形式，而是：
+      ① 自然态右缘必须相等（本来就等宽时自然成立，被挤压时正是本需求在修）；
+      ② **显式模拟挤压**（把锚点钉窄，等价于 Qt 对 hl109 的处置），断言此时
+         时长框必须跟着缩到同一右缘、锚点自己一个像素都不许动、且必须是
+         「钉宽」而不是「恰好排成这样」。这一条才是判别力所在：还原掉
+         本方法它必红。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_advanced(win, app)
+    _resize(win, app, width, height)
+    assert _extra(win) <= 0, f"{width} 宽下应处于窄态（拉伸量 <= 0）"
+
+    anchor = ui.lineEdit_rest_count
+    target = ui.lineEdit_timed_interval
+
+    # ① 自然态：右缘必须相等（未发生挤压时两边本就等宽，相等自然成立）
+    assert _right(ui, target) == _right(ui, anchor), (
+        f"{width} 宽下「每次间隔」右缘 {_right(ui, target)} 未与「间歇刮削」"
+        f"文件数框右缘 {_right(ui, anchor)} 对齐"
+    )
+
+    # ② 模拟 hl109 被挤压：锚点收窄 24px，时长框必须跟着缩
+    squeeze = max(anchor.minimumSizeHint().width(), anchor.sizeHint().width() - 24)
+    anchor.setFixedWidth(squeeze)
+    before = (anchor.x(), anchor.y(), anchor.width(), anchor.height())
+    _resize(win, app, width, height)
+    assert (anchor.x(), anchor.y(), anchor.width(), anchor.height()) == before, (
+        f"{width} 宽下本需求不许移动锚点「间歇刮削」文件数框"
+    )
+    assert anchor.width() == squeeze
+    assert _right(ui, target) == _right(ui, anchor), (
+        f"{width} 宽下模拟挤压后「每次间隔」右缘 {_right(ui, target)} 未跟上"
+        f"锚点右缘 {_right(ui, anchor)}"
+    )
+    assert target.width() == squeeze, "两框同为各自行的第二项、左缘同列，收窄后应等宽"
+    # 钉宽而不是「恰好排成这样」：min == max 才说明真走了 setFixedWidth 那条路
+    assert target.minimumWidth() == target.maximumWidth() == squeeze
+
+    # ③ 解除「人为模拟」后仍是对齐的。注意离屏环境下 hl109 本来就放不下、锚点
+    #    自然就被压窄，于是目标照样被钉——那正是**正确**的落点，不能断言「已解除钉宽」
+    _unpin(anchor)
+    _resize(win, app, width, height)
+    _resize(win, app, width, height)
+    assert _right(ui, target) == _right(ui, anchor), f"{width} 宽下往返后右缘对齐漂移"
+
+
+@pytest.mark.parametrize("width,height", _NARROW_SIZES)
+def test_timed_interval_not_pinned_when_row_fits(win, app, width, height):
+    """锚点比目标还宽（即不需要收窄的那半条）时不得钉宽。
+
+    「不需要就保持自然态」是无条件钉宽的反面：无条件钉等于让 hl104 右侧的长
+    说明标签白白左移、把「每次间隔」框无端变窄。判据用 sizeHint()——钉宽状态
+    下量到的 width() 是上一遍留下的钉宽、不是自然宽，而 sizeHint 恰是 Fixed
+    策略下输入框的自然宽。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_advanced(win, app)
+    _resize(win, app, width, height)
+    assert _extra(win) <= 0
+
+    anchor = ui.lineEdit_rest_count
+    target = ui.lineEdit_timed_interval
+    anchor.setFixedWidth(target.sizeHint().width() + 60)  # 锚点比目标还宽 -> 无需收窄
+    try:
+        _resize(win, app, width, height)
+        assert target.minimumWidth() == 0 and target.maximumWidth() == _QWIDGETSIZE_MAX, (
+            f"{width} 宽下不需要对齐却钉了宽: min={target.minimumWidth()}"
+        )
+    finally:
+        _unpin(anchor)
+    _resize(win, app, width, height)
+
+
+@pytest.mark.parametrize("width,height", ((900, 700), (820, 700)))
+def test_timed_interval_never_widened(win, app, width, height):
+    """极窄窗宽下即便两行都放不下，也只允许向左缩、绝不许把目标撑宽。
+
+    需求原话是「最右侧向左缩进」，故钉宽只在 `want < 当前宽` 时生效。行内可用
+    余量为负时 hl104 自己也会被压、目标反而可能比锚点更窄，此时维持自然态即可
+    （硬撑宽只会把末尾说明文字顶出去裁掉）。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_advanced(win, app)
+    _resize(win, app, width, height)
+    assert _extra(win) <= 0
+
+    target = ui.lineEdit_timed_interval
+    hint = target.sizeHint().width()
+    assert target.width() <= hint, f"{width} 宽下目标被撑宽到 {target.width()}（自然 {hint}）"
+
+
+@pytest.mark.parametrize("width,height", _WIDE_SIZES)
+def test_timed_interval_untouched_in_wide(win, app, monkeypatch, width, height):
+    """最大化态：两枚时长框本来就都满宽，本需求一个像素都不许碰。
+
+    比对方式是「摘掉本控制器的另一个窗口」而非「同一窗口摘了再跑一次」：
+    后者量到的基线会带着本方法上一遍留下的钉宽，比对就成了自己对自己。
+    """
+    ui = win.Ui
+    win.show()
+    _goto_advanced(win, app)
+    _resize(win, app, width, height)
+    assert _extra(win) > 0, f"{width} 宽下应处于宽态（拉伸量 > 0）"
+
+    target = ui.lineEdit_timed_interval
+    assert target.minimumWidth() == 0 and target.maximumWidth() == _QWIDGETSIZE_MAX
+    assert _rest_row_snapshot(ui) == _baseline_without_rest_interval_align(
+        win, app, monkeypatch, width, height
+    ), f"{width} 宽下本需求动了最大化态的控件几何"
+
+
+def test_rest_interval_alignment_survives_round_trip(win, app):
+    """窄→宽→窄往返：窄态右缘对齐不得漂移，且不残留上一态的钉宽。"""
+    ui = win.Ui
+    win.show()
+    _goto_advanced(win, app)
+    anchor = ui.lineEdit_rest_count
+    target = ui.lineEdit_timed_interval
+
+    _resize(win, app, 1030, 753)
+    squeeze = max(anchor.minimumSizeHint().width(), anchor.sizeHint().width() - 24)
+    anchor.setFixedWidth(squeeze)
+    _resize(win, app, 1030, 753)
+    assert _right(ui, target) == _right(ui, anchor)
+
+    # 最大化：钉宽必须被真解除（min/max 回到 0 / QWIDGETSIZE_MAX）
+    _resize(win, app, 1920, 1170)
+    assert target.minimumWidth() == 0 and target.maximumWidth() == _QWIDGETSIZE_MAX
+
+    _unpin(anchor)
+    _resize(win, app, 1030, 753)
+    assert _right(ui, target) == _right(ui, anchor)
