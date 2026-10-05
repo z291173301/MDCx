@@ -73,6 +73,27 @@ def _goto(win, app, page_name):
     raise AssertionError(f"page not found: {page_name}")
 
 
+def _donate_one_size_budget(win) -> int:
+    """`_layout_donate` 的可用高度预算常数项，与 `main_window.py` 逐项对齐。
+
+    真实实现：`one_size = 窗高 − 预留行高 − gap − 链接高 − 链接间距 − 内距 − 导航底`
+    （见 `main_window.py: _DONATE_QR_SIZE` 处注释）。窗高是唯一变量，故抽成本函数后
+    「某档窗高能否放满 180」就是 `窗高 >= 返回值 + 180`，测试不必写死阈值（字体度量随
+    fixture 的 `set_style` 桩而变；真实运行 100% 字号的门槛是 693）。
+    """
+    reserve = win._dock_status_text_reserve_h()
+    gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve) + win._DONATE_LIFT
+    return (
+        reserve
+        + gap
+        + win._DONATE_LINK_H
+        + win._DONATE_LINK_GAP
+        + win._DONATE_PAD
+        + win._dock_nav_top_base()
+        + win._DOCK_NAV_H
+    )
+
+
 def test_dormant_pages_resize_with_window(win, app):
     """核心回归：缩放窗口后所有休眠页必须获得新尺寸，而非停留在设计尺寸。"""
     win.resize(1032, 737)
@@ -1271,11 +1292,21 @@ def test_dock_geometry_is_frozen_when_status_text_grows_a_line(win, app):
                 f"{scale}x h={height}: 读取后以下控件动了（要求完全固定）：\n  "
                 + "\n  ".join(moved)
             )
-            # 顺带把「边长恒为 180」这条钉在同一处，避免与别的用例分散
+            # 顺带把「够高时恒为 180」这条钉在同一处，避免与别的用例分散。
+            # **门槛按预算算、不写死 693**：本 fixture stub 了 set_style，字体度量与真实
+            # 运行不同（真实运行 100% 字号 h≥693 才是 180），阈值随字号/导航基线浮动。
+            # 真正的命题是「可用高度够 ⇒ 恰好 180；不够 ⇒ 缩小且**仍在同一位置**」。
             qr = ui.label_donate_qr
-            assert (qr.width(), qr.height()) == (win._DONATE_QR_SIZE, win._DONATE_QR_SIZE), (
-                f"{scale}x h={height}: 二维码 {qr.width()}×{qr.height()} != {win._DONATE_QR_SIZE}"
-            )
+            budget = _donate_one_size_budget(win)
+            if height >= budget + win._DONATE_QR_SIZE:
+                assert (qr.width(), qr.height()) == (win._DONATE_QR_SIZE, win._DONATE_QR_SIZE), (
+                    f"{scale}x h={height}: 够放满却只有 {qr.width()}×{qr.height()} "
+                    f"!= {win._DONATE_QR_SIZE}（预算 {budget}）"
+                )
+            else:
+                assert qr.width() < win._DONATE_QR_SIZE, (
+                    f"{scale}x h={height}: 预算不足（{budget}）却仍是满尺寸 {qr.width()}"
+                )
         # 双字号循环之间把字号复原，避免累积放大
         if scale != 1.0:
             f = status.font()
@@ -1283,6 +1314,75 @@ def test_dock_geometry_is_frozen_when_status_text_grows_a_line(win, app):
             status.setFont(f)
     win.show_scrape_info()
     app.processEvents()
+
+
+def test_donate_qr_shrinks_below_floor_when_window_is_too_short(win, app):
+    """窗高低于满 180 的门槛时二维码**按可用高度缩小**，缩到下限以下才整块隐藏。
+
+    用户第十三轮补充诉求：「窗高低于 693（100% 字号）时还是将收款码缩小，等于或
+    高于693时收款码高度恒为180px」。即矮窗口下要的是**缩小**而不是整块消失
+    （旧行为）或被压成极小的糊码。
+
+    三条断言（门槛全部按 `_donate_one_size_budget` 算，不写死像素）：
+    ① 门槛之上恒为 180（且不会更大）；
+    ② 门槛之下 **仍可见**、边长严格小于 180、且**大于下限 `_DONATE_QR_MIN`**；
+    ③ 边长随窗高单调不降——窗口越矮码越小，不存在忽大忽小；
+    另加「缩小档下位置仍固定」：读取前后 geometry 完全一致，且四件互不重叠。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    qr, link, nav, status = (
+        ui.label_donate_qr,
+        ui.label_donate_link,
+        ui.widget_buttons,
+        ui.label_show_version,
+    )
+    budget = _donate_one_size_budget(win)
+    full_h = budget + win._DONATE_QR_SIZE
+    # 最低一档锁在分支①（空间够）的下沿之上：分支②起导航不再上移、状态区改贴导航底，
+    # 预算公式换一套，混进来测的就不是「①里够/不够」这条命题了。
+    branch1_min = (
+        win._dock_nav_top_base() + win._DOCK_NAV_H + win._DOCK_STATUS_GAP + win._DOCK_STATUS_H
+    )
+    low_h = max(full_h - 120, branch1_min)
+    assert full_h - 40 > low_h >= budget + win._DONATE_QR_MIN, (
+        f"前提不成立：本环境预算 {budget}、分支①下沿 {branch1_min}，凑不出三档可用高度"
+    )
+    seen: list[tuple[int, int]] = []
+    for height in (full_h, full_h - 40, low_h):
+        win.resize(1032, height)
+        win.show()
+        app.processEvents()
+        win.show_scrape_info()
+        app.processEvents()
+        before = (qr.geometry().getRect(), link.geometry().getRect(), nav.geometry().getRect())
+        # 读取/刮削多出一行进度：位置与边长都不得变（本批核心不变量）
+        win.show_scrape_info("🎉 刮削完成 7/7")
+        app.processEvents()
+        after = (qr.geometry().getRect(), link.geometry().getRect(), nav.geometry().getRect())
+        assert before == after, f"h={height}: 读取后位置漂移 {before} → {after}"
+
+        if height >= full_h:
+            assert (qr.width(), qr.height()) == (win._DONATE_QR_SIZE,) * 2, (
+                f"h={height}（≥ 门槛 {full_h}）应为满尺寸，实际 {qr.width()}×{qr.height()}"
+            )
+        else:
+            assert not qr.isHidden(), f"h={height}: 门槛之下应缩小显示而非隐藏"
+            assert win._DONATE_QR_MIN <= qr.width() < win._DONATE_QR_SIZE, (
+                f"h={height}: 缩小档边长 {qr.width()} 应落在 "
+                f"[{win._DONATE_QR_MIN}, {win._DONATE_QR_SIZE})"
+            )
+        # 任何档位都不叠字（军规③）
+        for a, b in ((qr, link), (link, status), (qr, status), (qr, nav)):
+            assert a.geometry().intersects(b.geometry()) is False, (
+                f"h={height}: {a.objectName()} 与 {b.objectName()} 矩形相交"
+            )
+        seen.append((height, qr.width()))
+
+    sizes = [w for _, w in seen]
+    assert sizes == sorted(sizes, reverse=True), f"边长应随窗高单调不降，实测 {seen}"
+    assert len(set(sizes)) > 1, f"门槛上下边长应不同（否则本用例没测到缩小），实测 {seen}"
 
 
 def test_donate_qr_keeps_design_size_across_maximize_restore(win, app):
@@ -1354,18 +1454,7 @@ def test_donate_qr_nav_raises_to_reach_design_size(win, app):
     status.setFont(f)
     base_top = win._dock_nav_top_base()
     size = win._DONATE_QR_SIZE
-    # 预算链与 _layout_donate 逐项对齐（含 gap 的两项取大）
-    reserve = win._dock_status_text_reserve_h()
-    gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve) + win._DONATE_LIFT
-    budget = (
-        reserve
-        + gap
-        + win._DONATE_LINK_H
-        + win._DONATE_LINK_GAP
-        + win._DONATE_PAD
-        + base_top
-        + win._DOCK_NAV_H
-    )
+    budget = _donate_one_size_budget(win)
     height = budget + size - 5  # 恰好缺 5px
     assert base_top - win._DOCK_NAV_TOP_MIN >= 5, (
         f"前提不成立：导航最多只能上移 {base_top - win._DOCK_NAV_TOP_MIN}px，补不满 5px 缺口"
