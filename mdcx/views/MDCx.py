@@ -6989,6 +6989,10 @@ class Ui_MDCx(object):
         )
         self.label_80.setObjectName("label_80")
         self.gridLayout_32.addWidget(self.label_80, 3, 0, 1, 1)
+        spacerItem7 = QtWidgets.QSpacerItem(
+            20, 20, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
+        )
+        self.gridLayout_32.addItem(spacerItem7, 7, 0, 1, 2)
         self.groupBox_llm = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_fanyi)
         self.groupBox_llm.setGeometry(QtCore.QRect(30, 354, 701, 601))
         self.groupBox_llm.setObjectName("groupBox_llm")
@@ -8754,10 +8758,10 @@ class Ui_MDCx(object):
         self.checkBox_nfo_criticrating.setSizePolicy(sizePolicy)
         self.checkBox_nfo_criticrating.setObjectName("checkBox_nfo_criticrating")
         self.gridLayout_66.addWidget(self.checkBox_nfo_criticrating, 0, 1, 1, 1)
-        spacerItem7 = QtWidgets.QSpacerItem(
+        spacerItem8 = QtWidgets.QSpacerItem(
             20, 8, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed
         )
-        self.gridLayout_66.addItem(spacerItem7, 1, 0, 1, 2)
+        self.gridLayout_66.addItem(spacerItem8, 1, 0, 1, 2)
         self.checkBox_nfo_actor = QtWidgets.QCheckBox(parent=self.layoutWidget_10)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -8785,10 +8789,10 @@ class Ui_MDCx(object):
         self.checkBox_nfo_actor_tmdbid = QtWidgets.QCheckBox(parent=self.layoutWidget_10)
         self.checkBox_nfo_actor_tmdbid.setObjectName("checkBox_nfo_actor_tmdbid")
         self.gridLayout_66.addWidget(self.checkBox_nfo_actor_tmdbid, 3, 1, 1, 1)
-        spacerItem8 = QtWidgets.QSpacerItem(
+        spacerItem9 = QtWidgets.QSpacerItem(
             20, 19, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed
         )
-        self.gridLayout_66.addItem(spacerItem8, 4, 0, 1, 2)
+        self.gridLayout_66.addItem(spacerItem9, 4, 0, 1, 2)
         self.checkBox_nfo_series = QtWidgets.QCheckBox(parent=self.layoutWidget_10)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -10153,10 +10157,10 @@ class Ui_MDCx(object):
         self.radioButton_actor_info_ja = QtWidgets.QRadioButton(parent=self.gridLayoutWidget_14)
         self.radioButton_actor_info_ja.setObjectName("radioButton_actor_info_ja")
         self.horizontalLayout_92.addWidget(self.radioButton_actor_info_ja)
-        spacerItem9 = QtWidgets.QSpacerItem(
+        spacerItem10 = QtWidgets.QSpacerItem(
             20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
-        self.horizontalLayout_92.addItem(spacerItem9)
+        self.horizontalLayout_92.addItem(spacerItem10)
         self.gridLayout_14.addLayout(self.horizontalLayout_92, 0, 1, 1, 1)
         self.frame_8 = QtWidgets.QFrame(parent=self.gridLayoutWidget_14)
         self.frame_8.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
@@ -10204,10 +10208,10 @@ class Ui_MDCx(object):
         self.pushButton_select_actor_info_db.setMinimumSize(QtCore.QSize(110, 40))
         self.pushButton_select_actor_info_db.setObjectName("pushButton_select_actor_info_db")
         self.horizontalLayout_155.addWidget(self.pushButton_select_actor_info_db)
-        spacerItem10 = QtWidgets.QSpacerItem(
+        spacerItem11 = QtWidgets.QSpacerItem(
             20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
-        self.horizontalLayout_155.addItem(spacerItem10)
+        self.horizontalLayout_155.addItem(spacerItem11)
         self.gridLayout_14.addLayout(self.horizontalLayout_155, 3, 1, 1, 1)
         self.frame_9 = QtWidgets.QFrame(parent=self.gridLayoutWidget_14)
         self.frame_9.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
@@ -10245,10 +10249,10 @@ class Ui_MDCx(object):
         self.horizontalLayout_160.setObjectName("horizontalLayout_160")
         self.horizontalLayout_159.addLayout(self.horizontalLayout_160)
         self.horizontalLayout_1581.addLayout(self.horizontalLayout_159)
-        spacerItem11 = QtWidgets.QSpacerItem(
+        spacerItem12 = QtWidgets.QSpacerItem(
             20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
-        self.horizontalLayout_1581.addItem(spacerItem11)
+        self.horizontalLayout_1581.addItem(spacerItem12)
         self.gridLayout_14.addLayout(self.horizontalLayout_1581, 4, 1, 1, 1)
         self.label_291 = QtWidgets.QLabel(parent=self.gridLayoutWidget_14)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
@@ -10306,10 +10310,10 @@ class Ui_MDCx(object):
         self.label_106.setObjectName("label_106")
         self.horizontalLayout_100.addWidget(self.label_106)
         self.horizontalLayout_98.addLayout(self.horizontalLayout_100)
-        spacerItem12 = QtWidgets.QSpacerItem(
+        spacerItem13 = QtWidgets.QSpacerItem(
             20, 20, QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Minimum
         )
-        self.horizontalLayout_98.addItem(spacerItem12)
+        self.horizontalLayout_98.addItem(spacerItem13)
         self.gridLayout_14.addLayout(self.horizontalLayout_98, 2, 1, 1, 1)
         self.pushButton_add_actor_info = QtWidgets.QPushButton(parent=self.groupBox_64)
         self.pushButton_add_actor_info.setGeometry(QtCore.QRect(160, 320, 261, 40))
@@ -12363,10 +12367,10 @@ class Ui_MDCx(object):
         self.pushButton_nfo_lib_crop = QtWidgets.QPushButton(parent=self.nfo_lib_preview_panel)
         self.pushButton_nfo_lib_crop.setObjectName("pushButton_nfo_lib_crop")
         self.nfo_lib_preview_layout.addWidget(self.pushButton_nfo_lib_crop)
-        spacerItem13 = QtWidgets.QSpacerItem(
+        spacerItem14 = QtWidgets.QSpacerItem(
             20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
         )
-        self.nfo_lib_preview_layout.addItem(spacerItem13)
+        self.nfo_lib_preview_layout.addItem(spacerItem14)
         self.nfo_lib_content_layout.addWidget(self.nfo_lib_preview_panel)
         self.nfo_library_main_layout.addWidget(self.nfo_lib_content)
         self.stackedWidget.addWidget(self.page_nfo_library)
@@ -12451,10 +12455,10 @@ class Ui_MDCx(object):
         self.pushButton_about.setMaximumSize(QtCore.QSize(16777215, 40))
         self.pushButton_about.setObjectName("pushButton_about")
         self.verticalLayout.addWidget(self.pushButton_about)
-        spacerItem14 = QtWidgets.QSpacerItem(
+        spacerItem15 = QtWidgets.QSpacerItem(
             20, 0, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
         )
-        self.verticalLayout.addItem(spacerItem14)
+        self.verticalLayout.addItem(spacerItem15)
         self.left_backgroud_widget = QtWidgets.QWidget(parent=self.widget_setting)
         self.left_backgroud_widget.setGeometry(QtCore.QRect(0, 0, 210, 700))
         self.left_backgroud_widget.setObjectName("left_backgroud_widget")
@@ -13836,7 +13840,9 @@ class Ui_MDCx(object):
         self.checkBox_llm.setText(_translate("MDCx", "LLM"))
         self.checkBox_bing.setText(_translate("MDCx", "Bing"))
         self.checkBox_baidu.setText(_translate("MDCx", "百度"))
-        self.label_164.setText(_translate("MDCx", "当勾选多个时，将随机使用所勾选的其中任一翻译引擎，可以大幅降低被封控的几率"))
+        self.label_164.setText(
+            _translate("MDCx", "当勾选多个时，将随机使用所勾选的其中任一翻译引擎，可以大幅降低被封控的几率")
+        )
         self.label_deepl_api_key.setText(_translate("MDCx", "DeepL API KEY："))
         self.label_80.setText(_translate("MDCx", "DeepLX URL："))
         self.groupBox_llm.setTitle(_translate("MDCx", "LLM 翻译"))
@@ -13848,7 +13854,9 @@ class Ui_MDCx(object):
         self.label_llm_prompt_outline.setText(_translate("MDCx", "简介 Prompt:"))
         self.label_llm_prompt_desc.setText(_translate("MDCx", "提示词模板. 可用变量: {content} 原文 {lang} 目标语言"))
         self.label_llm_max_req_sec.setText(_translate("MDCx", "最大请求速率(/秒):"))
-        self.label_llm_max_req_sec_desc.setText(_translate("MDCx", "根据你所使用的API提供商的限制设定，每个模型有不同限制"))
+        self.label_llm_max_req_sec_desc.setText(
+            _translate("MDCx", "根据你所使用的API提供商的限制设定，每个模型有不同限制")
+        )
         self.label_llm_max_try.setText(_translate("MDCx", "最大尝试次数:"))
         self.label_llm_max_try_desc.setText(_translate("MDCx", "API请求失败可能只是因为被暂时限流, 因此可以多重试几次"))
         self.label_llm_temperature.setText(_translate("MDCx", "Temperature:"))

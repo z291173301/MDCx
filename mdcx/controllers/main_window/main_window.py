@@ -6604,6 +6604,14 @@ class MyMAinWindow(QMainWindow):
     # 比设计值低了一行多。改为由本控制器显式给定：行首留白 30 时，说明文字行顶
     # 落在 102，正好上移一行（该标签行高 20px）。
     _FANYI_ACTOR_TOP_PAD = 30
+    # groupBox_trans（翻译引擎）：组底留白。设计值里 layoutWidget_2 底到组底 10px。
+    _FANYI_TRANS_BOT_PAD = 10
+    # groupBox_trans 之后、简介组（groupBox_83）之前的组：翻译引擎组一收紧，
+    # 它们必须跟着上移，否则组间距会被整段拉开。
+    _FANYI_TRANS_FOLLOW_GROUPS = (
+        "groupBox_llm",
+        "groupBox_82",
+    )
     # groupBox_83/84 之后所有需要跟着上移的组（都是绝对定位在内容控件上的）。
     _FANYI_FOLLOW_GROUPS = (
         "groupBox_84",
@@ -6629,9 +6637,22 @@ class MyMAinWindow(QMainWindow):
            顶16/行间各+16/底18，文字行顶落在 120；文字本身 14 行 × 20px = 280
            正好等于标签高度，最后一行贴着组框内框。用户要求「整体上移一行，
            同时从底部去掉一行高度」。
+        ③ 翻译引擎组（groupBox_trans）「DeepLX URL」与提示文字
+           label_baidu_hint 之间空着一整行，其下的「百度 APP / 百度密钥」两行
+           被整体下推（用户截图：提示词向上移动一行，百度 APP、百度密钥同步
+           向上移动一行）。真机实测（windows 平台，YaHei UI 9pt）：容器
+           layoutWidget_2 高 280，而各行真实需要只有 218（勾选行/输入行各 30、
+           两行说明文字各 16、行间 6×6）；gridLayout_32 末尾没有 Expanding
+           间隔，多出来的 62px 就全灌进独占一行的 label_baidu_hint（垂直策略
+           Preferred + wordWrap 的 heightForWidth 有效，且是该行唯一控件），
+           文字被垂直居中 → 上下各空、下面两行被推下去。与 ①② 同根因。
 
         做法（与 _sync_naming_template_section 同款：设计基准 + 增量，幂等
         不累积漂移）：
+          0) 先收紧翻译引擎组：两行说明文字按墨迹高度贴合（纯宽度函数，见
+             _label_ink_height_for_width）→ 容器高度钉成网格 sizeHint → 组高
+             = 容器底 + _FANYI_TRANS_BOT_PAD；其后所有组（含简介组自身）按这个
+             收缩量上移。放在最前面做，后面的增量都在它之上累加。
           1) 量「真实绘制高度」前必须先解除上一轮的固定高度，否则量到的是被裁
              的残缺高度（会越量越小、最后裁字）。富文本标签取 painted 与
              heightForWidth 的较大者——heightForWidth 对富文本才准。
@@ -6646,24 +6667,59 @@ class MyMAinWindow(QMainWindow):
             return
         intro, actor = ui.groupBox_83, ui.groupBox_84
         hint, story = ui.label_176, ui.label_249
-        g_intro, g_actor = ui.gridLayout_48, ui.gridLayout_50
+        trans = ui.groupBox_trans
+        trans_note, trans_hint = ui.label_164, ui.label_baidu_hint
+        g_intro, g_actor, g_trans = ui.gridLayout_48, ui.gridLayout_50, ui.gridLayout_32
         lw13, lw20, frame = ui.layoutWidget_13, ui.layoutWidget_20, ui.frame_5
+        lw2 = ui.layoutWidget_2
         # 休眠页零成本：没激活的页签不会给出真实视口，量出来的都是设计尺寸。
-        if not (intro.isVisibleTo(self) and actor.isVisibleTo(self)):
+        if not (trans.isVisibleTo(self) and intro.isVisibleTo(self) and actor.isVisibleTo(self)):
             return
-        if hint.width() <= 0 or story.width() <= 0:
+        if trans_note.width() <= 0 or trans_hint.width() <= 0 or hint.width() <= 0 or story.width() <= 0:
             return
 
         if self._fanyi_design is None:
+            shifted = (*self._FANYI_TRANS_FOLLOW_GROUPS, "groupBox_83", *self._FANYI_FOLLOW_GROUPS)
             self._fanyi_design = {
-                "groups": {n: getattr(ui, n).y() for n in self._FANYI_FOLLOW_GROUPS},
+                "groups": {n: getattr(ui, n).y() for n in shifted},
+                "trans_h": trans.height(),
                 "intro_h": intro.height(),
                 "actor_h": actor.height(),
             }
 
         self._fanyi_resyncing = True
         try:
-            # 1) 解除固定高度 → 量真实需要高度 → 重新钉上。
+            # 0) 翻译引擎组：两行说明文字按墨迹高度贴合 → 容器按网格 sizeHint 收紧。
+            #    label_baidu_hint 是独占一行的 wordWrap 标签（垂直策略 Preferred、
+            #    heightForWidth 有效），容器一富余它就把多出来的整段高度吃掉，
+            #    文字垂直居中、下面「百度 APP / 百度密钥」两行被整体下推（用户截图
+            #    里 DeepLX URL 与提示文字之间那整行空白）。先解除上一轮的固定高度
+            #    再量，避免量到被裁的残缺高度（越量越小、最后裁字）。
+            for lbl in (trans_note, trans_hint):
+                lbl.setMinimumHeight(0)
+                lbl.setMaximumHeight(16777215)
+            g_trans.invalidate()
+            g_trans.activate()
+            # 纯宽度函数（只吃 字体+文本+宽度）：墨迹高而非行盒高，多大宽度都刚好
+            # 贴住文字；行盒高会把用户圈出的空白原样留回来。
+            trans_note.setFixedHeight(self._label_ink_height_for_width(trans_note))
+            trans_hint.setFixedHeight(self._label_ink_height_for_width(trans_hint))
+            g_trans.invalidate()
+            g_trans.activate()
+
+            # 1) 翻译引擎组：容器按网格 sizeHint 收紧（末尾 Expanding 间隔吸收
+            #    残余富余，不会再有某一列被灌高），组高 = 容器底 + 固定底留白。
+            trans_lw_h = g_trans.sizeHint().height()
+            lw2.setGeometry(lw2.x(), lw2.y(), lw2.width(), trans_lw_h)
+            trans_h = lw2.y() + trans_lw_h + self._FANYI_TRANS_BOT_PAD
+            trans.setGeometry(trans.x(), trans.y(), trans.width(), trans_h)
+            delta_trans = self._fanyi_design["trans_h"] - trans_h
+            # 翻译引擎组之后、简介组之前的组按同一收缩量上移（组间距不变）。
+            for name in self._FANYI_TRANS_FOLLOW_GROUPS:
+                group = getattr(ui, name)
+                group.move(group.x(), self._fanyi_design["groups"][name] - delta_trans)
+
+            # 2) 简介/演员组：解除固定高度 → 量真实需要高度 → 重新钉上。
             for lbl in (hint, story):
                 lbl.setMinimumHeight(0)
                 lbl.setMaximumHeight(16777215)
@@ -6688,26 +6744,31 @@ class MyMAinWindow(QMainWindow):
             g_intro.activate()
             g_actor.activate()
 
-            # 2) 简介组：容器按网格 sizeHint 收紧，frame_5 跟着上移。
+            # 3) 简介组：容器按网格 sizeHint 收紧，frame_5 跟着上移。
+            #    y 按「设计基准 − 翻译引擎组收缩量」给，不吃当前值，幂等。
             intro_lw_h = g_intro.sizeHint().height()
             lw13.setGeometry(lw13.x(), lw13.y(), lw13.width(), intro_lw_h)
             frame.move(frame.x(), lw13.y() + intro_lw_h + self._FANYI_INTRO_GRID_GAP)
             intro_h = frame.y() + frame.height() + self._FANYI_BOX_BOT_PAD
-            intro.setGeometry(intro.x(), intro.y(), intro.width(), intro_h)
+            intro_y = self._fanyi_design["groups"]["groupBox_83"] - delta_trans
+            intro.setGeometry(intro.x(), intro_y, intro.width(), intro_h)
             delta_intro = self._fanyi_design["intro_h"] - intro_h
 
-            # 3) 演员组：容器按网格 sizeHint 收紧（行首留白已折进 topMargin）。
+            # 4) 演员组：容器按网格 sizeHint 收紧（行首留白已折进 topMargin）。
             actor_lw_h = g_actor.sizeHint().height()
             lw20.setGeometry(lw20.x(), lw20.y(), lw20.width(), actor_lw_h)
             actor_h = lw20.y() + actor_lw_h + self._FANYI_BOX_BOT_PAD
-            actor_y = self._fanyi_design["groups"]["groupBox_84"] - delta_intro
+            actor_y = self._fanyi_design["groups"]["groupBox_84"] - delta_trans - delta_intro
             actor.setGeometry(actor.x(), actor_y, actor.width(), actor_h)
             delta_actor = self._fanyi_design["actor_h"] - actor_h
 
-            # 4) 后续组按累计收缩量上移（设计基准 + 增量，反复调用不漂移）。
+            # 5) 后续组按累计收缩量上移（设计基准 + 增量，反复调用不漂移）。
             for name in self._FANYI_FOLLOW_GROUPS[1:]:
                 group = getattr(ui, name)
-                group.move(group.x(), self._fanyi_design["groups"][name] - delta_intro - delta_actor)
+                group.move(
+                    group.x(),
+                    self._fanyi_design["groups"][name] - delta_trans - delta_intro - delta_actor,
+                )
 
             # 宽幅登记表里存的是设计几何，同步宽度时会按登记值复位这些控件，
             # 这里只把 y/h 写回登记（与命名页画质组同一处理）。
@@ -6719,19 +6780,24 @@ class MyMAinWindow(QMainWindow):
             # 简介/演员框飞出窗口右缘，右侧大片空白）。设计宽度是登记表的唯一
             # 真值来源，只在 setupUi 的 setWidget 时刻采集过一次。
             registry = getattr(ui.scrollAreaWidgetContents_fanyi, "_wide_children_design", None)
+            # 本方法接管过的组：连 y 一起写回登记。y 也要写——组一收紧，后续组
+            # 的设计位就整体上移了（翻译引擎 −44、简介/演员各自再减），登记里若
+            # 仍留设计 y，宽幅同步会把它们按旧位复位，本方法与宽幅同步的先后
+            # 顺序就成了隐性依赖。
+            managed = {trans, intro, actor}
+            for name in (*self._FANYI_TRANS_FOLLOW_GROUPS, *self._FANYI_FOLLOW_GROUPS):
+                managed.add(getattr(ui, name))
             for entry in registry or ():
-                if entry.widget is intro:
-                    ex, ey, ew, _eh = entry.geometry
-                    entry.geometry = (ex, ey, ew, intro_h)
-                    continue
-                if entry.widget is actor:
+                if entry.widget in managed:
                     ex, _ey, ew, _eh = entry.geometry
-                    entry.geometry = (ex, actor_y, ew, actor_h)
-                    continue
+                    entry.geometry = (ex, entry.widget.y(), ew, entry.widget.height())
                 # 组内绝对定位的容器：登记 y/h，避免宽幅同步按设计值把收紧后的
                 # 高度又撑回去（那会让本方法与宽幅同步的先后顺序成为隐性依赖）。
                 for item in entry.inner:
-                    if item.widget is lw13:
+                    if item.widget is lw2:
+                        ix, _iy, iw, _ih = item.geometry
+                        item.geometry = (ix, lw2.y(), iw, trans_lw_h)
+                    elif item.widget is lw13:
                         ix, _iy, iw, _ih = item.geometry
                         item.geometry = (ix, lw13.y(), iw, intro_lw_h)
                     elif item.widget is lw20:
