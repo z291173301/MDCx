@@ -199,22 +199,33 @@ def test_engine_group_constants_pinned(win):
     assert isinstance(item, QLayoutItem) and isinstance(item.spacerItem(), QSpacerItem)
     spacer = item.spacerItem()
     assert spacer.sizePolicy().verticalPolicy() == spacer.sizePolicy().Policy.Expanding
+    # sizeHint 高必须是 0：间隔靠 Expanding 吸收残余富余，它自身的 sizeHint 高度
+    # 会被 gridLayout_32 算进 sizeHint，从而在「百度密钥」下方留出一段死空白
+    # （用户截图反馈过的第二处空白：改前 20px）。
+    assert spacer.sizeHint().height() == 0, spacer.sizeHint()
 
 
 def test_engine_group_baidu_rows_moved_up(win, app):
     """百度 APP / 百度密钥两行必须跟着提示词一起上移（用户原始诉求）。
 
-    判据取「百度两行底 与 组框内框底 的距离」：设计值下留白只有 10px，
-    提示词行吃掉 62px 富余时该距离会涨到 60px 以上。
+    判据取「百度密钥行底 与 组框底 的距离」：只允许组底那 10px 固定留白，
+    多一点就说明网格末尾 Expanding 间隔把富余吃在了末行下方
+    （提示词行吃富余时该距离是 60px，间隔 sizeHint 非 0 时是 30px）。
     """
     win.show()
     _goto_fanyi(win, app)
     win.resize(1030, 760)
     app.processEvents()
     _settle(win, app)
+    from mdcx.controllers.main_window.main_window import MyMAinWindow as MW
+
     ui = win.Ui
     box = ui.groupBox_trans
     lw = ui.layoutWidget_2
     key_bottom = lw.y() + ui.lineEdit_baidu_key.y() + ui.lineEdit_baidu_key.height()
     bottom_pad = box.height() - key_bottom
-    assert bottom_pad <= 30, bottom_pad
+    assert bottom_pad == MW._FANYI_TRANS_BOT_PAD, bottom_pad
+    # 容器高度必须正好被各行占满：末尾 Expanding 间隔的 sizeHint 若不为 0，
+    # 就会在这行下面留出死空白（用户第二次反馈的那段空白）。
+    row_bottom = ui.lineEdit_baidu_key.y() + ui.lineEdit_baidu_key.height()
+    assert lw.height() == row_bottom, (lw.height(), row_bottom)

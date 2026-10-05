@@ -6990,7 +6990,7 @@ class Ui_MDCx(object):
         self.label_80.setObjectName("label_80")
         self.gridLayout_32.addWidget(self.label_80, 3, 0, 1, 1)
         spacerItem7 = QtWidgets.QSpacerItem(
-            20, 20, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
+            20, 0, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding
         )
         self.gridLayout_32.addItem(spacerItem7, 7, 0, 1, 2)
         self.groupBox_llm = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_fanyi)

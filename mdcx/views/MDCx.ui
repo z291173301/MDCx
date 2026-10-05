@@ -14982,7 +14982,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="sizeHint" stdset="0">
                               <size>
                                 <width>20</width>
-                                <height>20</height>
+                                <height>0</height>
                               </size>
                             </property>
                           </spacer>
