@@ -295,7 +295,7 @@ async def test_call_bypass_mirror_returns_error_on_http_status():
     )
 
     assert response is None
-    assert error == "mirror HTTP 404"
+    assert error == "HTTP 404"
 
 
 @pytest.mark.asyncio
@@ -494,7 +494,7 @@ async def test_try_bypass_cloudflare_skips_html_fallback_for_terminal_mirror_htt
     async def fake_call_bypass_mirror(**kwargs):
         nonlocal mirror_call_count
         mirror_call_count += 1
-        return None, "mirror HTTP 404"
+        return None, "HTTP 404"
 
     async def fake_call_bypass_html(target_url: str, *, use_proxy: bool, bypass_cache: bool = False):
         nonlocal html_call_count
