@@ -511,7 +511,7 @@ async def _probe_crawler_capability_with_retry(
     for attempt in range(attempts):
         timeout = scrape_probe_attempt_timeout(attempt)
         if attempt:
-            emit(f"  ↳ {spec.name}第{attempt + 1}/{attempts}次刮削探测超时上限{timeout:.0f}s")
+            emit(f"   ↳      {spec.name}第{attempt + 1}/{attempts}次刮削探测，超时上限{timeout:.0f}s")
         status, message = await _probe_crawler_capability(client, spec, timeout)
         if status is None or not _is_transient_probe_result(message):
             return status, message
@@ -524,7 +524,7 @@ async def _probe_crawler_capability_with_retry(
     if all_timed_out:
         return (
             NetworkCheckStatus.WARNING,
-            f"站点可达但刮削探测{attempts}次{ladder}均超时，判定该站刮削探测无效",
+            f"站点探测{attempts}次{ladder}均超时，该站点无效",
         )
     return (
         NetworkCheckStatus.WARNING,
@@ -1076,7 +1076,7 @@ async def run_network_check_item(
                     except Exception:
                         fallback_bypass_mode = ""
                 else:
-                    error = f"{error}（CloudFlare Bypass兜底亦失败，错误HTTP500、HTTP502）"
+                    error = f"{error}，CloudFlare Bypass兜底亦失败：HTTP500、HTTP502"
         if response is None:
             clean_error = _clean_error(error)
             message = _message_for_error(clean_error)
