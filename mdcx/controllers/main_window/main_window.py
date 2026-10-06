@@ -18,6 +18,7 @@ from PyQt6.QtGui import (
     QColor,
     QCursor,
     QFontMetrics,
+    QFontMetricsF,
     QGuiApplication,
     QHoverEvent,
     QIcon,
@@ -147,8 +148,20 @@ WINDOWS_RESERVED_DIR_NAMES = {
 }
 DEFAULT_LINK_DIR_NAME = "unnamed"
 
+# 检测网络面板「=」分隔线的字符数上下限与兜底值。QSS 里 #textBrowser_net_main 是
+# Consolas 13px 等宽（实测单字宽 7px），按可视宽取整除即可铺满右边缘。
+_NET_SEP_FALLBACK = 88  # 量不到可视宽时的历史值
+_NET_SEP_MIN = 40  # 极窄窗口下的下限，保证不塌成一条短杠
+_NET_SEP_MAX = 400  # 超宽屏兜顶，避免误量出成百上千个
+_NET_SEP_VIEWPORT_SLACK = 64  # 可视宽与控件宽的合法差（边框 + QSS padding + 滚动条）
+_NET_SEP_TEXT_PADDING = 4  # QSS `padding: 2px, 2px` 的左右合计
+
 
 class MyMAinWindow(QMainWindow):
+    # 检测网络面板首屏只发一次；分隔线字符数随之只量一次并缓存（两态相同）。
+    _net_startup_emitted = False
+    _net_separator_chars_cache: int = 0
+
     # region 信号量
     main_logs_show = pyqtSignal(str)  # 显示刮削日志信号
     main_logs_clear = pyqtSignal(str)  # 清空刮削日志信号
@@ -475,14 +488,9 @@ class MyMAinWindow(QMainWindow):
 
         # region 启动显示信息和后台检查更新
         self.show_scrape_info()  # 主界面左下角显示一些配置信息
-        self.show_net_info("\n🏠 代理设置在:【设置】 - 【网络】 - 【网络设置】。")
-        show_netstatus()  # 检查网络界面显示当前网络代理信息
-        self.show_net_info(
-            "\n💡 Cloudflare Bypass：【设置】-【网络】-【外部CF服务】填写TRAWL/FlareSolverr服务地址生效，例如http://127.0.0.1:8191\n"
-            "▶️ 点击右上角 【开始检测】按钮以测试网络连通性。"
-        )
-        signal_qt.add_log("🍯 你可以点击左下角的图标来 显示 / 隐藏 请求信息面板！")
-        run_startup_health_checks()  # 启动自检：配置目录可写/代理可达/TMDB key
+        # 检测网络面板的首屏文字（代理状态块 + CF Bypass 提示 + 启动自检）不在这里发，
+        # 改由 showEvent 推迟一拍走 _emit_net_startup_panel：分隔线「=」的字符数要按
+        # 还原态的真实可视宽算，而此刻窗口还没 resize 到默认尺寸、文本区仍是 .ui 设计宽。
         self.show_version()  # 日志页面显示版本信息
         self.creat_right_menu()  # 加载右键菜单
         self.pushButton_main_clicked()  # 切换到主界面
@@ -800,9 +808,67 @@ class MyMAinWindow(QMainWindow):
         if not self._did_apply_initial_size:
             self._did_apply_initial_size = True
             self._apply_adaptive_default_size()  # 首次显示时按屏幕自适应默认窗口大小并居中
+        # 检测网络面板首屏推迟一拍发：_apply_adaptive_default_size() 里的 resize 只把
+        # resizeEvent 排进队列，文本区几何要等该事件被派发才落定（resizeEvent →
+        # _sync_page_layouts 里同步 setGeometry）。此刻量到的还是 .ui 设计宽，会让分隔线
+        # 多算字符而在默认态折行，故挂 singleShot 等首帧之后再量（见 _net_separator_chars）。
+        # 用 _net_startup_emitted 兜住托盘隐藏/再显示时 showEvent 重复触发。
+        if not self._net_startup_emitted:
+            self._net_startup_emitted = True
+            QTimer.singleShot(0, self._emit_net_startup_panel)
         # 拖到别的显示器 / 改分辨率后重算：放不下当前屏幕的高分屏缩放档位要重新隐藏
         apply_ui_scale_option_limits(self.Ui.comboBox_ui_scale, self.screen())
         super().showEvent(a0)
+
+    def _net_separator_chars(self) -> int:
+        """检测网络面板「=」分隔线的字符数：量一次并缓存，两态保持相同。
+
+        这段文字是启动时一次性打印的固定字符串，最大化/还原都不会重新渲染，
+        故字符数只由首次（还原态）量一次并复用——否则两态字符数会不一致。
+
+        该文本框在 QSS 里是 Consolas 13px 等宽（实测单字宽 7px），按「可视宽 ÷
+        单字宽」取整除即可把分隔线铺到右边缘，且不会超出可视宽而折行。
+        """
+        cached = self._net_separator_chars_cache
+        if cached:
+            return cached
+        browser = self.Ui.textBrowser_net_main
+        width = 0
+        try:
+            viewport = browser.viewport()
+            # viewport 宽与控件宽的差只可能是「边框 + QSS padding + 滚动条」，
+            # 超出这个范围说明还没随几何落定，改用控件宽兜底。
+            if 0 < browser.width() - viewport.width() <= _NET_SEP_VIEWPORT_SLACK:
+                width = viewport.width()
+            elif browser.width() > 0:
+                width = browser.width() - _NET_SEP_TEXT_PADDING
+            bar = browser.verticalScrollBar()
+            if width and bar.isVisible():
+                width -= bar.width()
+        except Exception:
+            width = 0
+        advance = QFontMetricsF(browser.font()).horizontalAdvance("=") if width > 0 else 0
+        count = int(width // advance) if advance > 0 else 0
+        if count <= 0:
+            count = _NET_SEP_FALLBACK
+        count = max(_NET_SEP_MIN, min(count, _NET_SEP_MAX))
+        self._net_separator_chars_cache = count
+        return count
+
+    def _emit_net_startup_panel(self) -> None:
+        """首帧之后发检测网络面板的启动文字（原先在 __init__ 里直接发）。"""
+        try:
+            sep = self._net_separator_chars()
+            self.show_net_info("\n🏠 代理设置在:【设置】 - 【网络】 - 【网络设置】。")
+            show_netstatus(sep)  # 检查网络界面显示当前网络代理信息
+            self.show_net_info(
+                "💡 Cloudflare Bypass：【设置】-【网络】-【外部CF服务】填写TRAWL/FlareSolverr服务地址生效，例如http://127.0.0.1:8191\n"
+                "▶️ 点击右上角 【开始检测】按钮以测试网络连通性。"
+            )
+            signal_qt.add_log("🍯 你可以点击左下角的图标来 显示 / 隐藏 请求信息面板！")
+            run_startup_health_checks()  # 启动自检：配置目录可写/代理可达/TMDB key
+        except Exception:
+            signal_qt.show_traceback_log(traceback.format_exc())
 
     def _apply_adaptive_default_size(self) -> None:
         """默认尺寸按所在屏可用区自适应（min(1030, 可用宽×0.9) × min(700, 可用高×0.85)），并居中。
@@ -852,6 +918,13 @@ class MyMAinWindow(QMainWindow):
     # 窗口缩放时，需要用子页面内容的实际高度来自定义 MDCx 中央区域的高度
     _CONTENT_TOP_OFFSET = 6
     _CONTENT_BOTTOM_MARGIN = 2
+
+    # 软件界面「清空结果列表」刷子按钮与结果树左缘的固定间距（设计态 760 - 600）。
+    # 结果树左缘 tree_x = main_w - tree_w - 18、树宽 tree_w = int(202 × main_w/820)
+    # 随窗口拉伸，故把刷子钉在「树左缘 + 本常量」上、而不是钉在页面右缘：
+    # 树内首行「成功」两字的左缘恒为「树左缘 + 固定缩进」，于是刷子与「成功」的
+    # 间距在最大化/还原两态完全一致（最大化不再随树拉伸而越拉越远）。
+    _MAIN_TREE_CLEAR_DX = 160
 
     # 高级页「界面外观」行的 layoutWidget5 设计宽度（MDCx.ui 里
     # QRect(0,-10,550,51)）。最大化时该容器要临时加宽以对齐，见
@@ -4779,7 +4852,11 @@ class MyMAinWindow(QMainWindow):
         ui.label_result.move(_tree_x if _maxed else max(main_w - 211 - 9, 300), 70)
         ui.treeWidget_number.move(_tree_x, 110)
         ui.treeWidget_number.resize(tree_w, max(ui.treeWidget_number.height(), 100))
-        ui.pushButton_tree_clear.move(max(main_w - 20 - 40, 300), 110)
+        # 刷子按钮（清空结果列表）：最大化时钉在结果树左缘右侧固定 _MAIN_TREE_CLEAR_DX，
+        # 使它与树内「成功」两字的间距同还原态一致；还原/最小化态沿用贴右缘原位
+        # （设计态 main_w=820 时两者同为 760，双向幂等）。
+        _brush_x = _tree_x + self._MAIN_TREE_CLEAR_DX if _maxed else max(main_w - 20 - 40, 300)
+        ui.pushButton_tree_clear.move(min(_brush_x, max(main_w - ui.pushButton_tree_clear.width(), 0)), 110)
         # 选择目录按钮跟随开始按钮左移，保持 14px 视觉间距（设计 666 与 680 之间）
         ui.pushButton_select_media_folder.move(max(ui.pushButton_start_cap.x() - 101 - 14, 20), 13)
 
