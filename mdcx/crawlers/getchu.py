@@ -180,7 +180,7 @@ class GetchuCrawler(BaseCrawler):
 
             html_search, error = await self.async_client.get_text(search_url, encoding="euc-jp")
             if html_search is None:
-                raise CrawlerException(f"网络请求错误: {error}")
+                raise CrawlerException(f"请求错误:{error}")
             html = etree.fromstring(html_search, etree.HTMLParser())
             # 单次选 a 元素再分别取 href/text：两个独立 XPath 列表按下标配对，
             # a 内含 <br>/<b> 等嵌套时 text() 数量与 href 不一致，错位配对或
@@ -205,7 +205,7 @@ class GetchuCrawler(BaseCrawler):
         ctx.debug_info.detail_urls = [real_url]
         html_content, error = await self.async_client.get_text(real_url, encoding="euc-jp")
         if html_content is None:
-            raise CrawlerException(f"网络请求错误: {error}")
+            raise CrawlerException(f"请求错误:{error}")
         html_info = etree.fromstring(html_content, etree.HTMLParser())
         continue_url = get_attestation_continue_url(html_info)
         if continue_url:
@@ -214,7 +214,7 @@ class GetchuCrawler(BaseCrawler):
             ctx.debug_info.detail_urls.append(real_url)
             html_content, error = await self.async_client.get_text(real_url, encoding="euc-jp")
             if html_content is None:
-                raise CrawlerException(f"网络请求错误: {error}")
+                raise CrawlerException(f"请求错误:{error}")
             html_info = etree.fromstring(html_content, etree.HTMLParser())
 
         title = get_title(html_info)

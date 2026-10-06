@@ -98,7 +98,7 @@ def get_series(html):
 async def retry_request(client, real_url):
     html_content, error = await client.get_text(real_url)
     if html_content is None:
-        raise CrawlerException(f"网络请求错误: {error}")
+        raise CrawlerException(f"请求错误:{error}")
     html_info = etree.fromstring(html_content, etree.HTMLParser())
     title = get_title(html_info)
     if not title:
@@ -169,7 +169,7 @@ class AiravCcCrawler(BaseCrawler):
             ctx.debug_info.search_urls = [search_url]
             html_search, error = await self.async_client.get_text(search_url)
             if html_search is None:
-                raise CrawlerException(f"网络请求错误: {error}")
+                raise CrawlerException(f"请求错误:{error}")
             html = etree.fromstring(html_search, etree.HTMLParser())
             real_urls = html.xpath('//div[@class="col oneVideo"]//a[@href]/@href')
             if not real_urls:

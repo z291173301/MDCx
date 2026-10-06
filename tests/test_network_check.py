@@ -576,13 +576,13 @@ def test_format_result_line_does_not_duplicate_error():
     result = NetworkCheckResult(
         spec=spec,
         status=NetworkCheckStatus.FAILED,
-        message="GET https://example.test 失败: HTTP 403",
-        error="GET https://example.test 失败: HTTP 403",
+        message="GET https://example.test 失败:HTTP 403",
+        error="GET https://example.test 失败:HTTP 403",
     )
 
     line = format_result_line(result)
 
-    assert line.count("GET https://example.test 失败: HTTP 403") == 1
+    assert line.count("GET https://example.test 失败:HTTP 403") == 1
 
 
 @pytest.mark.anyio
@@ -653,7 +653,7 @@ async def test_run_network_check_item_actively_uses_cf_bypass_on_challenge(monke
     result = await run_network_check_item(spec, client=client)
 
     assert result.status == NetworkCheckStatus.OK
-    assert result.message == "连接正常，顺利通过CF Bypass页面挑战"
+    assert result.message == "连接正常，通过挑战"
     assert client.bypass_calls[0]["target_url"] == "https://cf.example"
     assert client.bypass_calls[0]["headers"] == {"cookie": "a=b"}
     assert client.bypass_calls[0]["timeout"] is None

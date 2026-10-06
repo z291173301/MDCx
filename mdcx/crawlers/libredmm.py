@@ -255,7 +255,7 @@ class LibredmmCrawler(BaseCrawler):
         # 如果直接 URL 返回 404，尝试通过搜索查找
         if html_content is None:
             if "404" not in str(error):
-                raise CrawlerException(f"网络请求错误: {error}")
+                raise CrawlerException(f"请求错误:{error}")
 
             # 直接 URL 不存在，尝试搜索（搜索会重定向到匹配的详情页）
             search_url = f"{self.base_url}/search?q={number}"

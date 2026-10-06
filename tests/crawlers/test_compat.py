@@ -144,7 +144,7 @@ async def test_rotate_stops_on_real_http_404():
 
         async def get_text(self, url, **kwargs):
             self.calls.append(url)
-            return None, f"GET {url} 失败: HTTP 404 body=<html>not found</html>"
+            return None, f"GET {url} 失败:HTTP 404 body=<html>not found</html>"
 
     client = _Http404Client()
     crawler = _RotatingCrawler(client=client)

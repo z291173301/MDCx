@@ -262,7 +262,7 @@ class IqqtvCrawler(BaseCrawler):
             ctx.debug_info.search_urls.append(url_search)
             html_search, error = await self._get_text_with_rotate(ctx, url_search)
             if html_search is None:
-                raise CrawlerException(f"网络请求错误: {error}")
+                raise CrawlerException(f"请求错误:{error}")
             html = etree.fromstring(html_search, etree.HTMLParser())
             real_url = html.xpath('//a[@class="ga_click"]/@href')
             if real_url:
@@ -276,7 +276,7 @@ class IqqtvCrawler(BaseCrawler):
         ctx.debug(f"番号地址: {real_url}")
         html_content, error = await self._get_text_with_rotate(ctx, real_url)
         if html_content is None:
-            raise CrawlerException(f"网络请求错误: {error}")
+            raise CrawlerException(f"请求错误:{error}")
         html_info = etree.fromstring(html_content, etree.HTMLParser())
 
         title = get_title(html_info)

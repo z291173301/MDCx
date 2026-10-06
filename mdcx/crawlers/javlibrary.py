@@ -251,7 +251,7 @@ class JavlibraryCrawler(BaseCrawler):
                 if selenium_html:
                     html_search = selenium_html
                 elif html_search is None:
-                    raise CrawlerException(f"请求错误: {error}")
+                    raise CrawlerException(f"请求错误:{error}")
                 else:
                     raise CrawlerException("搜索结果: 被 Cloudflare 拦截，Selenium bypass 失败！")
             html = etree.fromstring(html_search, etree.HTMLParser())
@@ -268,7 +268,7 @@ class JavlibraryCrawler(BaseCrawler):
             if selenium_html:
                 html_info = selenium_html
             elif html_info is None:
-                raise CrawlerException(f"请求错误: {error}")
+                raise CrawlerException(f"请求错误:{error}")
             else:
                 raise CrawlerException("详情页: 被 Cloudflare 拦截，Selenium bypass 失败！")
 

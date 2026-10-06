@@ -193,7 +193,7 @@ class Fc2Crawler(BaseCrawler):
 
         html_content, error = await self.async_client.get_text(real_url)
         if html_content is None:
-            raise CrawlerException(f"网络请求错误: {error}")
+            raise CrawlerException(f"请求错误:{error}")
         html_info = etree.fromstring(html_content, etree.HTMLParser())
 
         if isNotFoundPage(html_info):

@@ -285,7 +285,7 @@ class TheporndbCrawler(BaseCrawler):
                 if res_search is None:
                     if "HTTP 401" in str(error):
                         raise CrawlerException("ThePornDB 返回 401，请检查 API Token 是否正确（设置-网络中填写）")
-                    raise CrawlerException(f"请求错误: {error}")
+                    raise CrawlerException(f"请求错误:{error}")
 
                 real_url = get_real_url(res_search, file_path, series_ex, date, kind)
                 if real_url:
@@ -299,7 +299,7 @@ class TheporndbCrawler(BaseCrawler):
         if res_real is None:
             if "HTTP 401" in str(error):
                 raise CrawlerException("ThePornDB 返回 401，请检查 API Token 是否正确（设置-网络中填写）")
-            raise CrawlerException(f"请求错误: {error}")
+            raise CrawlerException(f"请求错误:{error}")
 
         real_data = res_real.get("data")
         if not real_data:

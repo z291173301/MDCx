@@ -85,7 +85,7 @@ class PrestigeCrawler(BaseCrawler):
             ctx.debug_info.search_urls = [search_url]
             html_search, error = await self.async_client.get_json(search_url)
             if html_search is None:
-                raise CrawlerException(f"网络请求错误: {error}")
+                raise CrawlerException(f"请求错误:{error}")
             real_url = get_real_url(html_search, ctx.input.number)
             if not real_url:
                 raise CrawlerException("搜索结果: 未匹配到番号！")
@@ -95,7 +95,7 @@ class PrestigeCrawler(BaseCrawler):
         ctx.debug_info.detail_urls = [detail_url]
         page_data, error = await self.async_client.get_json(real_url)
         if page_data is None:
-            raise CrawlerException(f"网络请求错误: {error}")
+            raise CrawlerException(f"请求错误:{error}")
 
         title = page_data.get("title", "").replace("【配信専用】", "")
         if not title:

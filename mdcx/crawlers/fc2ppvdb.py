@@ -439,7 +439,7 @@ async def fetch_article_info_with_warmup(
     if response_article is None:
         return None, f"详情页请求失败: {error}"
     if response_article.status_code != 200:
-        return None, f"详情页请求失败: HTTP {response_article.status_code}"
+        return None, f"详情页请求失败:HTTP {response_article.status_code}"
     final_url = get_response_final_url(response_article)
     if "/login" in final_url:
         return None, f"详情页跳转到登录页，fc2ppvdb Cookie 未生效: {final_url}"

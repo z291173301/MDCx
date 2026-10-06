@@ -167,7 +167,7 @@ class MywifeCrawler(BaseCrawler):
             ctx.debug_info.search_urls = [search_url]
             html_content, error = await self.async_client.get_text(search_url)
             if html_content is None:
-                raise CrawlerException(f"网络请求错误: {error}")
+                raise CrawlerException(f"请求错误:{error}")
             html_info = etree.fromstring(html_content, etree.HTMLParser())
             first_url = get_first_url(html_info, key)
 
@@ -175,7 +175,7 @@ class MywifeCrawler(BaseCrawler):
                 ctx.debug(f"中间页地址: {first_url}")
                 html_content, error = await self.async_client.get_text(first_url)
                 if html_content is None:
-                    raise CrawlerException(f"网络请求错误: {error}")
+                    raise CrawlerException(f"请求错误:{error}")
                 html_info = etree.fromstring(html_content, etree.HTMLParser())
                 real_url = get_second_url(html_info)
                 if not real_url:
@@ -189,7 +189,7 @@ class MywifeCrawler(BaseCrawler):
         ctx.debug_info.detail_urls = [real_url]
         html_content, error = await self.async_client.get_text(real_url)
         if html_content is None:
-            raise CrawlerException(f"网络请求错误: {error}")
+            raise CrawlerException(f"请求错误:{error}")
         html_info = etree.fromstring(html_content, etree.HTMLParser())
         number, title = get_title(html_info)
         if not title:

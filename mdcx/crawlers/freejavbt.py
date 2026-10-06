@@ -367,7 +367,7 @@ class FreejavbtCrawler(BaseCrawler):
 
         html_info, error = await self._get_text_with_rotate(ctx, real_url)
         if html_info is None:
-            raise CrawlerException(f"请求错误: {error}")
+            raise CrawlerException(f"请求错误:{error}")
         if not html_info:
             raise CrawlerException("未匹配到番号！")
 

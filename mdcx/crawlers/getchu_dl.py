@@ -77,7 +77,7 @@ async def scrape_dl_getchu(client, number: str, appoint_url: str = "", ctx: Cont
 
         html_search, error = await client.get_text(search_url, cookies=cookies, encoding="euc-jp")
         if html_search is None:
-            raise CrawlerException(f"网络请求错误: {error}")
+            raise CrawlerException(f"请求错误:{error}")
         html = etree.fromstring(html_search, etree.HTMLParser())
         res_list = html.xpath("//table/tr/td[@valign='top' and not (@align)]/div/a")
         for each in res_list:
@@ -94,7 +94,7 @@ async def scrape_dl_getchu(client, number: str, appoint_url: str = "", ctx: Cont
         ctx.debug_info.detail_urls.append(real_url)
     html_content, error = await client.get_text(real_url, cookies=cookies, encoding="euc-jp")
     if html_content is None:
-        raise CrawlerException(f"网络请求错误: {error}")
+        raise CrawlerException(f"请求错误:{error}")
     html_info = etree.fromstring(html_content, etree.HTMLParser())
     number = "DLID-" + re.findall(r"\d+", real_url)[0]
     title = get_title(html_info)

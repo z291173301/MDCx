@@ -57,9 +57,9 @@ def test_clean_failure_logged_with_reason_and_collected():
     """失败回调: 原因逐条进日志、进 _clean_failed; 内存原值保持(可重试)。"""
     actors = [_make_actor("失败者")]
     ns, logs, dialog_cls = _fake_dialog(actors)
-    dialog_cls._on_clean_actor_done(ns, "id-失败者", False, "❌ 失败者 数据清洗失败: HTTP 400 bad date")
+    dialog_cls._on_clean_actor_done(ns, "id-失败者", False, "❌ 失败者 数据清洗失败:HTTP 400 bad date")
     assert any("HTTP 400 bad date" in line for line in logs), "失败原因必须落日志"
-    assert ns._clean_failed == [("id-失败者", "❌ 失败者 数据清洗失败: HTTP 400 bad date")]
+    assert ns._clean_failed == [("id-失败者", "❌ 失败者 数据清洗失败:HTTP 400 bad date")]
     assert actors[0].existing_overview == "旧简介", "失败不得改内存值"
 
 

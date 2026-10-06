@@ -653,7 +653,7 @@ async def delete_actor_image(actor: ActorInfo) -> tuple[bool, str]:
     if status in (200, 204, 404):
         # 200/204 删除成功; 404 表示本来就没有, 也视为"删干净了"以便后续上传
         return True, f"✅ {actor.name} 旧头像已删除 (HTTP {status})"
-    return False, f"❌ {actor.name} 删除旧头像失败: HTTP {status}"
+    return False, f"❌ {actor.name} 删除旧头像失败:HTTP {status}"
 
 
 async def delete_actor_backdrop(actor: ActorInfo) -> tuple[bool, str]:
@@ -671,7 +671,7 @@ async def delete_actor_backdrop(actor: ActorInfo) -> tuple[bool, str]:
     status = int(resp.status_code)
     if status in (200, 204, 404):
         return True, f"✅ {actor.name} 旧背景已删除 (HTTP {status})"
-    return False, f"❌ {actor.name} 删除旧背景失败: HTTP {status}"
+    return False, f"❌ {actor.name} 删除旧背景失败:HTTP {status}"
 
 
 async def upload_actor_backdrop(actor: ActorInfo, image_path: str | Path) -> tuple[bool, str]:

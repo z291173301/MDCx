@@ -494,7 +494,7 @@ class JavbusCrawler(BaseCrawler):
         htmlcode, error = await self._get_text_with_rotate(ctx, real_url, headers)
         if htmlcode is None:
             if "404" not in str(error) or "." in number:
-                raise CrawlerException(f"网络请求错误: {error}")
+                raise CrawlerException(f"请求错误:{error}")
             if is_plain_uncensored_mosaic(mosaic):
                 real_url = await get_real_url(self.async_client, ctx, number, "uncensored", self.base_url, headers)
             else:
