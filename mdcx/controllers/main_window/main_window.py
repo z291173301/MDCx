@@ -885,7 +885,7 @@ class MyMAinWindow(QMainWindow):
             self.show_net_info("\n🏠 代理设置在:【软件设置】-【网络】-【网络设置】")
             show_netstatus(sep)  # 检查网络界面显示当前网络代理信息
             self.show_net_info(
-                "💡 Cloudflare Bypass：【软件设置】-【网络】-【外部CF服务】填写TRAWL/FlareSolverr服务地址，如http://127.0.0.1:8191\n"
+                "💡 CF Bypass：【软件设置】-【网络】-【外部CF服务】填写TRAWL/FlareSolverr服务地址，如http://127.0.0.1:8191\n"
                 "▶️ 点击右上角【开始检测】按钮开始测试网络连通性"
             )
             signal_qt.add_log("🍯 你可以点击左下角的图标来 显示 / 隐藏 请求信息面板！")
