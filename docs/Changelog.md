@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.2.8 (2026-10-06)
+
+### 新增
+
+- **软件设置-刮削网站-锁定类型下拉框**新增「动漫」选项（置于「国产」下方），实现相关功能：
+  - `FixedScrapingType.DONGMAN`（`enums.py`），`names()` 新增「动漫」
+  - `Config.website_dongman` 默认 `[GETCHU, JAVDB, JAVDB_API]`（`models.py`）
+  - `SCRAPING_TYPE_SITE_FIELDS` 与 `CONFIGURABLE_SCRAPING_TYPES` 新增 `DONGMAN` 映射
+  - `core/file_crawler.py` `fixed_sites` 增加 `DONGMAN` 分支
+  - `load_config.py` / `save_config.py` 下拉框索引同步（`_type_values` 第 7 项 `dongman`）
+  - `MDCx.ui` / `MDCx.py` 下拉框新增第 7 项「动漫」
+  - `site_priority_dialog.py` `TYPE_TITLES` 补充 `FixedScrapingType.DONGMAN: "动漫里番"`
+
 ## v2.2.7 (2026-10-08)
 
 ### 调整
