@@ -252,7 +252,9 @@ class GenericBaseCrawler[T: Context = Context](ABC):
                 ctx.debug(f"详情页 URL: {detail_urls}")
                 return detail_urls if isinstance(detail_urls, list) else [detail_urls]
             reasons.append("搜索页未解析到结果")
-        raise CrawlerException(f"搜索失败: {' | '.join(reasons)[:400]}")
+        # 去重：所有搜索 URL 都返回相同原因时只显示一次
+        unique_reasons = list(dict.fromkeys(reasons))
+        raise CrawlerException(f"搜索失败: {' | '.join(unique_reasons)[:400]}")
 
     async def _detail(self, ctx: T, detail_urls: list[str]) -> CrawlerData | None:
         for detail_url in detail_urls:

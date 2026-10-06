@@ -270,7 +270,7 @@ async def test_run_network_check_item_retries_probe_within_first_round(monkeypat
 
     assert seen == [30.0, 45.0], "单项检测必须走满轮内阶梯"
     assert result.status == NetworkCheckStatus.WARNING
-    assert "2 次均超时" in result.message
+    assert "2次均超时" in result.message
     assert any("avbase 第 2/2 次刮削探测" in line for line in lines), lines
 
 
@@ -337,7 +337,7 @@ def test_format_summary_groups_failure_causes():
         ),
         r("getchu", NetworkCheckStatus.FAILED, "HTTP 403 请求被拒绝：当前节点出口 IP 可能被站点封禁"),
         r("javdb_api", NetworkCheckStatus.FAILED, "TLS 握手中断"),
-        r("avbase", NetworkCheckStatus.WARNING, "站点可达但刮削探测 2 次均超时（30s/45s），判定该站刮削探测无效"),
+        r("avbase", NetworkCheckStatus.WARNING, "站点可达但刮削探测2次均超时（30s/45s），判定该站刮削探测无效"),
         r("ok", NetworkCheckStatus.OK, "连接正常"),
     ]
     lines = format_summary(results, elapsed=5.0, cancelled=False)
@@ -923,7 +923,7 @@ async def test_probe_retry_two_timeouts_declares_probe_invalid(monkeypatch: pyte
 
     assert seen == [30.0, 45.0]
     assert status == NetworkCheckStatus.WARNING
-    assert "2 次均超时" in message
+    assert "2次均超时" in message
     assert "30s/45s" in message
     assert "判定该站刮削探测无效" in message
 

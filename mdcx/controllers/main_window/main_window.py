@@ -155,6 +155,7 @@ _NET_SEP_MIN = 40  # 极窄窗口下的下限，保证不塌成一条短杠
 _NET_SEP_MAX = 400  # 超宽屏兜顶，避免误量出成百上千个
 _NET_SEP_VIEWPORT_SLACK = 64  # 可视宽与控件宽的合法差（边框 + QSS padding + 滚动条）
 _NET_SEP_TEXT_PADDING = 4  # QSS `padding: 2px, 2px` 的左右合计
+_NET_SEP_SCROLLBAR_FALLBACK = 16  # 量不到滚动条宽时的兜底（QSS 里竖向滚动条固定 16px）
 
 
 class MyMAinWindow(QMainWindow):
@@ -828,6 +829,12 @@ class MyMAinWindow(QMainWindow):
 
         该文本框在 QSS 里是 Consolas 13px 等宽（实测单字宽 7px），按「可视宽 ÷
         单字宽」取整除即可把分隔线铺到右边缘，且不会超出可视宽而折行。
+
+        竖向滚动条必须提前预留：首屏只有几行字，面板装得下、滚动条尚未出现，
+        此刻量到的可视宽是「没有滚动条」时的宽度；等用户点【开始检测】把几十行
+        站点结果灌进来，滚动条弹出、可视宽会窄掉一个滚动条宽（实测 16px），
+        此前发出的分隔线就会超出可视宽、被折成两行。故不论滚动条此刻显不显示，
+        一律先扣掉一个滚动条宽度，保证两态都不会折行。
         """
         cached = self._net_separator_chars_cache
         if cached:
@@ -839,12 +846,15 @@ class MyMAinWindow(QMainWindow):
             # viewport 宽与控件宽的差只可能是「边框 + QSS padding + 滚动条」，
             # 超出这个范围说明还没随几何落定，改用控件宽兜底。
             if 0 < browser.width() - viewport.width() <= _NET_SEP_VIEWPORT_SLACK:
+                # viewport 已排除滚动条占位（显示时），直接用；未显示时预留出来。
                 width = viewport.width()
+                if not browser.verticalScrollBar().isVisible():
+                    width -= self._net_scrollbar_reserve(browser.verticalScrollBar())
             elif browser.width() > 0:
+                # 兜底宽（控件宽 - padding）含滚动条占位，需自行扣减。
                 width = browser.width() - _NET_SEP_TEXT_PADDING
-            bar = browser.verticalScrollBar()
-            if width and bar.isVisible():
-                width -= bar.width()
+                bar = browser.verticalScrollBar()
+                width -= bar.width() if bar.isVisible() else self._net_scrollbar_reserve(bar)
         except Exception:
             width = 0
         advance = QFontMetricsF(browser.font()).horizontalAdvance("=") if width > 0 else 0
@@ -855,6 +865,19 @@ class MyMAinWindow(QMainWindow):
         self._net_separator_chars_cache = count
         return count
 
+    @staticmethod
+    def _net_scrollbar_reserve(bar) -> int:
+        """竖向滚动条出现时要占掉的宽度（此刻通常还没显示）。
+
+        QSS 里 `QScrollBar:vertical { width: 16px; }` 是固定宽，`sizeHint()` 能直接
+        量到（实测 16）；量不到时退回常量兜底，保证预留一定不为 0。
+        """
+        try:
+            hint = bar.sizeHint().width()
+        except Exception:
+            hint = 0
+        return max(hint, _NET_SEP_SCROLLBAR_FALLBACK)
+
     def _emit_net_startup_panel(self) -> None:
         """首帧之后发检测网络面板的启动文字（原先在 __init__ 里直接发）。"""
         try:
@@ -862,7 +885,7 @@ class MyMAinWindow(QMainWindow):
             self.show_net_info("\n🏠 代理设置在:【软件设置】-【网络】-【网络设置】")
             show_netstatus(sep)  # 检查网络界面显示当前网络代理信息
             self.show_net_info(
-                "💡 Cloudflare Bypass：【设置】-【网络】-【外部CF服务】填写TRAWL/FlareSolverr服务地址生效，例如http://127.0.0.1:8191\n"
+                "💡 Cloudflare Bypass：【软件设置】-【网络】-【外部CF服务】填写TRAWL/FlareSolverr服务地址，如http://127.0.0.1:8191\n"
                 "▶️ 点击右上角【开始检测】按钮开始测试网络连通性"
             )
             signal_qt.add_log("🍯 你可以点击左下角的图标来 显示 / 隐藏 请求信息面板！")
