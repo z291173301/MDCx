@@ -12,7 +12,7 @@ def show_netstatus(sep_width: int = 88) -> None:
     启动时只量一次并缓存，故最大化/还原两态的字符数相同；QSS 里该文本框是
     Consolas 13px 等宽，按可视宽取整除即可铺到右边缘且不折行。
     """
-    sep_width = max(int(sep_width or 0), 8)
+    sep_width = max(int(sep_width or 0) - 8, 8)
     signal_qt.show_net_info(time.strftime("%Y-%m-%d %H:%M:%S").center(sep_width, "="))
 
     use_proxy, proxy, cf_bypass_url, cf_bypass_proxy, cf_bypass_trawl_url, timeout, retry_count = (
