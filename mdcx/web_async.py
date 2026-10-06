@@ -1505,7 +1505,7 @@ class AsyncWebClient:
                 return None, "mirror 返回 Cloudflare 挑战页"
 
             if response.status_code >= 400:
-                return None, f"mirror HTTP {response.status_code}"
+                return None, f"HTTP {response.status_code}"
 
             if not allow_redirects or not self._is_redirect_response(response):
                 # 落地域名白名单校验：防止第三方 bypass 服务被劫持/重定向到不可信域名
@@ -1750,7 +1750,7 @@ class AsyncWebClient:
                         if final_url and final_url.strip() and final_url.strip() != target_url:
                             self._log_cf(f"🌐 /html 最终地址: {final_url}", host)
                         return bypass_response, ""
-                    error = f"mirror: {mirror_error}; html: {html_error}"
+                    error = f"{mirror_error}; GET: {html_error}"
                 else:
                     error = f"mirror 失败且 {str(method).upper()} 不支持 /html 兜底: {mirror_error}"
                     if mirror_status is not None and not self._is_retryable_status_code(mirror_status):
@@ -1982,7 +1982,7 @@ class AsyncWebClient:
                                         await self._close_response(resp)
                                     return bypass_response, ""
                             else:
-                                error_msg = f"Cloudflare 挑战页且 bypass 失败: {bypass_error}"
+                                error_msg = f"Cloudflare挑战页且Bypass失败: {bypass_error}"
                                 terminal_status = self._extract_terminal_bypass_status(bypass_error)
                                 if terminal_status is not None and not self._is_retryable_status_code(terminal_status):
                                     retry = False

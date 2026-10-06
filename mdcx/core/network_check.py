@@ -678,7 +678,7 @@ def format_summary(
         if result.status not in (NetworkCheckStatus.FAILED, NetworkCheckStatus.WARNING):
             continue
         message = result.message or ""
-        if "Cloudflare" in message and ("兜底亦失败" in message or "已尝试 CF Bypass" in message):
+        if "Cloudflare" in message and ("兜底失败" in message or "已尝试 CF Bypass" in message):
             # 外部CF服务已配置且实际尝试过（bypass 返回仍是挑战页），与"没配服务"是两回事，
             # 不能再让人去配一遍服务
             cause_counts["cf_unsolved"] += 1
@@ -1078,7 +1078,7 @@ async def run_network_check_item(
                     except Exception:
                         fallback_bypass_mode = ""
                 else:
-                    error = f"{error}，CloudFlare Bypass兜底亦失败：HTTP500、HTTP502"
+                    error = f"{error}，CloudFlare Bypass兜底失败：HTTP500、HTTP502"
         if response is None:
             clean_error = _clean_error(error)
             message = _message_for_error(clean_error)

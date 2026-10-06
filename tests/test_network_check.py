@@ -333,7 +333,7 @@ def test_format_summary_groups_failure_causes():
         r(
             "javlibrary",
             NetworkCheckStatus.FAILED,
-            "GET https://e100k.com 失败: 连接错误（bypass 兜底亦失败: mirror 返回 Cloudflare 挑战页）",
+            "GET https://e100k.com 失败: 连接错误（bypass 兜底失败: mirror 返回 Cloudflare 挑战页）",
         ),
         r("getchu", NetworkCheckStatus.FAILED, "HTTP 403 请求被拒绝：当前节点出口 IP 可能被站点封禁"),
         r("javdb_api", NetworkCheckStatus.FAILED, "TLS 握手中断"),

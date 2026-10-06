@@ -589,7 +589,7 @@
 
 - **网络请求超时/重试语义写明 + 两次上调（后于下一条回退，见合并记录）**：①把「请求超时 × 重试次数 + 递增退避」的语义写进 `Configuration.md`——每次尝试最多等满超时秒（如直连被 RST 每次都要等满），重试之间按 2s / 5s / 8s… 递增等待；`timeout` 30s × `retry` 3 次约 97s、5 次约 176s。②`retry` 3 → 4（`actor.json`，代码默认仍为 3；重试滑杆上限 5 → 4，`.ui` 与生成的 `MDCx.py` 同改），30s × 4 约 135s，多花时间换连接质量。③`timeout` 30 → 45（`actor.json`；代码默认同步上调 `models.py` 10 → 45、`default_config.json` 同步；超时滑杆上限 30 → 45，否则设置页存盘会把 45 钳回 30），45s × 4 约 195s。④同期网络检测的**刮削探测**超时由 30s → 45s → 60s 三轮改为 30s → 45s 两轮（单站最坏等待由 135s 降到 75s；`SCRAPE_PROBE_ATTEMPT_TIMEOUTS` 元组派生全部文案与测试）。**终态见「网络请求超时/重试三改两复」条：超时回退 30s、重试回退 3 次。**
 
-- **检测报告根因分组新增「CF Bypass 已尝试但未解开」**：此前 bypass 兜底失败（返回仍是挑战页）的站点会被计入「Cloudflare 拦截」，建议语却是"请配置外部 CF 服务"——服务明明已配好并实际尝试过，白让人配一遍。现按文案中的"兜底亦失败 / 已尝试 CF Bypass"单独成组，建议改为关代理干净直连重测或换节点。同时 `avsex` 搜索页加 CF 挑战页点名（`just a moment` / `cf-chl` / `challenge-platform`），挑战页不再混进"搜索页未解析到结果"。测试：`test_avsex.py` 新建 4 项（注册/挑战点名/正常解析/真无结果），`test_format_summary_groups_failure_causes` 加未解开用例
+- **检测报告根因分组新增「CF Bypass 已尝试但未解开」**：此前 bypass 兜底失败（返回仍是挑战页）的站点会被计入「Cloudflare 拦截」，建议语却是"请配置外部 CF 服务"——服务明明已配好并实际尝试过，白让人配一遍。现按文案中的"兜底失败 / 已尝试 CF Bypass"单独成组，建议改为关代理干净直连重测或换节点。同时 `avsex` 搜索页加 CF 挑战页点名（`just a moment` / `cf-chl` / `challenge-platform`），挑战页不再混进"搜索页未解析到结果"。测试：`test_avsex.py` 新建 4 项（注册/挑战点名/正常解析/真无结果），`test_format_summary_groups_failure_causes` 加未解开用例
 
 - **超时 45s → 30s、重试 4 次 → 3 次（检测提速，本组四次调整的终态）**：javlibrary / missav 类直连站点每次尝试都要等满超时，45s × 4 最坏约 195s，整轮检测被拖慢。改回 **30s × 3**（单请求最坏约 97s）。同步：`actor.json`（timeout / retry）、`models.py` 默认超时 30、`default_config.json`、设置页两拉动条上限（超时 45 → 30；重试上限改为 3，即 2 / 3 二档可选）、`Configuration.md` 超时/重试两行重算
 
