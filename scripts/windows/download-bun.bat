@@ -23,7 +23,7 @@ echo.
 
 :: 下载 Bun (尝试多个源)
 :: 注意：此处为手动兜底脚本的固定版本，与 package-trawl.yml 动态取的 bun 版本可能不同步；如需一致请手动对齐
-set BUN_VERSION=1.3.9
+set BUN_VERSION=1.4.2
 set URL=https://github.com/oven-sh/bun/releases/download/bun-v%BUN_VERSION%/bun-windows-%ARCH%.zip
 
 echo [1/3] 下载 Bun %BUN_VERSION%...

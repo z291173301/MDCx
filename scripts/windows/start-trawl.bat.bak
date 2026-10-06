@@ -104,20 +104,11 @@ if exist "redis\redis-server.exe" (
 )
 if defined REDIS_EXE (
     echo [INFO] 检测到内置 Redis: %REDIS_EXE%，正在启动...
-    if exist "%SystemRoot%\System32\cscript.exe" (
-        rem 通过 VBS 以隐藏窗口方式启动 Redis，不显示 CMD 窗口
-        > "%TEMP%\trawl-redis-hidden.vbs" echo Set sh = CreateObject^("WScript.Shell"^)
-        >> "%TEMP%\trawl-redis-hidden.vbs" echo sh.Run """%~dp0%REDIS_EXE%"" --port 6380 --save """" --appendonly no", 0, False
-        cscript //nologo "%TEMP%\trawl-redis-hidden.vbs"
-    ) else (
-        rem 系统缺少 Windows Script Host 时回退为最小化窗口启动
-        start "TRAWL-Redis" /min "%~dp0%REDIS_EXE%" --port 6380 --save "" --appendonly no
-    )
+    start "TRAWL-Redis" /min "%~dp0%REDIS_EXE%" --port 6380 --save "" --appendonly no
     if not errorlevel 1 (
         set REDIS_URL=redis://127.0.0.1:6380
         echo [INFO] Redis 已启动，TRAWL 会话缓存已启用
     )
-    del "%TEMP%\trawl-redis-hidden.vbs" >nul 2>&1
 ) else (
     echo [INFO] 未发现内置 Redis，TRAWL 将以无缓存模式运行
 )
