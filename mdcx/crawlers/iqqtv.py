@@ -281,7 +281,7 @@ class IqqtvCrawler(BaseCrawler):
 
         title = get_title(html_info)
         if not title:
-            raise CrawlerException("获取失败: 未获取到番号标题")
+            raise CrawlerException("获取失败: 没有获取到番号标题")
         web_number = getWebNumber(title, number)
         assert_web_number_suffix_site_matches(title, number)
         title = remove_web_number_suffix(title, number)

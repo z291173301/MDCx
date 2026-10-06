@@ -509,7 +509,7 @@ class JavbusCrawler(BaseCrawler):
         html_info = etree.fromstring(htmlcode, etree.HTMLParser())
         title = get_title(html_info)
         if not title:
-            raise CrawlerException("获取失败: 未获取到番号标题")
+            raise CrawlerException("获取失败: 没有获取到番号标题")
 
         number = getWebNumber(html_info, number)
         title = title.replace(number, "").strip()

@@ -219,7 +219,7 @@ class GetchuCrawler(BaseCrawler):
 
         title = get_title(html_info)
         if not title:
-            raise CrawlerException("获取失败: 未获取到番号标题")
+            raise CrawlerException("获取失败: 没有获取到番号标题")
         release = get_release(html_info)
         mosaic = "里番" if "18禁" in html_content else "动漫"
         mosaic = get_mosaic(html_info, mosaic)

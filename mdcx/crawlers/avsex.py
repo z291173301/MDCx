@@ -217,7 +217,7 @@ class AvsexCrawler(BaseCrawler[AvsexContext]):
         detail_page = etree.fromstring(html.get(), AvsexCrawler.UTF8_PARSER)
         title = get_title(detail_page)
         if not title:
-            raise CrawlerException("获取失败: 未获取到番号标题")
+            raise CrawlerException("获取失败: 没有获取到番号标题")
         number = get_web_number(detail_page, ctx.number)
         release = get_release(detail_page)
         studio = get_studio(detail_page).replace("N/A", "")
