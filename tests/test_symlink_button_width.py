@@ -165,12 +165,18 @@ def test_left_and_right_edges_identical_at_any_width(win, app):
 
 
 def test_wide_state_widens_beyond_design(win, app):
-    """最大化：按钮明显宽于设计值，且宽度随组宽等量增长。"""
+    """最大化：按钮明显宽于设计值，右缘与显示输入框右缘线齐（右侧按钮列左缘-19）。
+
+    右缘从 491+extra（=140+351+extra）延长到 552+extra（=571-19+extra），
+    增量 61px 与输入拓宽保持同一右缘线，宽度即 412+extra。
+    """
     ui = _tool_page_sync(win, app, 1920, 1100)
     link, _move, box_link, _box_move = _pair(ui)
     extra = box_link.width() - DESIGN_GROUP_W
     assert extra > 0, "1920 窗宽下软链接组应变宽"
-    assert link.width() == DESIGN_BTN_W + extra, (link.width(), extra)
+    ref = ui.pushButton_select_netdisk_path
+    assert link.x() + link.width() == ref.x() - 19, (link.x(), link.width(), ref.x())
+    assert link.width() == DESIGN_BTN_W + extra + 61, (link.width(), extra)
 
 
 def test_narrow_state_keeps_left_edge_and_no_negative_shift(win, app):

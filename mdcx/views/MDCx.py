@@ -574,7 +574,7 @@ class Ui_MDCx(object):
         self.groupBox_7.setGeometry(QtCore.QRect(30, 510, 701, 271))
         self.groupBox_7.setObjectName("groupBox_7")
         self.pushButton_select_file = QtWidgets.QPushButton(parent=self.groupBox_7)
-        self.pushButton_select_file.setGeometry(QtCore.QRect(510, 35, 151, 40))
+        self.pushButton_select_file.setGeometry(QtCore.QRect(571, 35, 110, 40))
         self.pushButton_select_file.setObjectName("pushButton_select_file")
         self.lineEdit_appoint_url = QtWidgets.QLineEdit(parent=self.groupBox_7)
         self.lineEdit_appoint_url.setGeometry(QtCore.QRect(140, 100, 351, 30))
@@ -618,7 +618,7 @@ class Ui_MDCx(object):
         )
         self.lineEdit_single_file_path.setObjectName("lineEdit_single_file_path")
         self.pushButton_select_file_clear_info = QtWidgets.QPushButton(parent=self.groupBox_7)
-        self.pushButton_select_file_clear_info.setGeometry(QtCore.QRect(510, 95, 151, 40))
+        self.pushButton_select_file_clear_info.setGeometry(QtCore.QRect(571, 95, 110, 40))
         self.pushButton_select_file_clear_info.setObjectName("pushButton_select_file_clear_info")
         self.groupBox_13 = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
         self.groupBox_13.setGeometry(QtCore.QRect(30, 801, 701, 141))
@@ -706,7 +706,7 @@ class Ui_MDCx(object):
         self.pushButton_find_missing_number.setGeometry(QtCore.QRect(140, 180, 351, 40))
         self.pushButton_find_missing_number.setObjectName("pushButton_find_missing_number")
         self.pushButton_select_local_library = QtWidgets.QPushButton(parent=self.groupBox_19)
-        self.pushButton_select_local_library.setGeometry(QtCore.QRect(510, 40, 151, 40))
+        self.pushButton_select_local_library.setGeometry(QtCore.QRect(571, 40, 110, 40))
         self.pushButton_select_local_library.setObjectName("pushButton_select_local_library")
         self.label_62 = QtWidgets.QLabel(parent=self.groupBox_19)
         self.label_62.setGeometry(QtCore.QRect(80, 140, 561, 20))
@@ -821,7 +821,7 @@ class Ui_MDCx(object):
         self.pushButton_creat_symlink.setGeometry(QtCore.QRect(140, 180, 351, 40))
         self.pushButton_creat_symlink.setObjectName("pushButton_creat_symlink")
         self.pushButton_select_netdisk_path = QtWidgets.QPushButton(parent=self.groupBox_21)
-        self.pushButton_select_netdisk_path.setGeometry(QtCore.QRect(510, 40, 151, 40))
+        self.pushButton_select_netdisk_path.setGeometry(QtCore.QRect(571, 40, 110, 40))
         self.pushButton_select_netdisk_path.setObjectName("pushButton_select_netdisk_path")
         self.label_340 = QtWidgets.QLabel(parent=self.groupBox_21)
         self.label_340.setGeometry(QtCore.QRect(140, 140, 471, 20))
@@ -839,7 +839,7 @@ class Ui_MDCx(object):
         )
         self.label_340.setObjectName("label_340")
         self.pushButton_select_localdisk_path = QtWidgets.QPushButton(parent=self.groupBox_21)
-        self.pushButton_select_localdisk_path.setGeometry(QtCore.QRect(510, 90, 151, 40))
+        self.pushButton_select_localdisk_path.setGeometry(QtCore.QRect(571, 90, 110, 40))
         self.pushButton_select_localdisk_path.setObjectName("pushButton_select_localdisk_path")
         self.layoutWidget = QtWidgets.QWidget(parent=self.groupBox_21)
         self.layoutWidget.setGeometry(QtCore.QRect(140, 1289, 521, 57))
@@ -931,7 +931,7 @@ class Ui_MDCx(object):
         self.lineEdit_actor_db_nfo_dir.setGeometry(QtCore.QRect(40, 244, 451, 30))
         self.lineEdit_actor_db_nfo_dir.setObjectName("lineEdit_actor_db_nfo_dir")
         self.pushButton_actor_db_pick_nfo_dir = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
-        self.pushButton_actor_db_pick_nfo_dir.setGeometry(QtCore.QRect(510, 239, 151, 40))
+        self.pushButton_actor_db_pick_nfo_dir.setGeometry(QtCore.QRect(571, 239, 110, 40))
         self.pushButton_actor_db_pick_nfo_dir.setObjectName("pushButton_actor_db_pick_nfo_dir")
         self.pushButton_actor_db_update_nfo_tmdbid = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
         self.pushButton_actor_db_update_nfo_tmdbid.setGeometry(QtCore.QRect(40, 206, 200, 30))
@@ -942,7 +942,7 @@ class Ui_MDCx(object):
         self.label_actor_db_update_nfo_desc.setWordWrap(True)
         self.label_actor_db_update_nfo_desc.setObjectName("label_actor_db_update_nfo_desc")
         self.pushButton_actor_db_sync_aliases = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
-        self.pushButton_actor_db_sync_aliases.setGeometry(QtCore.QRect(510, 314, 151, 40))
+        self.pushButton_actor_db_sync_aliases.setGeometry(QtCore.QRect(571, 314, 110, 40))
         self.pushButton_actor_db_sync_aliases.setObjectName("pushButton_actor_db_sync_aliases")
         self.comboBox_actor_db_alias_source = QtWidgets.QComboBox(parent=self.groupBox_actor_db_maintenance)
         self.comboBox_actor_db_alias_source.setGeometry(QtCore.QRect(40, 318, 451, 32))
@@ -951,14 +951,14 @@ class Ui_MDCx(object):
         self.comboBox_actor_db_alias_source.addItem("")
         self.comboBox_actor_db_alias_source.addItem("")
         self.checkBox_actor_db_alias_all = QtWidgets.QCheckBox(parent=self.groupBox_actor_db_maintenance)
-        self.checkBox_actor_db_alias_all.setGeometry(QtCore.QRect(40, 358, 150, 28))
+        self.checkBox_actor_db_alias_all.setGeometry(QtCore.QRect(40, 358, 142, 28))
         self.checkBox_actor_db_alias_all.setObjectName("checkBox_actor_db_alias_all")
         self.label_actor_db_sync_offset = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
-        self.label_actor_db_sync_offset.setGeometry(QtCore.QRect(194, 358, 44, 28))
+        self.label_actor_db_sync_offset.setGeometry(QtCore.QRect(186, 358, 56, 28))
         self.label_actor_db_sync_offset.setStyleSheet("font-size: 12px;")
         self.label_actor_db_sync_offset.setObjectName("label_actor_db_sync_offset")
         self.spinBox_actor_db_sync_offset = QtWidgets.QSpinBox(parent=self.groupBox_actor_db_maintenance)
-        self.spinBox_actor_db_sync_offset.setGeometry(QtCore.QRect(242, 358, 76, 28))
+        self.spinBox_actor_db_sync_offset.setGeometry(QtCore.QRect(246, 358, 64, 28))
         self.spinBox_actor_db_sync_offset.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.spinBox_actor_db_sync_offset.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spinBox_actor_db_sync_offset.setStyleSheet(
@@ -969,11 +969,11 @@ class Ui_MDCx(object):
         self.spinBox_actor_db_sync_offset.setProperty("value", 0)
         self.spinBox_actor_db_sync_offset.setObjectName("spinBox_actor_db_sync_offset")
         self.label_actor_db_sync_limit = QtWidgets.QLabel(parent=self.groupBox_actor_db_maintenance)
-        self.label_actor_db_sync_limit.setGeometry(QtCore.QRect(322, 358, 36, 28))
+        self.label_actor_db_sync_limit.setGeometry(QtCore.QRect(314, 358, 56, 28))
         self.label_actor_db_sync_limit.setStyleSheet("font-size: 12px;")
         self.label_actor_db_sync_limit.setObjectName("label_actor_db_sync_limit")
         self.spinBox_actor_db_sync_limit = QtWidgets.QSpinBox(parent=self.groupBox_actor_db_maintenance)
-        self.spinBox_actor_db_sync_limit.setGeometry(QtCore.QRect(362, 358, 84, 28))
+        self.spinBox_actor_db_sync_limit.setGeometry(QtCore.QRect(374, 358, 72, 28))
         self.spinBox_actor_db_sync_limit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.spinBox_actor_db_sync_limit.setButtonSymbols(QtWidgets.QAbstractSpinBox.ButtonSymbols.NoButtons)
         self.spinBox_actor_db_sync_limit.setStyleSheet(
@@ -1002,14 +1002,29 @@ class Ui_MDCx(object):
         self.label_cover_backfill_desc.setStyleSheet("color: rgb(8, 128, 128);")
         self.label_cover_backfill_desc.setWordWrap(True)
         self.label_cover_backfill_desc.setObjectName("label_cover_backfill_desc")
+        self.label_cover_backfill_number = QtWidgets.QLabel(parent=self.groupBox_cover_backfill)
+        self.label_cover_backfill_number.setGeometry(QtCore.QRect(30, 80, 100, 30))
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.label_cover_backfill_number.sizePolicy().hasHeightForWidth())
+        self.label_cover_backfill_number.setSizePolicy(sizePolicy)
+        self.label_cover_backfill_number.setMinimumSize(QtCore.QSize(0, 0))
+        self.label_cover_backfill_number.setLayoutDirection(QtCore.Qt.LayoutDirection.RightToLeft)
+        self.label_cover_backfill_number.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignRight
+            | QtCore.Qt.AlignmentFlag.AlignTrailing
+            | QtCore.Qt.AlignmentFlag.AlignVCenter
+        )
+        self.label_cover_backfill_number.setObjectName("label_cover_backfill_number")
         self.lineEdit_cover_backfill_numbers = QtWidgets.QLineEdit(parent=self.groupBox_cover_backfill)
-        self.lineEdit_cover_backfill_numbers.setGeometry(QtCore.QRect(40, 80, 461, 30))
+        self.lineEdit_cover_backfill_numbers.setGeometry(QtCore.QRect(136, 80, 416, 30))
         self.lineEdit_cover_backfill_numbers.setStyleSheet(
             "border: 1px solid rgba(0,0,0, 50);\n                      border-radius: 15px;\n"
         )
         self.lineEdit_cover_backfill_numbers.setObjectName("lineEdit_cover_backfill_numbers")
         self.pushButton_cover_backfill_start = QtWidgets.QPushButton(parent=self.groupBox_cover_backfill)
-        self.pushButton_cover_backfill_start.setGeometry(QtCore.QRect(510, 75, 151, 40))
+        self.pushButton_cover_backfill_start.setGeometry(QtCore.QRect(571, 75, 110, 40))
         self.pushButton_cover_backfill_start.setObjectName("pushButton_cover_backfill_start")
         self.checkBox_cover_backfill_overwrite = QtWidgets.QCheckBox(parent=self.groupBox_cover_backfill)
         self.checkBox_cover_backfill_overwrite.setGeometry(QtCore.QRect(40, 125, 161, 20))
@@ -13021,7 +13036,7 @@ class Ui_MDCx(object):
         )
         self.pushButton_select_file.setText(_translate("MDCx", "选择文件"))
         self.label_10.setText(_translate("MDCx", "番号网址："))
-        self.pushButton_start_single_file.setText(_translate("MDCx", "刮削"))
+        self.pushButton_start_single_file.setText(_translate("MDCx", "开始刮削"))
         self.label_3.setText(_translate("MDCx", "文件路径："))
         self.label.setText(
             _translate(
@@ -13129,21 +13144,21 @@ class Ui_MDCx(object):
             _translate("MDCx", "勾选后对全部条目补别名，含已有别名的行，并入不覆盖本地已有别名")
         )
         self.checkBox_actor_db_alias_all.setText(_translate("MDCx", "全量更新并入"))
-        self.label_actor_db_sync_offset.setText(_translate("MDCx", "起始行"))
+        self.label_actor_db_sync_offset.setText(_translate("MDCx", "起始行数"))
         self.spinBox_actor_db_sync_offset.setToolTip(
             _translate(
                 "MDCx",
                 "跳过数据文件前 N 行（不含表头）再扫描。用于上次中断后的手动续跑：填入上次日志中已处理的最大行号，从下一行继续。",
             )
         )
-        self.label_actor_db_sync_limit.setText(_translate("MDCx", "限量"))
+        self.label_actor_db_sync_limit.setText(_translate("MDCx", "单次限制"))
         self.spinBox_actor_db_sync_limit.setToolTip(
             _translate(
                 "MDCx", "本次最多处理的条目数。0 表示不限制；非 0 时分片推进，建议 500~2000 之间按网络状况选择。"
             )
         )
         self.spinBox_actor_db_sync_limit.setSpecialValueText(_translate("MDCx", "不限"))
-        self.label_actor_db_sync_slice_hint.setText(_translate("MDCx", "起始行0+限量5000=默认更新并入行为"))
+        self.label_actor_db_sync_slice_hint.setText(_translate("MDCx", "起始行数0+单次限制5000=默认更新值"))
         self.label_actor_db_sync_aliases_desc.setText(
             _translate(
                 "MDCx",
@@ -13159,6 +13174,7 @@ class Ui_MDCx(object):
                 "输入番号，多个用空格分隔将自动刮削并补齐封面和缩略图，复用当前配置站点优先级顺序、命名、裁切、水印规则，输出目录为当前数据目录，可以在设置页修改",
             )
         )
+        self.label_cover_backfill_number.setText(_translate("MDCx", "补图番号："))
         self.lineEdit_cover_backfill_numbers.setPlaceholderText(_translate("MDCx", "例如：SSIS-001 ABF-371 JIMMY-003"))
         self.pushButton_cover_backfill_start.setText(_translate("MDCx", "开始补图"))
         self.checkBox_cover_backfill_overwrite.setText(_translate("MDCx", "覆盖已有图片"))

@@ -1590,9 +1590,9 @@
                 <widget class="QPushButton" name="pushButton_select_file">
                   <property name="geometry">
                     <rect>
-                      <x>510</x>
+                      <x>571</x>
                       <y>35</y>
-                      <width>151</width>
+                      <width>110</width>
                       <height>40</height>
                     </rect>
                   </property>
@@ -1641,7 +1641,7 @@
                     </rect>
                   </property>
                   <property name="text">
-                    <string>刮削</string>
+                    <string>开始刮削</string>
                   </property>
                 </widget>
                 <widget class="QLabel" name="label_3">
@@ -1700,9 +1700,9 @@
                 <widget class="QPushButton" name="pushButton_select_file_clear_info">
                   <property name="geometry">
                     <rect>
-                      <x>510</x>
+                      <x>571</x>
                       <y>95</y>
-                      <width>151</width>
+                      <width>110</width>
                       <height>40</height>
                     </rect>
                   </property>
@@ -1902,9 +1902,9 @@
                 <widget class="QPushButton" name="pushButton_select_local_library">
                   <property name="geometry">
                     <rect>
-                      <x>510</x>
+                      <x>571</x>
                       <y>40</y>
-                      <width>151</width>
+                      <width>110</width>
                       <height>40</height>
                     </rect>
                   </property>
@@ -2157,9 +2157,9 @@
                 <widget class="QPushButton" name="pushButton_select_netdisk_path">
                   <property name="geometry">
                     <rect>
-                      <x>510</x>
+                      <x>571</x>
                       <y>40</y>
-                      <width>151</width>
+                      <width>110</width>
                       <height>40</height>
                     </rect>
                   </property>
@@ -2198,9 +2198,9 @@
                 <widget class="QPushButton" name="pushButton_select_localdisk_path">
                   <property name="geometry">
                     <rect>
-                      <x>510</x>
+                      <x>571</x>
                       <y>90</y>
-                      <width>151</width>
+                      <width>110</width>
                       <height>40</height>
                     </rect>
                   </property>
@@ -2517,9 +2517,9 @@
                 <widget class="QPushButton" name="pushButton_actor_db_pick_nfo_dir">
                   <property name="geometry">
                     <rect>
-                      <x>510</x>
+                      <x>571</x>
                       <y>239</y>
-                      <width>151</width>
+                      <width>110</width>
                       <height>40</height>
                     </rect>
                   </property>
@@ -2565,9 +2565,9 @@
                 <widget class="QPushButton" name="pushButton_actor_db_sync_aliases">
                   <property name="geometry">
                     <rect>
-                      <x>510</x>
+                      <x>571</x>
                       <y>314</y>
-                      <width>151</width>
+                      <width>110</width>
                       <height>40</height>
                     </rect>
                   </property>
@@ -2608,7 +2608,7 @@
                     <rect>
                       <x>40</x>
                       <y>358</y>
-                      <width>150</width>
+                      <width>142</width>
                       <height>28</height>
                     </rect>
                   </property>
@@ -2622,23 +2622,23 @@
                 <widget class="QLabel" name="label_actor_db_sync_offset">
                   <property name="geometry">
                     <rect>
-                      <x>194</x>
+                      <x>186</x>
                       <y>358</y>
-                      <width>44</width>
+                      <width>56</width>
                       <height>28</height>
                     </rect>
                   </property>
 <property name="styleSheet"><string notr="true">font-size: 12px;</string></property>
                   <property name="text">
-                    <string>起始行</string>
+                    <string>起始行数</string>
                   </property>
                 </widget>
                 <widget class="QSpinBox" name="spinBox_actor_db_sync_offset">
                   <property name="geometry">
                     <rect>
-                      <x>242</x>
+                      <x>246</x>
                       <y>358</y>
-                      <width>76</width>
+                      <width>64</width>
                       <height>28</height>
                     </rect>
                   </property>
@@ -2668,23 +2668,23 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                 <widget class="QLabel" name="label_actor_db_sync_limit">
                   <property name="geometry">
                     <rect>
-                      <x>322</x>
+                      <x>314</x>
                       <y>358</y>
-                      <width>36</width>
+                      <width>56</width>
                       <height>28</height>
                     </rect>
                   </property>
 <property name="styleSheet"><string notr="true">font-size: 12px;</string></property>
                   <property name="text">
-                    <string>限量</string>
+                    <string>单次限制</string>
                   </property>
                 </widget>
                 <widget class="QSpinBox" name="spinBox_actor_db_sync_limit">
                   <property name="geometry">
                     <rect>
-                      <x>362</x>
+                      <x>374</x>
                       <y>358</y>
-                      <width>84</width>
+                      <width>72</width>
                       <height>28</height>
                     </rect>
                   </property>
@@ -2730,7 +2730,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <string notr="true">color: rgb(8, 128, 128); font-size: 12px;</string>
                   </property>
                   <property name="text">
-                    <string>起始行0+限量5000=默认更新并入行为</string>
+                    <string>起始行数0+单次限制5000=默认更新值</string>
                   </property>
                     <property name="wordWrap">
                       <bool>true</bool>
@@ -2787,12 +2787,43 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <bool>true</bool>
                     </property>
                   </widget>
+                <widget class="QLabel" name="label_cover_backfill_number">
+                  <property name="geometry">
+                    <rect>
+                      <x>30</x>
+                      <y>80</y>
+                      <width>100</width>
+                      <height>30</height>
+                    </rect>
+                  </property>
+                  <property name="sizePolicy">
+                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                    </sizepolicy>
+                  </property>
+                  <property name="minimumSize">
+                    <size>
+                      <width>0</width>
+                      <height>0</height>
+                    </size>
+                  </property>
+                  <property name="layoutDirection">
+                    <enum>Qt::RightToLeft</enum>
+                  </property>
+                  <property name="text">
+                    <string>补图番号：</string>
+                  </property>
+                  <property name="alignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                  </property>
+                </widget>
                 <widget class="QLineEdit" name="lineEdit_cover_backfill_numbers">
                   <property name="geometry">
                     <rect>
-                      <x>40</x>
+                      <x>136</x>
                       <y>80</y>
-                      <width>461</width>
+                      <width>416</width>
                       <height>30</height>
                     </rect>
                   </property>
@@ -2808,9 +2839,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                 <widget class="QPushButton" name="pushButton_cover_backfill_start">
                   <property name="geometry">
                     <rect>
-                      <x>510</x>
+                      <x>571</x>
                       <y>75</y>
-                      <width>151</width>
+                      <width>110</width>
                       <height>40</height>
                     </rect>
                   </property>

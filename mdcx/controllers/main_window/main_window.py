@@ -1049,15 +1049,15 @@ class MyMAinWindow(QMainWindow):
         "pushButton_actor_db_update_nfo_tmdbid": (40, 206, 200, 30),
         "pushButton_actor_db_fill_zh_javdb": (260, 206, 200, 30),
         "lineEdit_actor_db_nfo_dir": (40, 244, 451, 30),
-        "pushButton_actor_db_pick_nfo_dir": (510, 239, 151, 40),
+        "pushButton_actor_db_pick_nfo_dir": (571, 239, 110, 40),
         "label_actor_db_update_nfo_desc": (40, 282, 621, 28),
-        "pushButton_actor_db_sync_aliases": (510, 314, 151, 40),
+        "pushButton_actor_db_sync_aliases": (571, 314, 110, 40),
         "comboBox_actor_db_alias_source": (40, 318, 451, 32),
-        "checkBox_actor_db_alias_all": (40, 358, 150, 28),
-        "label_actor_db_sync_offset": (194, 358, 44, 28),
-        "spinBox_actor_db_sync_offset": (242, 358, 76, 28),
-        "label_actor_db_sync_limit": (322, 358, 36, 28),
-        "spinBox_actor_db_sync_limit": (362, 358, 84, 28),
+        "checkBox_actor_db_alias_all": (40, 358, 142, 28),
+        "label_actor_db_sync_offset": (186, 358, 56, 28),
+        "spinBox_actor_db_sync_offset": (246, 358, 64, 28),
+        "label_actor_db_sync_limit": (314, 358, 56, 28),
+        "spinBox_actor_db_sync_limit": (374, 358, 72, 28),
         "label_actor_db_sync_slice_hint": (450, 358, 211, 28),
         "label_actor_db_sync_aliases_desc": (40, 394, 621, 42),
     }
@@ -1363,30 +1363,21 @@ class MyMAinWindow(QMainWindow):
         if not maxed:
             # 常态只需复位右列按钮位置，最小化布局与原来逐像素一致
             ui.pushButton_actor_db_link.setGeometry(260, 80, 200, 32)
-            # 窄窗下通用逻辑会收缩单文件组输入框（右缘 491+extra）并左移其按钮，
-            # nfo 行跟随同量 extra 收缩：nfo 输入框右缘恒等于文件路径输入框右缘，
-            # 选择目录按钮与选择文件按钮保持同列（最大化分支不在此处改动）
+            # 窄窗下通用逻辑会收缩单文件组输入框并左移其按钮，nfo/别名两行按钮
+            # 跟随同量 extra 收缩（输入框/下拉宽度由 _sync_tool_page_input_fill
+            # 按实时按钮位置统一拓宽，此处只摆按钮）
             extra_nb = box_w - 701
             if extra_nb != 0:
-                nfo_x0, nfo_y0, _, nfo_h0 = self._ACTOR_DB_TOOL_DESIGN["lineEdit_actor_db_nfo_dir"]
                 _, pick_y0, _, pick_h0 = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_pick_nfo_dir"]
-                nfo_w_nb = max(451 + extra_nb, 150)
-                pick_x_nb = max(510 + extra_nb, nfo_x0 + nfo_w_nb + 10)
-                widgets["lineEdit_actor_db_nfo_dir"].setGeometry(nfo_x0, nfo_y0, nfo_w_nb, nfo_h0)
-                widgets["pushButton_actor_db_pick_nfo_dir"].setGeometry(pick_x_nb, pick_y0, 151, pick_h0)
-                # TMDB 下拉右缘与文件路径输入框右缘对齐：输入框通用逻辑按 491+extra 收缩，下拉同公式跟随
-                combo_x0, combo_y0, combo_w0, combo_h0 = self._ACTOR_DB_TOOL_DESIGN[
-                    "comboBox_actor_db_alias_source"
-                ]
-                widgets["comboBox_actor_db_alias_source"].setGeometry(
-                    combo_x0, combo_y0, max(combo_w0 + extra_nb, 150), combo_h0
-                )
-                # 补全别名按钮与清空信息按钮同列：清空信息通用逻辑按 510+extra 左移，本按钮同公式跟随
+                # 保底 19px 间隙且输入框不窄于 150：按钮 x 不小于 40+150+19
+                pick_x_nb = max(571 + extra_nb, 40 + 150 + 19)
+                widgets["pushButton_actor_db_pick_nfo_dir"].setGeometry(pick_x_nb, pick_y0, 110, pick_h0)
+                # 补全别名按钮与清空信息按钮同列：清空信息通用逻辑按 571+extra 左移，本按钮同公式跟随
                 _, alias_y0, alias_w0, alias_h0 = self._ACTOR_DB_TOOL_DESIGN[
                     "pushButton_actor_db_sync_aliases"
                 ]
                 widgets["pushButton_actor_db_sync_aliases"].setGeometry(
-                    510 + extra_nb, alias_y0, alias_w0, alias_h0
+                    571 + extra_nb, alias_y0, alias_w0, alias_h0
                 )
             return
         # ---- 最大化：拉宽 ----
@@ -1410,22 +1401,16 @@ class MyMAinWindow(QMainWindow):
         widgets["pushButton_actor_db_fill_zh_javdb"].setGeometry(right_x, 206, right_w, 30)
         widgets["label_actor_db_update_nfo_desc"].setGeometry(40, 282, 621 + extra, 28)
         widgets["label_actor_db_sync_aliases_desc"].setGeometry(40, 394, 621 + extra, 42)
-        # nfo 目录行：选择目录与单文件刮削的选择文件同列同宽 (510+extra, 151x40)，输入框右缘与文件路径输入框右缘对齐 (491+extra)，距按钮 19px 与单文件行一致
-        nfo_x, nfo_y, _, nfo_h = self._ACTOR_DB_TOOL_DESIGN["lineEdit_actor_db_nfo_dir"]
+        # nfo 目录行：选择目录按钮落位 (571+extra, 110x40)；输入框宽度由
+        # _sync_tool_page_input_fill 统一拓宽到按钮左侧，此处不再定宽
         _, pick_y, _, pick_h = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_pick_nfo_dir"]
-        pick_w = 151
-        pick_x = 510 + extra
+        pick_w = 110
+        pick_x = 571 + extra
         widgets["pushButton_actor_db_pick_nfo_dir"].setGeometry(pick_x, pick_y, pick_w, pick_h)
-        nfo_w = max(pick_x - nfo_x - 19, 150)
-        widgets["lineEdit_actor_db_nfo_dir"].setGeometry(nfo_x, nfo_y, nfo_w, nfo_h)
-        nfo_right = nfo_x + nfo_w
-        # 别名行：下拉左/右缘分别与 nfo 输入框左/右缘对齐（x=40，右缘=nfo_right）；
-        # 补全别名按钮与「选择目录/选择文件」同列同尺寸 (510+extra, 151x40)，与下拉间距 19px 同 nfo 行一致
-        combo_x = 40
+        # 别名行：补全别名按钮与「选择目录/选择文件」同列同尺寸 (571+extra, 110x40)；
+        # TMDB 下拉宽度同样由 _sync_tool_page_input_fill 接管
         _ax, combo_y, _, _ah = self._ACTOR_DB_TOOL_DESIGN["comboBox_actor_db_alias_source"]
-        combo_w = max(nfo_right - combo_x, 80)
-        widgets["comboBox_actor_db_alias_source"].setGeometry(combo_x, combo_y, combo_w, 32)
-        widgets["pushButton_actor_db_sync_aliases"].setGeometry(pick_x, combo_y - 4, 151, 40)
+        widgets["pushButton_actor_db_sync_aliases"].setGeometry(pick_x, combo_y - 4, 110, 40)
         # 起始行/限量提示：紧贴 5000 调整框右侧，不随右缘锚定飞到最右边
         spin = ui.spinBox_actor_db_sync_limit
         hint = widgets["label_actor_db_sync_slice_hint"]
@@ -1472,6 +1457,96 @@ class MyMAinWindow(QMainWindow):
         opts["checkBox_cover_backfill_overwrite"].setGeometry(x1, y1, w1, h1)
         opts["checkBox_cover_backfill_watermark"].setGeometry(x2 + half, y2, w2, h2)
         opts["checkBox_create_link"].setGeometry(x3 + extra, y3, w3, h3)
+
+    def _sync_tool_page_input_fill(self) -> None:
+        """软件工具页显示输入框（含 TMDB 下拉）向右拓宽到右侧按钮左侧。
+
+        背景：通用逻辑只把输入拉到设计宽+extra、按钮按右缘锚定，行内 80px
+        间隙恒定（按钮改窄后空出）。本方法在 _sync_page_layouts 中紧随通用拉伸、
+        _sync_actor_db_tool_layout、_sync_cover_backfill_option_row 之后执行，
+        取按钮终态位置把输入右缘钉到按钮左缘-19（19px 为原设计间隙）。
+
+        判据用实时按钮几何而非 isMaximized()：大小态通用，窄窗下按钮左移时
+        输入同步收缩；仅改宽，x/y/h 不动（封面补图番号输入除外：其 x 随
+        标签列缩进，见下）。布局容器内的输入（网盘/本地目录、
+        本地资源库/演员名查缺）通过拓宽容器让输入列吸收增量。
+        """
+        ui = getattr(self, "Ui", None)
+        if ui is None:
+            return
+        GAP = 19  # 输入右缘与右侧按钮左缘间距
+        # 绝对定位输入：右缘 = 同行右侧按钮左缘 - GAP
+        for in_name, btn_name in (
+            ("lineEdit_single_file_path", "pushButton_select_file"),
+            ("lineEdit_appoint_url", "pushButton_select_file_clear_info"),
+            ("lineEdit_actor_db_nfo_dir", "pushButton_actor_db_pick_nfo_dir"),
+            ("comboBox_actor_db_alias_source", "pushButton_actor_db_sync_aliases"),
+        ):
+            edit = getattr(ui, in_name, None)
+            btn = getattr(ui, btn_name, None)
+            if edit is None or btn is None:
+                continue
+            edit.setGeometry(edit.x(), edit.y(), max(btn.x() - GAP - edit.x(), 150), edit.height())
+        # 封面补图番号行：标签与软链接助手组本地目录标签（label_338，Fixed 100
+        # 列）同列，输入框与网盘目录输入同列缩进；右缘仍钉到开始补图按钮左侧。
+        # 网盘/本地目录标签与输入行位置保持不变，只读其几何作列基准。
+        cover_edit = getattr(ui, "lineEdit_cover_backfill_numbers", None)
+        cover_btn = getattr(ui, "pushButton_cover_backfill_start", None)
+        cover_box = getattr(ui, "groupBox_cover_backfill", None)
+        if cover_edit is not None and cover_btn is not None and cover_box is not None:
+            net_box = getattr(ui, "gridLayoutWidget_36", None)
+            src_box = getattr(ui, "groupBox_21", None)
+            ref_label = getattr(ui, "label_338", None)
+            ref_input = getattr(ui, "lineEdit_netdisk_path", None)
+            if net_box is not None and src_box is not None and ref_label is not None and ref_input is not None:
+                dx = net_box.x() + (src_box.x() - cover_box.x())
+                cover_label = getattr(ui, "label_cover_backfill_number", None)
+                if cover_label is not None:
+                    cover_label.setGeometry(dx + ref_label.x(), cover_edit.y(), ref_label.width(), cover_edit.height())
+                new_x = dx + ref_input.x()
+            else:
+                new_x = cover_edit.x()
+            cover_edit.setGeometry(new_x, cover_edit.y(), max(cover_btn.x() - GAP - new_x, 150), cover_edit.height())
+        # 布局容器内的输入：拓宽容器（标签列 Fixed，输入列吸收增量）
+        for box_name, btn_name in (
+            ("gridLayoutWidget_36", "pushButton_select_netdisk_path"),
+            ("gridLayoutWidget_18", "pushButton_select_local_library"),
+        ):
+            box = getattr(ui, box_name, None)
+            btn = getattr(ui, btn_name, None)
+            if box is None or btn is None:
+                continue
+            box.setGeometry(box.x(), box.y(), max(btn.x() - GAP - box.x(), 230), box.height())
+            lay = box.layout()
+            if lay is not None:
+                lay.invalidate()
+                lay.activate()
+        # 刮削排除目录行（移动视频组）无右侧按钮：右缘与其它输入行看齐，
+        # 钉到右侧按钮列左缘 - GAP（按钮列各按钮 x 一致，任取其一作基准）
+        esc = getattr(ui, "lineEdit_escape_dir_move", None)
+        ref_btn = getattr(ui, "pushButton_select_file", None)
+        move = getattr(ui, "pushButton_move_mp4", None)
+        if esc is not None:
+            if ref_btn is not None:
+                esc.setGeometry(esc.x(), esc.y(), max(ref_btn.x() - GAP - esc.x(), 150), esc.height())
+            elif move is not None:
+                esc.setGeometry(esc.x(), esc.y(), max(move.x() + move.width() - esc.x(), 150), esc.height())
+        # 宽操作按钮（刮削/选择图片/一键创建软链接/开始移动/检查缺失番号）：
+        # 右缘与本组显示输入框右缘看齐（= 右侧按钮列左缘 - GAP）；本组无右侧
+        # 按钮时借用页级按钮列基准；仅改宽，x/y/h 不动
+        page_ref = getattr(ui, "pushButton_select_file", None)
+        for act_name, ref_name in (
+            ("pushButton_start_single_file", "pushButton_select_file"),
+            ("pushButton_select_thumb", None),
+            ("pushButton_find_missing_number", "pushButton_select_local_library"),
+            ("pushButton_move_mp4", None),
+            ("pushButton_creat_symlink", "pushButton_select_netdisk_path"),
+        ):
+            act = getattr(ui, act_name, None)
+            ref = getattr(ui, ref_name, None) if ref_name else page_ref
+            if act is None or ref is None:
+                continue
+            act.setGeometry(act.x(), act.y(), max(ref.x() - GAP - act.x(), 150), act.height())
 
     @staticmethod
     def _scroll_stretch_extra(scroll) -> int:
@@ -4882,6 +4957,9 @@ class MyMAinWindow(QMainWindow):
             # 封面补图组三选项行随组框拉宽同步拉开间距（须在 sync_wide_children_width
             # 之后，才能读到拉宽后的组宽）
             self._sync_cover_backfill_option_row()
+            # 显示输入框（含 TMDB 下拉）向右拓宽到右侧按钮左侧（须在上面两者
+            # 之后，取按钮终态位置；大小态通用，无需 isMaximized 分支）
+            self._sync_tool_page_input_fill()
             # ---- page_tool 底部配置操作栏（当前配置/另存为/恢复默认/保存）----
             # 与 page_setting 底部栏同组件同功能：滚动区高度收掉 75px 给页脚留位，
             # 页脚按 (设计页高 692 - 设计 y) 的下缘边距锚定新底部，保存按钮右缘锚定。
@@ -9658,7 +9736,6 @@ class MyMAinWindow(QMainWindow):
                         pass
                 Flags.log_txt = open(log_name, "wb", buffering=0)
                 Flags.log_txt.write(text.encode("utf-8"))
-                self.main_log_queue.appendleft(f"创建日志文件: {log_name}")
             except Exception:
                 signal_qt.show_traceback_log(traceback.format_exc())
 
@@ -11410,7 +11487,7 @@ class MyMAinWindow(QMainWindow):
         self.pushButton_start_cap2.emit("开始")
         self.Ui.pushButton_select_media_folder.setVisible(True)
         self.Ui.pushButton_start_single_file.setEnabled(True)
-        self.pushButton_start_single_file.emit("刮削")
+        self.pushButton_start_single_file.emit("开始刮削")
         self.Ui.pushButton_add_sub_for_all_video.setEnabled(True)
         self.pushButton_add_sub_for_all_video.emit("点击检查所有视频的字幕情况并为无字幕视频添加字幕")
 
