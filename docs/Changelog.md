@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.2.7 (2026-10-08)
+
+### 调整
+
+- **版本号**：`2.2.6` → `2.2.7`（`pyproject.toml`、`mdcx/consts.py`）
+- **网络检测分组名称**：`网络连通基础` → `网络连通`；`刮削站点检测` → `站点检测`（`mdcx/core/network_check.py`）
+- **文案与错误格式精简**（`mdcx/web_async.py`、`mdcx/core/network_check.py`、`tests/test_network_check.py`、`docs/Changelog.md`，同步 `uv.lock`）：
+  - `CloudFlare Bypass兜底亦失败` → `CloudFlare Bypass兜底失败`
+  - Mirror 错误格式：`mirror HTTP {n}` → `HTTP {n}`，去掉冗余 `mirror:` 前缀
+  - 传输错误格式：`; html: GET` → `;  GET`（`mdcx/web_async.py` 第 1753 行）
+  - `curl: (35) TLS connect error:` 保持半角冒号格式（`mdcx/web_async.py` 第 2019-2020 行）
+  - Bypass 失败提示：`Cloudflare 挑战页且 bypass 失败` → `Cloudflare挑战页且Bypass失败` → `遭遇Cloudflare挑战页且Bypass失败`（`mdcx/web_async.py` 第 1985 行）
+  - 传输探测文案：`站点可达但刮削探测 2 次` → `站点可达但刮削探测2次`（`mdcx/core/network_check.py`、`wiki/常见问题-FAQ.md`）
+  - 测试错误格式：`连接错误: Failed to perform` → `Failed to perform`（`tests/crawlers/test_javbus_new.py`、`test_freejavbt.py`）
+
 ## v2.2.6 (2026-10-08)
 
 ### 修复

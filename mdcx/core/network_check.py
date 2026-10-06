@@ -531,7 +531,7 @@ async def _probe_crawler_capability_with_retry(
         )
     return (
         NetworkCheckStatus.WARNING,
-        f"站点可达但刮削探测 {attempts} 次均未通过（{ladder}），最后一次: {message}",
+        f"站点可达但刮削探测{attempts}次均未通过（{ladder}），最后一次: {message}",
     )
 
 

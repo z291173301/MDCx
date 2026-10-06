@@ -1982,7 +1982,7 @@ class AsyncWebClient:
                                         await self._close_response(resp)
                                     return bypass_response, ""
                             else:
-                                error_msg = f"Cloudflare挑战页且Bypass失败: {bypass_error}"
+                                error_msg = f"遭遇Cloudflare挑战页且Bypass失败: {bypass_error}"
                                 terminal_status = self._extract_terminal_bypass_status(bypass_error)
                                 if terminal_status is not None and not self._is_retryable_status_code(terminal_status):
                                     retry = False

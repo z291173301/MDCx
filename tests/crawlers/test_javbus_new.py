@@ -73,7 +73,7 @@ class RotatingJavbusClient:
     async def get_text(self, url, **kwargs):
         self.requested.append(url)
         if url.startswith("https://www.dmmsee.cyou"):
-            return None, "连接错误: Failed to perform, curl: (35) BoringSSL"
+            return None, "Failed to perform, curl: (35) BoringSSL"
         return (
             """
             <html>
