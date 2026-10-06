@@ -4,6 +4,86 @@
 
 ### 修复
 
+- **最大化时收款码块「向上移动太多太多了」，改回 MDCx-20261007 的底锚高度（用户第十六轮诉求，附 001/002 两张最大化截图）**
+  - **诉求原文**：「最大化时二维码依然保持180px的高度，最大化时二维码图片、赞助作者、刮削完成 7/7、读取模式 · 字段优先、actor·json、MDCx 20261008、点击检查最新版本向上移动太多太多了，最大化时向下移动一些，改成和D:\@Data\MDCx-20261007（这是以前保存的源代码）中最大化时一样的高度，最小化时软件界面布局、组件、控件、提示词等等均保持不变」。图 001 是 MDCx-20261007 编译后运行的效果，图 002 是改动前的当前效果（001 上二维码落在侧栏下半部、状态文字贴着窗底；002 上二维码被顶到导航区正下方、状态文字一路跟着上移）。
+  - **根因**：上一批（第十五轮）把赞助块的锚法从「贴窗底」改成了「**顶锚导航底**」，且对**任何窗态**生效。最大化时富余高度有几百像素，块被顶到能顶的最高处，于是**二维码、支付宝码、`[赞助作者]`、5 行状态字全部被一起抬到导航区正下方**——实测 1040 高时状态文字从 ~955 被推到 608（上移 ~347px），与旧版截图差 109~130px。
+  - **对照实测（不是估算）**：新增离屏探针直接跑旧源码 `D:\@Data\MDCx-20261007`，取真实 QSS/字体/100% 字号，最大化 1040 高、读取完成后 5 行文字：
+
+    | 布局 | 支付宝码顶 | 微信码顶 | `[赞助作者]` | 状态文字带 | 窗底富余 |
+    |---|---|---|---|---|---|
+    | MDCx-20261007（底锚） | 509 | 711 | 893..915 | 925..1000 | 40 |
+    | 第十五轮（恒顶锚） | 398 | 600 | 782..804 | 810..895 | 145 |
+    | **本轮（最大化底锚）** | **503** | **705** | **887..909** | **915..1000** | **40** |
+
+    与旧版差 **6px**（这 6px 来自旧版把 5 行文字按 `lineSpacing` 估成 75 而真实 85）。
+  - **修法：锚法按窗口状态二选一**（`main_window.py`）。新增 `_donate_bottom_anchor()` = `isMaximized() or isFullScreen()`，并新增常量 `_DONATE_BOTTOM_SLACK = 40`（沿用旧版议题 #102 的 `_DOCK_STATUS_BOTTOM_PAD`，只在底锚路径生效——全局恢复那个 40 会把 `one_size` 砍掉 40，导致默认窗高 700 立刻放不满 180，违反第十三轮「等于或高于693时收款码高度恒为180px」）。`_layout_donate()` 分两条路径：
+    ```python
+    if bottom_anchor:      # 最大化 → 自窗底往上摆（与 MDCx-20261007 同锚法）
+        donate_y = status_bottom - self._DONATE_BOTTOM_SLACK - reserve_h
+        link_bottom = donate_y - gap; link_top = link_bottom - self._DONATE_LINK_H
+        qr_bottom  = link_top - self._DONATE_LINK_GAP
+        avail      = qr_bottom - self._DONATE_PAD - nav_bottom          # = 窗高 − 553
+        qr_top     = qr_bottom - qr_size                              # 微信码下沿不动
+        alipay_top = qr_top - qr_size - self._DONATE_ALIPAY_GAP        # 支付宝码在其上方
+        donate_h   = reserve_h                                        # 缩码不牵连状态区
+    else:                 # 其余 → 第十五轮顶锚，公式逐值未改
+        group_top = nav_bottom + self._DONATE_PAD
+        avail     = status_bottom - group_top - fixed_below - status_short   # = 窗高 − 513
+        qr_top    = group_top; link_top = qr_top + qr_size + self._DONATE_LINK_GAP
+        donate_y  = link_top + self._DONATE_LINK_H + gap
+    show_alipay = bottom_anchor and (avail - self._DONATE_ALIPAY_GAP) >= 2 * self._DONATE_QR_SIZE
+    ```
+    两条路径都**只用固定量**定位（`status_bottom` / `nav_bottom` / `reserve_h` / `gap` / 上面几个常量），与状态文字当前几行无关，故第十三轮「读取/刮削不动」的不变量在两档都继续成立。
+  - **顺带修掉一个隐藏分支的坐标拼接缺陷**：底锚路径推导位置时若直接改写 `status_y`，隐藏分支（`qr_size < _DONATE_QR_MIN`）会返回「新 y + 调用方给的旧 h」这种拼接值，把状态矩形整体上移 125px、数字浮标跟着上移（实测 520 高时底边从 520 缩到 507）。改为先写局部量 `donate_y` / `donate_h`，确认要显示才赋给 `status_y` / `status_h`。
+  - **非最大化一侧逐值未动**：离屏探针逐档复核 1080/1040/900/800/741/720/700/693/683/682/660/620/609/608/600/560/551/520/460/420，二维码顶恒 398（放得满 180 时）、链接 580..602、文字带顶 608、缩小阶梯与隐藏门槛（≤551 隐藏）与上一批**完全一致**。
+  - **边界（真实运行，100% 字号）**：
+    - **非最大化（顶锚，`one_size = 窗高 − 513`）**：≥693 → 恒 180×180；683..692 → 由授权的导航上移补到 180；551..682 → 按可用高度缩小（682→179 / 660→157 / 620→117 / 609→106 / 608→95 / 600→87 / 560→47）；≤551 → 整块隐藏。**与上一批逐值相同**。
+    - **最大化（底锚，`one_size = 窗高 − 553`）**：≥935 → 两码都是 180×180（支付宝 398..578、微信 600..780、链接 782..804、文字 810..895）；800..934 → 只有微信码且仍为 180（**绝不因为多一张码而缩小微信码**）；<593 → 按可用高度缩小；<553 → 整块隐藏。
+    - 两档的「读取/刮削前后几何完全一致」在**每一档**都成立（探针逐档比对）。
+  - **落点**：全部在 `mdcx/controllers/main_window/main_window.py`（新增常量 `_DONATE_BOTTOM_SLACK` 与方法 `_donate_bottom_anchor()`；`_layout_donate()` 定位改为双锚法；`_sync_dock_layout` 的 docstring 与分支①注释同步）。**`.ui` / `MDCx.py` 均未改动**，不牵动 pyuic 同步测试。
+  - **校验**：新增 `tests/test_window_state_matrix.py::test_donate_group_is_bottom_anchored_when_maximized`（断言文字带底边 ≡ 窗底 − `_DONATE_BOTTOM_SLACK`、自窗底往上严丝合缝、富余只落在块**上方**且随窗高单调递增、反复重排不抖、读取前后不动、还原后回到顶锚）；新增测试辅助 `_donate_bottom_anchor_budget()` / `_donate_bottom_full_size_min_height()` / `_donate_two_qr_min_height()`；改写 `::test_donate_group_is_top_anchored_and_status_text_never_clipped` 的最大化段（原先断言「最大化也顶锚」，改为断言「最大化确实切了底锚」）与 `::test_donate_alipay_never_shrinks_wechat_qr`（门槛改用底锚预算）。该文件 **82 项全过**，全仓 **2548 项全过**（仅 3 项 `tests/crawlers/test_aventertainments.py` 因真实站点连接被重置而红，与本改动无关）。**A/B 双向验证**（改完即复原，已 grep 确认无残留标记）：把 `_donate_bottom_anchor()` 临时改成恒 `False`（回到第十五轮恒顶锚）→ 两个新/改用例立刻报「最大化时状态文字带底边 936 未贴窗底留 40px（期望 896）」与「最大化且放得下两张时应显示支付宝码 assert not True」，即用户截图 002 的原始形态。
+
+- **收款码块与状态文字整块向上顶到最高允许处（用户第十五轮诉求，两张截图）**：
+  - **诉求原文**：「1、最小化时在不压缩二维码180px的高度、不遮盖[赞助作者]、刮削完成 7/7的字体的前提下将刮削完成 7/7、读取模式 · 字段优先、actor·json、MDCx 20261008、点击检查最新版本整体向上移动，允许向上移动多少px就向上移动多少px，移动到最大允许的高度px值　2、最大化时二维码依然保持180px的高度，刮削完成 7/7、读取模式 · 字段优先、actor·json、MDCx 20261008、点击检查最新版本跟随页面整体向上移动，因为上方的高度空间已经绰绰有余，完全足够了」。截图一（还原态 1030×741）里第 5 行「🔍 点击检查最新版」**被窗底裁掉半行**；截图二（最大化 1920×1040）里导航底（y≈430）与支付宝码（y≈538）之间空着 **127px**，而 5 行文字却压在最底下（y≈950–1035）。
+  - **根因一：整块是「贴窗底」锚定的**。第十三轮把定位改成了纯固定量，但基准点仍取「状态区底 − 固定预留高」，于是**窗口越高、块越靠下**——最大化时上方空出 127px、下方却被 5 行文字占满，正是用户截图二。
+  - **根因二：预留带把「5 行文字」算矮了 10px**。`_dock_status_text_reserve_h()` 原按 `lineSpacing × (5−1) + height` = 75 估算，但**带 emoji 的行真实渲染行距是 17px 而不是 15px**（离屏探针实测 `QLabel.sizeHint().height()`：1行17/2行34/3行51/4行68/**5行85**/6行102/7行119；纯 ASCII 或纯汉字才是 15）。于是 5 行实高 85 > 预留 75，多出的 10px 吃掉了本该有的 16px 间距（实测只剩 6px），末行直接贴住窗底 → 被裁。这与「最大化时文字挤在底部」是两回事，**必须一起修**，否则块上移后文字仍会溢出。
+  - **修法一：整块改为**顶锚导航底**，富余高度全部落到窗口底部**（`main_window.py: _layout_donate`）：
+    ```python
+    group_top = nav_bottom + self._DONATE_PAD          # 块顶：能顶多高就多高
+    one_size = status_bottom - group_top - fixed_below  # fixed_below = LINK_GAP+LINK_H+gap+reserve_h
+    status_y = link_bottom + gap                        # 文字顶：块顶往下顺排
+    status_h = max(0, status_bottom - status_y)         # 富余全留在状态矩形里 → 落在窗底
+    ```
+    `_DONATE_LIFT` 常量**整体删除**（顶锚后不再需要把块额外抬高 6px），`_DONATE_TEXT_GAP` 10 → 6（把根因二少算的那 10px 直接折进间距，**总预算与上一批逐位相同**，所有高度门槛不变）。实测迁移量（真实 QSS、100% 字号）：**741 高时二维码 y 446→398、状态文字 656→608（上移 48px），末行不再被裁**；**最大化 1040 高时状态文字 ~955→608（上移 ~347px）**。
+  - **修法二：预留带改用**真实渲染行高探针**，不再用 `lineSpacing()` 估算**（新增 `_DONATE_TEXT_PROBE_W = 4096` 与 `_dock_status_text_probe_h(text)`）：
+    ```python
+    fm = status.fontMetrics()
+    fm.boundingRect(QRect(0, 0, self._DONATE_TEXT_PROBE_W, 0),
+                    Qt.TextFlag.TextExpandTabs, text).height()
+    ```
+    探 5 行「🎉」得 **85**，与 `QLabel.sizeHint()` 的真实渲染逐值吻合（`"\n"*5` 会得 90，过计；用侧栏窄矩形 210 会折行，计 105，也不用）。`_dock_status_text_reserve_h()` 改为探 5 行 → **85**；新增 `_dock_status_text_real_h()` 探**当前**文字，仅用于「文字会不会撑出预留带」的裁切判据；`_dock_status_text_h()`（估算）保留但降级为**行数闸门 + 叠字判据**，不再参与任何定位。
+  - **修法三：文字在自己的预留带里改**顶对齐**（`AlignTop|AlignHCenter`，隐藏时才回 `AlignBottom`）**。底对齐时每多一行字整个块就上移一行（第十三轮的回归）；顶对齐后新增的行往**下**长进预留带的富余里，首行原地不动——「读取/刮削不动」这条不变量因此继续成立，且不再需要把富余留在文字上方。
+  - **修法四：「状态区下限」护栏**（`_layout_donate`）。由 `status_y = link_bottom + gap` 可推出 `status_h ≡ one_size + reserve_h − qr_size`，即**二维码缩小多少就把状态区压矮多少**。真实运行 `reserve_h`=85 > `_DOCK_STATUS_H_MIN`=72，护栏恒不生效（`status_h ≡ reserve_h`）；它只给「界面字号被改到极小、5 行文字都撑不到 72px」兜底——否则状态区会被二维码挤到比文字还矮、末行被裁，正是议题 #181 的原始回归：
+    ```python
+    status_short = max(0, self._DOCK_STATUS_H_MIN - reserve_h)
+    qr_size = min(self._DONATE_QR_SIZE, one_size - status_short)
+    qr_deficit = max(0, self._DONATE_QR_SIZE + status_short - one_size)
+    ```
+    缺口里**也要含 `status_short`**：上移导航 1px 只让边长长 1px，若缺口不含它，补上来的像素会被护栏吃掉，边长卡在「差 4px」上不去（实测出现过 `h∈[666,710)` 恒为 176 的平台期；修好后 h=670 → 180、h=665 → 175、h=630 → 100，单调）。
+  - **顺带的更强不变量**：二维码位置现在**只由 `nav_bottom` 决定**（放得满 180 时恒为 `nav_bottom + _DONATE_PAD`）。实测 **h≥683 的所有档位二维码 y 全部相同**（700/741/800/900/1040/1080 都是 398）——窗口拉高只是让富余高度掉到块下方，**位置比第十三轮承诺的「读取/刮削不动」还强一档**。
+  - **边界（真实运行、100% 字号实测，与上一批逐值相同，`one_size = 窗高 − 513`）**：
+
+    | 窗高 | 导航落位 | 微信码 | 文字带顶 | 说明 |
+    |---|---|---|---|---|
+    | ≥ **693** | y=20 基线 | **180×180** | 608 | 默认窗高 700、用户实际场景 741 均在此档 |
+    | 683–692 | y=10~19（按缺口上移） | **180×180** | 598 | 导航上移 ≤10px 恰好补齐 |
+    | 551–682 | y=10 或 20 | **按可用高度缩小**（682→179、660→157、609→106、608→95、600→87、560→47） | 随边长顺移 | 用户第十三轮要求的缩小档 |
+    | ≤ 550 | — | **整块隐藏**（文字回 `AlignBottom` 贴底） | — | 可用高度 < `_DONATE_QR_MIN`=40，糊码/叠字更糟（军规③） |
+
+    最大化（真实运行）：**h ≥ 895 → 两码都是 180**（支付宝 398..578、微信 600..780、`[赞助作者]` 782..804、文字 810..895，1040 高时底部富余 145px）；h=800/700 → 微信 180、支付宝不出现；h=660 → 微信 157。支付宝码判据仍是「**两张都放得下完整 180 才显示**」，且不与文字行数挂钩。
+  - **落点**：全部在 `mdcx/controllers/main_window/main_window.py`（删 `_DONATE_LIFT`、`_DONATE_TEXT_GAP` 10→6、新增 `_DONATE_TEXT_PROBE_W`、新增 `_dock_status_text_probe_h()` / `_dock_status_text_real_h()`、改写 `_dock_status_text_reserve_h()` 与 `_layout_donate()` 整体、`_sync_dock_layout` 分支①④注释与 `AlignBottom` 兜底）。**`.ui` 与 `MDCx.py` 均未改动**，不牵动 pyuic 同步测试。
+  - **校验**：新增 `tests/test_window_state_matrix.py::test_donate_group_is_top_anchored_and_status_text_never_clipped`（断言块顶 ≡ 导航底+`_DONATE_PAD`、二维码/链接/文字首行三者只由块顶与固定量决定、放得满边长的各档高度下二维码与链接几何**逐值相同**、文字带底边恒在窗内、底部富余随窗高单调不减、最大化时支付宝码顶锚且微信码紧贴其下、两码都是 180）；改写 `::test_donate_block_is_centered_and_keeps_text_gap_at_any_height`（文字顶对齐后 `text_top ≡ status.y()`，不再做「矩形底 − 文字块高」换算）与 `::test_dock_geometry_is_frozen_when_status_text_grows_a_line` / `::test_donate_qr_shrinks_below_floor_when_window_is_too_short` / `::test_donate_alipay_never_shrinks_wechat_qr`（满边长门槛改用新增的 `_donate_full_size_min_height()`，**计入授权的导航上移量**，否则差最后几像素时会被误判成「放不满」）；该文件 **81 项全过**，全仓 **2547 项全过**（仅 3 项 `tests/crawlers/test_aventertainments.py` 因真实站点连接被重置而红，与本改动无关）。**A/B 双向验证**（改完即复原，已 grep 确认无残留标记）：把块顶临时装回贴窗底（`group_top = status_bottom - fixed_below - qr_size`）→ 新用例立刻报出 `h=741: 二维码顶 463 未锚在块顶 424`，即用户截图里「二维码压在下方、上方空 127px」的原始形态。
+
 - **读取/刮削完成后二维码与左侧导航整体上移、二维码变小（用户第十三轮诉求，「固定！固定！固定！」）**：
   - **诉求原文**：「微信与支付宝二维码要在任何情况下都不会放大或缩小或向上移动或向下移动，把支付宝与微信二维码高度固定在180px」「我需要的是读取或刮削模式下读取或刮削前二维码位置、软件界面、软件日志、软件工具、演员管理、信息管理、软件设置、检测网络、使用说明位置都保持固定！！！注意是固定！固定！固定！」，附两张截图标注「读取数据后软件界面向上移动了大概5-10px」「读取数据后二维码也向上移动了大概5-10px二维码还变小了」；补充诉求：「窗高低于 693（100% 字号）时还是将收款码缩小，等于或高于693时收款码高度恒为180px」。
   - **根因（与上一批是同一处代码的另一半）**：`_layout_donate()` 曾用 `_dock_status_text_h()`（**实测**文字行数 × 行距）锚定 `[赞助作者]` 与二维码下沿。读取完成时 `show_scrape_info` 在文字**顶部**追加一行「🎉 刮削完成 7/7」，实测文字块 60→75px，于是 ① 整块上移一行（15px）；② `qr_size = min(180, one_size)` 让边长跟着可用高度缩小；③ 剩余缺口 `qr_deficit` 再被上一批新增的「导航上移补缺口」逻辑吃掉，于是导航也跟着上移。**实测（离屏探针，真实 QSS、100% 字号、1030×700）**：读取前 导航 y=20／二维码 y=416 → 读取后 导航 y=**13**／二维码 y=**405**，与用户截图逐条对上。

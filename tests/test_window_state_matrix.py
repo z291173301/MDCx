@@ -76,13 +76,18 @@ def _goto(win, app, page_name):
 def _donate_one_size_budget(win) -> int:
     """`_layout_donate` 的可用高度预算常数项，与 `main_window.py` 逐项对齐。
 
-    真实实现：`one_size = 窗高 − 预留行高 − gap − 链接高 − 链接间距 − 内距 − 导航底`
+    真实实现（顶锚定版）：`one_size = 窗高 − 预留行高 − gap − 链接高 − 链接间距 − 内距 − 导航底`
     （见 `main_window.py: _DONATE_QR_SIZE` 处注释）。窗高是唯一变量，故抽成本函数后
     「某档窗高能否放满 180」就是 `窗高 >= 返回值 + 180`，测试不必写死阈值（字体度量随
     fixture 的 `set_style` 桩而变；真实运行 100% 字号的门槛是 693）。
+
+    注意 `gap` 已不含旧的 `_DONATE_LIFT`（本轮起整块改为顶锚定，富余高度落在窗底）。
+    另外 `max(0, _DOCK_STATUS_H_MIN - reserve)` 是「状态区下限」护栏：二维码缩小多少就把
+    状态区压矮多少，故预留带不足 72px 时（QSS 被 stub 的本环境即如此）边长还要再让出这段。
+    真实运行 `reserve` = 85 > 72，该项恒为 0，门槛仍是 693。
     """
     reserve = win._dock_status_text_reserve_h()
-    gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve) + win._DONATE_LIFT
+    gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve)
     return (
         reserve
         + gap
@@ -91,6 +96,65 @@ def _donate_one_size_budget(win) -> int:
         + win._DONATE_PAD
         + win._dock_nav_top_base()
         + win._DOCK_NAV_H
+        + max(0, win._DOCK_STATUS_H_MIN - reserve)
+    )
+
+
+def _donate_bottom_anchor_budget(win) -> int:
+    """`_layout_donate` **底锚**（最大化）路径的可用高度预算常数项。
+
+    底锚时整块自窗底往上摆：`one_size = 窗底 − _DONATE_BOTTOM_SLACK − reserve − gap
+    − LINK_H − LINK_GAP − PAD − nav_bottom`（真实运行 = `height − 553`）。比顶锚多出
+    `_DONATE_BOTTOM_SLACK`（40，用户钦定与 MDCx-20261007 观感一致），且**不含**
+    `max(0, _DOCK_STATUS_H_MIN − reserve)`——底锚档状态矩形高恒为 reserve_h，缩二维码
+    不牵连它。
+    """
+    reserve = win._dock_status_text_reserve_h()
+    gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve)
+    return (
+        win._DONATE_BOTTOM_SLACK
+        + reserve
+        + gap
+        + win._DONATE_LINK_H
+        + win._DONATE_LINK_GAP
+        + win._DONATE_PAD
+        + win._dock_nav_top_base()
+        + win._DOCK_NAV_H
+    )
+
+
+def _donate_bottom_full_size_min_height(win) -> int:
+    """最大化（底锚）时二维码达到满边长所需的最低窗高（已计入授权的导航上移量）。
+
+    与 `_donate_full_size_min_height` 同理，只是预算换成底锚那一套：最大化往返后窗口
+    高度通常远高于门槛，但小屏 / 多显示器拖到副屏时可能落到门槛以下。
+    """
+    return (
+        _donate_bottom_anchor_budget(win)
+        + win._DONATE_QR_SIZE
+        - (win._dock_nav_top_base() - win._DOCK_NAV_TOP_MIN)
+    )
+
+
+def _donate_two_qr_min_height(win) -> int:
+    """最大化时**两张**码（支付宝 + 微信）都保持满 180 所需的最低窗高（底锚档）。
+
+    判据 `avail − _DONATE_ALIPAY_GAP >= 2 × _DONATE_QR_SIZE`，`avail` 就是底锚预算项。
+    """
+    return _donate_bottom_anchor_budget(win) + win._DONATE_ALIPAY_GAP + 2 * win._DONATE_QR_SIZE
+
+
+def _donate_full_size_min_height(win) -> int:
+    """二维码达到满边长所需的**最低**窗高（已计入导航上移补缺口的授权量）。
+
+    `_sync_dock_layout` 分支①允许把导航整体上移 `nav_top_base − _DOCK_NAV_TOP_MIN`
+    （100% 字号下 10px）来把二维码补满 180，这是用户钦定的行为（「上方还有 10px 以上的
+    空间…二维码图片高度还是要保持180px」）。故「放不满」的真实门槛比纯预算低这么多。
+    """
+    return (
+        _donate_one_size_budget(win)
+        + win._DONATE_QR_SIZE
+        - (win._dock_nav_top_base() - win._DOCK_NAV_TOP_MIN)
     )
 
 
@@ -1090,8 +1154,9 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
 
     回归背景：① 二维码块原先顶对齐在导航区下方，多余空间全落下方，而状态文字是
     底对齐（rect 越高文字越靠下），两边叠加导致最大化后「[赞助作者]」与
-    「正常模式·字段优先」的间距从 17px 暴涨到 331px（用户反馈截图），
-    改为底部锚定后两者都应与窗口高度无关；② 二维码边长上限先后在「侧栏宽（满宽不留
+    「正常模式·字段优先」的间距从 17px 暴涨到 331px（用户反馈截图）；
+    第十五轮起整块改为**顶锚导航底**、文字在自己的预留带里顶对齐，两者都与窗口高度
+    无关（间距恒为 `_DONATE_TEXT_GAP`）；② 二维码边长上限先后在「侧栏宽（满宽不留
     白）」、「恒定 176」、「恒定 168」与「恒定 180」之间来回改过，两档不一致被用户指出
     （最大化时直接顶到左右边界；176 时最大化留白 17px 而还原窗口 21px，差 4px）。
     _DONATE_QR_SIZE=180 的来历：收窄三处缝隙（_DONATE_LINK_GAP 6→2、_DONATE_PAD 6→2、
@@ -1132,10 +1197,11 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
         # win fixture 把 set_style stub 成 lambda（第 47 行），QSS 的 13px 不生效，
         # 字体度量与真实运行不同（本环境 _dock_status_text_h() 得 54，真实运行 60），
         # 于是本环境算出的 avail 比真实运行小。是否达标由下方 qr_full 记录后再分组断言。
-        # 「[赞助作者]」底边到状态文字首行的间距。文字在矩形内底对齐，故文字顶 =
-        # 矩形底 − 文字块高（_dock_status_text_h 按字体度量算，不用写死）
+        # 「[赞助作者]」底边到状态文字首行的间距。第十五轮起文字在自己的预留带里
+        # **顶对齐**（底对齐时每多一行字整块就上移一行，正是第十三轮的回归），矩形顶
+        # 就是首行顶，故 text_top ≡ status.y()，不再需要「矩形底 − 文字块高」的换算。
         link_bottom = link.y() + link.height()
-        text_top = status.y() + status.height() - win._dock_status_text_h()
+        text_top = status.y()
         gaps[height] = text_top - link_bottom
         # 三者仍不重叠
         for a, b in ((qr, link), (link, status), (qr, status)):
@@ -1285,7 +1351,7 @@ def test_dock_geometry_is_frozen_when_status_text_grows_a_line(win, app):
             after = snapshot()
             moved = [
                 f"{w.objectName() or type(w).__name__} {b[0]} → {a[0]}"
-                for w, b, a in zip(watched, before, after)
+                for w, b, a in zip(watched, before, after, strict=True)
                 if b != a
             ]
             assert not moved, (
@@ -1296,16 +1362,20 @@ def test_dock_geometry_is_frozen_when_status_text_grows_a_line(win, app):
             # **门槛按预算算、不写死 693**：本 fixture stub 了 set_style，字体度量与真实
             # 运行不同（真实运行 100% 字号 h≥693 才是 180），阈值随字号/导航基线浮动。
             # 真正的命题是「可用高度够 ⇒ 恰好 180；不够 ⇒ 缩小且**仍在同一位置**」。
+            # 门槛取「纯预算」再减去**授权的导航上移量**（`_donate_full_size_min_height`）：
+            # 差最后那几像素时导航会整体上移把缺口补满，用户要求补满后仍是 180。
             qr = ui.label_donate_qr
             budget = _donate_one_size_budget(win)
-            if height >= budget + win._DONATE_QR_SIZE:
+            full_min_h = _donate_full_size_min_height(win)
+            if height >= full_min_h:
                 assert (qr.width(), qr.height()) == (win._DONATE_QR_SIZE, win._DONATE_QR_SIZE), (
                     f"{scale}x h={height}: 够放满却只有 {qr.width()}×{qr.height()} "
                     f"!= {win._DONATE_QR_SIZE}（预算 {budget}）"
                 )
             else:
                 assert qr.width() < win._DONATE_QR_SIZE, (
-                    f"{scale}x h={height}: 预算不足（{budget}）却仍是满尺寸 {qr.width()}"
+                    f"{scale}x h={height}: 预算不足（门槛 {full_min_h} > {height}）"
+                    f"却仍是满尺寸 {qr.width()}"
                 )
         # 双字号循环之间把字号复原，避免累积放大
         if scale != 1.0:
@@ -1339,7 +1409,9 @@ def test_donate_qr_shrinks_below_floor_when_window_is_too_short(win, app):
         ui.label_show_version,
     )
     budget = _donate_one_size_budget(win)
-    full_h = budget + win._DONATE_QR_SIZE
+    # 门槛取「纯预算」再减去**授权的导航上移量**：差最后那几像素时导航整体上移把缺口
+    # 补满后仍是 180（用户钦定），故这才是「放得满」的真正下界。
+    full_h = _donate_full_size_min_height(win)
     # 最低一档锁在分支①（空间够）的下沿之上：分支②起导航不再上移、状态区改贴导航底，
     # 预算公式换一套，混进来测的就不是「①里够/不够」这条命题了。
     branch1_min = (
@@ -1529,6 +1601,11 @@ def test_donate_alipay_never_shrinks_wechat_qr(win, app):
     与本仓既有 docstring「不因多一张码而缩小」的承诺相悖。这里把 isMaximized 打成
     True 逐档扫描，断言微信码恒 180，且支付宝码出现的高度档位上**两张都是 180**。
 
+    门槛按预算反算（最大化走的是**底锚**路径，故用 `_donate_bottom_full_size_min_height`，
+    见该函数）：比「放得满 180」的下界还矮的档位本就该缩小（用户第十三轮：「低于 693
+    时还是将收款码缩小」），对那些档位不断言 180，但**任何档位都不允许因为支付宝码而
+    缩小微信码**。
+
     注：给 widget 打类属性会硬崩 pytest 进程，必须用**实例**属性（实例 __dict__ 会遮蔽方法）。
     """
     _goto(win, app, "page_main")
@@ -1536,6 +1613,7 @@ def test_donate_alipay_never_shrinks_wechat_qr(win, app):
     ui = win.Ui
     qr, alipay = ui.label_donate_qr, ui.label_donate_alipay
     size = win._DONATE_QR_SIZE
+    full_min_h = _donate_bottom_full_size_min_height(win)
     win.resize(1032, 741)
     win.show()
     app.processEvents()
@@ -1546,13 +1624,18 @@ def test_donate_alipay_never_shrinks_wechat_qr(win, app):
             app.processEvents()
             if not qr.isVisible():
                 continue
-            assert (qr.width(), qr.height()) == (size, size), (
-                f"h={h} 最大化态微信码被缩成 {qr.width()}×{qr.height()} != {size}"
-            )
+            if h >= full_min_h:
+                assert (qr.width(), qr.height()) == (size, size), (
+                    f"h={h} 最大化态微信码被缩成 {qr.width()}×{qr.height()} != {size}"
+                )
             if alipay.isVisible():
                 assert (alipay.width(), alipay.height()) == (size, size), (
                     f"h={h} 支付宝码 {alipay.width()}×{alipay.height()} != {size}（宽度须与微信码严格一致）"
                 )
+        assert sum(1 for h in (700, 741, 800, 900, 1000, 1100, 1200, 1400) if h >= full_min_h) >= 3, (
+            f"前提不成立：本环境满边长门槛 {full_min_h} 过高，扫到的档位几乎都在缩小区，"
+            f"本用例会变成空断言"
+        )
     finally:
         del win.isMaximized
 
@@ -1708,6 +1791,242 @@ def test_donate_alipay_qr_only_appears_when_maximized(win, app):
     assert alipay.isHidden(), "还原后支付宝码应重新隐藏"
     assert qr.width() <= win._DONATE_QR_SIZE, f"还原后微信码 {qr.width()} 超过设计边长"
     assert qr.x() == (side_w - qr.width()) // 2, f"还原后未居中：{qr.x()}"
+
+
+def test_donate_group_is_top_anchored_and_status_text_never_clipped(win, app):
+    """第十五轮核心（**非最大化**）：整块收款码**顶锚导航底**，富余高度丢给窗口底部。
+
+    用户原话（附截图，1030×741 与最大化 1920×1040）：「最小化时在不压缩二维码180px的高度、
+    不遮盖[赞助作者]、刮削完成 7/7的字体的前提下将…整体向上移动，允许向上移动多少px就向上
+    移动多少px，移动到最大允许的高度px值」「最大化时二维码依然保持180px的高度，…跟随页面
+    整体向上移动，因为上方的高度空间已经绰绰有余，完全足够了」。旧实现把整块**贴窗底**，
+    于是最大化时状态文字压在窗底、末行「🔍 点击检查最新版」被裁（截图可见）。
+
+    四条断言（阈值全部由预算反算，不写死像素）：
+      ① 块顶 ≡ 导航底 + _DONATE_PAD，且二维码/链接/文字首行三者只由块顶与**固定量**决定；
+      ② 放得满设计边长的各档窗高下，二维码与链接的几何**逐值相同**（位置与窗高无关，
+         这比第十三轮「读取/刮削不动」的承诺更强）；
+      ③ 文字带底边恒在窗内（末行不被裁），且实际文字高度 ≤ 预留带；
+      ④ 底部富余高度随窗高**单调不减**——富余只能落在块下方，不能插到块与导航之间。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    qr, link, nav, status = (
+        ui.label_donate_qr,
+        ui.label_donate_link,
+        ui.widget_buttons,
+        ui.label_show_version,
+    )
+    reserve = win._dock_status_text_reserve_h()
+    budget = _donate_one_size_budget(win)
+    full_h = budget + win._DONATE_QR_SIZE
+    gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve)
+
+    full_qr_rects: dict[int, tuple] = {}
+    slacks: dict[int, int] = {}
+    heights = [h for h in (700, 741, 800, 900, 1080, 1200) if h >= full_h]
+    assert len(heights) >= 3, (
+        f"前提不成立：本环境预算 {budget}（满边长门槛 {full_h}），凑不出三档可放满的窗高"
+    )
+    for height in heights:
+        win.resize(1032, height)
+        win.show()
+        app.processEvents()
+        nav_bottom = nav.y() + nav.height()
+        group_top = nav_bottom + win._DONATE_PAD
+        # ① 块顶锚在导航底（能顶多高就多高），三者自上而下严丝合缝
+        assert qr.y() == group_top, f"h={height}: 二维码顶 {qr.y()} 未锚在块顶 {group_top}"
+        assert link.y() == qr.y() + qr.height() + win._DONATE_LINK_GAP, (
+            f"h={height}: [赞助作者] 未紧贴二维码下方"
+        )
+        assert status.y() == link.y() + link.height() + gap, (
+            f"h={height}: 状态文字首行未紧贴[赞助作者]下方（间距 {status.y() - link.y() - link.height()}）"
+        )
+        # ③ 文字带底边恒在窗内：末行「点击检查最新版」不被窗底裁掉（用户截图的原始问题）
+        assert status.y() + reserve <= height, (
+            f"h={height}: 文字带底边 {status.y() + reserve} 超出窗高 {height}，末行被裁"
+        )
+        assert win._dock_status_text_real_h() <= status.height(), (
+            f"h={height}: 实际文字 {win._dock_status_text_real_h()} 超出预留带 {status.height()}"
+        )
+        assert status.y() >= nav_bottom, f"h={height}: 文字压进导航区"
+        # ④ 富余高度只能落在块下方（顶锚的直接后果）
+        slacks[height] = height - (status.y() + reserve)
+        full_qr_rects[height] = (qr.geometry().getRect(), link.geometry().getRect())
+    # ② 位置与窗口高度完全无关（同一档内逐值相同）
+    assert len(set(full_qr_rects.values())) == 1, (
+        f"收款码块位置随窗高漂移：{full_qr_rects}"
+    )
+    # ④ 富余单调不减（窗越高，块下方空出来的越多）
+    ordered = [slacks[h] for h in heights]
+    assert ordered == sorted(ordered), f"底部富余未随窗高单调不减：{slacks}"
+    assert ordered[0] >= 0, f"最低一档就已经把文字挤出窗外：{slacks}"
+
+    # ⑤ 最大化走**底锚**（第十六轮），几何与顶锚档完全不同，由
+    #    test_donate_group_is_bottom_anchored_when_maximized 单独锁住；这里只确认
+    #    打桩生效后确实切了锚法——否则下面的断言会因「碰巧也对」而空转。
+    win.isMaximized = lambda: True
+    try:
+        win.resize(1032, 1200)
+        app.processEvents()
+        win._sync_dock_layout()
+        alipay = ui.label_donate_alipay
+        assert not alipay.isHidden(), "最大化且放得下两张时应显示支付宝码"
+        assert alipay.y() != nav.y() + nav.height() + win._DONATE_PAD, (
+            "最大化后仍是顶锚：支付宝码顶还贴在导航底（第十六轮要求最大化改底锚）"
+        )
+        assert status.y() + status.height() == 1200 - win._DONATE_BOTTOM_SLACK, (
+            f"最大化时状态文字带底边未贴窗底留 {win._DONATE_BOTTOM_SLACK}px："
+            f"y={status.y()} height={status.height()}"
+        )
+    finally:
+        del win.isMaximized
+        win.resize(1032, 700)
+        app.processEvents()
+        win._sync_dock_layout()
+
+
+def test_donate_group_is_bottom_anchored_when_maximized(win, app):
+    """第十六轮核心：最大化时整块收款码**底锚窗底**，观感回到 MDCx-20261007。
+
+    用户原话（附 001/002 两张最大化截图，001 是旧版源码编译出来的效果）：
+    「最大化时二维码依然保持180px的高度，最大化时二维码图片、赞助作者、刮削完成 7/7、
+    读取模式 · 字段优先、actor·json、MDCx 20261008、点击检查最新版本向上移动太多太多了，
+    最大化时向下移动一些，改成和 MDCx-20261007 中最大化时一样的高度，最小化时软件界面
+    布局、组件、控件、提示词等等均保持不变」。
+
+    第十五轮把整块改成顶锚导航底，在**任何**窗态都生效，于是最大化时富余的几百像素全落
+    在块**下方**，块被顶到导航区正下方：实测 1040 高时文字从 ~955 被推到 608（上移 347px），
+    与旧版截图差 109~130px。故最大化改回底锚。
+
+    四条断言（阈值按 `_donate_*_budget` 反算，不写死像素）：
+      ① 文字带底边 ≡ 窗底 − `_DONATE_BOTTOM_SLACK`（旧版议题 #102 的贴底预留 40px）；
+      ② 自窗底往上严丝合缝：`qr_bottom ≡ link_top − LINK_GAP`、
+         `link_bottom ≡ 文字带顶 − gap`、支付宝码紧贴微信码上方 ALIPAY_GAP；
+      ③ 富余高度只能落在块**上方**（块顶 − 导航底 随窗高单调递增）——底锚的直接后果，
+         与顶锚档那条「富余落在块下方」互为镜像；
+      ④ 最大化往返不抖：同一窗高下反复重排几何逐值相同；且两档锚法都**读取前后不变**。
+    """
+    _goto(win, app, "page_main")
+    win.setMinimumSize(0, 0)
+    ui = win.Ui
+    qr, link, nav, status = (
+        ui.label_donate_qr,
+        ui.label_donate_link,
+        ui.widget_buttons,
+        ui.label_show_version,
+    )
+    alipay = ui.label_donate_alipay
+    reserve = win._dock_status_text_reserve_h()
+    gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve)
+    full_min_h = _donate_bottom_full_size_min_height(win)
+    heights = [h for h in (936, 1000, 1040, 1080, 1200, 1400) if h >= full_min_h]
+    assert len(heights) >= 3, (
+        f"前提不成立：本环境底锚满边长门槛 {full_min_h}，凑不出三档可放满的窗高"
+    )
+
+    top_slacks: dict[int, int] = {}
+    win.isMaximized = lambda: True
+    try:
+        for height in heights:
+            win.resize(1032, height)
+            win.show()
+            app.processEvents()
+            win.show_scrape_info("🎉 刮削完成 7/7")
+            app.processEvents()
+            win._sync_dock_layout()
+            app.processEvents()
+            nav_bottom = nav.y() + nav.height()
+            block_top = alipay.y() if not alipay.isHidden() else qr.y()
+            # ① 文字带底边贴窗底留 _DONATE_BOTTOM_SLACK（= 旧版的 _DOCK_STATUS_BOTTOM_PAD）
+            assert status.y() + status.height() == height - win._DONATE_BOTTOM_SLACK, (
+                f"h={height}: 文字带底边 {status.y() + status.height()} 未贴窗底留 "
+                f"{win._DONATE_BOTTOM_SLACK}px（期望 {height - win._DONATE_BOTTOM_SLACK}）"
+            )
+            assert status.height() == reserve, (
+                f"h={height}: 底锚档状态矩形高 {status.height()} != 预留带 {reserve}"
+            )
+            # ② 自窗底往上严丝合缝
+            assert link.y() + link.height() == status.y() - gap, (
+                f"h={height}: [赞助作者] 底边未紧贴文字带上方（间距 {status.y() - link.y() - link.height()}）"
+            )
+            assert qr.y() + qr.height() == link.y() - win._DONATE_LINK_GAP, (
+                f"h={height}: 微信码下沿未紧贴[赞助作者]上方"
+            )
+            assert (qr.width(), qr.height()) == (win._DONATE_QR_SIZE,) * 2, (
+                f"h={height}: 最大化时微信码 {qr.width()}×{qr.height()} 未保持 {win._DONATE_QR_SIZE}"
+            )
+            assert block_top >= nav_bottom, (
+                f"h={height}: 块顶 {block_top} 压进导航区（导航底 {nav_bottom}）"
+            )
+            if not alipay.isHidden():
+                assert (alipay.width(), alipay.height()) == (win._DONATE_QR_SIZE,) * 2, (
+                    f"h={height}: 支付宝码 {alipay.width()}×{alipay.height()} 未保持 {win._DONATE_QR_SIZE}"
+                )
+                assert alipay.x() == qr.x(), f"h={height}: 两码未同列"
+                assert alipay.y() + alipay.height() + win._DONATE_ALIPAY_GAP == qr.y(), (
+                    f"h={height}: 支付宝码未紧贴微信码上方"
+                )
+            # 末行不被裁（`_DONATE_BOTTOM_SLACK` ≥ 0 保证文字带整体在窗内）
+            assert win._dock_status_text_real_h() <= status.height(), (
+                f"h={height}: 实际文字 {win._dock_status_text_real_h()} 超出预留带 {status.height()}"
+            )
+            # ③ 富余只能落在块**上方**（块顶 − 导航底）
+            top_slacks[height] = block_top - nav_bottom
+            # ④ 反复重排不抖
+            live = (qr.geometry().getRect(), alipay.geometry().getRect(), link.geometry().getRect())
+            for _ in range(5):
+                win._sync_dock_layout()
+                app.processEvents()
+            assert (
+                qr.geometry().getRect(),
+                alipay.geometry().getRect(),
+                link.geometry().getRect(),
+            ) == live, f"h={height}: 反复重排后几何漂移"
+        # ③ 富余随窗高单调**递增**（窗越高，块上方空出来的越多）——顶锚档那条的反向
+        ordered = [top_slacks[h] for h in heights]
+        assert ordered == sorted(ordered), f"块上方富余未随窗高单调递增：{top_slacks}"
+
+        # ⑤ 读取前后完全不动（第十三轮的不变量在底锚档同样成立）
+        win.resize(1032, 1040)
+        app.processEvents()
+        win.show_scrape_info()
+        app.processEvents()
+        win._sync_dock_layout()
+        app.processEvents()
+        before = (
+            qr.geometry().getRect(),
+            alipay.geometry().getRect(),
+            link.geometry().getRect(),
+            status.geometry().getRect(),
+        )
+        win.show_scrape_info("🎉 刮削完成 7/7")
+        app.processEvents()
+        win._sync_dock_layout()
+        app.processEvents()
+        after = (
+            qr.geometry().getRect(),
+            alipay.geometry().getRect(),
+            link.geometry().getRect(),
+            status.geometry().getRect(),
+        )
+        assert before == after, f"最大化态读取前后几何变了：{before} → {after}"
+    finally:
+        del win.isMaximized
+        win.show_scrape_info()
+        win.resize(1032, 700)
+        app.processEvents()
+        win._sync_dock_layout()
+
+    # ⑥ 还原后必须回到**顶锚**：块顶重新贴回导航底，文字带不再贴窗底
+    nav_bottom = nav.y() + nav.height()
+    assert qr.y() == nav_bottom + win._DONATE_PAD, (
+        f"还原后未回到顶锚：二维码顶 {qr.y()} != 块顶 {nav_bottom + win._DONATE_PAD}"
+    )
+    assert status.y() + status.height() != 700 - win._DONATE_BOTTOM_SLACK, (
+        "还原后仍是底锚（文字带还贴窗底预留）"
+    )
 
 
 def test_adaptive_window_sizes_matrix():
