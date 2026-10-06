@@ -602,11 +602,11 @@ def _format_header() -> list[str]:
     if use_proxy:
         lines.append(f"  {_pad_right('代理地址', 16)}{mask_proxy_url(manager.config.proxy)}")
     lines.append(f"  {_pad_right('CF Bypass', 16)}{'已配置' if cf_bypass_url else '未配置'}")
-    lines.append(f"  {_pad_right('CF Bypass代理', 16)}{'已配置' if cf_bypass_proxy else '未配置'}")
+    lines.append(f"  {_pad_right('Bypass代理', 16)}{'已配置' if cf_bypass_proxy else '未配置'}")
     lines.append(f"  {_pad_right('外部CF服务', 16)}{'已配置' if trawl_url else '未配置'}")
     lines.append(f"  {_pad_right('诊断超时', 16)}{_diagnostic_timeout():.1f}s")
     lines.append(
-        f"  {_pad_right('刮削探测', 16)}单站最多 {len(SCRAPE_PROBE_ATTEMPT_TIMEOUTS)} 次（{scrape_probe_ladder_text()}）"
+        f"  {_pad_right('刮削探测', 16)}单站最多{len(SCRAPE_PROBE_ATTEMPT_TIMEOUTS)}次({scrape_probe_ladder_text()})"
     )
     lines.append("=" * 101)
     lines.append(
