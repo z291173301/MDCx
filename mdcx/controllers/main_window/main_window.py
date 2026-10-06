@@ -4222,7 +4222,7 @@ class MyMAinWindow(QMainWindow):
         85px），**不用 lineSpacing 公式**（那只得 75px，见该方法 docstring）。字号/主题
         变化时两者同步变化，不会出现「预留比实际还小」的错配。
         """
-        lines = self._DONATE_STATUS_RESERVE_LINES
+        lines = 6 if self._donate_bottom_anchor() else self._DONATE_STATUS_RESERVE_LINES
         return self._dock_status_text_probe_h("\n".join(["\U0001f389"] * lines))
 
     def _dock_status_text_real_h(self) -> int:
