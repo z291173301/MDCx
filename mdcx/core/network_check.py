@@ -369,7 +369,7 @@ async def _probe_crawler_by_run(
         error = getattr(getattr(response, "debug_info", None), "error", None) if response else None
         probe_number = str(getattr(input_data, "number", "") or SCRAPE_PROBE_NUMBER)
         message = (
-            f"刮削探测失败: {error}"
+            f"探测失败: {error}"
             if error
             else f"站点可达，但测试番号 {probe_number} 未被该站点收录（单厂牌/收录有限站点常见，属正常情况，若实际刮削正常可忽略本警告）"
         )
@@ -469,7 +469,7 @@ async def _probe_crawler_capability(
     except NotImplementedError:
         return NetworkCheckStatus.WARNING, "站点可达但无法自动探测刮削，可用设置页指定网址实测"
     except CrawlerException as exc:
-        return NetworkCheckStatus.WARNING, f"站点可达但刮削探测失败: {exc}"
+        return NetworkCheckStatus.WARNING, f"站点可达但探测失败: {exc}"
     except Exception as exc:
         return NetworkCheckStatus.WARNING, f"站点可达但刮削探测异常: {exc}"
 
@@ -479,7 +479,7 @@ _TRANSIENT_PROBE_MARKERS = (
     "刮削探测超时",
     "站点可达但搜索页请求失败",
     "站点可达但刮削探测异常",
-    "站点可达但刮削探测失败",
+    "站点可达但探测失败",
 )
 
 # 首次即定论、重试必然同样结论的探测结果（不在上面的标记里）：
@@ -608,27 +608,22 @@ def _format_header() -> list[str]:
     lines.append(
         f"  {_pad_right('刮削探测', 16)}单站最多 {len(SCRAPE_PROBE_ATTEMPT_TIMEOUTS)} 次（{scrape_probe_ladder_text()}）"
     )
-    lines.append("=" * 88)
+    lines.append("=" * 101)
     lines.append(
         "  "
         + _pad_right("状态", 4)
         + "   "
-        # 各表头按截图相对数据列微调（数据列位置见 format_result_line）：
-        # 站点表头 +1（@10，数据名字 @9 不动）、状态码表头 -1（@36，数据数字右缘 40 不动，
-        # 状态码前后间隔由 6+6 重分为 5+7）、耗时右对齐（右缘 53 与数据耗时右缘对齐，不动）、
-        # 路由表头 -1（@62，数据代理 @61 不动）、信息表头 -1（@71，数据信息 @70 不动）。
-        # 数据行不动。
         + " "
         + _pad_right("站点", 21)
         + "     "
         + "状态码"
         + "       耗时"
-        + "         "
+        + "          "
         + "路由"
         + "     "
         + "信息"
     )
-    lines.append("=" * 88)
+    lines.append("=" * 101)
     return lines
 
 
@@ -1081,7 +1076,7 @@ async def run_network_check_item(
                     except Exception:
                         fallback_bypass_mode = ""
                 else:
-                    error = f"{error}（bypass 兜底亦失败: {_clean_error(bypass_error)})"
+                    error = f"{error}（bypass 兜底亦失败）"
         if response is None:
             clean_error = _clean_error(error)
             message = _message_for_error(clean_error)
