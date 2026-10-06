@@ -14457,7 +14457,7 @@ class Ui_MDCx(object):
         self.checkBox_hide_window_title.setText(_translate("MDCx", "隐藏边框（美观样式）"))
         self.checkBox_dark_mode.setText(_translate("MDCx", "暗黑模式"))
         self.checkBox_hide_dock_icon.setText(_translate("MDCx", "隐藏Dock图标（Mac）"))
-        self.label_42.setText(_translate("MDCx", "保存后重启软件生效 "))
+        self.label_42.setText(_translate("MDCx", "保存后重启生效 "))
         self.checkBox_hide_menu_icon.setText(_translate("MDCx", "隐藏菜单栏图标（Mac）"))
         self.label_321.setText(_translate("MDCx", "间歇刮削："))
         self.checkBox_auto_start.setText(_translate("MDCx", "启动软件后自动开始刮削"))
@@ -14470,14 +14470,14 @@ class Ui_MDCx(object):
         self.label_309.setText(_translate("MDCx", "自动刮削："))
         self.label_277.setText(_translate("MDCx", "弹窗确认："))
         self.pushButton_select_config_folder.setText(_translate("MDCx", "选择目录"))
-        self.checkBox_remain_task.setText(_translate("MDCx", "记住未完成的刮削任务，重启后仍可继续刮削"))
+        self.checkBox_remain_task.setText(_translate("MDCx", "记住未完成的任务，重启后可继续刮削"))
         self.checkBox_infinite_scrape.setText(_translate("MDCx", "无限次刮削"))
         self.label_279.setText(_translate("MDCx", "保留任务："))
         self.label_40.setText(
             _translate("MDCx", "将读取该目录中的配置文件、映射表、水印图片、演员头像等数据，修改后重启程序方可生效")
         )
         self.checkBox_dialog_qt.setText(_translate("MDCx", "使用 QT 选择对话框"))
-        self.label_421.setText(_translate("MDCx", "目录中的文件较多时，可以勾选此项以提高打开速度"))
+        self.label_421.setText(_translate("MDCx", "目录中的文件较多时，可以勾选此项提高文件打开速度"))
         self.label_314.setText(_translate("MDCx", "隐藏图标："))
         self.label_243.setText(_translate("MDCx", "配置文件目录："))
         self.radioButton_hide_close.setText(_translate("MDCx", "点关闭按钮"))
@@ -14491,7 +14491,7 @@ class Ui_MDCx(object):
         self.label_420.setText(_translate("MDCx", "选择对话框："))
         self.label_426.setText(_translate("MDCx", "高分屏缩放："))
         self.comboBox_ui_scale.setToolTip(
-            _translate("MDCx", "界面缩放比例，保存后重启软件生效；放不下当前屏幕的档位会自动隐藏")
+            _translate("MDCx", "界面缩放比例，保存后重启生效；放不下当前屏幕的档位会自动隐藏")
         )
         self.comboBox_ui_scale.setItemText(0, _translate("MDCx", "跟随系统"))
         self.comboBox_ui_scale.setItemText(1, _translate("MDCx", "80%"))
@@ -14502,7 +14502,7 @@ class Ui_MDCx(object):
         self.comboBox_ui_scale.setItemText(6, _translate("MDCx", "175%"))
         self.comboBox_ui_scale.setItemText(7, _translate("MDCx", "200%"))
         self.comboBox_ui_scale.setItemText(8, _translate("MDCx", "300%"))
-        self.label_427.setText(_translate("MDCx", "保存后重启软件生效，可能会有点模糊"))
+        self.label_427.setText(_translate("MDCx", "保存后重启生效，可能会有点模糊"))
         self.label_nav_hide.setText(_translate("MDCx", "隐藏入口："))
         self.checkBox_hide_actor_nav.setToolTip(
             _translate("MDCx", "隐藏左侧导航的「演员管理」入口，可随时在此重新开启")
@@ -14594,7 +14594,7 @@ class Ui_MDCx(object):
                 "\n"
                 "<h4>七、界面与高分屏</h4>\n"
                 "<ul>\n"
-                "<li><b>界面缩放</b>：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% / 300% 共 9 档，保存后重启软件生效；会把界面撑出屏幕的档位会被自动隐藏。</li>\n"
+                "<li><b>界面缩放</b>：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% / 300% 共 9 档，保存后重启生效；会把界面撑出屏幕的档位会被自动隐藏。</li>\n"
                 "<li><b>非整数缩放</b>：PassThrough 高 DPI 非整数缩放已默认启用，无需手动开启，Windows 125%/150% 等缩放档位下界面不再模糊。</li>\n"
                 "<li><b>暗色模式</b>：内置暗色主题切换。</li>\n"
                 "</ul>\n"

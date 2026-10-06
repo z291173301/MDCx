@@ -5323,7 +5323,7 @@ class MyMAinWindow(QMainWindow):
           弹窗确认行  钉「退出软件时」            -> 「停止刮削时」        落 anchor
           隐藏图标行  在 label_42 之后插固定间隔  -> 「隐藏菜单栏图标（Mac）」落 anchor，
                       前两项保持贴 col1 左缘（改用整行左 margin 会把「隐藏Dock图标
-                      （Mac）」「保存后重启软件生效」一起推走，破坏本页左缘节奏）
+                      （Mac）」「保存后重启生效」一起推走，破坏本页左缘节奏）
           界面外观行  把 layoutWidget5 加宽到 2*(anchor-row_x)-spacing（两项均分）
                       -> 「暗黑模式」落 anchor；该容器是 frame 的普通子 QWidget
                       （frame 无 layout），故用 setGeometry 而非 layout 属性
@@ -5432,7 +5432,7 @@ class MyMAinWindow(QMainWindow):
         if anchor <= row_x or col_w <= 0:
             return
         lay_a = ui.horizontalLayout_55  # 退出软件时 / 停止刮削时
-        lay_b = ui.horizontalLayout_dock  # 隐藏Dock图标 / 保存后重启软件生效 / 隐藏菜单栏图标
+        lay_b = ui.horizontalLayout_dock  # 隐藏Dock图标 / 保存后重启生效 / 隐藏菜单栏图标
         lay_d = ui.horizontalLayout_nav_hide  # 隐藏Emby演员管理 / 隐藏NFO库管理 / 说明
         # 阶段一已就位（改了就当场 activate），此处重新起算：下面四段共用行末
         # 那批 invalidate+activate
@@ -5448,7 +5448,7 @@ class MyMAinWindow(QMainWindow):
 
         # ---- 隐藏图标行：前两项是 Fixed 文本项，插固定间隔把末项单独推到 anchor ----
         # 用「插在 label_42 之后」的固定间隔，而不是给整行加左 margin：后者会
-        # 把「隐藏Dock图标（Mac）」「保存后重启软件生效」一起推到右边，破坏本页
+        # 把「隐藏Dock图标（Mac）」「保存后重启生效」一起推到右边，破坏本页
         # 「每行第一个控件都贴着 col1 左缘」的节奏（实测 col1 左缘 = row_x = 97）。
         # gap_b < 0 说明列太窄、Fixed 前缀已经越过 anchor，QCheckBox/QLabel 的
         # sizeHint 就是不裁字下限，压缩必裁字，所以整行放弃（保持设计态原样）。

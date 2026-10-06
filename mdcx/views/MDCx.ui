@@ -23971,7 +23971,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>保存后重启软件生效 </string>
+                                  <string>保存后重启生效 </string>
                                 </property>
                                 <property name="alignment">
                                   <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -24318,7 +24318,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>记住未完成的刮削任务，重启后仍可继续刮削</string>
+                                  <string>记住未完成的任务，重启后可继续刮削</string>
                                 </property>
                               </widget>
                             </item>
@@ -24420,7 +24420,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <string notr="true">color: rgb(8, 128, 128);</string>
                                 </property>
                                 <property name="text">
-                                  <string>目录中的文件较多时，可以勾选此项以提高打开速度</string>
+                                  <string>目录中的文件较多时，可以勾选此项提高文件打开速度</string>
                                 </property>
                                 <property name="alignment">
                                   <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -24762,7 +24762,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="toolTip">
-                                  <string>界面缩放比例，保存后重启软件生效；放不下当前屏幕的档位会自动隐藏</string>
+                                  <string>界面缩放比例，保存后重启生效；放不下当前屏幕的档位会自动隐藏</string>
                                 </property>
                                 <item>
                                   <property name="text">
@@ -24829,7 +24829,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                    <string notr="true">color: rgb(8, 128, 128);</string>
                                  </property>
                                  <property name="text">
-                                   <string>保存后重启软件生效，可能会有点模糊</string>
+                                   <string>保存后重启生效，可能会有点模糊</string>
                                  </property>
                                  <property name="alignment">
                                    <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -25373,7 +25373,7 @@ p, li { white-space: pre-wrap; }
 
 &lt;h4&gt;七、界面与高分屏&lt;/h4&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;b&gt;界面缩放&lt;/b&gt;：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% / 300% 共 9 档，保存后重启软件生效；会把界面撑出屏幕的档位会被自动隐藏。&lt;/li&gt;
+&lt;li&gt;&lt;b&gt;界面缩放&lt;/b&gt;：设置 → 高级 → 高分屏缩放，提供 跟随系统 / 80% / 90% / 100% / 125% / 150% / 175% / 200% / 300% 共 9 档，保存后重启生效；会把界面撑出屏幕的档位会被自动隐藏。&lt;/li&gt;
 &lt;li&gt;&lt;b&gt;非整数缩放&lt;/b&gt;：PassThrough 高 DPI 非整数缩放已默认启用，无需手动开启，Windows 125%/150% 等缩放档位下界面不再模糊。&lt;/li&gt;
 &lt;li&gt;&lt;b&gt;暗色模式&lt;/b&gt;：内置暗色主题切换。&lt;/li&gt;
 &lt;/ul&gt;
