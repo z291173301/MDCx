@@ -2014,7 +2014,11 @@ class AsyncWebClient:
                     retry = True  # 超时错误进行重试
                     await self._record_transport_failure(error_msg, pool_key=pool_key)
                 except ConnectionError as e:
-                    error_msg = f"连接错误: {e!s}"
+                    msg = str(e)
+                    # 简洁化：TLS 连接错误截断到 TLS connect error:
+                    if "TLS connect error:" in msg:
+                        msg = msg.split("TLS connect error:")[0] + "TLS connect error:"
+                    error_msg = f"连接错误: {msg}"
                     retry = True  # 连接错误进行重试
                     await self._record_transport_failure(error_msg, pool_key=pool_key)
                 except RequestException as e:
