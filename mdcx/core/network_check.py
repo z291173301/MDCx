@@ -104,7 +104,7 @@ DEFAULT_SITE_URLS: dict[Website, str] = {
     Website.OFFICIAL: "",
 }
 
-GROUP_ORDER = ("基础环境", "基础连通性", "刮削站点", "账号/API", "辅助服务")
+GROUP_ORDER = ("基础环境", "网络连通基础", "刮削站点检测", "账号/API", "辅助服务")
 STATUS_ORDER = {
     NetworkCheckStatus.FAILED: 0,
     NetworkCheckStatus.WARNING: 1,
@@ -661,7 +661,7 @@ def format_summary(
     ]
     if proxy_unavailable:
         lines.append(
-            "⚠️ 全局代理不可用（基础连通性两项均因代理失败）。下方站点失败多为代理导致，请先检查代理软件/节点后再重试。"
+            "⚠️ 全局代理不可用（网络连通基础两项均因代理失败）。下方站点失败多为代理导致，请先检查代理软件/节点后再重试。"
         )
 
     # 失败/警告按根因分组计数，让用户一次看清「该做什么」（议题 #77 实测）
@@ -697,7 +697,6 @@ def format_summary(
             cause_counts["other"] += 1
 
     if any(cause_counts.values()):
-        lines.append("失败/警告根因分组：")
         if cause_counts["cf"]:
             lines.append(
                 f"  • Cloudflare 拦截 ×{cause_counts['cf']}：请配置「外部CF服务」（flaresolverr/trawl），程序会自动走 bypass"
@@ -720,11 +719,11 @@ def format_summary(
         if cause_counts["not_found"]:
             lines.append(f"  • 站点未收录/未匹配 ×{cause_counts['not_found']}：不一定代表站点坏了，可换个番号重试")
         if cause_counts["other"]:
-            lines.append(f"其他异常 ×{cause_counts['other']}：请查看上方失败详情，或截图提交议题")
+            lines.append(f"失败/警告根因分组：其他异常 ×{cause_counts['other']}：请查看上方失败详情，或截图提交议题")
     if failed or warning:
         lines.append(
-            "建议优先查看失败/警告项；若基础连通性失败，先检查代理或系统网络；"
-            "代理/Cookie/CF Bypass 等配置请在「软件设置 → 网络」页调整。"
+            "优先查看失败/警告项；若网络连通基础失败先检查代理或系统网络；"
+            "代理/Cookie/CF Bypass等请在「软件设置 → 网络」页调整。"
         )
     lines.append("=" * 101)
     return lines
@@ -761,7 +760,7 @@ async def _build_site_specs() -> list[NetworkCheckSpec]:
                 specs.append(
                     NetworkCheckSpec(
                         name=f"official·{src}",
-                        group="刮削站点",
+                        group="刮削站点检测",
                         url=official_spec.base_url,
                         site=Website.OFFICIAL,
                         use_proxy=True,
@@ -772,7 +771,7 @@ async def _build_site_specs() -> list[NetworkCheckSpec]:
             specs.append(
                 NetworkCheckSpec(
                     name=site.value,
-                    group="刮削站点",
+                    group="刮削站点检测",
                     url="",
                     site=site,
                     note="该站无固定检测入口（按番号动态检测），跳过属正常情况，不用处理",
@@ -849,7 +848,7 @@ async def _build_site_specs() -> list[NetworkCheckSpec]:
             specs.append(
                 NetworkCheckSpec(
                     name=site.value,
-                    group="刮削站点",
+                    group="刮削站点检测",
                     url=url,
                     site=site,
                     use_proxy=use_proxy,
@@ -895,7 +894,7 @@ async def _build_site_specs() -> list[NetworkCheckSpec]:
         specs.append(
             NetworkCheckSpec(
                 name=site.value,
-                group="刮削站点",
+                group="刮削站点检测",
                 url=url,
                 site=site,
                 use_proxy=use_proxy,
@@ -923,7 +922,7 @@ async def _build_site_specs() -> list[NetworkCheckSpec]:
                 specs.append(
                     NetworkCheckSpec(
                         name=f"{site.value}镜像",
-                        group="刮削站点",
+                        group="刮削站点检测",
                         url=extra_url,
                         site=site,
                         use_proxy=use_proxy,
@@ -940,13 +939,13 @@ def _build_static_specs() -> list[NetworkCheckSpec]:
     specs = [
         NetworkCheckSpec(
             name="GitHub Raw",
-            group="基础连通性",
+            group="网络连通基础",
             url="https://raw.githubusercontent.com",
             use_proxy=bool(manager.config.use_proxy and manager.config.proxy),
         ),
         NetworkCheckSpec(
             name="通用 HTTPS",
-            group="基础连通性",
+            group="网络连通基础",
             url="https://www.google.com/generate_204",
             use_proxy=bool(manager.config.use_proxy and manager.config.proxy),
         ),
@@ -1373,7 +1372,7 @@ async def run_network_check(
                     results.append(result)
                     if on_item_done is not None:
                         on_item_done(len(results), total)
-                    if result.spec.group == "基础连通性":
+                    if result.spec.group == "网络连通基础":
                         if result.status == NetworkCheckStatus.FAILED and _is_proxy_error(result.error):
                             proxy_down = True
                     elif proxy_down and result.status == NetworkCheckStatus.FAILED and _is_proxy_error(result.error):
@@ -1446,7 +1445,7 @@ def load_site_check_cache() -> dict[str, dict]:
 def merge_site_check_cache(results: "list[NetworkCheckResult]") -> None:
     """把检测结果中带站点归属的项合并进持久化缓存。
 
-    议题 #129: 由"只收集刮削站点组"放宽为凡 spec.site 非空即写——
+    议题 #129: 由"只收集刮削站点检测组"放宽为凡 spec.site 非空即写——
     账号/API 组(dmm_api/thejavdb_api/missav_api/theporndb)的检测结果
     同样要回标到网站设置下拉; 基础环境/辅助服务等无站点归属项 site=None 仍排除。
     official 为五站子检测(议题 #129), 徽标按"取最差"聚合——路由依赖全部五站,
