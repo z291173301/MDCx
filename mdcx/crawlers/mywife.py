@@ -193,7 +193,7 @@ class MywifeCrawler(BaseCrawler):
         html_info = etree.fromstring(html_content, etree.HTMLParser())
         number, title = get_title(html_info)
         if not title:
-            raise CrawlerException("获取失败: 未获取到番号title")
+            raise CrawlerException("获取失败: 未获取到番号标题")
         if not actor:
             actor = get_actor(html_info)
         cover_url, trailer = get_cover(html_info)

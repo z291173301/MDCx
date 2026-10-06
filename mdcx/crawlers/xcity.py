@@ -125,7 +125,7 @@ class XcityCrawler(BaseCrawler[XcityContext]):
         title = (sel.xpath("//title/text()").get() or "").strip()
         title = re.sub(r"\s*\|.*$", "", title).strip()
         if not title:
-            raise CrawlerException("获取失败: 未获取到番号title")
+            raise CrawlerException("获取失败: 未获取到番号标题")
 
         actors = [
             a.strip()
@@ -180,7 +180,7 @@ class XcityCrawler(BaseCrawler[XcityContext]):
         title = program.get("title") or ""
         originaltitle = program.get("titleKana") or title
         if not title:
-            raise CrawlerException("获取失败: 未获取到番号title")
+            raise CrawlerException("获取失败: 未获取到番号标题")
 
         actors = []
         for person in program.get("person") or []:

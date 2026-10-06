@@ -213,7 +213,7 @@ class MmtvCrawler(BaseCrawler):
         number, release, runtime, web_number = get_number(html_info, ctx.input.number)
         title = get_title(html_info, web_number)
         if not title:
-            raise CrawlerException("获取失败: 未获取到番号title")
+            raise CrawlerException("获取失败: 未获取到番号标题")
 
         actor = get_actor(html_info, title, str(ctx.input.file_path or ""))
         outline, originalplot = get_outline(html_info)

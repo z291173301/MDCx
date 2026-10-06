@@ -253,6 +253,9 @@ def _message_for_error(error: str) -> str:
 
 def _clean_error(error: str) -> str:
     error = str(error or "").strip()
+    # 截断 curl 长错误尾巴（OpenSSL 内部细节 + 参考链接）
+    if "See https://curl.se/libcurl/c/libcurl-errors.html" in error:
+        error = error.split("See https://curl.se/libcurl/c/libcurl-errors.html")[0].rstrip(" .")
     if ": " not in error:
         return error
     left, right = error.split(": ", 1)
@@ -524,7 +527,7 @@ async def _probe_crawler_capability_with_retry(
     if all_timed_out:
         return (
             NetworkCheckStatus.WARNING,
-            f"站点探测{attempts}次{ladder}均超时，该站点无效",
+            f"站点探测{attempts}次{ladder}均超时，判定站点无效",
         )
     return (
         NetworkCheckStatus.WARNING,
@@ -653,7 +656,7 @@ def format_summary(
     skipped = sum(1 for result in results if result.status == NetworkCheckStatus.SKIPPED)
     status = "已取消" if cancelled else "已完成"
     lines = [
-        "-" * 88,
+        "-" * 101,
         f"网络检测{status}：正常 {ok}，警告 {warning}，失败 {failed}，跳过 {skipped}，用时 {elapsed:.2f} 秒",
     ]
     if proxy_unavailable:
@@ -717,13 +720,13 @@ def format_summary(
         if cause_counts["not_found"]:
             lines.append(f"  • 站点未收录/未匹配 ×{cause_counts['not_found']}：不一定代表站点坏了，可换个番号重试")
         if cause_counts["other"]:
-            lines.append(f"  • 其他异常 ×{cause_counts['other']}：请查看上方失败详情，或截图提交议题")
+            lines.append(f"其他异常 ×{cause_counts['other']}：请查看上方失败详情，或截图提交议题")
     if failed or warning:
         lines.append(
             "建议优先查看失败/警告项；若基础连通性失败，先检查代理或系统网络；"
-            "代理/Cookie/CF Bypass 等配置请在「设置 → 网络」页调整。"
+            "代理/Cookie/CF Bypass 等配置请在「软件设置 → 网络」页调整。"
         )
-    lines.append("=" * 88)
+    lines.append("=" * 101)
     return lines
 
 

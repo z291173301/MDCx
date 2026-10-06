@@ -99,7 +99,7 @@ async def scrape_dl_getchu(client, number: str, appoint_url: str = "", ctx: Cont
     number = "DLID-" + re.findall(r"\d+", real_url)[0]
     title = get_title(html_info)
     if not title:
-        raise CrawlerException("获取失败: 未获取到番号title")
+        raise CrawlerException("获取失败: 未获取到番号标题")
     release = get_release(html_info)
     cover_url = get_cover(html_info)
     return CrawlerData(
