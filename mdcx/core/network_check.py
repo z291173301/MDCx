@@ -511,7 +511,7 @@ async def _probe_crawler_capability_with_retry(
     for attempt in range(attempts):
         timeout = scrape_probe_attempt_timeout(attempt)
         if attempt:
-            emit(f"   ↳      {spec.name}第{attempt + 1}/{attempts}次刮削探测，超时上限{timeout:.0f}s")
+            emit(f"   ↳     {spec.name}第{attempt + 1}/{attempts}次刮削探测，超时上限{timeout:.0f}s")
         status, message = await _probe_crawler_capability(client, spec, timeout)
         if status is None or not _is_transient_probe_result(message):
             return status, message
