@@ -144,6 +144,7 @@ def classify_scrape_task(task_input: CrawlTask, config: "Config", use_fixed_type
         FixedScrapingType.FC2: config.website_fc2,
         FixedScrapingType.OUMEI: config.website_oumei,
         FixedScrapingType.GUOCHAN: config.website_guochan,
+        FixedScrapingType.DONGMAN: config.website_dongman,
     }
     if use_fixed_type and fixed_type != FixedScrapingType.AUTO:
         return ScrapeClassification(fixed_type, "fixed", sites=fixed_sites[fixed_type])

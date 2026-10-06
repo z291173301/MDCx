@@ -4062,6 +4062,7 @@ class Ui_MDCx(object):
         self.comboBox_fixed_scraping_type.addItem("")
         self.comboBox_fixed_scraping_type.addItem("")
         self.comboBox_fixed_scraping_type.addItem("")
+        self.comboBox_fixed_scraping_type.addItem("")
         self.gridLayout_36.addWidget(self.comboBox_fixed_scraping_type, 17, 1, 1, 1)
         self.label_fixed_scraping_type = QtWidgets.QLabel(parent=self.layoutWidget_6)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Fixed)
@@ -13478,6 +13479,7 @@ class Ui_MDCx(object):
         self.comboBox_fixed_scraping_type.setItemText(4, _translate("MDCx", "FC2"))
         self.comboBox_fixed_scraping_type.setItemText(5, _translate("MDCx", "欧美"))
         self.comboBox_fixed_scraping_type.setItemText(6, _translate("MDCx", "国产"))
+        self.comboBox_fixed_scraping_type.setItemText(7, _translate("MDCx", "动漫"))
         self.label_fixed_scraping_type.setText(_translate("MDCx", "锁定类型："))
         self.label_fixed_scraping_type_desc.setText(
             _translate("MDCx", "选择后将跳过自动类型识别，所有番号将直接使用指定类型的网站列表进行刮削和整理")

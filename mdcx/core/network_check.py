@@ -371,9 +371,15 @@ async def _probe_crawler_by_run(
     if response is None or response.data is None:
         error = getattr(getattr(response, "debug_info", None), "error", None) if response else None
         probe_number = str(getattr(input_data, "number", "") or SCRAPE_PROBE_NUMBER)
+        error_msg = str(error) if error else ""
+        # 将常见 Python 解析错误翻译成中文，便于理解
+        if "'NoneType' object has no attribute 'xpath'" in error_msg:
+            error_display = "页面解析失败（解析结果为空，无法执行节点提取/xpath）"
+        else:
+            error_display = error_msg
         message = (
-            f"探测失败: {error}"
-            if error
+            f"探测失败: {error_display}"
+            if error_display
             else f"站点可达，但测试番号 {probe_number} 未被该站点收录（单厂牌/收录有限站点常见，属正常情况，若实际刮削正常可忽略本警告）"
         )
         return NetworkCheckStatus.WARNING, message

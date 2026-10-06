@@ -496,10 +496,11 @@ class FixedScrapingType(Enum):
     FC2 = "fc2"
     OUMEI = "oumei"
     GUOCHAN = "guochan"
+    DONGMAN = "dongman"
 
     @classmethod
     def names(cls):
-        return ["自动判断", "有码", "无码", "素人", "FC2", "欧美", "国产"]
+        return ["自动判断", "有码", "无码", "素人", "FC2", "欧美", "国产", "动漫"]
 
 
 class Language(Enum):

@@ -152,6 +152,7 @@ CONFIGURABLE_SCRAPING_TYPES = (
     FixedScrapingType.FC2,
     FixedScrapingType.OUMEI,
     FixedScrapingType.GUOCHAN,
+    FixedScrapingType.DONGMAN,
 )
 
 SCRAPING_TYPE_SITE_FIELDS = {
@@ -161,6 +162,7 @@ SCRAPING_TYPE_SITE_FIELDS = {
     FixedScrapingType.FC2: "website_fc2",
     FixedScrapingType.OUMEI: "website_oumei",
     FixedScrapingType.GUOCHAN: "website_guochan",
+    FixedScrapingType.DONGMAN: "website_dongman",
 }
 
 DEFAULT_FIELD_SITE_PRIORITY = [
@@ -510,6 +512,14 @@ class Config(BaseModel):
             Website.JAVDAY,
         ],
         title="国产网站源",
+    )
+    website_dongman: list[Website] = Field(
+        default_factory=lambda: [
+            Website.GETCHU,
+            Website.JAVDB,
+            Website.JAVDB_API,
+        ],
+        title="动漫网站源",
     )
     fixed_scraping_type: FixedScrapingType = Field(
         default=FixedScrapingType.AUTO,

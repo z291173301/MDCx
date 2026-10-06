@@ -51,6 +51,7 @@ TYPE_TITLES = {
     FixedScrapingType.FC2: "FC2",
     FixedScrapingType.OUMEI: "欧美",
     FixedScrapingType.GUOCHAN: "国产",
+    FixedScrapingType.DONGMAN: "动漫",
 }
 
 

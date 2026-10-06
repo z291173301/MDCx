@@ -8958,6 +8958,11 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                 <string>国产</string>
                               </property>
                             </item>
+                            <item>
+                              <property name="text">
+                                <string>动漫</string>
+                              </property>
+                            </item>
                           </widget>
                         </item>
                         <item row="17" column="0">
