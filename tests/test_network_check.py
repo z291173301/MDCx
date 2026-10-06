@@ -653,7 +653,7 @@ async def test_run_network_check_item_actively_uses_cf_bypass_on_challenge(monke
     result = await run_network_check_item(spec, client=client)
 
     assert result.status == NetworkCheckStatus.OK
-    assert result.message == "连接正常，已通过 CF Bypass（mirror）"
+    assert result.message == "连接正常，顺利通过CF Bypass页面挑战"
     assert client.bypass_calls[0]["target_url"] == "https://cf.example"
     assert client.bypass_calls[0]["headers"] == {"cookie": "a=b"}
     assert client.bypass_calls[0]["timeout"] is None

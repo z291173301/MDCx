@@ -1156,7 +1156,7 @@ async def run_network_check_item(
                 status, message = _classify_http_result(spec, int(response.status_code), text)
                 if status == NetworkCheckStatus.OK:
                     mode_text = f"（{bypass_mode}）" if bypass_mode else ""
-                    message = f"连接正常，已通过 CF Bypass{mode_text}"
+                    message = f"连接正常，顺利通过CF Bypass页面挑战{mode_text}"
                 return NetworkCheckResult(
                     spec=spec,
                     status=status,
@@ -1180,7 +1180,7 @@ async def run_network_check_item(
             message = "服务可用"
         if status == NetworkCheckStatus.OK and fallback_bypass_mode:
             mode_text = f"（{fallback_bypass_mode}）"
-            message = f"连接正常，已通过 CF Bypass{mode_text}"
+            message = f"连接正常，顺利通过CF Bypass页面挑战{mode_text}"
 
         if (
             status == NetworkCheckStatus.OK
