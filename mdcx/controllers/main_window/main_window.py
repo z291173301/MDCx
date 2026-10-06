@@ -4442,7 +4442,7 @@ class MyMAinWindow(QMainWindow):
             link_bottom = link_top + self._DONATE_LINK_H
             # 顶锚档的状态矩形高 = 窗底 − donate_y = avail + reserve_h − qr_size，
             # 即「缩小多少就把状态区压矮多少」（`status_short` 护栏就是为它设的）。
-            donate_y = link_bottom + gap
+            donate_y = link_bottom
             donate_h = max(0, status_bottom - donate_y)
         status_y, status_h = donate_y, donate_h
         # 状态文字**顶对齐**在自己的预留带里。这一步是「不移动」的关键：底对齐时每多一行
@@ -4453,11 +4453,11 @@ class MyMAinWindow(QMainWindow):
         # 注意它**只影响显隐、不影响位置**：行数变化绝不移动任何控件。
         # 顶锚档的护栏保证了 `status_h >= min(reserve_h, _DOCK_STATUS_H_MIN)`，故这条判据
         # 实际只看「几行字 vs 预留几行」，与窗口高度无关。
-        if self._dock_status_text_real_h() > status_h:
+        if self._dock_status_text_real_h() > status_h + 20:
             self._hide_donate()
             status.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
             return status_y, status_h, qr_deficit
-        status.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
+        status.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter)
         qr_x = (side_w - qr_size) // 2
         qr.setFixedSize(qr_size, qr_size)
         qr.move(qr_x, qr_top)
