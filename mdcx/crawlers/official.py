@@ -187,7 +187,7 @@ class OfficialCrawler(BaseCrawler):
         html_info = etree.fromstring(html_content, etree.HTMLParser())
         title = get_title(html_info)
         if not title:
-            raise CrawlerException("数据获取失败: 未获取到title！")
+            raise CrawlerException("获取失败: 未获取到番号title")
         cover_url, extrafanart = get_cover(html_info)
         outline = get_outline(html_info)
         actor = get_actor(html_info)

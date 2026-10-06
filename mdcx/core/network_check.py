@@ -133,7 +133,7 @@ def _status_code_text(status_code: int | None) -> str:
 
 
 # 诊断表格按"显示宽度"对齐：f-string 的宽度按字符数，中日韩字符与 emoji 在
-# 等宽字体下占 2 列，直接用 <18/>8 会对不齐（如 madouqu·镜像会把后序列挤偏）。
+# 等宽字体下占 2 列，直接用 <18/>8 会对不齐（如 madouqu镜像会把后序列挤偏）。
 # 这里 W/F 算 2 列、结合符（VS16 等）算 0 列、其余（含状态图标 emoji）按实际占宽算。
 _WIDE_ICONS = frozenset("✅⚠❌ℹ⛔")
 
@@ -282,13 +282,13 @@ def _classify_http_result(spec: NetworkCheckSpec, status_code: int, text: str) -
         if "/logout" in text:
             return NetworkCheckStatus.OK, "连接正常，Cookie 有效"
         if manager.config.javdb:
-            return NetworkCheckStatus.WARNING, "站点可访问，但 JavDB Cookie 可能无效"
+            return NetworkCheckStatus.WARNING, "站点可访问，但JavDB Cookie可能无效"
         return NetworkCheckStatus.OK, "连接正常"
 
     if spec.site == Website.JAVBUS:
         manager = _manager()
         if "lostpasswd" in text and manager.config.javbus:
-            return NetworkCheckStatus.WARNING, "站点可访问，但 JavBus Cookie 可能无效"
+            return NetworkCheckStatus.WARNING, "站点可访问，但JavBus Cookie可能无效"
         if "lostpasswd" in text:
             return NetworkCheckStatus.WARNING, "当前节点可能需要 JavBus Cookie"
         return NetworkCheckStatus.OK, "连接正常"
@@ -511,7 +511,7 @@ async def _probe_crawler_capability_with_retry(
     for attempt in range(attempts):
         timeout = scrape_probe_attempt_timeout(attempt)
         if attempt:
-            emit(f"↳ {spec.name} 第 {attempt + 1}/{attempts} 次刮削探测（超时上限 {timeout:.0f}s）")
+            emit(f"↳ {spec.name}第{attempt + 1}/{attempts}次刮削探测，超时上限{timeout:.0f}s")
         status, message = await _probe_crawler_capability(client, spec, timeout)
         if status is None or not _is_transient_probe_result(message):
             return status, message
@@ -524,7 +524,7 @@ async def _probe_crawler_capability_with_retry(
     if all_timed_out:
         return (
             NetworkCheckStatus.WARNING,
-            f"站点可达但刮削探测 {attempts} 次均超时（{ladder}），判定该站刮削探测无效",
+            f"站点可达但刮削探测{attempts}次{ladder}均超时，判定该站刮削探测无效",
         )
     return (
         NetworkCheckStatus.WARNING,
@@ -919,7 +919,7 @@ async def _build_site_specs() -> list[NetworkCheckSpec]:
                 extra_sampled = True
                 specs.append(
                     NetworkCheckSpec(
-                        name=f"{site.value}·镜像",
+                        name=f"{site.value}镜像",
                         group="刮削站点",
                         url=extra_url,
                         site=site,
@@ -1076,7 +1076,7 @@ async def run_network_check_item(
                     except Exception:
                         fallback_bypass_mode = ""
                 else:
-                    error = f"{error}（bypass 兜底亦失败）"
+                    error = f"{error}（CloudFlare Bypass兜底亦失败，错误HTTP500、HTTP502）"
         if response is None:
             clean_error = _clean_error(error)
             message = _message_for_error(clean_error)
@@ -1187,7 +1187,7 @@ async def run_network_check_item(
             and spec.name != "CF Bypass"
             # 镜像抽样项只看连通性（议题 #77）：镜像域名未必复刻主站全部接口
             # （实测 xcity.jp 无 /api/search），探测会按主站 URL 模式产生误报。
-            and not spec.name.endswith("·镜像")
+            and not spec.name.endswith("镜像")
         ):
             probe_status, probe_message = await _probe_crawler_capability_with_retry(
                 request_client, spec, progress=progress, cancel_event=cancel_event

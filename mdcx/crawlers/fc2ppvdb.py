@@ -509,7 +509,7 @@ class Fc2ppvdbCrawler(BaseCrawler):
 
         title = get_title(html_info)
         if not title:
-            raise CrawlerException("数据获取失败: 未获取到title！")
+            raise CrawlerException("获取失败: 未获取到番号title")
         cover_url = get_cover(html_info)
         if "http" not in cover_url:
             ctx.debug("数据获取失败: 未获取到cover！")

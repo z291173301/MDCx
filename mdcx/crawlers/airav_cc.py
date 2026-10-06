@@ -102,7 +102,7 @@ async def retry_request(client, real_url):
     html_info = etree.fromstring(html_content, etree.HTMLParser())
     title = get_title(html_info)
     if not title:
-        raise CrawlerException("数据获取失败: 未获取到title！")
+        raise CrawlerException("获取失败: 未获取到番号title")
     web_number = get_web_number(html_info)
     for prefix in (f"[{web_number}]", web_number):
         if prefix:

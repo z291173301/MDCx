@@ -182,7 +182,7 @@ class JavdayCrawler(BaseCrawler[JavdayContext]):
         html_info = etree.fromstring(html.get(), etree.HTMLParser())
         title = get_title(html_info)
         if not title:
-            raise CrawlerException("数据获取失败: 未获取到title！")
+            raise CrawlerException("获取失败: 未获取到番号title")
         series, tag, actor = get_some_info(html_info, title, ctx.file_path_text)
         cover_url = get_cover(html_info, self.base_url)
         studio = get_studio(series, tag, ctx.label_list)

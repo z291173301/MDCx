@@ -187,7 +187,7 @@ class MgstageCrawler(BaseCrawler):
         actors = [item.strip() for item in actor.split(",") if item.strip()]
         title = getTitle(htmlcode).replace("\\n", "").replace("        ", "").strip(",").strip()
         if not title or not number:
-            raise CrawlerException("数据获取失败: 未获取到title或番号！")
+            raise CrawlerException("获取失败: 未获取到番号title或番号！")
         cover_url = getCover(htmlcode)
         release = getRelease(htmlcode).strip(",").replace("/", "-")
         tag = getTag(htmlcode).strip(",")

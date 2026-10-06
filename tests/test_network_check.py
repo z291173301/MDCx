@@ -229,7 +229,7 @@ async def test_probe_crawler_strips_special_check_path_from_base_url(monkeypatch
 
 @pytest.mark.anyio
 async def test_mirror_sample_spec_skips_scrape_probe(monkeypatch: pytest.MonkeyPatch):
-    """议题 #77：镜像抽样项（如 xcity·镜像）只验证连通性，不做刮削探测。
+    """议题 #77：镜像抽样项（如 xcity镜像）只验证连通性，不做刮削探测。
 
     实证：xcity.jp 是展示页域名、/api/search 不存在（实测 404；API 只在 tc.xcity.jp），
     探测按主站 URL 模式打到镜像域名必出「搜索页请求失败」误报。
@@ -245,7 +245,7 @@ async def test_mirror_sample_spec_skips_scrape_probe(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr(crawlers_mod, "get_crawler", lambda site: ShouldNotBeCalled)
 
-    spec = NetworkCheckSpec(name="xcity·镜像", group="刮削站点", url="https://xcity.jp", site=Website.XCITY)
+    spec = NetworkCheckSpec(name="xcity镜像", group="刮削站点", url="https://xcity.jp", site=Website.XCITY)
     result = await run_network_check_item(spec, client=FakeClient())
 
     assert result.status == NetworkCheckStatus.OK
@@ -271,7 +271,7 @@ async def test_run_network_check_item_retries_probe_within_first_round(monkeypat
     assert seen == [30.0, 45.0], "单项检测必须走满轮内阶梯"
     assert result.status == NetworkCheckStatus.WARNING
     assert "2次均超时" in result.message
-    assert any("avbase 第 2/2 次刮削探测" in line for line in lines), lines
+    assert any("avbase第2/2次刮削探测" in line for line in lines), lines
 
 
 def test_message_for_error_tls_handshake():
@@ -337,7 +337,7 @@ def test_format_summary_groups_failure_causes():
         ),
         r("getchu", NetworkCheckStatus.FAILED, "HTTP 403 请求被拒绝：当前节点出口 IP 可能被站点封禁"),
         r("javdb_api", NetworkCheckStatus.FAILED, "TLS 握手中断"),
-        r("avbase", NetworkCheckStatus.WARNING, "站点可达但刮削探测2次均超时（30s/45s），判定该站刮削探测无效"),
+        r("avbase", NetworkCheckStatus.WARNING, "站点可达但刮削探测2次30s/45s均超时，判定该站刮削探测无效"),
         r("ok", NetworkCheckStatus.OK, "连接正常"),
     ]
     lines = format_summary(results, elapsed=5.0, cancelled=False)
@@ -951,7 +951,7 @@ async def test_probe_retry_emits_attempt_progress_lines(monkeypatch: pytest.Monk
 
     await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC, progress=lines.append)
 
-    assert any("avbase 第 2/2 次刮削探测" in line and "45s" in line for line in lines), lines
+    assert any("avbase第2/2次刮削探测" in line and "45s" in line for line in lines), lines
     assert not any("第 1/2 次" in line for line in lines), "首探无需额外提示"
 
 
