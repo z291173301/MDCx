@@ -34,7 +34,7 @@ dependencies = [
     "jinja2>=3.1.6",
     "openpyxl>=3.1.0",
     "defusedxml>=0.7.1",
-    # --- 外部 CF 服务适配层依赖 (TRAWL/FlareSolverr 协议翻译) ---
+    # --- 外部CF服务适配层依赖 (TRAWL/FlareSolverr 协议翻译) ---
     # 内置 CF Bypass (cloakbrowser + cf_bypasser) 已移除, 过 CF 统一走外部服务。
     "uvicorn>=0.15.0",
 ]

@@ -29,7 +29,7 @@ HEALTH_CHECK_INTERVAL = 0.5
 BACKEND_REQUEST_TIMEOUT = 65.0
 DEFAULT_MAX_TIMEOUT_MS = 60_000
 
-# 外部 CF 服务后端类型
+# 外部CF服务后端类型
 BACKEND_TRAWL = "trawl"
 BACKEND_FLARESOLVERR = "flaresolverr"
 VALID_BACKENDS = (BACKEND_TRAWL, BACKEND_FLARESOLVERR)
@@ -46,7 +46,7 @@ _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
 
 def normalize_trawl_url(url: str | None) -> str:
-    """归一化外部 CF 服务地址：回环地址的 https 降回 http。
+    """归一化外部CF服务地址：回环地址的 https 降回 http。
 
     FlareSolverr / TRAWL 本地实例只 serving 纯 HTTP；配成 https://127.0.0.1:8191
     会导致适配层 POST /v1 TLS 握手失败（_wait_ready 探活永不等到 200，60s 后
@@ -113,7 +113,7 @@ async def _call_backend(
     max_timeout_ms: int = DEFAULT_MAX_TIMEOUT_MS,
     timeout: float = BACKEND_REQUEST_TIMEOUT,
 ) -> dict:
-    """调用外部 CF 服务（TRAWL /scrape 或 FlareSolverr /v1），归一化为统一结构。
+    """调用外部CF服务（TRAWL /scrape 或 FlareSolverr /v1），归一化为统一结构。
 
     返回结构：{url, statusCode, headers, cookies, userAgent, html, body}
     失败时返回 {"error": ...}。
@@ -346,7 +346,7 @@ def _cookie_to_set_cookie(cookie: dict) -> str:
 
 
 def create_trawl_adapter_app(trawl_url: str, backend: str = BACKEND_TRAWL):
-    """创建把 cf_bypasser 协议翻译成外部 CF 服务（TRAWL /scrape 或 FlareSolverr /v1）的 ASGI 适配层。"""
+    """创建把 cf_bypasser 协议翻译成外部CF服务（TRAWL /scrape 或 FlareSolverr /v1）的 ASGI 适配层。"""
     backend = _normalize_backend(backend)
 
     async def app(scope, receive, send):
@@ -522,7 +522,7 @@ async def _read_body(scope, receive) -> bytes:
 
 
 class TrawlAdapterServer:
-    """本地外部 CF 服务适配层：把 cf_bypasser 协议翻译成 TRAWL /scrape 或 FlareSolverr /v1。
+    """本地外部CF服务适配层：把 cf_bypasser 协议翻译成 TRAWL /scrape 或 FlareSolverr /v1。
 
     随机空闲端口 + uvicorn 子进程/进程内线程。
     """
@@ -727,7 +727,7 @@ class TrawlAdapterServer:
 
 
 def create_trawl_adapter_factory():
-    """uvicorn --factory 入口：从环境变量读取外部 CF 服务地址与后端类型并创建适配层。"""
+    """uvicorn --factory 入口：从环境变量读取外部CF服务地址与后端类型并创建适配层。"""
     trawl_url = os.environ.get("MDCX_TRAWL_URL", "")
     backend = os.environ.get("MDCX_BACKEND_TYPE", BACKEND_TRAWL)
     return create_trawl_adapter_app(trawl_url, backend)

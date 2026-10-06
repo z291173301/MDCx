@@ -478,8 +478,7 @@ class MyMAinWindow(QMainWindow):
         self.show_net_info("\n🏠 代理设置在:【设置】 - 【网络】 - 【网络设置】。")
         show_netstatus()  # 检查网络界面显示当前网络代理信息
         self.show_net_info(
-            "\n💡 Cloudflare Bypass：在【设置】-【网络】-【外部 CF 服务】填写 TRAWL / FlareSolverr "
-            "服务地址后生效，例如 http://127.0.0.1:8191。\n"
+            "\n💡 Cloudflare Bypass：【设置】-【网络】-【外部CF服务】填写TRAWL/FlareSolverr服务地址生效，例如http://127.0.0.1:8191\n"
             "▶️ 点击右上角 【开始检测】按钮以测试网络连通性。"
         )
         signal_qt.add_log("🍯 你可以点击左下角的图标来 显示 / 隐藏 请求信息面板！")
@@ -10975,8 +10974,8 @@ class MyMAinWindow(QMainWindow):
             f"  版本: {VERSION_NAME} ({LOCAL_VERSION})",
             f"  系统: {platform.system()} {platform.release()} ({platform.machine()})",
             f"  时间: {time.strftime('%Y-%m-%d %H:%M:%S')}",
-            f"  代理: {proxy_info}    CF Bypass: {'已配置' if config.cf_bypass_url.strip() else '未配置'}"
-            f"    外部 CF 服务: {'已配置' if config.cf_bypass_trawl_url.strip() else '未配置'}",
+            f"  代理: {proxy_info}    CloudFlare Bypass: {'已配置' if config.cf_bypass_url.strip() else '未配置'}"
+            f"    外部CF服务: {'已配置' if config.cf_bypass_trawl_url.strip() else '未配置'}",
             "=" * 88,
         ]
 

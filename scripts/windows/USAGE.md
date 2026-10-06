@@ -33,7 +33,7 @@ cd C:\Tools\trawl-portable-1.4.0-windows
 ## 配置 MDCx
 
 1. 打开 MDCx → 设置 → 网络
-2. 在 "外部 CF 服务" 输入框中填写 TRAWL 服务地址：`http://localhost:8191`
+2. 在 "外部CF服务" 输入框中填写 TRAWL 服务地址：`http://localhost:8191`
 3. 右侧后端类型保持默认 `trawl`（走 TRAWL 原生 `/scrape` 接口）
 4. 保存设置
 

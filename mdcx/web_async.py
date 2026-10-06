@@ -598,7 +598,7 @@ class AsyncWebClient:
                 self._cf_bypass_trusted_hosts.add(entry)
         self._trawl_url = (cf_bypass_trawl_url or "").strip().rstrip("/")
         self._trawl_backend = (cf_bypass_trawl_backend or "trawl").strip().lower()
-        # TRAWL/FlareSolverr 适配层：配置了外部 CF 服务地址且未配置 cf_bypasser 外部地址时启用
+        # TRAWL/FlareSolverr 适配层：配置了外部CF服务地址且未配置 cf_bypasser 外部地址时启用
         self._trawl_adapter_enabled = bool(self._trawl_url) and not self.cf_bypass_url
         self._trawl_adapter_server: TrawlAdapterServer | None = None
         self._trawl_prewarm_task: asyncio.Future | None = None
@@ -2049,7 +2049,7 @@ class AsyncWebClient:
                     sleep_seconds = self._calc_retry_sleep_seconds(attempt, after_cf_bypass=sleep_after_cf_bypass)
                     await asyncio.sleep(sleep_seconds)
             # 传输失败兜底：整轮重试一次 HTTP 响应都没拿到（直连 RST/超时），挑战判定
-            # 永不触发。若配了 bypass（外部 CF 服务 / 手动地址），给 bypass 一次机会——
+            # 永不触发。若配了 bypass（外部CF服务 / 手动地址），给 bypass 一次机会——
             # 外部服务是真浏览器指纹，可能通过 curl 指纹被 RST 的链路（如强制直连站点）。
             # 仅彻底失败后触发一次：正常通过的请求走不到这里，行为不变。
             if (

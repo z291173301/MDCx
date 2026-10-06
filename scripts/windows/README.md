@@ -38,7 +38,7 @@ Camoufox 浏览器已随包附带（~663MB），无需在线下载。
 打开 MDCx → 设置 → 网络：
 
 ```
-外部 CF 服务: http://localhost:8191
+外部CF服务: http://localhost:8191
 后端类型: trawl（默认；原生 FlareSolverr 选 flaresolverr）
 ```
 

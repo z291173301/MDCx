@@ -13174,7 +13174,7 @@ class Ui_MDCx(object):
                 "输入番号，多个用空格分隔将自动刮削并补齐封面和缩略图，复用当前配置站点优先级顺序、命名、裁切、水印规则，输出目录为当前数据目录，可以在设置页修改",
             )
         )
-        self.label_cover_backfill_number.setText(_translate("MDCx", "补图番号："))
+        self.label_cover_backfill_number.setText(_translate("MDCx", "番号补图："))
         self.lineEdit_cover_backfill_numbers.setPlaceholderText(_translate("MDCx", "例如：SSIS-001 ABF-371 JIMMY-003"))
         self.pushButton_cover_backfill_start.setText(_translate("MDCx", "开始补图"))
         self.checkBox_cover_backfill_overwrite.setText(_translate("MDCx", "覆盖已有图片"))
@@ -14373,7 +14373,7 @@ class Ui_MDCx(object):
         self.lineEdit_direct_sites.setPlaceholderText(_translate("MDCx", "逗号分隔，如 google.com,github.com"))
         self.label_cf_bypass.setText(_translate("MDCx", "CF Bypass："))
         self.lineEdit_cf_bypass_url.setPlaceholderText(
-            _translate("MDCx", "留空则由外部 CF 服务自动启动（高级：手动指定 cf_bypasser 协议服务地址）")
+            _translate("MDCx", "留空则由外部CF服务自动启动（高级：手动指定 cf_bypasser 协议服务地址）")
         )
         self.label_cf_bypass_proxy.setText(_translate("MDCx", "Bypass代理："))
         self.lineEdit_cf_bypass_proxy.setPlaceholderText(_translate("MDCx", "例如: http://127.0.0.1:7890（可选）"))
@@ -14577,7 +14577,7 @@ class Ui_MDCx(object):
                 "<h4>五、Cloudflare 绕过（CF Bypass）</h4>\n"
                 "<p>MDCx 提供多种 Cloudflare 绕过能力，遇到受 Cloudflare 保护的站点时自动尝试绕过：</p>\n"
                 "<ul>\n"
-                '<li><b>外部 CF 服务</b>：在"设置 → 网络"填写 TRAWL / FlareSolverr 风格外部 CF 服务地址（如 http://127.0.0.1:8191），并在右侧选择后端类型：TRAWL（走 /scrape 原生 API）或 FlareSolverr（走 /v1 兼容 API）。MDCx 自动在本地拉起协议适配层把请求翻译给外部服务，无需自行填 /v1 地址。</li>\n'
+                '<li><b>外部CF服务</b>：在"设置 → 网络"填写 TRAWL / FlareSolverr 风格外部CF服务地址（如 http://127.0.0.1:8191），并在右侧选择后端类型：TRAWL（走 /scrape 原生 API）或 FlareSolverr（走 /v1 兼容 API）。MDCx 自动在本地拉起协议适配层把请求翻译给外部服务，无需自行填 /v1 地址。</li>\n'
                 "<li><b>Selenium CF Bypass</b>（JavLibrary 专用）：JavLibrary 遇 Cloudflare JS challenge 时自动 fallback 到 Selenium+Edge headless 获取页面 HTML。默认开启（cf_selenium_bypass），需要 Windows 10/11 + Edge 浏览器，首次使用自动安装 selenium，无 Edge 环境优雅降级，连续失败 3 次进入 5 分钟冷却。</li>\n"
                 "<li><b>Bypass 落地白名单</b>：可填写可信落地域名白名单（逗号分隔，支持 *.example.com 子域通配），用于校验 Bypass 服务落地/重定向后的最终域名，防止第三方服务被劫持时把恶意页面当数据；留空表示不校验（默认）。</li>\n"
                 "<li><b>免 CF 通道</b>：部分站点提供免 CF 的数据接口（javdb_api、javdb_app、missav_api、r18dev、thejavdb_api），默认已加入网站源，可直接选用获得更稳定的抓取。</li>\n"
@@ -14675,7 +14675,7 @@ class Ui_MDCx(object):
         self.label_nfo_lib_batch_hint.setText(
             _translate(
                 "MDCx",
-                "用法：先在左侧NFO列表选中多条记录，再填写内容点对应按钮，替换演员名、加标签、删标签、统一系列名，最后点击「批量保存」统一写盘生效",
+                "用法：先在左侧列表选中多条记录，再填写内容点对应按钮，替换演员名/加标签/删标签/统一系列名，最后点击批量保存写盘生效",
             )
         )
         self.label_nfo_lib_number.setText(_translate("MDCx", "番号"))

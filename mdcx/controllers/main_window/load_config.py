@@ -963,9 +963,9 @@ def load_config(self: "MyMAinWindow"):
         self.Ui.lineEdit_cf_bypass_url.setText(manager.config.cf_bypass_url)
         # Cloudflare bypass 独立代理地址
         self.Ui.lineEdit_cf_bypass_proxy.setText(manager.config.cf_bypass_proxy)
-        # TRAWL/FlareSolverr 外部 CF 服务地址
+        # TRAWL/FlareSolverr 外部CF服务地址
         self.Ui.lineEdit_cf_bypass_trawl_url.setText(manager.config.cf_bypass_trawl_url)
-        # 外部 CF 服务后端类型
+        # 外部CF服务后端类型
         backend_index = self.Ui.comboBox_cf_bypass_backend.findText(manager.config.cf_bypass_trawl_backend)
         self.Ui.comboBox_cf_bypass_backend.setCurrentIndex(backend_index if backend_index >= 0 else 0)
         # Bypass 落地域名白名单

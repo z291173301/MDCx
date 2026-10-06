@@ -59,7 +59,7 @@ MDCx 是一个桌面工具，自动从 52 个网站抓取视频文件的元数�
 - **Emby/Jellyfin 集成** — 自动同步演员信息和头像（Emby 演员管理器支持最大化/拖拽缩放，默认适配屏幕）
 - **网络自检与标注** — 检测网络页结果着色 + 按状态复制诊断报告；设置页站点下拉框标注「日本IP限定/勿用日本节点」等区域规则，并回显最近一次自己网络的实测状态（✅可连通/⚠️需关注/❌连不通，悬停看检测时间与路由）；代理分流可选「全部走代理」交给 Clash 类软件裁决
 - **异步并发** — 同时刮多个文件，不卡界面
-- **Cloudflare 绕过** — 支持 TRAWL / FlareSolverr 外部 CF 服务自动绕过防护页；JavLibrary 专属 Selenium+Edge headless fallback；部分站点免 CF 通道（javdb_api、javdb_app、missav_api、r18dev、thejavdb_api）
+- **Cloudflare 绕过** — 支持 TRAWL / FlareSolverr 外部CF服务自动绕过防护页；JavLibrary 专属 Selenium+Edge headless fallback；部分站点免 CF 通道（javdb_api、javdb_app、missav_api、r18dev、thejavdb_api）
 
 ## 开发者
 

@@ -31,7 +31,7 @@ def _fake_ok_response():
 
 
 def _make_client():
-    # 只配外部 CF 服务：适配层懒启动（_trawl_adapter_enabled=True）。
+    # 只配外部CF服务：适配层懒启动（_trawl_adapter_enabled=True）。
     return AsyncWebClient(timeout=1, cf_bypass_trawl_url="http://127.0.0.1:8191")
 
 

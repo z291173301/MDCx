@@ -265,7 +265,7 @@ def _classify_http_result(spec: NetworkCheckSpec, status_code: int, text: str) -
     if _is_cloudflare_challenge(text):
         return (
             NetworkCheckStatus.WARNING,
-            "被 Cloudflare 挑战页拦截：请在设置 → 网络配置「外部 CF 服务」（flaresolverr/trawl）让程序自动走 CF Bypass",
+            "被 Cloudflare 挑战页拦截：请在设置 → 网络配置「外部CF服务」（flaresolverr/trawl）让程序自动走 CF Bypass",
         )
 
     if spec.site == Website.JAVDB:
@@ -306,12 +306,12 @@ def _classify_http_result(spec: NetworkCheckSpec, status_code: int, text: str) -
         return NetworkCheckStatus.WARNING, "HTTP 403 请求被拒绝：当前节点出口 IP 可能被站点封禁，请更换节点"
     if status_code == 429:
         return NetworkCheckStatus.WARNING, "HTTP 429 请求被限流：请稍等几分钟再重试，或在设置中降低并发数"
-    if spec.name == "外部 CF 服务" and status_code == 503:
+    if spec.name == "外部CF服务" and status_code == 503:
         # TRAWL 的 GET /health 在浏览器池预热期返回 503（刚启动时常见），不是服务坏了：
         # 报 WARNING 而不是 FAILED，避免用户刚起服务就看到红灯去乱改配置。
         return (
             NetworkCheckStatus.WARNING,
-            "外部 CF 服务正在启动（浏览器池初始化中），请稍候重新检测；若持续 503 请检查服务日志",
+            "外部CF服务正在启动（浏览器池初始化中），请稍候重新检测；若持续 503 请检查服务日志",
         )
     if 200 <= status_code < 400:
         return NetworkCheckStatus.OK, "连接正常"
@@ -537,7 +537,7 @@ def _is_bypass_capable_client(client: Any) -> bool:
 
 
 def _bypass_available(config: Any) -> bool:
-    """bypass 可用 = 配了 CF Bypass 地址，或配了「外部 CF 服务」（trawl 适配层运行时自动启动，
+    """bypass 可用 = 配了 CF Bypass 地址，或配了「外部CF服务」（trawl 适配层运行时自动启动，
     地址挂在 client 实例上，config.cf_bypass_url 此时为空——议题 #77 漏判根因）。"""
     return bool((config.cf_bypass_url or "").strip() or (config.cf_bypass_trawl_url or "").strip())
 
@@ -554,14 +554,14 @@ async def _try_bypass_for_check(
     if not _is_bypass_capable_client(client):
         return None, "当前客户端不支持 CF Bypass"
 
-    # 仅配「外部 CF 服务」时，适配层地址不在 config 里，需先触发 client 启动适配层
+    # 仅配「外部CF服务」时，适配层地址不在 config 里，需先触发 client 启动适配层
     ensure_local = getattr(client, "_ensure_local_bypass", None)
     if callable(ensure_local) and not manager.config.cf_bypass_url.strip():
         try:
             if not await ensure_local():
-                return None, "外部 CF 服务适配层启动失败"
+                return None, "外部CF服务适配层启动失败"
         except Exception as exc:
-            return None, f"外部 CF 服务适配层启动异常: {exc}"
+            return None, f"外部CF服务适配层启动异常: {exc}"
 
     try:
         from httpx import URL
@@ -597,8 +597,7 @@ def _format_header() -> list[str]:
     cf_bypass_url = manager.config.cf_bypass_url.strip()
     cf_bypass_proxy = manager.config.cf_bypass_proxy.strip()
     trawl_url = manager.config.cf_bypass_trawl_url.strip()
-    lines = [time.strftime("%Y-%m-%d %H:%M:%S").center(88, "=")]
-    lines.append("基础环境")
+    lines = ["基础环境"]
     lines.append(f"  {_pad_right('代理状态', 16)}{'已启用' if use_proxy else '未启用'}")
     if use_proxy:
         lines.append(f"  {_pad_right('代理地址', 16)}{mask_proxy_url(manager.config.proxy)}")
@@ -682,7 +681,7 @@ def format_summary(
             continue
         message = result.message or ""
         if "Cloudflare" in message and ("兜底亦失败" in message or "已尝试 CF Bypass" in message):
-            # 外部 CF 服务已配置且实际尝试过（bypass 返回仍是挑战页），与"没配服务"是两回事，
+            # 外部CF服务已配置且实际尝试过（bypass 返回仍是挑战页），与"没配服务"是两回事，
             # 不能再让人去配一遍服务
             cause_counts["cf_unsolved"] += 1
         elif "Cloudflare" in message:
@@ -703,13 +702,13 @@ def format_summary(
         lines.append("失败/警告根因分组：")
         if cause_counts["cf"]:
             lines.append(
-                f"  • Cloudflare 拦截 ×{cause_counts['cf']}：请配置「外部 CF 服务」（flaresolverr/trawl），程序会自动走 bypass"
+                f"  • Cloudflare 拦截 ×{cause_counts['cf']}：请配置「外部CF服务」（flaresolverr/trawl），程序会自动走 bypass"
             )
         if cause_counts["cf_unsolved"]:
             lines.append(
-                f"  • CF Bypass 已尝试但未解开 ×{cause_counts['cf_unsolved']}：外部 CF 服务已配置并实际尝试过"
+                f"  • CF Bypass 已尝试但未解开 ×{cause_counts['cf_unsolved']}：外部CF服务已配置并实际尝试过"
                 f"（FlareSolverr 返回仍是挑战页），多为出口 IP 被封或站点验证升级；可关闭代理用干净直连重测，"
-                f"或更换代理节点，无需重复配置外部 CF 服务"
+                f"或更换代理节点，无需重复配置外部CF服务"
             )
         if cause_counts["node_blocked"]:
             lines.append(f"  • 节点/IP 被封 ×{cause_counts['node_blocked']}：请更换代理节点或改用其他出口重试")
@@ -965,7 +964,7 @@ def _build_static_specs() -> list[NetworkCheckSpec]:
     else:
         note = "未配置，仅遇到 Cloudflare 挑战页时需要"
         if manager.config.cf_bypass_trawl_url.strip():
-            note = "无需单独配置：已配外部 CF 服务，检测到 Cloudflare 挑战页时自动启动适配层"
+            note = "无需单独配置：已配外部CF服务，检测到 Cloudflare 挑战页时自动启动适配层"
         specs.append(
             NetworkCheckSpec(
                 name="CF Bypass",
@@ -987,7 +986,7 @@ def _build_static_specs() -> list[NetworkCheckSpec]:
         health_path = "/health" if backend == "trawl" else "/"
         specs.append(
             NetworkCheckSpec(
-                name="外部 CF 服务",
+                name="外部CF服务",
                 group="辅助服务",
                 url=trawl_url.rstrip("/") + health_path,
                 use_proxy=False,
@@ -996,7 +995,7 @@ def _build_static_specs() -> list[NetworkCheckSpec]:
     else:
         specs.append(
             NetworkCheckSpec(
-                name="外部 CF 服务",
+                name="外部CF服务",
                 group="辅助服务",
                 url="",
                 note="未配置，可选；部分强反爬站点（JavBus/JavDB 等）被 Cloudflare 挑战拦截时用于绕过",
@@ -1071,7 +1070,7 @@ async def run_network_check_item(
         if response is None:
             if spec.enable_cf_bypass and _bypass_available(_manager().config):
                 # 直连传输层失败（RST/超时）：无 HTTP 响应，挑战判定永不触发。
-                # 配了 bypass（外部 CF 服务/手动地址）时给它一次兜底机会——真浏览器
+                # 配了 bypass（外部CF服务/手动地址）时给它一次兜底机会——真浏览器
                 # 指纹可能通过 curl 指纹被 RST 的链路。失败则保留原始传输错误。
                 bypass_response, bypass_error = await _try_bypass_for_check(request_client, spec)
                 elapsed_ms = int((time.perf_counter() - start_time) * 1000)
@@ -1141,7 +1140,7 @@ async def run_network_check_item(
                 )
             if _is_cloudflare_challenge(text):
                 # bypass 跑过且返回了响应，但内容仍是挑战页（FlareSolverr 未能解开）：
-                # 不要再提示“去配置外部 CF 服务”（它已配置且已运行），直接点名失败。
+                # 不要再提示“去配置外部CF服务”（它已配置且已运行），直接点名失败。
                 return NetworkCheckResult(
                     spec=spec,
                     status=NetworkCheckStatus.WARNING,

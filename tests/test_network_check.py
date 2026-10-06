@@ -295,7 +295,7 @@ def test_classify_403_cf_challenge_hint():
 
     assert status == NetworkCheckStatus.WARNING
     assert "Cloudflare" in message
-    assert "CF Bypass" in message or "外部 CF 服务" in message
+    assert "CF Bypass" in message or "外部CF服务" in message
 
 
 def test_classify_403_plain_block():
@@ -310,7 +310,7 @@ def test_classify_403_plain_block():
 
 def test_classify_external_cf_service_503_warming_up():
     """TRAWL 预热期 GET /health 返回 503：报 WARNING（正在启动）而不是 FAILED，避免误导改配置。"""
-    spec = NetworkCheckSpec(name="外部 CF 服务", group="辅助服务", url="http://127.0.0.1:8191/health")
+    spec = NetworkCheckSpec(name="外部CF服务", group="辅助服务", url="http://127.0.0.1:8191/health")
     status, message = _classify_http_result(spec, 503, '{"status": "starting"}')
 
     assert status == NetworkCheckStatus.WARNING
@@ -663,7 +663,7 @@ async def test_run_network_check_item_actively_uses_cf_bypass_on_challenge(monke
 async def test_run_network_check_item_uses_trawl_adapter_when_only_external_cf_service_configured(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """议题 #77：只配「外部 CF 服务」(cf_bypass_trawl_url)、cf_bypass_url 留空时，
+    """议题 #77：只配「外部CF服务」(cf_bypass_trawl_url)、cf_bypass_url 留空时，
     检测链路必须一样走 bypass——适配层是运行时自动启动、地址挂在 client 实例上的，
     不能用 config.cf_bypass_url 把关。
     """
@@ -729,7 +729,7 @@ async def test_run_network_check_item_reports_cf_bypass_failure(monkeypatch: pyt
 @pytest.mark.anyio
 async def test_run_network_check_item_names_unsolved_challenge_after_bypass(monkeypatch: pytest.MonkeyPatch):
     """bypass 跑过但返回仍是挑战页（FlareSolverr 未能解开）时，不得再提示
-    “去配置外部 CF 服务”（它已配置且已运行），必须直接点名失败。"""
+    “去配置外部CF服务”（它已配置且已运行），必须直接点名失败。"""
 
     class BypassConfig(FakeConfig):
         cf_bypass_url = "http://0.0.0.0:8000"
@@ -761,7 +761,7 @@ async def test_run_network_check_item_names_unsolved_challenge_after_bypass(monk
     assert result.status == NetworkCheckStatus.WARNING
     assert "已尝试 CF Bypass" in result.message
     assert "仍是 Cloudflare 挑战页" in result.message
-    assert "配置「外部 CF 服务」" not in result.message
+    assert "配置「外部CF服务」" not in result.message
 
 
 class ProbeCrawler:

@@ -190,8 +190,8 @@
 | 走代理网站 | 只对这些网站用代理，其他直连（默认含 `amazon.co.jp, m.media-amazon.com, xcity.jp, minnano-av.com, avbase.net, javbus.com, javdb.com, javlibrary.com, r18.dev, mgstage.com, prestige-av.com, seesaawiki.jp, avsox.click, avsox.com, avmoo.shop, avmoo.com, avheat.shop, avheat.com, heyzo.com, caribbeancom.com, 1pondo.tv, pacopacomama.com, 10musume.com, mywife.cc, github.com, raw.githubusercontent.com, google.com, missav.ws, missav.ai, missav.live, aventertainments.com, javfree.me, 7mmtv.sx, 7tv022.com, avsex.cc, getchu.com, dl.getchu.com`）|
 | 直连白名单 | 优先级高于「走代理网站」：命中则强制直连，其余仍按上方列表分流；默认空，旧配置行为不变 |
 | 全部走代理 | 默认关。开启后所有请求都发往上方代理地址，分流交给代理软件（Clash 等）裁决，「走代理网站」列表不再生效；会显著增加代理流量消耗（高清图为大流量来源）|
-| 外部 CF 服务 | TRAWL / FlareSolverr 风格外部 CF 服务地址（如 `http://127.0.0.1:8191`），MDCx 自动拉起协议适配层；回环地址（127.0.0.1/localhost）写成 `https` 会自动降回 `http`（本地实例只 serving 纯 HTTP） |
-| CF 服务后端 | 外部 CF 服务类型：TRAWL（走 /scrape）或 FlareSolverr（走 /v1） |
+| 外部CF服务 | TRAWL / FlareSolverr 风格外部CF服务地址（如 `http://127.0.0.1:8191`），MDCx 自动拉起协议适配层；回环地址（127.0.0.1/localhost）写成 `https` 会自动降回 `http`（本地实例只 serving 纯 HTTP） |
+| CF 服务后端 | 外部CF服务类型：TRAWL（走 /scrape）或 FlareSolverr（走 /v1） |
 | Selenium CF Bypass | JavLibrary 遇 Cloudflare JS challenge 时自动 fallback 到 Selenium+Edge headless（默认开启，需 Windows 10/11 + Edge）|
 | Bypass 独立代理 | bypass 服务专用的代理 |
 | Bypass 落地白名单 | 可信落地域名（逗号分隔，支持 `*.example.com` 子域通配）；校验 Bypass 服务落地/重定向后的最终域名，防第三方服务被劫持时把恶意页面当数据；留空不校验（默认） |

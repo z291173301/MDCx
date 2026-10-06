@@ -783,13 +783,13 @@ class Config(BaseModel):
     cf_bypass_trawl_url: str = Field(
         default="",
         title="TRAWL/FlareSolverr 服务地址",
-        description="TRAWL (FlareSolverr 风格) 外部 CF 服务地址，如 http://127.0.0.1:8191。"
+        description="TRAWL (FlareSolverr 风格) 外部CF服务地址，如 http://127.0.0.1:8191。"
         "配置后 MDCx 自动在本地拉起协议适配层，把 cf_bypasser 协议翻译成外部服务接口。",
     )
     cf_bypass_trawl_backend: str = Field(
         default="trawl",
         title="TRAWL 后端类型",
-        description="外部 CF 服务类型：trawl（走 /scrape 原生 API）或 flaresolverr（走 /v1 兼容 API）。",
+        description="外部CF服务类型：trawl（走 /scrape 原生 API）或 flaresolverr（走 /v1 兼容 API）。",
     )
     cf_bypass_trusted_hosts: str = Field(
         default="",

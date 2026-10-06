@@ -244,7 +244,7 @@ class BuildManager:
             "zhconv",
             "--collect-all",
             "curl_cffi",
-            # 外部 CF 服务适配层依赖: uvicorn 需随包收集以启动 TRAWL/FlareSolverr 适配层
+            # 外部CF服务适配层依赖: uvicorn 需随包收集以启动 TRAWL/FlareSolverr 适配层
             "--collect-all",
             "uvicorn",
             "--collect-all",

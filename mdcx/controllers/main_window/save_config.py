@@ -666,10 +666,10 @@ def save_config(self: "MyMAinWindow"):
     manager.config.proxy = proxy
     manager.config.cf_bypass_url = self.Ui.lineEdit_cf_bypass_url.text().strip()  # Cloudflare bypass 地址
     manager.config.cf_bypass_proxy = self.Ui.lineEdit_cf_bypass_proxy.text().strip()  # Cloudflare bypass 独立代理
-    manager.config.cf_bypass_trawl_url = self.Ui.lineEdit_cf_bypass_trawl_url.text().strip()  # 外部 CF 服务地址
+    manager.config.cf_bypass_trawl_url = self.Ui.lineEdit_cf_bypass_trawl_url.text().strip()  # 外部CF服务地址
     manager.config.cf_bypass_trawl_backend = (
         self.Ui.comboBox_cf_bypass_backend.currentText().strip() or "trawl"
-    )  # 外部 CF 服务后端类型
+    )  # 外部CF服务后端类型
     manager.config.cf_bypass_trusted_hosts = (
         self.Ui.lineEdit_cf_bypass_trusted_hosts.text().strip()
     )  # Bypass 落地域名白名单
