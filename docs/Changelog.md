@@ -35,6 +35,19 @@
   - 存取不对称（`save_config.py`/`load_config.py`）：`mark_pos_hd` 默认 `top_left`→`bottom_right`、`mark_pos_mosaic`→`top_right`、`actor_photo_source` 默认 `LOCAL`→`NET`（均对齐 models/load 默认值）；`sub_type` 加载显示去 `.txt` 改原样显示，避免往返丢片段
   - `mdcx/core/translate.py`：外层条件致空引擎静默跳过、内层「未配置引擎」提示成死代码。已重构为 `need_translate` 变量 + 无引擎时明确提示，并清掉过渡 `if False`
   - 证伪（经代码/测试验证，无需改）：`tagline` 为独立自定义标语（测试即规格，门控想法已回滚）；清理误删有 `need_clean` 兜底；`retry:0` 语义正确；字幕 `.chs` 与总开关正交；studio/publisher 回填各有 `TagInclude` 门控；`ACTOR_ALL` 为 `ACTOR` 修饰符
+- **软件设置-翻译-DeepL/DeepLX 调用逻辑 5 处修复**（`mdcx/base/translate.py`）：
+  - DeepLX 根地址必 404：原直接 POST 用户填写的 `http://host:1188` 根路径，官方镜像只接受 `POST /translate`。新增 `_normalize_deeplx_url()`，已带后缀保持、否则自动补上
+  - DeepLX 错误响应当成功：`{"code":106,...,"data":""}` 也被判成功、非字符串 `data` 也直接返回。新增 `_extract_deeplx_text()` 校验 `code==200` 且 `data` 为字符串，并兼容返回官方 `{translations}` 格式的代理
+  - DeepL 解析不安全：`res["translations"][0]["text"]` 缺键/空数组/非 dict 会抛异常中断 `gather`。新增 `_extract_deepl_text()` 安全提取
+  - 免费/付费 endpoint 误判：`":fx" in key` 改为 `endswith(":fx")`，避免 Pro key 误路由到 `api-free`
+  - `deepl_translate/deeplx_translate` 共用单一 `ls`：标题日文+简介英文时其一 `source_lang` 必错。改为按字段各自 `_get_deepl_source_language()` 检测，`ls` 仅兼容保留
+
+### 调整
+
+- **命名模板 UI 示例修正为标准 Jinja2**（`mdcx/views/MDCx.ui`、`MDCx.py`）：`{number}{%if studio%}` → `{{ number }}{% if studio %}`。单花括号与双花括号不可互换（`{number}` 原样输出、`{%ifstudio%}` 报 `unknown tag`，已实测证伪），旧单花括号模板仅在配置迁移时转写，运行时只认标准写法
+- **年份/年评分缺失留空**：`year` 不再填 `0000`、`score` 不再补 `0.0`（`_deal_res` 把 `0`/`0.0` 归一为空，`build_naming_context` 留空，NFO 为空不写 `<year>`/`<rating>`，模板 `{% if %}` 正常省略）
+- **评分抓取增强**（`javdb`/`javdb_api`/`javlibrary`）：根因是 pretty-printed HTML 换行空白（首文本节点取空、`strip("()")` 去不掉缩进）。JavDB 新增共享 `extract_javdb_score()`（`string()` 取拼接文本，兼容中文`分`/英文 `points`/整数分/`8.5, 120人`），JavLibrary 先去空白再去括号+数字校验。回归 `tests/crawlers/test_score_parsing.py`（9 用例）
+- **评分追加来源站点后缀**：非零评分存为 `8.5(Javlibrary)` / `4.2(Javdb)` 形式以区分各站量纲（JavDB 约 5 分制 / JavLibrary 10 分制），站点取合并后 `field_sources[SCORE]`；NFO、命名模板零值判定、相似推荐统一走 `mdcx/utils.parse_score_number()` 取数字前缀，NFO `<rating>` 只写数字
 
 ## v2.2.7 (2026-10-08)
 

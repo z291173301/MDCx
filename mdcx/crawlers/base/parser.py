@@ -123,6 +123,33 @@ def re_findall(pattern: str, text: str, flags: int = 0) -> list[tuple[str, ...]]
     return r
 
 
+def extract_javdb_score(html: Selector) -> str:
+    """从 JavDB 系详情页提取评分.
+
+    真实详情页是多行 pretty-printed HTML, ``score-stars`` 父容器的首个直接
+    文本子节点只是换行空白——用 ``extract_text``（取首节点）会拿到空串导致
+    评分漏抓. 这里用 ``string()`` 取拼接文本后再正则, 并兼容以下变体:
+
+    - ``4.25分, 由356人评价``（中文）、``4.25 points``（英文 locale）
+    - 整数分 ``4分``（旧正则要求小数点会漏掉）
+    - 无 ``分`` 后缀的 ``8.5, 120人``（数字+逗号+人数形态）
+
+    无评分（暂无评分 / 容器不存在）返回空串. 刻意不用全页裸数字兜底,
+    避免误抓时长/人数等其他数字.
+    """
+    try:
+        text = html.xpath("string(//span[@class='score-stars']/..)").get() or ""
+    except Exception:
+        return ""
+    if not text.strip():
+        return ""
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(?:分|points?\b)", text, re.IGNORECASE)
+    if match:
+        return match.group(1)
+    match = re.search(r"(\d+(?:\.\d+)?)\s*,\s*\d+\s*(?:人|votes?\b)", text, re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
 class DetailPageParser[T: Context = Context]:
     """
     详情页解析器的基类. 子类应重写所需字段的对应方法.

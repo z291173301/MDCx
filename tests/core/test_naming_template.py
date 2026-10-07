@@ -78,6 +78,22 @@ def test_unknown_template_field_raises_clear_error():
         )
 
 
+def test_empty_and_zero_score_render_as_empty():
+    """评分缺失或 0 分留空,{% if score %} 整段省略."""
+    file_info = _build_file_info()
+    result = _build_result()
+    template = "{% if score %}[{{ score }}]{% endif %}{{ number }}"
+    options = NameRenderOptions(target=NamingTarget.FILE)
+
+    assert render_name(template, file_info, result, options).text == "ABC-123"
+    result.score = "0.0"
+    assert render_name(template, file_info, result, options).text == "ABC-123"
+    result.score = "8.5"
+    assert render_name(template, file_info, result, options).text == "[8.5]ABC-123"
+    result.score = "8.5(Javlibrary)"
+    assert render_name(template, file_info, result, options).text == "[8.5(Javlibrary)]ABC-123"
+
+
 def test_number_title_duplicate_is_collapsed_for_media_title():
     file_info = _build_file_info()
     result = _build_result()

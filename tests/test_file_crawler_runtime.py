@@ -229,6 +229,47 @@ def test_deal_res_normalize_iso_release():
 
 
 @pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("", ""),
+        ("0", ""),
+        ("0.0", ""),
+        ("0.00", ""),
+        ("8.50", "8.5"),
+        ("4.25", "4.2"),
+        ("abc", ""),
+    ],
+)
+def test_deal_res_score_empty_and_zero_stay_empty(value: str, expected: str):
+    """评分缺失或 0 分(站点未评价)留空,不写 0.0 污染 NFO/命名模板."""
+    result = CrawlersResult.empty()
+    result.score = value
+
+    assert _deal_res(result).score == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "site_value", "expected"),
+    [
+        ("8.50", "javlibrary", "8.5(Javlibrary)"),
+        ("4.25", "javdb", "4.2(Javdb)"),
+        ("4.5", "dmm", "4.5(Dmm)"),
+        ("8.50", "", "8.5"),
+    ],
+)
+def test_deal_res_score_appends_source_site(value: str, site_value: str, expected: str):
+    """非零评分追加来源站点后缀以区分各站量纲;无来源信息时不追加."""
+    from mdcx.gen.field_enums import CrawlerResultFields
+
+    result = CrawlersResult.empty()
+    result.score = value
+    if site_value:
+        result.field_sources[CrawlerResultFields.SCORE] = site_value
+
+    assert _deal_res(result).score == expected
+
+
+@pytest.mark.parametrize(
     ("file_number", "short_number", "expected"),
     [
         ("259LUXU-1488", "LUXU-1488", True),

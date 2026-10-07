@@ -25,7 +25,7 @@ from ..models.log_buffer import LogBuffer
 from ..models.model_types import CrawlersResult, FileInfo, OtherInfo
 from ..number import get_number_letters
 from ..signals import signal
-from ..utils import get_used_time
+from ..utils import get_used_time, parse_score_number
 from ..utils.file import delete_file_async, write_file_atomic_async
 from ..utils.language import is_japanese
 from ..utils.xml import build_cdata, escape_xml_text, normalize_xml_text
@@ -329,10 +329,12 @@ async def write_nfo(
             for name in directors:
                 write_text_element(code, "director", name)
 
-        # 输出公众评分、影评人评分
+        # 输出公众评分、影评人评分（score 可能带 "(站点)" 后缀，只取数字部分）
         try:
             if data.score:
-                score = float(data.score)
+                score = parse_score_number(data.score)
+                if score is None:
+                    raise ValueError(f"invalid score: {data.score!r}")
                 if NfoInclude.SCORE in nfo_include_new:
                     write_text_element(code, "rating", str(score), indent="  ")
                 if NfoInclude.CRITICRATING in nfo_include_new:

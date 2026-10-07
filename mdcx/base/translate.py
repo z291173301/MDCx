@@ -62,6 +62,50 @@ def _get_deepl_source_language(text: str) -> Literal["JA", "EN"]:
     return "EN" if is_probably_english_for_translation(text) else "JA"
 
 
+def _normalize_deeplx_url(raw_url: str) -> str:
+    """规范化 DeepLX 地址：官方镜像只接受 POST /translate。
+
+    用户常填 http://host:1188 这类根地址，直接 POST 会 404。
+    已带 /translate 后缀的保持原样，否则自动补上。
+    """
+    base = raw_url.strip().rstrip("/")
+    if base.lower().endswith("/translate"):
+        return base
+    return f"{base}/translate"
+
+
+def _extract_deepl_text(res: object) -> str | None:
+    """安全提取 DeepL 官方格式译文，避免 KeyError/IndexError 崩溃上层 gather。"""
+    if not isinstance(res, dict):
+        return None
+    translations = res.get("translations")
+    if not isinstance(translations, list) or not translations:
+        return None
+    first = translations[0]
+    if not isinstance(first, dict):
+        return None
+    text = first.get("text")
+    return text if isinstance(text, str) else None
+
+
+def _extract_deeplx_text(res: object) -> str | None:
+    """提取 DeepLX 译文：兼容 {code,data} 与官方 {translations} 两种格式。"""
+    if not isinstance(res, dict):
+        return None
+    if "translations" in res:
+        return _extract_deepl_text(res)
+    if "data" not in res:
+        return None
+    if "code" in res:
+        try:
+            if int(res["code"]) != 200:  # code=106 等均为服务端错误，不应视为成功
+                return None
+        except (TypeError, ValueError):
+            return None
+    data = res["data"]
+    return data if isinstance(data, str) else None
+
+
 def _is_chinese_target(language: Language | str) -> bool:
     return language in (Language.ZH_CN, Language.ZH_CN.value, Language.ZH_TW, Language.ZH_TW.value)
 
@@ -99,8 +143,8 @@ async def _deepl_translate(text: str, source_lang: Literal["JA", "EN"] = "JA") -
     if not deepl_key:
         return None
 
-    # 确定 API URL, 免费版本的 key 包含 ":fx" 后缀，付费版本的 key 不包含 ":fx" 后缀
-    deepl_url = "https://api-free.deepl.com" if ":fx" in deepl_key else "https://api.deepl.com"
+    # 确定 API URL, 免费版 key 以 ":fx" 结尾，付费版不带该后缀
+    deepl_url = "https://api-free.deepl.com" if deepl_key.endswith(":fx") else "https://api.deepl.com"
     url = f"{deepl_url}/v2/translate"
     # 构造请求头
     headers = {"Content-Type": "application/json", "Authorization": f"DeepL-Auth-Key {deepl_key}"}
@@ -116,15 +160,20 @@ async def _deepl_translate(text: str, source_lang: Literal["JA", "EN"] = "JA") -
     if res is None:
         signal.add_log(f"DeepL API 请求失败: {error}")
         return None
-    if "translations" in res and len(res["translations"]) > 0:
-        return res["translations"][0]["text"]
-    signal.add_log(f"DeepL API 返回数据异常: {res}")
-    return None
+    text_result = _extract_deepl_text(res)
+    if text_result is None:
+        signal.add_log(f"DeepL API 返回数据异常: {res}")
+        return None
+    return text_result
 
 
 async def deepl_translate(title: str, outline: str, ls: Literal["JA", "EN"] = "JA"):
-    """DeepL 翻译接口"""
-    r1, r2 = await asyncio.gather(_deepl_translate(title, ls), _deepl_translate(outline, ls))
+    """DeepL 翻译接口（ls 仅为兼容保留，实际按字段各自检测，避免标题/简介语种不一致时误用同一 source_lang）"""
+    _ = ls
+    r1, r2 = await asyncio.gather(
+        _deepl_translate(title, _get_deepl_source_language(title)),
+        _deepl_translate(outline, _get_deepl_source_language(outline)),
+    )
     if r1 is None or r2 is None:
         return "", "", "DeepL 翻译失败! 查看网络日志以获取更多信息"
     return r1, r2, None
@@ -139,7 +188,7 @@ async def _deeplx_translate(text: str, source_lang: Literal["JA", "EN"] = "JA") 
     if not deeplx_url:
         return None
 
-    url = f"{deeplx_url.rstrip('/')}"
+    url = _normalize_deeplx_url(deeplx_url)
     headers = {"Content-Type": "application/json"}
     data = {"text": text, "source_lang": source_lang, "target_lang": "ZH"}
 
@@ -148,15 +197,20 @@ async def _deeplx_translate(text: str, source_lang: Literal["JA", "EN"] = "JA") 
     if res is None:
         signal.add_log(f"DeepLX API 请求失败: {error}")
         return None
-    if "data" in res:
-        return res["data"]  # 直接返回字符串
-    signal.add_log(f"DeepLX API 返回数据异常: {res}")
-    return None
+    text_result = _extract_deeplx_text(res)
+    if text_result is None:
+        signal.add_log(f"DeepLX API 返回数据异常: {res}")
+        return None
+    return text_result
 
 
 async def deeplx_translate(title: str, outline: str, ls: Literal["JA", "EN"] = "JA"):
-    """DeepLX 翻译接口"""
-    r1, r2 = await asyncio.gather(_deeplx_translate(title, ls), _deeplx_translate(outline, ls))
+    """DeepLX 翻译接口（ls 仅为兼容保留，实际按字段各自检测，避免标题/简介语种不一致时误用同一 source_lang）"""
+    _ = ls
+    r1, r2 = await asyncio.gather(
+        _deeplx_translate(title, _get_deepl_source_language(title)),
+        _deeplx_translate(outline, _get_deepl_source_language(outline)),
+    )
     if r1 is None or r2 is None:
         return "", "", "DeepLX 翻译失败! 查看网络日志以获取更多信息"
     return r1, r2, None

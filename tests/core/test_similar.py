@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from mdcx.core.similar import SimilarIndex, build_idf, extract_prefix, idf_jaccard
+from mdcx.core.similar import SimilarIndex, _score_proximity, build_idf, extract_prefix, idf_jaccard
 
 
 @dataclass
@@ -121,3 +121,10 @@ def test_rank_no_shared_tag_returns_empty():
     corpus = [_item("STAR-200", ["素人"])]
     index = SimilarIndex(corpus)
     assert index.rank(target) == []
+
+
+def test_score_proximity_ignores_site_suffix():
+    """评分站点后缀(如 8.5(Javlibrary))不影响接近度判定."""
+    assert _score_proximity("8.5(Javlibrary)", "8.0(Javdb)") == 1.0
+    assert _score_proximity("8.5(Javlibrary)", "5.0(Javdb)") == 0.0
+    assert _score_proximity("", "8.0(Javdb)") == 0.0

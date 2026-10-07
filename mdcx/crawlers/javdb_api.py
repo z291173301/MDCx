@@ -12,6 +12,7 @@ from ..config.models import Website
 from ..models.model_types import CrawlerResult
 from ..number import match_number, number_search_variants
 from .base import BaseCrawler, CrawlerData, CrawlerException, DetailPageParser, extract_all_texts, extract_text
+from .base.parser import extract_javdb_score
 
 _DEFAULT_BASE = "https://javdb573.com"
 _MIRRORS = [
@@ -33,8 +34,6 @@ _SELECTOR_COVER = "//img[@class='video-cover']/@src"
 _SELECTOR_EXTRAFANART = "//div[@class='tile-images preview-images']/a[@class='tile-item']/@href"
 _SELECTOR_TRAILER = "//video[@id='preview-video']/source/@src"
 _SELECTOR_CLIPBOARD = "//a[@class='button is-white copy-to-clipboard']/@data-clipboard-text"
-
-_SELECTOR_SCORE_STARS = "//span[@class='score-stars']/../text()"
 
 _SELECTOR_PANEL_LABELS = {
     "director": '//strong[contains(text(),"導演:")]/../span/a/text()',
@@ -211,12 +210,7 @@ class Parser(DetailPageParser):
         return extract_all_texts(html, _SELECTOR_PANEL_LABELS["director"], _SELECTOR_DIRECTOR_EN)
 
     async def score(self, ctx, html: Selector) -> str:
-        result = extract_text(html, _SELECTOR_SCORE_STARS)
-        try:
-            score_match = re.search(r"(\d{1,2}\.\d+)", result)
-            return score_match.group(1) if score_match else ""
-        except Exception:
-            return ""
+        return extract_javdb_score(html)
 
     async def wanted(self, ctx, html: Selector) -> str:
         html_text = html.get()

@@ -342,6 +342,12 @@ Jinja2 模板引擎，支持条件渲染、智能截断。三类命名目标：�
 
 命名变量：number、title、actor、all_actor、studio、series、year、release 等 24 个字段。
 
+> 约定（2026-10-07 用户确认）：文档/issue 中字段常简写为 `{number}` 或裸词（如 `score`、`year`），系排版简写、有意为之，不视为与实际键名不一致；实际模板必须用标准 Jinja2 写法 `{{ number }}` / `{% if studio %}`。单花括号与双花括号**不可互换**（已实测：`{number}` 原样输出，`{%ifstudio%}` 报 `Encountered unknown tag 'ifstudio'`；旧版单花括号模板仅在配置迁移时由 `migrations._migrate_builtin_naming_templates` 转写，运行时只认标准 Jinja2）。`year` 刮削不到时留空，不再填 `0000` 哨兵值（`build_naming_context` 中 `str(data.year or "")`，`{% if year %}` 为假即整段省略；上游 `file_crawler._normalize_year` 同样把 `0000`/无匹配归一为空，NFO 侧 `if str(year)` 为空不输出 `<year>`）。`score` 同理留空：`_deal_res` 把 `0`/`0.0`（站点未评价）归一为空，`build_naming_context` 不再补 `0.0`，NFO 为空不写 `<rating>`，模板 `{% if score %}` 正常省略。
+
+> 评分抓取（2026-10-07）：JavDB 系（`javdb`/`javdb_api`）与 JavLibrary 漏抓的主因是 pretty-printed HTML 空白——前者 `extract_text(.../../text())` 取首文本节点拿到换行空白，后者 `span.score` 文本自带换行缩进而 `.strip("()")` 去不掉。修法：JavDB 用共享 helper `extract_javdb_score()`（`string()` 取拼接文本+正则，兼容中文`分`/英文 `points`/整数分/`8.5, 120人`形态，无标记数字不抓防误伤时长）；JavLibrary 先 strip 空白再去括号+数字校验，另用 review 块括号数字兜底。回归测试见 `tests/crawlers/test_score_parsing.py`。
+
+> 评分站点后缀（2026-10-07 用户要求）：`_deal_res` 对非零评分追加来源站点后缀（如 `8.5(Javlibrary)`、`4.2(Javdb)`），以区分各站量纲（JavDB 约 5 分制 / JavLibrary 10 分制）；站点取合并后 `field_sources[SCORE]`，标签为站点 value 首字母大写（`javdb_api` 这类复合名渲染为 `Javdb_api`）。数字消费处统一走 `mdcx/utils.parse_score_number()` 取前缀：NFO `<rating>`/`<criticrating>` 只写数字，命名模板显示保留后缀原文，相似推荐接近度判定先去括号。无来源信息时不追加。
+
 ### 马赛克标准化（mdcx/core/mosaic.py）
 
 `normalize_mosaic()` 将各类标签归一化为：有码、无码、无码破解、流出、无码流出、国产。

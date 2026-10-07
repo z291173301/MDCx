@@ -18,6 +18,7 @@ from ..models.flags import Flags
 from ..models.log_buffer import LogBuffer
 from ..models.model_types import CrawlerInput, CrawlerResponse, CrawlerResult, CrawlersResult, CrawlTask, FailureReason
 from ..number import is_uncensored
+from ..utils import parse_score_number
 from ..utils.dataclass import update
 from ..utils.xml import XML_TEXT_FIELDS, normalize_xml_text
 from .mosaic import is_guochan_mosaic, is_plain_uncensored_mosaic, normalize_mosaic
@@ -243,12 +244,22 @@ def _deal_res(res: CrawlersResult) -> CrawlersResult:
     # 发行日期
     res.release = _normalize_release_value(res.release)
 
-    # 评分
+    # 评分：0 分视为无评分（站点未评价时常给 0/(0.00)）留空，避免 NFO 写入
+    # rating 0.0 污染数据，也让命名模板 {% if score %} 正常省略；
+    # 非零评分保留一位小数并追加来源站点后缀（如 8.5(Javlibrary)），以区分
+    # 各站量纲（JavDB 约 5 分制 / JavLibrary 10 分制），站点取字段来源
     if res.score:
-        try:
-            res.score = f"{float(res.score):.1f}"
-        except ValueError:
+        score_number = parse_score_number(res.score)
+        if score_number is None or score_number <= 0:
             res.score = ""
+        else:
+            res.score = f"{score_number:.1f}"
+            try:
+                score_source = (res.field_sources or {}).get(CrawlerResultFields.SCORE, "")
+            except Exception:
+                score_source = ""
+            if score_source:
+                res.score += f"({score_source.capitalize()})"
 
     # publisher
     if not res.publisher:

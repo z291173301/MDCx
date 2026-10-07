@@ -5,7 +5,7 @@ from ...base.number import deal_actor_more
 from ...config.manager import manager
 from ...models.model_types import CrawlersResult, FileInfo
 from ...number import get_number_first_letter
-from ...utils import get_new_release, split_path
+from ...utils import get_new_release, parse_score_number, split_path
 
 FIELD_DESCRIPTIONS: dict[str, str] = {
     "number": "番号",
@@ -115,8 +115,11 @@ def build_naming_context(
     all_actor = deal_actor_more(data.all_actor)
     actor = deal_actor_more(actor)
 
-    score = str(data.score or "0.0")
-    year = str(data.year or "0000")
+    # score 显示保留 "(站点)" 后缀原文（如 8.5(Javlibrary)），数字校验走前缀
+    score_raw = str(data.score or "").strip()
+    score_number = parse_score_number(score_raw)
+    score = "" if score_number is None or score_number <= 0 else score_raw
+    year = str(data.year or "")
     release = get_new_release(data.release, manager.config.release_rule)
     first_letter = get_number_first_letter(number)
     four_k = definition if definition in {"8K", "UHD", "4K"} else ""

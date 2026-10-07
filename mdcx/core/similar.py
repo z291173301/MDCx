@@ -87,11 +87,11 @@ def _cast_bucket(actors: Iterable[str]) -> str:
 
 
 def _parse_score(score: str) -> float | None:
-    """解析评分字符串（如 "8.5" / "8.5分" / "8,5"），解析失败返回 None。"""
+    """解析评分字符串（如 "8.5" / "8.5分" / "8,5" / "8.5(Javlibrary)"），解析失败返回 None。"""
     if not score:
         return None
     try:
-        cleaned = str(score).strip().replace("分", "").replace(",", ".").replace("　", "")
+        cleaned = re.sub(r"\(.*?\)", "", str(score)).strip().replace("分", "").replace(",", ".").replace("　", "")
         return float(cleaned)
     except (TypeError, ValueError):
         return None

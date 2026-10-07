@@ -539,6 +539,26 @@ def get_new_release(release: str, release_rule: str) -> str:
     return release_rule.replace("YYYY", year).replace("YY", year[-2:]).replace("MM", month).replace("DD", day)
 
 
+_SCORE_NUMBER_RE = re.compile(r"\d+(?:\.\d+)?")
+
+
+def parse_score_number(text: object) -> float | None:
+    """从评分字符串提取首个数字（兼容 "8.5(Javlibrary)" 这类站点后缀形态）.
+
+    评分数值本身不含括号，小数点只认半角点（欧陆 "8,5" 写法由调用方自行处理）。
+    无数字或解析失败返回 None。
+    """
+    if not text:
+        return None
+    match = _SCORE_NUMBER_RE.search(str(text))
+    if not match:
+        return None
+    try:
+        return float(match.group())
+    except ValueError:
+        return None
+
+
 _FULL_HALF_TRANS = str.maketrans(dict(ManualConfig.FULL_HALF_CHAR))
 
 

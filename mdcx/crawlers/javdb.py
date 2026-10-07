@@ -12,6 +12,7 @@ from ..config.models import Website
 from ..models.model_types import CrawlerResult
 from ..number import match_number, number_search_variants
 from .base import BaseCrawler, CrawlerData, CrawlerException, DetailPageParser, extract_all_texts, extract_text
+from .base.parser import extract_javdb_score
 
 # 欧美短年份尾缀：YY.MM.DD / YY-MM-DD（如 Blackedraw.26.09.18）。
 # 前面不能是数字，避免 2026.09.18 的后半截 26.09.18 被二次转换。
@@ -125,12 +126,7 @@ class Parser(DetailPageParser):
         )
 
     async def score(self, ctx, html: Selector) -> str:
-        result = extract_text(html, "//span[@class='score-stars']/../text()")
-        try:
-            score_match = re.search(r"(\d{1,2}\.\d+)(分|,)", result)
-            return score_match.group(1) if score_match else ""
-        except Exception:
-            return ""
+        return extract_javdb_score(html)
 
     async def wanted(self, ctx, html: Selector) -> str:
         html_text = html.get()
@@ -274,7 +270,9 @@ class JavdbCrawler(BaseCrawler):
         for number in match_numbers:
             clean_number = number.upper().replace(".", "").replace("-", "").replace(" ", "")
             for href, title, meta in info_list:
-                clean_content = ((title or "") + (meta or "")).upper().replace("-", "").replace(".", "").replace(" ", "")
+                clean_content = (
+                    ((title or "") + (meta or "")).upper().replace("-", "").replace(".", "").replace(" ", "")
+                )
                 if match_number(clean_content, clean_number):
                     return [self._with_locale_zh(urljoin(self.base_url, href))]
 

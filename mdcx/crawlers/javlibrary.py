@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import re
 import urllib.parse
 from typing import override
 
@@ -97,8 +98,24 @@ def get_runtime(html):
 
 
 def get_score(html):
-    result = html.xpath('//div[@id="video_review"]//span[@class="score"]/text()')
-    return result[0].strip("()") if result else ""
+    results = html.xpath('//div[@id="video_review"]//span[@class="score"]/text()')
+    for raw in results:
+        # 真实页面多为 pretty-printed HTML，文本节点常带换行缩进
+        # （如 "\n  (8.13)\n"），必须先 strip 空白再去括号，
+        # 否则旧写法 .strip("()") 原样返回，float() 失败导致漏抓
+        text = (raw or "").strip().strip("()").strip()
+        if re.fullmatch(r"\d+(?:\.\d+)?", text):
+            return text
+    # 兜底：review 块整体文本中找括号包裹的数字（兼容 span 缺失或嵌套变体）
+    try:
+        block = html.xpath('string(//div[@id="video_review"])')
+    except Exception:
+        block = ""
+    if block:
+        match = re.search(r"\(\s*(\d+(?:\.\d+)?)\s*\)", block)
+        if match:
+            return match.group(1)
+    return ""
 
 
 def get_director(html):
