@@ -140,6 +140,25 @@ jobs:
             Write-Host "uBlock Origin addon 已存在，跳过下载"
           }
 
+      - name: Download GeoIP Database (GeoLite2-City)
+        shell: pwsh
+        run: |
+          $CacheDir = "$HOME\.cache\camoufox"
+          $GeoIPFile = Join-Path $CacheDir "GeoLite2-City.mmdb"
+          $GeoIPUrl = "https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-City.mmdb"
+          $MinBytes = 50000000
+          
+          Write-Host "检查/下载 GeoIP 数据库 ..."
+          Invoke-WebRequest -Uri $GeoIPUrl -OutFile "GeoLite2-City.mmdb.tmp"
+          $ActualSize = (Get-Item "GeoLite2-City.mmdb.tmp").Length
+          if ($ActualSize -lt $MinBytes) {
+            Write-Host "[WARN] GeoLite2-City.mmdb 只有 $ActualSize 字节（低于 $MinBytes），可能下载不完整，跳过替换"
+            Remove-Item "GeoLite2-City.mmdb.tmp" -Force -ErrorAction SilentlyContinue
+          } else {
+            Move-Item "GeoLite2-City.mmdb.tmp" $GeoIPFile -Force
+            Write-Host "GeoIP 数据库已更新到 $GeoIPFile ($ActualSize 字节)"
+          }
+
       - name: Download Redis for Windows
         shell: pwsh
         run: |
