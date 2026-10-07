@@ -831,6 +831,13 @@ class Scraper:
             if extrafanart_ok is True:
                 await extrafanart_copy2(folder_new_path)
                 await extrafanart_extras_copy(folder_new_path)
+            elif extrafanart_ok is None:
+                # extrafanart 自身已按删除策略清理（不下载+不保留 / 不下载+保留但本地无文件），
+                # 副本目录与附加内容仍需执行各自的删除策略，否则“全部不勾选”时
+                # extrafanart 已删但 copy/extras 残留。此时源目录已不存在，
+                # copy2/extras 内部会在处理完删除策略后因无源而直接返回，不会复制。
+                await extrafanart_copy2(folder_new_path)
+                await extrafanart_extras_copy(folder_new_path)
             else:
                 if extrafanart_ok is False:
                     LogBuffer.error().write("extrafanart 部分剧照下载失败")
@@ -1438,13 +1445,23 @@ class Scraper:
             copy = Switch.COPY_NETDISK_NFO in manager.config.switch_on
             await newtdisk_creat_symlink(copy, folder_new_path, target_dir)
 
-        # json添加封面缩略图路径（仅在路径重算后有值）
+        # json添加封面缩略图路径（仅指向实际存在的文件；按删除策略删掉的文件必须置 None，
+        # 否则 UI 预览与其他消费者会拿到指向已删除文件的过期路径）
         if poster_final_path is not None:
-            other.poster_path = poster_final_path
-            other.thumb_path = thumb_final_path
-            other.fanart_path = fanart_final_path
-            if not await aiofiles.os.path.exists(thumb_final_path) and await aiofiles.os.path.exists(fanart_final_path):
-                other.thumb_path = fanart_final_path
+            if await aiofiles.os.path.exists(poster_final_path):
+                other.poster_path = poster_final_path
+            else:
+                other.poster_path = None
+            if await aiofiles.os.path.exists(fanart_final_path):
+                other.fanart_path = fanart_final_path
+            else:
+                other.fanart_path = None
+            if await aiofiles.os.path.exists(thumb_final_path):
+                other.thumb_path = thumb_final_path
+            elif other.fanart_path is not None:
+                other.thumb_path = other.fanart_path
+            else:
+                other.thumb_path = None
 
         # 所有图片及相关文件处理完成后，最后统一压缩最终输出目录中的图片。
         await compress_images_in_folder_async(meta_folder, manager.config.compress_downloaded_images)

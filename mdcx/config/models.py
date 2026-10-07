@@ -1005,6 +1005,10 @@ class Config(BaseModel):
             elif crawler_field in current:
                 old_sites = current[crawler_field].site_prority
                 sites = [site for site in self.parse_sites(old_sites) if site in type_site_set]
+                if not sites:
+                    # 与 build_type_field_configs 一致：交集为空时回退到类型名单，
+                    # 否则该字段被永久静默跳过（_call_crawlers 中 f_sites 为空直接 continue）
+                    sites = list(type_site_set)
                 normalized[crawler_field] = FieldPriorityConfig(site_prority=sites)
             else:
                 normalized[crawler_field] = default[crawler_field]

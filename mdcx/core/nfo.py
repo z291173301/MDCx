@@ -240,7 +240,7 @@ async def write_nfo(
             else:
                 print(f"  <originalplot>{build_cdata(originalplot)}</originalplot>", file=code)
 
-        # 输出发行日期
+        # 输出发行日期（tagline 为独立自定义标语，有 release 即输出，不随日期开关）
         if release:
             nfo_tagline = manager.config.nfo_tagline.replace("release", release)
             if nfo_tagline:
@@ -355,9 +355,9 @@ async def write_nfo(
         if str(runtime) and NfoInclude.RUNTIME in nfo_include_new:
             write_text_element(code, "runtime", str(runtime).replace(" ", ""), indent="  ")
 
-        # 输出合集(使用演员)
+        # 输出合集(使用演员，与上方 <actor> 同源：ACTOR_ALL 勾选时用全量名单)
         if NfoInclude.ACTOR_SET in nfo_include_new:
-            for name in data.actors:
+            for name in actors:
                 print("  <set>", file=code)
                 write_text_element(code, "name", name, indent="    ")
                 print("  </set>", file=code)
@@ -410,14 +410,15 @@ async def write_nfo(
         if trailer and NfoInclude.TRAILER in nfo_include_new:
             write_text_element(code, "trailer", trailer)
 
-        # external id
-        for site, u in data.external_ids.items():
-            if u:
-                tag_name = get_external_id_tag_name(site)
-                write_text_element(code, tag_name, u)
-        # 没有时使用搜索关键词填充 javdbsearchid # todo 允许配置其他网站的后备字段, 允许控制是否输出该字段
-        if not data.external_ids.get(Website.JAVDB):
-            write_text_element(code, "javdbsearchid", number)
+        # external id（受 网址（website）开关控制）
+        if NfoInclude.WEBSITE in nfo_include_new:
+            for site, u in data.external_ids.items():
+                if u:
+                    tag_name = get_external_id_tag_name(site)
+                    write_text_element(code, tag_name, u)
+            # 没有时使用搜索关键词填充 javdbsearchid # todo 允许配置其他网站的后备字段, 允许控制是否输出该字段
+            if not data.external_ids.get(Website.JAVDB):
+                write_text_element(code, "javdbsearchid", number)
 
         print("</movie>", file=code)
 

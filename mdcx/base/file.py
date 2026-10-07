@@ -221,6 +221,22 @@ async def pic_some_deal(number: str, thumb_final_path: Path, fanart_final_path: 
         if await aiofiles.os.path.exists(thumb_final_path):
             await delete_file_async(thumb_final_path)
             LogBuffer.log().write("\n 🍀 Thumb delete done!")
+    elif not thumb_policy.should_download:
+        # thumb 未勾选下载、但 poster/fanart 需要中间源时，thumb_download 会下载
+        # 中间 thumb 供裁剪/复制使用。若本地原本就没有 thumb（local_thumb 为空，
+        # 即 deal_old_files 未迁移到旧文件），该文件属于中间产物，用完即删，
+        # 否则“不下载+保留”会在无旧文件时意外落盘 thumb.jpg。
+        try:
+            local_thumb = Flags.file_done_dic.get(number, {}).get("local_thumb")
+        except Exception:
+            local_thumb = None
+        if not local_thumb and await aiofiles.os.path.exists(thumb_final_path):
+            if await aiofiles.os.path.exists(fanart_final_path):
+                Flags.file_done_dic[number]["thumb"] = fanart_final_path
+            else:
+                Flags.file_done_dic[number]["thumb"] = None
+            await delete_file_async(thumb_final_path)
+            LogBuffer.log().write("\n 🍀 Thumb delete done! (temp)")
 
 
 async def save_success_list(old_path: Path | None = None, new_path: Path | None = None) -> None:

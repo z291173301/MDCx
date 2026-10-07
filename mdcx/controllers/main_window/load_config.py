@@ -117,7 +117,7 @@ def load_config(self: "MyMAinWindow"):
         # 视频类型
         self.Ui.lineEdit_movie_type.setText("|".join(manager.config.media_type))
         # 字幕类型
-        self.Ui.lineEdit_sub_type.setText("|".join(manager.config.sub_type).replace(".txt|", ""))
+        self.Ui.lineEdit_sub_type.setText("|".join(manager.config.sub_type))
         # 不过滤文件、文件夹
         self.Ui.checkBox_scrape_softlink_path.setChecked(manager.config.scrape_softlink_path)
         # endregion

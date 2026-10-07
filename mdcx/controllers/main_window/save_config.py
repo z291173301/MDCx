@@ -581,7 +581,7 @@ def save_config(self: "MyMAinWindow"):
         (self.Ui.radioButton_actor_info_all, EmbyAction.ACTOR_INFO_ALL), default=EmbyAction.ACTOR_INFO_MISS
     )
     actor_photo_source = get_radio_buttons(
-        (self.Ui.radioButton_actor_photo_net, EmbyAction.ACTOR_PHOTO_NET), default=EmbyAction.ACTOR_PHOTO_LOCAL
+        (self.Ui.radioButton_actor_photo_net, EmbyAction.ACTOR_PHOTO_NET), default=EmbyAction.ACTOR_PHOTO_NET
     )
     actor_photo_mode = get_radio_buttons(
         (self.Ui.radioButton_actor_photo_all, EmbyAction.ACTOR_PHOTO_ALL), default=EmbyAction.ACTOR_PHOTO_MISS
@@ -645,7 +645,7 @@ def save_config(self: "MyMAinWindow"):
         (self.Ui.radioButton_top_right_hd, "top_right"),
         (self.Ui.radioButton_bottom_left_hd, "bottom_left"),
         (self.Ui.radioButton_bottom_right_hd, "bottom_right"),
-        default="top_left",
+        default="bottom_right",
     )
     manager.config.mark_pos_sub = get_radio_buttons(
         (self.Ui.radioButton_top_left_sub, "top_left"),
@@ -659,7 +659,7 @@ def save_config(self: "MyMAinWindow"):
         (self.Ui.radioButton_top_right_mosaic, "top_right"),
         (self.Ui.radioButton_bottom_left_mosaic, "bottom_left"),
         (self.Ui.radioButton_bottom_right_mosaic, "bottom_right"),
-        default="top_left",
+        default="top_right",
     )
     # endregion
 

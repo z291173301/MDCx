@@ -303,52 +303,50 @@ async def translate_title_outline(json_data: CrawlersResult, cd_part: str, movie
     ):
         trans_outline = json_data.outline
 
-    # 翻译
-    if manager.config.translate_config.translate_by and (
-        (trans_title and title_translate) or (trans_outline and outline_translate)
-    ):
+    # 翻译（需要翻译但未配置任何引擎时明确提示，原外层条件把空引擎静默吞掉）
+    need_translate = (trans_title and title_translate) or (trans_outline and outline_translate)
+    if need_translate and not manager.config.translate_config.translate_by:
+        LogBuffer.web().write("\n 🟡 Translation skipped: 未配置任何翻译引擎")
+    elif need_translate:
         start_time = time.time()
         translate_by_list = manager.config.translate_config.translate_by.copy()
-        if not translate_by_list:
-            LogBuffer.web().write("\n 🟡 Translation skipped: 未配置任何翻译引擎")
-        else:
-            random.shuffle(translate_by_list)
-            skipped_engines = []
-            for each in translate_by_list:
-                if skip_reason := get_translator_skip_reason(each):
-                    skipped_engines.append(f"{each.capitalize()}({skip_reason})")
-                    continue
-                result = await translate_with_engine(
-                    each,
-                    trans_title,
-                    trans_outline,
-                    title_language=title_language,
-                    outline_language=outline_language,
+        random.shuffle(translate_by_list)
+        skipped_engines = []
+        for each in translate_by_list:
+            if skip_reason := get_translator_skip_reason(each):
+                skipped_engines.append(f"{each.capitalize()}({skip_reason})")
+                continue
+            result = await translate_with_engine(
+                each,
+                trans_title,
+                trans_outline,
+                title_language=title_language,
+                outline_language=outline_language,
+            )
+            if result.error:
+                LogBuffer.log().write(
+                    f"\n 🔴 Translation failed!({each.capitalize()})({get_used_time(start_time)}s) Error: {result.error}"
                 )
-                if result.error:
-                    LogBuffer.log().write(
-                        f"\n 🔴 Translation failed!({each.capitalize()})({get_used_time(start_time)}s) Error: {result.error}"
-                    )
-                    continue
-                if result.translated_title:
-                    json_data.title = result.title
-                    title_translation_applied = True
-                if result.translated_outline:
-                    json_data.outline = result.outline
-                    outline_translation_applied = True
-                LogBuffer.log().write(f"\n 🍀 Translation done!({each.capitalize()})({get_used_time(start_time)}s)")
-                json_data.outline_from = each
-                break
+                continue
+            if result.translated_title:
+                json_data.title = result.title
+                title_translation_applied = True
+            if result.translated_outline:
+                json_data.outline = result.outline
+                outline_translation_applied = True
+            LogBuffer.log().write(f"\n 🍀 Translation done!({each.capitalize()})({get_used_time(start_time)}s)")
+            json_data.outline_from = each
+            break
+        else:
+            if all(get_translator_skip_reason(e) for e in translate_by_list):
+                LogBuffer.web().write(
+                    f"\n 🟡 Translation skipped: {', '.join(skipped_engines)}({get_used_time(start_time)}s)"
+                )
             else:
-                if all(get_translator_skip_reason(e) for e in translate_by_list):
-                    LogBuffer.web().write(
-                        f"\n 🟡 Translation skipped: {', '.join(skipped_engines)}({get_used_time(start_time)}s)"
-                    )
-                else:
-                    engine_names = "、".join(e.capitalize() for e in translate_by_list)
-                    LogBuffer.log().write(
-                        f"\n 🔴 Translation failed! {engine_names} 均失败或不可用！({get_used_time(start_time)}s)"
-                    )
+                engine_names = "、".join(e.capitalize() for e in translate_by_list)
+                LogBuffer.log().write(
+                    f"\n 🔴 Translation failed! {engine_names} 均失败或不可用！({get_used_time(start_time)}s)"
+                )
 
     # 简繁转换
     if title_language == Language.ZH_CN and (

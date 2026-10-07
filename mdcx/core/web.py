@@ -757,8 +757,21 @@ async def trailer_download(
         return None
 
     # 不下载时返回（选择不下载保留，但本地并不存在，此时返回）
+    # 例外：主题视频（backdrops/theme_video.mp4）是预告片的复制品，
+    # 与 thumb 之于 poster/fanart 同理。若主题视频勾选下载但预告片未勾选，
+    # 仍需下载预告片作为中间源；copy_trailer_to_theme_videos 会在复制完成后
+    # 按预告片自身删除策略清理该中间预告片。
     if not trailer_policy.should_download:
-        return None
+        if DownloadableFile.THEME_VIDEOS in manager.config.download_files:
+            _theme_dir = folder_new / "backdrops"
+            _theme_keep = KeepableFile.THEME_VIDEOS in manager.config.keep_files
+            _theme_exists = await aiofiles.os.path.exists(_theme_dir)
+            if not (_theme_keep and _theme_exists):
+                pass
+            else:
+                return None
+        else:
+            return None
 
     if ".fc2.com/" in trailer_url and "mid=" in trailer_url and "/up/" in trailer_url:
         tips = "🟡 FC2 预告片链接为带 mid 参数的临时地址，建议仅用于当前任务立即下载，后续直接复用远程链接可能失效。"
@@ -952,6 +965,14 @@ async def thumb_download(
         ):
             pass
         else:
+            # poster/fanart 也不需要 thumb 作为中间源时，按删除策略清理旧 thumb
+            # （poster/fanart/extrafanart/trailer/nfo 均在各自函数内处理 should_remove，
+            # 唯独 thumb 缺失此分支会导致“不下载+不保留”时旧 thumb.jpg 被迁移后残留）
+            if thumb_policy.should_remove_existing and thumb_path:
+                if await aiofiles.os.path.exists(thumb_final_path):
+                    await delete_file_async(thumb_final_path)
+                if str(thumb_path) != str(thumb_final_path) and await aiofiles.os.path.exists(thumb_path):
+                    await delete_file_async(thumb_path)
             return True
 
     # 尝试复制其他分集。看分集有没有下载，如果下载完成则可以复制，否则就自行下载

@@ -93,8 +93,11 @@ async def test_write_nfo_escapes_non_cdata_fields_without_double_escape(monkeypa
             NfoInclude.POSTER,
             NfoInclude.COVER,
             NfoInclude.TRAILER,
+            NfoInclude.WEBSITE,
         ],
     )
+    # NOTE: WEBSITE 开关控制 external_ids/javdbsearchid 输出，此处启用以覆盖其转义；
+    # 开关关闭时不输出（见 test_nfo_website_toggle）。
     monkeypatch.setattr(
         nfo_module,
         "render_name",
@@ -152,3 +155,27 @@ async def test_write_nfo_escapes_non_cdata_fields_without_double_escape(monkeypa
     assert root.xpath("//director/text()") == ["导演A&B"]
     assert root.xpath("//tag/text()") == ["标签A&B", "标签C&D"]
     assert root.xpath("//genre/text()") == ["标签A&B", "标签C&D"]
+
+
+@pytest.mark.asyncio
+async def test_nfo_website_toggle(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    """WEBSITE 关闭时 external_ids/javdbsearchid 不输出，开启时输出。"""
+    file_info = _build_file_info(tmp_path)
+
+    def _data():
+        data = CrawlersResult.empty()
+        data.number = "ABC-123"
+        data.title = "标题"
+        data.external_ids = {Website.JAVDB: "javdb?id=1"}
+        return data
+
+    _configure_nfo_writer(monkeypatch, [NfoInclude.OUTLINE])
+    nfo_file = tmp_path / "ABC-123.nfo"
+    assert await nfo_module.write_nfo(file_info, _data(), nfo_file, tmp_path, update=True) is True
+    content = nfo_file.read_text(encoding="utf-8")
+    assert "javdbid" not in content and "javdbsearchid" not in content
+
+    _configure_nfo_writer(monkeypatch, [NfoInclude.OUTLINE, NfoInclude.WEBSITE])
+    assert await nfo_module.write_nfo(file_info, _data(), nfo_file, tmp_path, update=True) is True
+    content = nfo_file.read_text(encoding="utf-8")
+    assert "<javdbid>javdb?id=1</javdbid>" in content

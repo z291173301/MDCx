@@ -350,6 +350,14 @@ class FileScraper:
             if cached is not None:
                 return cached
         type_sites = list(classification.sites or [])
+        if not type_sites:
+            # 名单为空时原来会静默走完全部字段（f_sites 全空直接 continue），
+            # 虽最终因 all_res 为空返回 None，但报错信息未指向真正原因。
+            # 此处提前明确报错，引导用户检查该类型的站点优先级设置。
+            LogBuffer.error().write(
+                f"刮削类型 {classification.scraping_type} 的站点名单为空，未发起任何请求！请检查该类型的站点优先级设置"
+            )
+            return None
         type_site_set = set(type_sites)
         all_res: dict[tuple[Website, Language], CrawlerResult] = {}
         failed: set[tuple[Website, Language]] = set()  # 记录失败的网站

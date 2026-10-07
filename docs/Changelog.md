@@ -27,6 +27,14 @@
   - `save_config.py` 下拉索引加越界保护，避免 UI/配置错位时 `IndexError`
 - **锁定类型其余选项核查**：锁定到有码/无码/素人/FC2/欧美/国产/动漫逐项探针，分类与站点列表均正确；说明弹窗各类型站点清单与默认值逐项对过，无过期条目。发现 1 个逻辑错误并修复（`mdcx/core/file_crawler.py`）：
   - 自动判断下文件名含 `FC2` 但无 5 位以上数字（如 `FC2-abc`）时返回 `FC2/fixed/sites=[]`——`source` 谎报 `fixed` 且空站点导致直接失败。锁定 FC2 时函数开头已 early-return，该空列表分支在锁定模式下不可达，属「锁定」与「自动偶遇 FC2 字样」混淆。现自动模式不再返回、继续往下按其他类型判断（`FC2-abc` 走有码默认），`use_fixed_type=False` 时仍保留返回 `AUTO`，锁定 FC2 不受番号格式影响
+- **全设置页开关勾选/不勾选组合审计与修复**（此前下载页 5 处保持有效，新增确认 6 组）：
+  - `mdcx/core/nfo.py`：网址（WEBSITE）开关是死开关——`external_ids`/`javdbsearchid` 无条件输出，取消勾选照写。已加 `NfoInclude.WEBSITE` 门控；`tests/test_nfo_write_escape.py` 补 `WEBSITE` 进转义用例并新增 `test_nfo_website_toggle`（开/关）
+  - `mdcx/core/nfo.py:360`：`actor_all`+`actor_set` 同开时 `<actor>` 用 `all_actors` 而 `<set>` 仍循环 `data.actors`，独有演员在 `<set>` 丢失。已改用已解析的 `actors` 变量
+  - `mdcx/config/models.py`：`_normalize_type_field_config` 缺空交集回退——字段级名单与类型名单无交集时持久化空列表，该类型该字段永久跳过；`build` 有回退到类型名单。已对齐（回退到类型名单）
+  - `mdcx/core/file_crawler.py`：空站点名单零请求静默空结果。检查点前加明确报错并返回 `None`
+  - 存取不对称（`save_config.py`/`load_config.py`）：`mark_pos_hd` 默认 `top_left`→`bottom_right`、`mark_pos_mosaic`→`top_right`、`actor_photo_source` 默认 `LOCAL`→`NET`（均对齐 models/load 默认值）；`sub_type` 加载显示去 `.txt` 改原样显示，避免往返丢片段
+  - `mdcx/core/translate.py`：外层条件致空引擎静默跳过、内层「未配置引擎」提示成死代码。已重构为 `need_translate` 变量 + 无引擎时明确提示，并清掉过渡 `if False`
+  - 证伪（经代码/测试验证，无需改）：`tagline` 为独立自定义标语（测试即规格，门控想法已回滚）；清理误删有 `need_clean` 兜底；`retry:0` 语义正确；字幕 `.chs` 与总开关正交；studio/publisher 回填各有 `TagInclude` 门控；`ACTOR_ALL` 为 `ACTOR` 修饰符
 
 ## v2.2.7 (2026-10-08)
 
