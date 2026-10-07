@@ -13536,7 +13536,7 @@ class Ui_MDCx(object):
         self.label_315.setText(
             _translate("MDCx", "⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」信息不全！")
         )
-        self.checkBox_field_priority_try_all_images.setText(_translate("MDCx", "是否尝试所有图片"))
+        self.checkBox_field_priority_try_all_images.setText(_translate("MDCx", "尝试下载所有图片"))
         self.label_field_priority_try_all_images.setText(
             _translate("MDCx", "字段优先模式图片下载失败时，继续尝试其它图片")
         )

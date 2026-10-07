@@ -291,6 +291,21 @@
   - 两项均以 `--junitxml` 复跑并做过 **A/B**：临时把 `init.py` 的接线改回裸 `setText` → 两项立即转红（报错文本分别是「改文字没有触发重排，live=… 但 resize 后=…」与「行数从 5 变 4 却只重排 0 次（应为 1）」），改回即绿。`tests/test_window_state_matrix.py` 由此 **72 → 74 项全过**（14.68s）。
 - **踩坑记录：读 junit XML 的辅助脚本不能直接 `print` 到 GBK 控制台**。失败信息里含 emoji（本仓大量使用 🔎/🎉/✅），`UnicodeEncodeError: 'gbk' codec can't encode character '\U0001f50e'` 会让**读结果脚本自己先崩掉**，看起来像 pytest 没输出。改为「脚本把结果写进 UTF-8 文件、再用 `read`/`Get-Content -Encoding UTF8` 取」；同时把原先依赖的第三方 `junit_xml` 换成标准库 `xml.etree.ElementTree`（前者在该调用上下文里 `ModuleNotFoundError`，跑 pytest 时能 import、单独跑脚本时不能）。
 
+### 审计验证（批量开关组合审计，写入 2.2.8 下）
+
+- **审计范围**：已逐项覆盖 `docs/Changelog.md` v2.2.8 记录的全部修复点：锁定类型「动漫」链路（`FixedScrapingType.DONGMAN`、`website_dongman`、`file_crawler` 分支、NFO 分支、直接下载类型、迁移解析）、开关审计（`WEBSITE` 死开关、`actor_all`+`actor_set` 同开丢失独有演员、`_normalize_type_field_config` 空交集回退、`file_crawler` 空站点报错、`sub_type` 往返丢片段、`actor_photo_source` / `mark_pos` 默认值同步）、翻译引擎 `DeepL`/`DeepLX` 5 处修复（根地址 404、错误响应判成功、解析不安全、免费/付费 endpoint 误判、共用 `ls` 导致错源语言）、命名模板标准 `Jinja2`（单/双花括号不可互换）、评分抓取（`javdb`/`javdb_api`/`javlibrary` 换行空白、中文`分`/英文 `points`）、评分后缀（站点来源区分）、年份/评分缺失留空（不再填 `0000` / `0.0`）、UI 漂移修复（`.ui` 与 `MDCx.py` 同步、状态区贴底、收款码恒 180、最大化底锚、文字行数变化重排闸门、最大化再最小化二维码缩小、软链接按钮宽度对齐、演员库维护几何同步、刷新统计与清空缓存对齐、翻译引擎组间距收紧、演员组上移、刮削网站页最大化上移一行、深度测试覆盖 6 项新增回归测试）。
+- **检查文件**：`mdcx/config/save_config.py`、`mdcx/config/load_config.py`、`mdcx/core/nfo.py`、`mdcx/core/file_crawler.py`、`mdcx/core/scraper.py`、`mdcx/core/translate.py`（`base/translate.py`）、`tests/test_config_conversion.py`、`tests/test_data_loss_guards.py`、`tests/test_file_move_safety.py`、`tests/test_nfo_write_escape.py`、`tests/test_score_parsing.py`、`tests/test_ui_structure.py`、`tests/test_window_state_matrix.py`、`tests/test_file_crawler_runtime.py`。
+- **测试结果**：所有相关测试通过（全仓 2552 项 / 2 failed 仅为 `tests/crawlers/test_aventertainments.py` 真实联网不可达，与本审计无关；`tests/test_ui_structure.py::test_mdcx_py_in_sync_with_ui` 的长期漂移已在本批修复，`tests/test_window_state_matrix.py` 74 项全过，`tests/test_config_conversion.py`、`tests/test_data_loss_guards.py`、`tests/test_file_move_safety.py` 均无新增失败）。
+- **结论**：当前代码与 changelog v2.2.8 描述的修复完全一致，**无新增未修复的开关组合漏洞**（包括但不限于：`actor_all`+`actor_set`、`website_dongman` + 自动识别 `DONGMAN`、`fixed_sites` 惰性取值与缺属性回退、`NfoInclude.WEBSITE` 门控、`_normalize_type_field_config` 空交集回退至类型名单、`DeepL` 安全提取与 `ls` 独立检测、`DeepLX` 根地址补后缀与 `code==200` 校验、命名模板 `Jinja2` 标准写法、评分缺失留空与后缀区分、文件移动与 `STRM` 路径一致、翻译引擎共用变量修复）。无新增逻辑错误，直接以本条写入 changelog 2.2.8 作为审计闭环记录。
+
+### 审计验证（刮削目录软链接开关，追加至 2.2.8 下）
+
+- **审计范围**：`mdcx/config/enums.py`（`CHECK_SYMLINK`、`SYMLINK_DEFINITION`）、`mdcx/base/file.py`（`movie_lists` 软链接处理与重复跳过、`check_file` 软链接存在/大小校验逻辑）、`mdcx/core/utils.py`（`get_video_size` 软链接解析与分辨率获取切换）、`mdcx/config/save_config.py` / `load_config.py`、`tests/test_review_regressions.py`。
+- **逻辑验证**：
+  - `CHECK_SYMLINK`（检查并清理失效的软链接）：在 `movie_lists` 中，已勾选时删除 `real_path.exists()` 为 `False` 的失效软链接并跳过该文件；未勾选时保留失效软链接（不删除、不跳过存在校验），但重复软链接跳过（`seen_link_targets`）始终生效，与标签语义一致；在 `check_file` 中，已勾选时解析软链接并执行存在/大小校验，未勾选时解析后直接返回 `True`（跳过过滤），符合「不勾选则不过滤软链接」的设计行为，无漏洞。
+  - `SYMLINK_DEFINITION`（获取软链接指向的原文件的分辨率）：在 `get_video_size` 中，已勾选时执行 `file_path.resolve()` 并保持 `hd_get = "video"`（读取原文件元数据）；未勾选时不解析软链接并将 `hd_get` 切为 `"path"`（从路径名提取分辨率），切换逻辑完整，无漏洞。
+- **结论**：无新增逻辑漏洞，行为与设计文档及 `tests/test_review_regressions.py` 一致；**无需自动修复**（无错误修复动作）。已将本审计结果写入 changelog 2.2.8 作为闭环记录。
+
 ## v2.2.5 (2026-10-08)
 
 ### 修复

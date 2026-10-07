@@ -10541,7 +10541,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                     </size>
                                   </property>
                                   <property name="text">
-                                    <string>是否尝试所有图片</string>
+                                    <string>尝试下载所有图片</string>
                                   </property>
                                 </widget>
                               </item>
