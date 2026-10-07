@@ -174,7 +174,7 @@ jobs:
       - name: Create Portable Package
         shell: pwsh
         run: |
-          $PACKAGE = "trawl-portable-${{ steps.version.outputs.version }}-windows"
+          $PACKAGE = "Trawl-Portable-${{ steps.version.outputs.version }}-windows"
           New-Item -ItemType Directory -Force -Path $PACKAGE | Out-Null
           
           # 复制 trawl 源码和配置
@@ -183,6 +183,7 @@ jobs:
           
           # 复制启动脚本
           Copy-Item "scripts\windows\start-trawl.bat" $PACKAGE
+          Copy-Item "scripts\windows\start-trawl.vbs" $PACKAGE
           Copy-Item "scripts\windows\download-bun.bat" $PACKAGE
           Copy-Item "scripts\windows\README.md" $PACKAGE
           Copy-Item "scripts\windows\USAGE.md" $PACKAGE
@@ -242,7 +243,7 @@ jobs:
       - name: Create ZIP
         shell: pwsh
         run: |
-          $PACKAGE = "trawl-portable-${{ steps.version.outputs.version }}-windows"
+          $PACKAGE = "Trawl-Portable-${{ steps.version.outputs.version }}-windows"
           # -Force 显式列出全部顶层项（含 .cache 等点开头目录），确保 Camoufox 被打进 zip
           $Items = Get-ChildItem -Path $PACKAGE -Force | ForEach-Object { $_.FullName }
           Compress-Archive -Path $Items -DestinationPath "${PACKAGE}.zip" -Force
@@ -252,8 +253,8 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: trawl-portable-${{ steps.version.outputs.version }}-windows
-          path: trawl-portable-${{ steps.version.outputs.version }}-windows.zip
+          name: Trawl-Portable-${{ steps.version.outputs.version }}-windows
+          path: Trawl-Portable-${{ steps.version.outputs.version }}-windows.zip
           retention-days: 7
 
       - name: Create GitHub Release
@@ -262,7 +263,7 @@ jobs:
         with:
           tag_name: trawl-${{ steps.version.outputs.version }}
           name: TRAWL ${{ steps.version.outputs.version }} Windows Portable
-          files: trawl-portable-${{ steps.version.outputs.version }}-windows.zip
+          files: Trawl-Portable-${{ steps.version.outputs.version }}-windows.zip
           draft: false
           prerelease: false
           body: |
