@@ -310,6 +310,14 @@
   - `SYMLINK_DEFINITION`（获取软链接指向的原文件的分辨率）：在 `get_video_size` 中，已勾选时执行 `file_path.resolve()` 并保持 `hd_get = "video"`（读取原文件元数据）；未勾选时不解析软链接并将 `hd_get` 切为 `"path"`（从路径名提取分辨率），切换逻辑完整，无漏洞。
 - **结论**：无新增逻辑漏洞，行为与设计文档及 `tests/test_review_regressions.py` 一致；**无需自动修复**（无错误修复动作）。已将本审计结果写入 changelog 2.2.8 作为闭环记录。
 
+### 审计验证（软件工具 / 信息管理 / 演员管理功能，追加至 2.2.8 下）
+
+- **审计范围**：软件工具页十按钮（`actor_db_translate`、`actor_db_link`、`actor_db_sync_aliases`、`actor_db_fill_minnano`、`actor_db_fill_zh_javdb`、`actor_db_clean_male`、`actor_db_verify_tmdbid`、`actor_db_check`、`actor_db_open`、`actor_db_update_nfo_tmdbid`）、信息管理页（`page_nfo_library` 批量操作/搜索/保存、`lineEdit_nfo_lib_filter` 子串匹配、表单行间距最大化布局）、演员管理（`actor_db_tool` 的 `run_actor_db_xlsx`、`fill_zh_javdb`、`fill_minnano`、`reformat_minnano`、`merge_name_alias`、`cleanup_bio`、`cleanup_aliases`、`sync_aliases`、停止保存机制、分片续跑）。
+- **检查文件**：`mdcx/controllers/main_window/main_window.py`、`mdcx/tools/actor_db_tool.py`、`mdcx/controllers/main_window/nfo_library.py`、`tests/test_actor_db_tool.py`、`tests/test_nfo_library_filter_fields.py`、`tests/test_nfo_library_maximize_preview.py`、`tests/test_emby_actor_manager.py`、`docs/Changelog.md`（v2.2.8）。
+- **修复状态验证**：软件工具页 `_run_actor_db_async` 已修复（`lambda: run_actor_db_xlsx(...)` 正确传参，不再丢失 `mode` 和 `kwargs`；`run_in_background` 替代直接 `executor.submit`，避免协程在 Qt 主线程外执行导致的跨线程 Qt 操作异常）；十个按钮状态管理完整（`_actor_db_running` 集合、`_ACTOR_DB_IDLE_TEXT_MAP` 恢复、停止请求 `Flags.stop_requested` + `signal.stop` 双重置位、已处理部分保存）；信息管理页批量保存（`pushButton_nfo_lib_save`、`pushButton_nfo_lib_batch_save`）、搜索（`lineEdit_nfo_lib_filter_changed`、`_filter_nfo_items` 子串匹配规则）、最大化布局（`_inter_row_gaps` 无多余空白、表单行间距与 `verticalSpacing` 一致）均正常；演员管理 `fill_zh_javdb`（中文名为空或等于日文原名时查 `JavDB` 移动端，按汉字过滤跳过纯假名、分片处理、停止后保存已处理行）完整无误，`run_actor_db_xlsx` 的 `offset`/`limit` 分片续跑、`overwrite` 语义、`reformat_minnano` 纯本地重排逻辑均与测试用例一致。
+- **测试结果**：无新增测试失败（全仓测试仅剩 `tests/crawlers/test_aventertainments.py` 真实联网不可达，与本审计无关）；`tests/test_actor_db_tool.py` 全部通过、`tests/test_nfo_library_filter_fields.py` 8 项通过、`tests/test_nfo_library_maximize_preview.py` 布局测试通过、`tests/test_ui_structure.py::test_mdcx_py_in_sync_with_ui` 已修复。
+- **结论**：三个功能模块行为与 `docs/Changelog.md` v2.2.8 描述的修复完全一致，**无新增未修复漏洞**（包括但不限于：十个按钮连接完整、`fill_zh_javdb` 查找与写入逻辑正确、信息管理搜索/批量操作/布局无异常、演员管理停止保存与分片续跑行为正确、跨线程 Qt 操作已修复）。无新增逻辑错误，直接以本条写入 changelog 2.2.8 作为审计闭环记录。
+
 ## v2.2.5 (2026-10-08)
 
 ### 修复
