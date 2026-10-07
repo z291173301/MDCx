@@ -119,6 +119,8 @@ class LibrarySelectDialog(QDialog):
         slack 覆盖列表边框与可能出现的横向滚动条高度(议题 #156)。
         """
         target_h = chrome_h + visible_rows * row_h + slack
+        # 整体向上缩进一行汉族的高度（约 20px）
+        target_h = max(320, target_h - 20)
         target_w = int(round(target_h * 16 / 9))
         target_w = max(420, min(target_w, int(avail_w * 0.85)))
         target_h = max(320, min(target_h, int(avail_h * 0.85)))
@@ -180,11 +182,11 @@ class LibrarySelectDialog(QDialog):
         btn_layout.addWidget(btn_all)
         btn_layout.addWidget(btn_none)
         btn_layout.addStretch()
-        layout.addLayout(btn_layout)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        btn_layout.addWidget(buttons)
+        layout.addLayout(btn_layout)
 
     def _set_all(self, checked: bool):
         for cb in self._checkboxes:
@@ -1619,13 +1621,13 @@ IMAGE_SOURCE_NAMES = {
     "gfriends": "Gfriends网络头像",
     "graphis": "Graphis头像/背景",
     "minnano": "Minnano-av头像",
-    "local": "本地已下载头像文件夹",
+    "local": "本地头像保存目录",
 }
 INFO_SOURCE_NAMES = {
-    "local": "本地已下载演员数据库",
-    "wiki": "zh.wikipedia.org/wiki",
-    "minnano": "minnano-av.com",
-    "database": "本地已下载数据库",
+    "local": "本地演员姓名数据",
+    "wiki": "维基百科中文网站",
+    "minnano": "Minnano-av.com",
+    "database": "本地已保存数据库",
 }
 
 
@@ -1670,7 +1672,7 @@ class _SourceQuickSettingsPanel(QGroupBox):
     def _fill_list(list_widget: QListWidget, sources: list[str], names: dict[str, str]):
         list_widget.clear()
         for src in sources:
-            item = QListWidgetItem(f"{src}（{names.get(src, src)}）")
+            item = QListWidgetItem(names.get(src, src) or src)
             item.setData(Qt.ItemDataRole.UserRole, src)
             list_widget.addItem(item)
 
@@ -1715,7 +1717,7 @@ class EmbyActorSettingsDialog(QDialog):
         self.image_list = QListWidget()
         self.image_list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         for src in manager.config.actor_image_sources:
-            item = QListWidgetItem(f"{src}（{IMAGE_SOURCE_NAMES.get(src, src)}）")
+            item = QListWidgetItem(IMAGE_SOURCE_NAMES.get(src, src) or src)
             item.setData(Qt.ItemDataRole.UserRole, src)
             self.image_list.addItem(item)
         layout.addWidget(self.image_list)
@@ -1724,7 +1726,7 @@ class EmbyActorSettingsDialog(QDialog):
         self.info_list = QListWidget()
         self.info_list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         for src in manager.config.actor_info_sources:
-            item = QListWidgetItem(f"{src}（{INFO_SOURCE_NAMES.get(src, src)}）")
+            item = QListWidgetItem(INFO_SOURCE_NAMES.get(src, src) or src)
             item.setData(Qt.ItemDataRole.UserRole, src)
             self.info_list.addItem(item)
         layout.addWidget(self.info_list)
@@ -1738,15 +1740,16 @@ class EmbyActorSettingsDialog(QDialog):
         dir_row.addWidget(browse_btn)
         layout.addLayout(dir_row)
 
-        layout.addWidget(QLabel("Gfriends GitHub 地址:"))
+        gf_row = QHBoxLayout()
+        gf_row.addWidget(QLabel("Gfriends地址:"))
         self.gfriends_edit = QLineEdit(str(manager.config.gfriends_github))
-        layout.addWidget(self.gfriends_edit)
-
-        self.use_db_check = QCheckBox("使用本地信息数据库")
-        self.use_db_check.setChecked(manager.config.use_database)
-        layout.addWidget(self.use_db_check)
+        gf_row.addWidget(self.gfriends_edit)
+        layout.addLayout(gf_row)
 
         btn_row = QHBoxLayout()
+        self.use_db_check = QCheckBox("使用本地信息数据库")
+        self.use_db_check.setChecked(manager.config.use_database)
+        btn_row.addWidget(self.use_db_check)
         btn_row.addStretch()
         save_btn = QPushButton("保存")
         save_btn.clicked.connect(self._save)
