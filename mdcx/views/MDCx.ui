@@ -26223,7 +26223,7 @@ p, li { white-space: pre-wrap; }
                     <string> 演员管理</string>
                   </property>
                   <property name="toolTip">
-                    <string>Emby/Jellyfin 演员管理器（管理演员头像和简介）：连接 Emby/Jellyfin 后获取演员列表、匹配头像简介、批量同步写入</string>
+                    <string>Emby/Jellyfin演员管理器，管理演员头像和简介：连接Emby/Jellyfin后获取演员列表、匹配头像简介、批量同步写入</string>
                   </property>
                 </widget>
               </item>

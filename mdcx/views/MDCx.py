@@ -14706,7 +14706,7 @@ class Ui_MDCx(object):
         self.pushButton_emby_manager_nav.setToolTip(
             _translate(
                 "MDCx",
-                "Emby/Jellyfin 演员管理器（管理演员头像和简介）：连接 Emby/Jellyfin 后获取演员列表、匹配头像简介、批量同步写入",
+                "Emby/Jellyfin演员管理器，管理演员头像和简介：连接Emby/Jellyfin后获取演员列表、匹配头像简介、批量同步写入",
             )
         )
         self.pushButton_nfo_library.setText(_translate("MDCx", " 信息管理"))

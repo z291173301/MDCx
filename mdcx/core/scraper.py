@@ -1643,15 +1643,14 @@ async def move_sub(
 ) -> None:
     copy_flag = False
 
-    # 更新模式 或 读取模式
+    # 更新模式 或 读取模式：只更新文件名且重命名关时，跳过字幕处理
     if manager.config.main_mode > 3:
         if manager.config.update_mode == "c" and not eff_success_file_rename():
             return
 
     # 软硬链接开时，复制字幕（EMBY 显示字幕）
-    elif manager.config.soft_link > 0:
+    if manager.config.soft_link > 0:
         copy_flag = True
-
     # 成功移动关、成功重命名关时，返回（分离模式走右侧开关）
     elif not eff_success_file_move() and not eff_success_file_rename():
         return

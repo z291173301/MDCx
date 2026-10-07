@@ -49,6 +49,10 @@
 - **评分抓取增强**（`javdb`/`javdb_api`/`javlibrary`）：根因是 pretty-printed HTML 换行空白（首文本节点取空、`strip("()")` 去不掉缩进）。JavDB 新增共享 `extract_javdb_score()`（`string()` 取拼接文本，兼容中文`分`/英文 `points`/整数分/`8.5, 120人`），JavLibrary 先去空白再去括号+数字校验。回归 `tests/crawlers/test_score_parsing.py`（9 用例）
 - **评分追加来源站点后缀**：非零评分存为 `8.5(Javlibrary)` / `4.2(Javdb)` 形式以区分各站量纲（JavDB 约 5 分制 / JavLibrary 10 分制），站点取合并后 `field_sources[SCORE]`；NFO、命名模板零值判定、相似推荐统一走 `mdcx/utils.parse_score_number()` 取数字前缀，NFO `<rating>` 只写数字
 
+- **审计：软件设置-刮削模式-读取模式与更新模式各复选框/开关（2.2.8 补录）**：逐项勾选/不勾选测试 + 运算路径核查，发现并修复 1 处逻辑缺陷：
+  - `mdcx/core/scraper.py` `move_sub()`：原条件结构把 `main_mode > 3`（更新/读取模式）的 `if` 与后续 `elif`（软链接复制、成功移动/重命名关时跳过）绑定为互斥分支，导致更新/读取模式下：①软链接开时字幕不会被复制（`copy_flag` 永远为 False）；②成功移动关+成功重命名关时字幕处理不会被跳过（缺少守卫），可能在不应移动字幕时仍执行移动。已重构为先判断模式特有跳过（`update_mode == "c"` 且重命名关），再独立判断软链接复制与移动/重命名守卫，两分支互不遮蔽。修复后读取/更新模式字幕行为与正常模式一致，软链接、移动/重命名开关均正常生效。
+  - 读取模式 4 个复选框（有 NFO 时更新 / 无 NFO 时刮削 / 重新下载 / 更新 NFO）与更新模式 3 组开关（只更新 C / 更新 B+C / 更新 B+C+A / 创建 D 目录）在 `save_config.py` / `load_config.py` 的存取映射无错位，`scraper.py` 及 `core/file.py` 中的 `read_mode` / `update_mode` 运算路径逐项验证无遗漏或误判，逻辑正常。
+
 ## v2.2.7 (2026-10-08)
 
 ### 调整
