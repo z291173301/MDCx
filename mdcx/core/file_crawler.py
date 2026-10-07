@@ -137,17 +137,20 @@ def classify_scrape_task(task_input: CrawlTask, config: "Config", use_fixed_type
     mosaic = task_input.mosaic
 
     fixed_type = config.fixed_scraping_type
-    fixed_sites = {
-        FixedScrapingType.YOUMA: config.website_youma,
-        FixedScrapingType.WUMA: config.website_wuma,
-        FixedScrapingType.SUREN: config.website_suren,
-        FixedScrapingType.FC2: config.website_fc2,
-        FixedScrapingType.OUMEI: config.website_oumei,
-        FixedScrapingType.GUOCHAN: config.website_guochan,
-        FixedScrapingType.DONGMAN: config.website_dongman,
-    }
     if use_fixed_type and fixed_type != FixedScrapingType.AUTO:
-        return ScrapeClassification(fixed_type, "fixed", sites=fixed_sites[fixed_type])
+        # 惰性取值：旧配置/测试桩可能缺 website_dongman 等属性，
+        # eager dict 会在分类任何文件时直接 AttributeError，先取值再查表可避免。
+        _fixed_field = {
+            FixedScrapingType.YOUMA: "website_youma",
+            FixedScrapingType.WUMA: "website_wuma",
+            FixedScrapingType.SUREN: "website_suren",
+            FixedScrapingType.FC2: "website_fc2",
+            FixedScrapingType.OUMEI: "website_oumei",
+            FixedScrapingType.GUOCHAN: "website_guochan",
+            FixedScrapingType.DONGMAN: "website_dongman",
+        }.get(fixed_type)
+        _sites = getattr(config, _fixed_field, None) if _fixed_field else None
+        return ScrapeClassification(fixed_type, "fixed", sites=_sites)
 
     if (
         is_guochan_mosaic(mosaic)
@@ -157,10 +160,20 @@ def classify_scrape_task(task_input: CrawlTask, config: "Config", use_fixed_type
         return ScrapeClassification(FixedScrapingType.GUOCHAN, "auto", sites=config.website_guochan, mosaic="国产")
 
     if file_number.startswith("DLID"):
-        return ScrapeClassification(FixedScrapingType.AUTO, "auto", website=Website.GETCHU)
+        return ScrapeClassification(FixedScrapingType.DONGMAN, "auto", website=Website.GETCHU)
 
-    if "getchu" in file_path_str or "里番" in file_path_str or "裏番" in file_path_str:
-        return ScrapeClassification(FixedScrapingType.AUTO, "auto", website=Website.GETCHU)
+    if (
+        "getchu" in file_path_str
+        or "里番" in file_path_str
+        or "裏番" in file_path_str
+        or "动漫" in file_path_str
+        or "動漫" in file_path_str
+    ):
+        return ScrapeClassification(FixedScrapingType.DONGMAN, "auto", website=Website.GETCHU)
+
+    if normalize_mosaic(mosaic) in {"里番", "动漫"}:
+        _dongman_sites = getattr(config, "website_dongman", None) or [Website.GETCHU]
+        return ScrapeClassification(FixedScrapingType.DONGMAN, "auto", sites=_dongman_sites)
 
     if "mywife" in file_path_str:
         return ScrapeClassification(FixedScrapingType.YOUMA, "auto", website=Website.MYWIFE)

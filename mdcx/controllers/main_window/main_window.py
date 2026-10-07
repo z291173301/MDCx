@@ -10623,7 +10623,7 @@ class MyMAinWindow(QMainWindow):
    <p>· 无码：aventertainments、avsox，以及 javbus、javdb 系、missav 系、avsex、official、javday、iqqtv、7mmtv 等综合站</p>
   <p>· 欧美：theporndb、avheat</p>
   <p>· 国产：madouqu、madou_club、avsex、iqqtv、javday</p>
-  <p>· 里番：getchu </p>
+  <p>· 动漫/里番：getchu、javdb、javdb_api（锁定「动漫」用此三站；DLID 开头或路径含 getchu/里番/动漫自动用 getchu 单站）</p>
   <p>· Mywife：mywife </p>
   <p>· 素人：mgstage、prestige、javbus、javdb 系、dmm、dmm_api、avbase、missav、missav_api、mywife、iqqtv、7mmtv </p>
   <p>· FC2：fc2、fc2ppvdb、javdb 系、javfree、7mmtv </p>

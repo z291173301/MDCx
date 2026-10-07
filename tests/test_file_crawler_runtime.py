@@ -182,6 +182,7 @@ class _ClassificationConfig:
     website_fc2 = {Website.FC2}
     website_oumei = {Website.THEPORNDB}
     website_guochan = {Website.MADOUQU}
+    website_dongman = {Website.GETCHU}
 
 
 def _build_result(site: Website, runtime: str = "", release: str = "", year: str = "") -> CrawlerResult:
@@ -325,6 +326,44 @@ def test_classify_scrape_task_fixed_type_overrides_auto_detection():
     assert classification.scraping_type == FixedScrapingType.SUREN
     assert classification.scraping_type_source == "fixed"
     assert classification.sites == {Website.MGSTAGE}
+
+
+@pytest.mark.parametrize(
+    ("number", "file_path", "mosaic"),
+    [
+        ("DLID123", "", ""),
+        ("xxx", "D:/test/getchu/abc.mp4", ""),
+        ("xxx", "D:/test/里番/abc.mp4", ""),
+        ("xxx", "D:/test/动漫/abc.mp4", ""),
+        ("xxx", "", "动漫"),
+        ("xxx", "", "里番"),
+    ],
+)
+def test_classify_scrape_task_routes_dongman(number: str, file_path: str, mosaic: str):
+    task = CrawlTask.empty()
+    task.number = number
+    if file_path:
+        task.file_path = Path(file_path)
+    task.mosaic = mosaic
+
+    classification = classify_scrape_task(task, _ClassificationConfig())
+
+    assert classification.scraping_type == FixedScrapingType.DONGMAN
+    assert classification.scraping_type_source == "auto"
+
+
+def test_classify_scrape_task_fixed_dongman_uses_dongman_sites():
+    class FixedDongmanConfig(_ClassificationConfig):
+        fixed_scraping_type = FixedScrapingType.DONGMAN
+
+    task = CrawlTask.empty()
+    task.number = "ABP-123"
+
+    classification = classify_scrape_task(task, FixedDongmanConfig())
+
+    assert classification.scraping_type == FixedScrapingType.DONGMAN
+    assert classification.scraping_type_source == "fixed"
+    assert classification.sites == {Website.GETCHU}
 
 
 def test_avwiki_uses_unified_scraping_types():

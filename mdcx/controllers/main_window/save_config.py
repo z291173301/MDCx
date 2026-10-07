@@ -168,7 +168,8 @@ def save_config(self: "MyMAinWindow"):
     # manager.config.website_dongman 保留当前配置
     _type_values = ["auto", "youma", "wuma", "suren", "fc2", "oumei", "guochan", "dongman"]
     _fixed_idx = self.Ui.comboBox_fixed_scraping_type.currentIndex()
-    manager.config.fixed_scraping_type = FixedScrapingType(_type_values[_fixed_idx])
+    if 0 <= _fixed_idx < len(_type_values):
+        manager.config.fixed_scraping_type = FixedScrapingType(_type_values[_fixed_idx])
 
     manager.config.scrape_like = get_radio_buttons(
         (self.Ui.radioButton_scrape_speed, "speed"), (self.Ui.radioButton_scrape_info, "info"), default="single"

@@ -1087,8 +1087,17 @@ class Config(BaseModel):
         website_fc2 = Config.parse_sites(d.get("website_fc2", []))
         website_oumei = Config.parse_sites(d.get("website_oumei", []))
         website_guochan = Config.parse_sites(d.get("website_guochan", []))
+        website_dongman = Config.parse_sites(d.get("website_dongman", []))
         all_enabled_sites = list(
-            dict.fromkeys(website_youma + website_wuma + website_suren + website_fc2 + website_oumei + website_guochan)
+            dict.fromkeys(
+                website_youma
+                + website_wuma
+                + website_suren
+                + website_fc2
+                + website_oumei
+                + website_guochan
+                + website_dongman
+            )
         )
         for field_name in ManualConfig.CONFIG_DATA_FIELDS:
             if field_name in ("outline_zh", "title_zh"):

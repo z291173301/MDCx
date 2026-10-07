@@ -67,6 +67,7 @@ POSTER_DIRECT_DOWNLOAD_TYPES = {
     FixedScrapingType.GUOCHAN,
     FixedScrapingType.OUMEI,
     FixedScrapingType.SUREN,
+    FixedScrapingType.DONGMAN,
     FixedScrapingType.AUTO,
 }
 POSTER_AUTO_BEST_MIN_CROP_AREA_RATIO = 0.70
