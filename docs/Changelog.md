@@ -1525,3 +1525,11 @@ MDCx-DIY 首个正式发布版，基于Hazard804改良的mdcx项目制作，对�
 - CI：ruff format + ruff check
 - Release：macOS DMG + Windows EXE
 - 新增29 篇技术文档（架构、模块、API、迁移指南等）
+
+---
+
+### 审计修复闭环（2026-10-07）
+
+- **AV-Wiki `get_actorname` 假阳性匹配修复**（`mdcx/base/web.py`）：空文本节点导致 `actor_number` 为 `""` 时，`number.upper().endswith("")` 恒真，任何番号均被误匹配为真实演员名。已增加 `.strip()` 与空值判定，同时清理 `actor_name` 空白字符。
+- **演员映射表 `map_actor_names` 防御增强**（`mdcx/core/translate.py`）：增加 `mapped_name` 非空过滤，防止数据库异常写入空值污染 `res.actors` / `res.all_actors`。
+- 修复后「AV-Wiki 获取真实名」与「演员映射表翻译演员」交互链路正常，无新增漏洞。

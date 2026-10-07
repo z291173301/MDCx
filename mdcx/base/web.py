@@ -1373,10 +1373,11 @@ async def get_actorname(number: str) -> tuple[bool, str]:
         return False, "Error: 页面内容解析失败"
     actor_box = html_detail.xpath('//ul[@class="post-meta clearfix"]')
     for each in actor_box:
-        actor_name = each.xpath('li[@class="actress-name"]/a/text()')
-        actor_number = each.xpath('li[@class="actress-name"]/following-sibling::li[last()]/text()')
-        if actor_number and (
-            actor_number[0].upper().endswith(number.upper()) or number.upper().endswith(actor_number[0].upper())
+        actor_name = [n.strip() for n in each.xpath('li[@class="actress-name"]/a/text()') if n and n.strip()]
+        actor_number_raw = each.xpath('li[@class="actress-name"]/following-sibling::li[last()]/text()')
+        actor_number_text = (actor_number_raw[0] if actor_number_raw else "").strip()
+        if actor_number_text and number and (
+            actor_number_text.upper().endswith(number.upper()) or number.upper().endswith(actor_number_text.upper())
         ):
             return True, ",".join(actor_name)
     return False, "No Result!"

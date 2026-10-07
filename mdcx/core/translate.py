@@ -265,7 +265,7 @@ def map_actor_names(res: CrawlersResult, all_actors=False):
             continue
         actor_data = resources.get_actor_data(name)
         mapped_name = actor_data.get(lang.value) if isinstance(lang, Language) else actor_data.get(lang)
-        if mapped_name not in mapped:
+        if mapped_name and mapped_name not in mapped:
             mapped.append(mapped_name)
 
     if all_actors:
