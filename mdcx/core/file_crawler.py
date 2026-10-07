@@ -184,8 +184,8 @@ def classify_scrape_task(task_input: CrawlTask, config: "Config", use_fixed_type
             return ScrapeClassification(FixedScrapingType.FC2, "auto", sites=config.website_fc2)
         if not use_fixed_type:
             return ScrapeClassification(FixedScrapingType.AUTO, "auto")
-        # 固定 FC2 模式但番号格式不识别时，返回空站点列表而非抛异常，让上层正常处理"无结果"
-        return ScrapeClassification(FixedScrapingType.FC2, "fixed", sites=[])
+        # 注：锁定 FC2 时已在函数开头直接返回，此处仅自动判断模式可达；
+        # 文件名含 FC2 但无 5 位以上数字时不是有效 FC2 番号，继续往下判断
 
     if re.search(r"[^.]+\.\d{2}\.\d{2}\.\d{2}", file_number) or (
         "欧美" in file_path_str and "东欧美" not in file_path_str

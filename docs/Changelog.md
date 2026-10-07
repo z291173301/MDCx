@@ -13,6 +13,21 @@
   - `MDCx.ui` / `MDCx.py` 下拉框新增第 7 项「动漫」
   - `site_priority_dialog.py` `TYPE_TITLES` 补充 `FixedScrapingType.DONGMAN: "动漫里番"`
 
+### 修复
+
+- **版本号**：`2.2.7` → `2.2.8`（`pyproject.toml`、`mdcx/consts.py`）
+- **锁定类型「动漫」相关链路补漏**（`mdcx/core/file_crawler.py`、`mdcx/core/web.py`、`mdcx/config/models.py`、`mdcx/controllers/main_window/main_window.py`、`site_priority_dialog.py`、`save_config.py`，回归 `tests/test_file_crawler_runtime.py`）：
+  - 自动识别路径判断漏关键字：只含 `getchu/里番/裏番`，与界面文案「路径含有里番、动漫自动用 getchu」不符，`/动漫/...` 会误判为有码。已补 `动漫/動漫` 关键字
+  - 自动识别类型错误：`DLID` 开头、getchu/里番路径两处返回 `AUTO`，与锁定 `DONGMAN` 三站不一致，下游海报/Amazon/标签逻辑走岔。已改为返回 `DONGMAN`（仍保持 getchu 单站 fast path）
+  - NFO 马赛克 `动漫/里番` 无分支，直接掉进有码。新增分支返回 `DONGMAN + website_dongman`
+  - `fixed_sites` eager dict 在旧配置/测试桩缺 `website_dongman` 时分类任何文件都 `AttributeError`（`tests/test_file_crawler_runtime.py` 的 `_ClassificationConfig` 未同步加桩，18 项失败即源于此）。已改为惰性 `getattr` 取值，mosaic 分支缺属性时回退 `[GETCHU]`；测试桩补 `website_dongman`
+  - `POSTER_DIRECT_DOWNLOAD_TYPES` 漏 `DONGMAN`，动漫海报走不了直接下载（其余非常码类型全在集合里）。已补入
+  - `_convert_field_configs` 旧配置迁移漏解析 `website_dongman`，`all_enabled_sites` 并集缺它。已补齐
+  - 刮削说明弹窗写「里番：getchu」，与锁定三站 `getchu、javdb、javdb_api` 不符。已改为「动漫/里番：getchu、javdb、javdb_api（DLID/路径自动用 getchu 单站）」
+  - `save_config.py` 下拉索引加越界保护，避免 UI/配置错位时 `IndexError`
+- **锁定类型其余选项核查**：锁定到有码/无码/素人/FC2/欧美/国产/动漫逐项探针，分类与站点列表均正确；说明弹窗各类型站点清单与默认值逐项对过，无过期条目。发现 1 个逻辑错误并修复（`mdcx/core/file_crawler.py`）：
+  - 自动判断下文件名含 `FC2` 但无 5 位以上数字（如 `FC2-abc`）时返回 `FC2/fixed/sites=[]`——`source` 谎报 `fixed` 且空站点导致直接失败。锁定 FC2 时函数开头已 early-return，该空列表分支在锁定模式下不可达，属「锁定」与「自动偶遇 FC2 字样」混淆。现自动模式不再返回、继续往下按其他类型判断（`FC2-abc` 走有码默认），`use_fixed_type=False` 时仍保留返回 `AUTO`，锁定 FC2 不受番号格式影响
+
 ## v2.2.7 (2026-10-08)
 
 ### 调整

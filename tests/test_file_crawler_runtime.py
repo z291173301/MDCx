@@ -366,6 +366,35 @@ def test_classify_scrape_task_fixed_dongman_uses_dongman_sites():
     assert classification.sites == {Website.GETCHU}
 
 
+@pytest.mark.parametrize("number", ["FC2-abc", "FC2-123"])
+def test_classify_invalid_fc2_number_in_auto_mode_falls_through(number: str):
+    """自动判断下文件名含 FC2 但无 5 位以上数字时，不应误标 fixed 并返回空站点。"""
+    task = CrawlTask.empty()
+    task.number = number
+
+    classification = classify_scrape_task(task, _ClassificationConfig())
+
+    assert classification.scraping_type == FixedScrapingType.YOUMA
+    assert classification.scraping_type_source == "auto"
+    assert classification.sites
+
+
+def test_classify_invalid_fc2_number_in_fixed_fc2_mode_uses_fc2_sites():
+    """锁定 FC2 时不受番号格式影响，直接使用 FC2 站点列表（开头 early-return 分支）。"""
+
+    class FixedFc2Config(_ClassificationConfig):
+        fixed_scraping_type = FixedScrapingType.FC2
+
+    task = CrawlTask.empty()
+    task.number = "FC2-abc"
+
+    classification = classify_scrape_task(task, FixedFc2Config())
+
+    assert classification.scraping_type == FixedScrapingType.FC2
+    assert classification.scraping_type_source == "fixed"
+    assert classification.sites == {Website.FC2}
+
+
 def test_avwiki_uses_unified_scraping_types():
     assert AVWIKI_SCRAPING_TYPES == {
         FixedScrapingType.YOUMA,
