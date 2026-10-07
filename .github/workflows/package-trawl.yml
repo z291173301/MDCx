@@ -107,6 +107,39 @@ jobs:
           )
           Write-Host "下载完成，已缓存到 $CacheDir"
 
+      - name: Download uBlock Origin Addon
+        shell: pwsh
+        run: |
+          $CacheDir = "$HOME\.cache\camoufox"
+          $AddonsDir = Join-Path $CacheDir "addons\UBO"
+          $UBO_VERSION = "1.75.0"
+          $UBO_AMO_FILE_ID = "5034826"
+          $UBO_SHA256 = "5b74415860456370644bd80f16125e865b0e6c356bb5dfcfb84069967eaa5287"
+          $UBO_URL = "https://addons.mozilla.org/firefox/downloads/file/$UBO_AMO_FILE_ID/ublock_origin-$UBO_VERSION.xpi"
+          
+          New-Item -ItemType Directory -Force -Path $AddonsDir | Out-Null
+          # 仅当 addons/UBO 为空或缺少 manifest.json 时才重新下载
+          if (-not (Test-Path (Join-Path $AddonsDir "manifest.json"))) {
+            Write-Host "下载 uBlock Origin ($UBO_VERSION) ..."
+            Invoke-WebRequest -Uri $UBO_URL -OutFile "ubo.xpi"
+            # 简单 SHA256 校验（PowerShell 5+ 原生支持）
+            $ActualHash = (Get-FileHash -Algorithm SHA256 -Path "ubo.xpi").Hash.ToLower()
+            if ($ActualHash -ne $UBO_SHA256) {
+              Write-Host "[WARN] uBlock Origin SHA256 校验不匹配，跳过提取" 
+            } else {
+              Write-Host "SHA256 校验通过，正在提取 ..."
+              Expand-Archive -Path "ubo.xpi" -DestinationPath $AddonsDir -Force
+              if (Test-Path (Join-Path $AddonsDir "manifest.json")) {
+                Write-Host "uBlock Origin 已提取到 $AddonsDir"
+              } else {
+                Write-Host "[WARN] 提取后仍缺少 manifest.json"
+              }
+            }
+            Remove-Item "ubo.xpi" -Force -ErrorAction SilentlyContinue
+          } else {
+            Write-Host "uBlock Origin addon 已存在，跳过下载"
+          }
+
       - name: Download Redis for Windows
         shell: pwsh
         run: |
