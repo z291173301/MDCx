@@ -298,7 +298,7 @@ class FileScraper:
         if not (match := re.search(r"\d{4}", year)):
             return ""
         year = match.group()
-        return "" if year == "0000" else year
+        return year
 
     @staticmethod
     def _get_cached_site_result(
@@ -671,7 +671,7 @@ class FileScraper:
         elif reduced.release:
             reduced.year = reduced.release[:4]
         else:
-            reduced.year = ""
+            reduced.year = "0000"
 
         # 处理 mosaic——按确定性顺序采信：并发请求完成顺序会让 all_res 的
         # dict 顺序在多次刮削间抖动，mosaic 决定 NFO 标签与文件夹归类，
