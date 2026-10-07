@@ -13672,8 +13672,8 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p\n"
-                "                                style='line-height:20px'>命名模板使用标准Jinja2语法，字段写作{{字段名}}，条件写作{% if 字段名 %}..{% endif %}<br>\n"
-                "                                示例：{{number}}{{% if studio%}}[{{studio}}]{{% end if%}}{{title}}-{{definition}}<br>\n"
+                "                                style='line-height:20px'>命名模板使用标准Jinja2语法，字段写作{{字段名}}，条件写作{% if字段名 %}..{% endif %}<br>\n"
+                "                                示例：{{number}}{{%if studio%}}[{{studio}}]{{% endif %}}{{title}}-{{definition}}<br>\n"
                 "                                当视频文件刮削成功时，本软件将为该视频创建一个视频目录，并移动该视频文件到成功输出目录<br>\n"
                 "                                字段为空时不会自动删除模板中的符号，希望保留空[]或空括号或多余分隔符用Jinja2的if判断包住整段<br>\n"
                 "                                字段：{number}番号，{title}标题，{actor}演员，{studio}片商，{series}系列，score(番号评分)<br>\n"
