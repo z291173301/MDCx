@@ -27,8 +27,16 @@ def _apply_ui_scale_factor():
         mark_file = MAIN_PATH / "MDCx.config"
         if not mark_file.is_file():
             return
-        with open(mark_file, encoding="UTF-8") as f:
-            config_path = f.read().strip()
+        raw = mark_file.read_bytes()
+        config_path = ""
+        for enc in ("utf-8", "gbk", "gb2312", "cp936"):
+            try:
+                config_path = raw.decode(enc).strip()
+                break
+            except UnicodeDecodeError:
+                continue
+        if not config_path:
+            return
         if not config_path or not os.path.isfile(config_path):
             return
         with open(config_path, encoding="UTF-8") as f:

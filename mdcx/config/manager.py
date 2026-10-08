@@ -303,9 +303,17 @@ class ConfigManager:
 
     @staticmethod
     def read_mark_file() -> str:
-        """读取 MARK_FILE"""
-        with open(MARK_FILE, encoding="UTF-8") as f:
-            return f.read().strip()
+        """读取 MARK_FILE（支持 UTF-8、GBK 回退，防止中文路径写入编码不一致导致启动崩溃）"""
+        raw = MARK_FILE.read_bytes() if MARK_FILE.is_file() else b""
+        if not raw:
+            return ""
+        for enc in ("utf-8", "gbk", "gb2312", "cp936"):
+            try:
+                return raw.decode(enc).strip()
+            except UnicodeDecodeError:
+                continue
+        # 最终兜底：替换非法字符，保证不崩溃
+        return raw.decode("utf-8", errors="replace").strip()
 
 
 class ComputedLease:
