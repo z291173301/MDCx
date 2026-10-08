@@ -523,7 +523,7 @@ async def _probe_crawler_capability_with_retry(
     """单站刮削探测：轮内按 30s → 45s 自动递进重试（议题 #118，两档）。
 
     任一次成功立即定论；只有瞬时性结果才继续下一档，确定性结果首次即定论。
-    阶梯全部走完仍未通过时给出终局说明（「站点无效：站点刮削探测N次…均超时」），
+    阶梯全部走完仍未通过时给出终局说明（「站点无效：刮削探测N次…均超时」），
     避免用户以为再等等就能过。重试过程静默，不再逐档打印进度行——检测页只需
     看到每站一条最终结论，中间态噪音大且易被误读成独立检测项。
     """
@@ -544,11 +544,11 @@ async def _probe_crawler_capability_with_retry(
     if all_timed_out:
         return (
             NetworkCheckStatus.WARNING,
-            f"站点无效：站点刮削探测{attempts}次{ladder}均超时",
+            f"站点无效：刮削探测{attempts}次{ladder}均超时",
         )
     return (
         NetworkCheckStatus.WARNING,
-        f"探测失败：站点探测{attempts}次{ladder}均未通过: {message}",
+        f"站点无效：刮削探测{attempts}次{ladder}均超时",
     )
 
 

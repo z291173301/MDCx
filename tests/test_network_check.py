@@ -269,7 +269,7 @@ async def test_run_network_check_item_retries_probe_within_first_round(monkeypat
 
     assert seen == [30.0, 45.0], "单项检测必须走满轮内阶梯"
     assert result.status == NetworkCheckStatus.WARNING
-    assert result.message == "站点无效：站点刮削探测2次30s/45s均超时"
+    assert result.message == "站点无效：刮削探测2次30s/45s均超时"
 
 
 def test_message_for_error_tls_handshake():
@@ -335,7 +335,7 @@ def test_format_summary_groups_failure_causes():
         ),
         r("getchu", NetworkCheckStatus.FAILED, "HTTP 403 请求被拒绝：当前节点出口 IP 可能被站点封禁"),
         r("javdb_api", NetworkCheckStatus.FAILED, "TLS 握手中断"),
-        r("avbase", NetworkCheckStatus.WARNING, "站点无效：站点刮削探测2次30s/45s均超时"),
+        r("avbase", NetworkCheckStatus.WARNING, "站点无效：刮削探测2次30s/45s均超时"),
         r("ok", NetworkCheckStatus.OK, "连接正常"),
     ]
     lines = format_summary(results, elapsed=5.0, cancelled=False)
@@ -920,14 +920,14 @@ async def test_probe_retry_stops_when_a_later_attempt_passes(monkeypatch: pytest
 
 @pytest.mark.anyio
 async def test_probe_retry_two_timeouts_declares_probe_invalid(monkeypatch: pytest.MonkeyPatch):
-    """两次都超时 → 给出「站点无效：站点刮削探测…均超时」终局说明，并列出实际用过的阶梯。"""
+    """两次都超时 → 给出「站点无效：刮削探测…均超时」终局说明，并列出实际用过的阶梯。"""
     seen = _stub_probe_attempts(monkeypatch, [(NetworkCheckStatus.WARNING, "站点可达但刮削探测超时")])
 
     status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
     assert seen == [30.0, 45.0]
     assert status == NetworkCheckStatus.WARNING
-    assert "站点无效：站点刮削探测2次30s/45s均超时" in message
+    assert "站点无效：刮削探测2次30s/45s均超时" in message
 
 
 @pytest.mark.anyio
@@ -964,7 +964,7 @@ async def test_probe_retry_emits_no_intermediate_progress_lines(monkeypatch: pyt
     )
 
     assert not any("次刮削探测" in line for line in emitted), emitted
-    assert results[0].message == "站点无效：站点刮削探测2次30s/45s均超时"
+    assert results[0].message == "站点无效：刮削探测2次30s/45s均超时"
 
 
 @pytest.mark.anyio
@@ -1003,8 +1003,7 @@ async def test_probe_retry_mixed_transient_keeps_last_reason(monkeypatch: pytest
     status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
     assert status == NetworkCheckStatus.WARNING
-    assert message.startswith("探测失败：站点探测2次30s/45s均未通过: ")
-    assert message.endswith("站点可达但刮削探测失败: 500")
+    assert message == "站点无效：刮削探测2次30s/45s均超时"
 
 
 @pytest.mark.anyio
