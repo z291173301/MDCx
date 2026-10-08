@@ -1091,7 +1091,7 @@ async def run_network_check_item(
                     except Exception:
                         fallback_bypass_mode = ""
                 else:
-                    error = f"{error}，CloudFlare Bypass兜底失败：HTTP500、HTTP502"
+                    error = f"{error}，CloudFlare Bypass兜底失败：HTTP 500、HTTP 502"
         if response is None:
             clean_error = _clean_error(error)
             message = _message_for_error(clean_error)
