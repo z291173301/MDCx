@@ -124,7 +124,7 @@ def refresh_network_check_badges(self: "MyMAinWindow") -> None:
 
 # 首启默认窗口尺寸（大屏保持此值；窗口实际尺寸另按可用区 90%/85% 收窄，见
 # _adaptive_window_sizes）。同时是「界面缩放档位是否超屏」的判定基准之一。
-DEFAULT_WINDOW_SIZE = (1030, 700)
+DEFAULT_WINDOW_SIZE = (1080, 720)
 
 # 高分屏缩放档位：与 MDCx.ui 中 comboBox_ui_scale 的下拉项逐条对应（下标即索引），
 # 0.0 = 跟随系统，其余为写入 QT_SCALE_FACTOR 的实际倍率（main.py 启动时应用，
@@ -201,8 +201,8 @@ def _adaptive_window_sizes(avail_w: int, avail_h: int) -> tuple[int, int, int, i
     """
     min_w = min(850, max(int(avail_w * 0.6), 400))
     min_h = min(650, max(int(avail_h * 0.75), 300))
-    def_w = min(1030, max(int(avail_w * 0.9), min_w))
-    def_h = min(700, max(int(avail_h * 0.85), min_h))
+    def_w = min(1080, max(int(avail_w * 0.9), min_w))
+    def_h = min(720, max(int(avail_h * 0.85), min_h))
     return min_w, min_h, def_w, def_h
 
 

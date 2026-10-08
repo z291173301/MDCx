@@ -6,8 +6,8 @@
       <rect>
         <x>0</x>
         <y>0</y>
-        <width>1089</width>
-        <height>700</height>
+        <width>1080</width>
+        <height>720</height>
       </rect>
     </property>
     <property name="sizePolicy">
@@ -26,10 +26,10 @@
       <widget class="QStackedWidget" name="stackedWidget">
         <property name="geometry">
           <rect>
-            <x>210</x>
+            <x>208</x>
             <y>6</y>
-            <width>820</width>
-            <height>692</height>
+            <width>813</width>
+            <height>712</height>
           </rect>
         </property>
         <property name="contextMenuPolicy">
@@ -12699,7 +12699,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QLabel" name="label_430">
                       <property name="geometry">
                         <rect>
-                          <x>210</x>
+                          <x>208</x>
                           <y>240</y>
                           <width>431</width>
                           <height>20</height>
@@ -26046,7 +26046,7 @@ p, li { white-space: pre-wrap; }
             <x>0</x>
             <y>0</y>
             <width>210</width>
-            <height>700</height>
+            <height>720</height>
           </rect>
         </property>
         <property name="contextMenuPolicy">
@@ -26329,7 +26329,7 @@ p, li { white-space: pre-wrap; }
               <x>0</x>
               <y>0</y>
               <width>210</width>
-              <height>700</height>
+              <height>720</height>
             </rect>
           </property>
         </widget>
