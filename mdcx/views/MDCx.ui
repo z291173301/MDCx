@@ -1579,7 +1579,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>510</y>
+                    <y>494</y>
                     <width>701</width>
                     <height>271</height>
                   </rect>
@@ -2277,7 +2277,7 @@
                      <x>30</x>
                      <y>40</y>
                      <width>701</width>
-                     <height>450</height>
+                     <height>434</height>
                    </rect>
                  </property>
                 <property name="title">
@@ -2740,7 +2740,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>394</y>
+                      <y>378</y>
                       <width>621</width>
                       <height>42</height>
                     </rect>

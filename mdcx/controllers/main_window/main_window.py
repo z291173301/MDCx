@@ -1154,7 +1154,7 @@ class MyMAinWindow(QMainWindow):
         "label_actor_db_sync_limit": (314, 358, 56, 28),
         "spinBox_actor_db_sync_limit": (374, 358, 72, 28),
         "label_actor_db_sync_slice_hint": (450, 358, 211, 28),
-        "label_actor_db_sync_aliases_desc": (40, 394, 621, 42),
+        "label_actor_db_sync_aliases_desc": (40, 378, 621, 42),
     }
 
     # 软件工具页封面补图组三选项行的常态几何（与 MDCx.ui 一致；y 中心同为 135）。
@@ -1495,7 +1495,7 @@ class MyMAinWindow(QMainWindow):
         widgets["pushButton_actor_db_update_nfo_tmdbid"].setGeometry(40, 206, left_w, 30)
         widgets["pushButton_actor_db_fill_zh_javdb"].setGeometry(right_x, 206, right_w, 30)
         widgets["label_actor_db_update_nfo_desc"].setGeometry(40, 282, 621 + extra, 28)
-        widgets["label_actor_db_sync_aliases_desc"].setGeometry(40, 394, 621 + extra, 42)
+        widgets["label_actor_db_sync_aliases_desc"].setGeometry(40, 378, 621 + extra, 42)
         # nfo 目录行：选择目录按钮落位 (571+extra, 110x40)；输入框宽度由
         # _sync_tool_page_input_fill 统一拓宽到按钮左侧，此处不再定宽
         _, pick_y, _, pick_h = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_pick_nfo_dir"]
