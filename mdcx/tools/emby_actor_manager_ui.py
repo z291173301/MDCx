@@ -1651,9 +1651,13 @@ class _SourceQuickSettingsPanel(QGroupBox):
         self.info_list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self._fill_list(self.info_list, manager.config.actor_info_sources, INFO_SOURCE_NAMES)
         layout.addWidget(self.info_list)
+        layout.addStretch()
         layout.addWidget(QLabel("本地头像目录:"))
         folder_row = QHBoxLayout()
+        folder_row.setContentsMargins(-460, 0, 0, 0)
+        folder_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.folder_edit = QLineEdit(manager.config.actor_photo_folder)
+        self.folder_edit.setMinimumWidth(260)
         browse_btn = QPushButton("浏览")
         browse_btn.clicked.connect(self._browse_folder)
         folder_row.addWidget(self.folder_edit)
@@ -1874,7 +1878,13 @@ class ActorSourceTestDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("数据源测试")
-        self.setMinimumSize(760, 560)
+        self.setWindowFlags(
+            self.windowFlags()
+            | Qt.WindowType.Window
+            | Qt.WindowType.WindowMinimizeButtonHint
+            | Qt.WindowType.WindowMaximizeButtonHint
+        )
+        self.setMinimumSize(1100, 700)
         root = QVBoxLayout(self)
 
         # 顶部：演员名输入 + 获取头像和简介
@@ -1895,10 +1905,12 @@ class ActorSourceTestDialog(QDialog):
         # 左列：头像预览 + 获取头像
         left_col = QVBoxLayout()
         self.avatar_label = QLabel("头像预览")
-        self.avatar_label.setFixedSize(140, 190)
+        self.avatar_label.setFixedSize(190, 310)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setStyleSheet("border: 1px solid #ccc; color: #888;")
-        left_col.addWidget(self.avatar_label)
+        left_col.addStretch()
+        left_col.addWidget(self.avatar_label, alignment=Qt.AlignmentFlag.AlignHCenter)
+        left_col.addStretch()
         self.btn_image = QPushButton("获取头像")
         self.btn_image.setObjectName("btnPrimary")
         left_col.addWidget(self.btn_image)

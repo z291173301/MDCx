@@ -1750,7 +1750,7 @@ class AsyncWebClient:
                         if final_url and final_url.strip() and final_url.strip() != target_url:
                             self._log_cf(f"🌐 /html 最终地址: {final_url}", host)
                         return bypass_response, ""
-                    error = f"{mirror_error}; GET: {html_error}"
+                    error = f"{mirror_error}; GET {html_error}"
                 else:
                     error = f"mirror 失败且 {str(method).upper()} 不支持 /html 兜底: {mirror_error}"
                     if mirror_status is not None and not self._is_retryable_status_code(mirror_status):
