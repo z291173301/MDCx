@@ -270,7 +270,7 @@ async def test_run_network_check_item_retries_probe_within_first_round(monkeypat
 
     assert seen == [30.0, 45.0], "单项检测必须走满轮内阶梯"
     assert result.status == NetworkCheckStatus.WARNING
-    assert "2次均超时" in result.message
+    assert result.message == "站点无效：站点刮削探测2次30s/45s均超时"
     assert any("avbase第2/2次刮削探测" in line for line in lines), lines
 
 
@@ -337,7 +337,7 @@ def test_format_summary_groups_failure_causes():
         ),
         r("getchu", NetworkCheckStatus.FAILED, "HTTP 403 请求被拒绝：当前节点出口 IP 可能被站点封禁"),
         r("javdb_api", NetworkCheckStatus.FAILED, "TLS 握手中断"),
-        r("avbase", NetworkCheckStatus.WARNING, "站点可达但刮削探测2次30s/45s均超时，判定该站刮削探测无效"),
+        r("avbase", NetworkCheckStatus.WARNING, "站点无效：站点刮削探测2次30s/45s均超时"),
         r("ok", NetworkCheckStatus.OK, "连接正常"),
     ]
     lines = format_summary(results, elapsed=5.0, cancelled=False)
@@ -377,9 +377,9 @@ async def test_run_network_check_survives_task_level_exception(monkeypatch: pyte
 
     async def fake_specs():
         return [
-            NetworkCheckSpec(name="good", group="基础连通性", url="https://good.example"),
-            NetworkCheckSpec(name="boom", group="基础连通性", url="https://boom.example"),
-            NetworkCheckSpec(name="also_good", group="基础连通性", url="https://also.example"),
+            NetworkCheckSpec(name="good", group="网络连通", url="https://good.example"),
+            NetworkCheckSpec(name="boom", group="网络连通", url="https://boom.example"),
+            NetworkCheckSpec(name="also_good", group="网络连通", url="https://also.example"),
         ]
 
     monkeypatch.setattr("mdcx.core.network_check.build_network_check_specs", fake_specs)
@@ -417,8 +417,8 @@ async def test_run_network_check_cancelled_task_does_not_stop(monkeypatch: pytes
 
     async def fake_specs():
         return [
-            NetworkCheckSpec(name="cancelled", group="基础连通性", url="https://c.example"),
-            NetworkCheckSpec(name="good", group="基础连通性", url="https://g.example"),
+            NetworkCheckSpec(name="cancelled", group="网络连通", url="https://c.example"),
+            NetworkCheckSpec(name="good", group="网络连通", url="https://g.example"),
         ]
 
     monkeypatch.setattr("mdcx.core.network_check.build_network_check_specs", fake_specs)
@@ -446,8 +446,8 @@ async def test_run_network_check_cancelled_task_does_not_stop(monkeypatch: pytes
 async def test_run_network_check_does_not_stop_on_single_item_exception(monkeypatch: pytest.MonkeyPatch):
     async def fake_specs():
         return [
-            NetworkCheckSpec(name="good", group="基础连通性", url="https://good.example"),
-            NetworkCheckSpec(name="bad", group="基础连通性", url="https://bad.example"),
+            NetworkCheckSpec(name="good", group="网络连通", url="https://good.example"),
+            NetworkCheckSpec(name="bad", group="网络连通", url="https://bad.example"),
         ]
 
     monkeypatch.setattr("mdcx.core.network_check.build_network_check_specs", fake_specs)
@@ -469,8 +469,8 @@ async def test_run_network_check_does_not_stop_on_single_item_exception(monkeypa
 async def test_run_network_check_can_cancel_between_groups(monkeypatch: pytest.MonkeyPatch):
     async def fake_specs():
         return [
-            NetworkCheckSpec(name="first", group="基础连通性", url="https://first.example"),
-            NetworkCheckSpec(name="second", group="刮削站点", url="https://second.example"),
+            NetworkCheckSpec(name="first", group="网络连通", url="https://first.example"),
+            NetworkCheckSpec(name="second", group="站点检测", url="https://second.example"),
         ]
 
     monkeypatch.setattr("mdcx.core.network_check.build_network_check_specs", fake_specs)
@@ -653,7 +653,8 @@ async def test_run_network_check_item_actively_uses_cf_bypass_on_challenge(monke
     result = await run_network_check_item(spec, client=client)
 
     assert result.status == NetworkCheckStatus.OK
-    assert result.message == "连接正常，通过挑战"
+    # x-mdcx-bypass-mode 由适配层返回，用于告诉用户这次走的是 mirror 还是 html 通道
+    assert result.message == "连接正常，通过挑战（mirror）"
     assert client.bypass_calls[0]["target_url"] == "https://cf.example"
     assert client.bypass_calls[0]["headers"] == {"cookie": "a=b"}
     assert client.bypass_calls[0]["timeout"] is None
@@ -698,7 +699,7 @@ async def test_run_network_check_item_uses_trawl_adapter_when_only_external_cf_s
     result = await run_network_check_item(spec, client=client)
 
     assert result.status == NetworkCheckStatus.OK
-    assert "CF Bypass" in result.message
+    assert "通过挑战" in result.message
     assert client.bypass_calls, "bypass 一次都没被调用"
 
 
@@ -826,6 +827,14 @@ def test_transient_probe_result_classification():
     assert not nc._is_transient_probe_result("站点可达但搜索页被 Cloudflare 拦截")
     assert not nc._is_transient_probe_result("站点可达但无法自动探测刮削，可用设置页指定网址实测")
     assert not nc._is_transient_probe_result("连接正常，刮削正常")
+    # 爬虫主动抛出的「假 200」点名同样不该触发轮内重试
+    assert not nc._is_transient_probe_result("站点可达但刮削探测失败: 搜索页返回 404（探测番号可能已下架或未收录）")
+    assert not nc._is_transient_probe_result(
+        "站点可达但刮削探测失败: 搜索页被 CloudFront 封锁（非日本出口 IP），请为 mgstage 单独走日本节点或关闭代理"
+    )
+    assert nc._is_transient_probe_result(
+        "站点可达但刮削探测失败: 搜索失败: 搜索页未解析到结果（页面标题=..., 正文长度=1234）"
+    )
 
 
 @pytest.mark.anyio
@@ -916,16 +925,14 @@ async def test_probe_retry_stops_when_a_later_attempt_passes(monkeypatch: pytest
 
 @pytest.mark.anyio
 async def test_probe_retry_two_timeouts_declares_probe_invalid(monkeypatch: pytest.MonkeyPatch):
-    """两次都超时 → 给出「判定该站刮削探测无效」终局说明，并列出实际用过的阶梯。"""
+    """两次都超时 → 给出「站点无效：站点刮削探测…均超时」终局说明，并列出实际用过的阶梯。"""
     seen = _stub_probe_attempts(monkeypatch, [(NetworkCheckStatus.WARNING, "站点可达但刮削探测超时")])
 
     status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
     assert seen == [30.0, 45.0]
     assert status == NetworkCheckStatus.WARNING
-    assert "2次均超时" in message
-    assert "30s/45s" in message
-    assert "判定该站刮削探测无效" in message
+    assert "站点无效：站点刮削探测2次30s/45s均超时" in message
 
 
 @pytest.mark.anyio
@@ -984,15 +991,15 @@ async def test_probe_retry_mixed_transient_keeps_last_reason(monkeypatch: pytest
         monkeypatch,
         [
             (NetworkCheckStatus.WARNING, "站点可达但搜索页请求失败: conn reset"),
-            (NetworkCheckStatus.WARNING, "站点可达但探测失败: 500"),
+            (NetworkCheckStatus.WARNING, "站点可达但刮削探测失败: 500"),
         ],
     )
 
     status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
     assert status == NetworkCheckStatus.WARNING
-    assert message.startswith("刮削探测2次30s/45s均超时，")
-    assert message.endswith("站点可达但探测失败: 500")
+    assert message.startswith("站点探测2次30s/45s均未通过，")
+    assert message.endswith("站点可达但刮削探测失败: 500")
 
 
 @pytest.mark.anyio
@@ -1163,7 +1170,7 @@ async def test_probe_crawler_capability_warns_when_run_rewritten_and_fails(monke
 
 @pytest.mark.anyio
 async def test_probe_crawler_capability_skipped_without_site():
-    spec = NetworkCheckSpec(name="GitHub Raw", group="基础连通性", url="https://raw.githubusercontent.com")
+    spec = NetworkCheckSpec(name="GitHub Raw", group="网络连通", url="https://raw.githubusercontent.com")
 
     status, message = await _probe_crawler_capability(None, spec)
 
@@ -1360,9 +1367,9 @@ async def test_run_network_check_reports_structured_progress(monkeypatch: pytest
     async def fake_specs():
         return [
             NetworkCheckSpec(name="env", group="基础环境", url="https://env.example"),
-            NetworkCheckSpec(name="a", group="基础连通性", url="https://a.example"),
-            NetworkCheckSpec(name="b", group="刮削站点", url="https://b.example"),
-            NetworkCheckSpec(name="c", group="刮削站点", url="https://c.example"),
+            NetworkCheckSpec(name="a", group="网络连通", url="https://a.example"),
+            NetworkCheckSpec(name="b", group="站点检测", url="https://b.example"),
+            NetworkCheckSpec(name="c", group="站点检测", url="https://c.example"),
         ]
 
     monkeypatch.setattr("mdcx.core.network_check.build_network_check_specs", fake_specs)
@@ -1399,7 +1406,7 @@ def test_merge_cache_includes_api_group_sites(monkeypatch, tmp_path):
             _result(None or Website.THEPORNDB, NetworkCheckStatus.OK, group="账号/API"),
             # 无站点归属项(基础环境等)不入库
             NetworkCheckResult(
-                spec=NetworkCheckSpec(name="通用 HTTPS", group="基础连通性", url="https://x.test"),
+                spec=NetworkCheckSpec(name="通用 HTTPS", group="网络连通", url="https://x.test"),
                 status=NetworkCheckStatus.OK,
                 message="m",
             ),
@@ -1504,7 +1511,7 @@ def test_merge_cache_uses_theporndb_token_production_spec(monkeypatch, tmp_path)
         validator="theporndb_token",
     )
     merge_site_check_cache(
-        [NetworkCheckResult(spec=spec, status=NetworkCheckStatus.OK, message="API Token 有效", used_proxy=True)]
+        [NetworkCheckResult(spec=spec, status=NetworkCheckStatus.OK, message="API 查询正常", used_proxy=True)]
     )
     cache = load_site_check_cache()
     assert cache["theporndb"]["status"] == "ok"
@@ -1593,7 +1600,7 @@ async def test_run_network_check_holds_computed_lease(monkeypatch: pytest.Monkey
     monkeypatch.setattr("mdcx.core.network_check._manager", lambda: mgr)
 
     results = await run_network_check(
-        specs=[NetworkCheckSpec(name="good", group="基础连通性", url="https://good.example")],
+        specs=[NetworkCheckSpec(name="good", group="网络连通", url="https://good.example")],
         progress=lambda line: None,
         emit_header=False,
     )

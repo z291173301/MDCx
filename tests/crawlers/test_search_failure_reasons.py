@@ -49,7 +49,8 @@ async def test_search_failure_aggregates_request_error():
     err = str(resp.debug_info.error)
     assert "搜索失败" in err
     assert "HTTP 403" in err, "须带请求失败的具体原因"
-    assert err.count("请求失败") == 2, "逐 URL 聚合"
+    # 两个 URL 失败原因相同时按设计去重（base._search 只显示一次），否则报告会被重复文案刷屏
+    assert err.count("请求失败") == 1
 
 
 async def test_search_failure_distinguishes_no_result():
@@ -87,9 +88,12 @@ async def test_search_failure_distinguishes_no_result():
     assert resp.data is None
     err = str(resp.debug_info.error)
     assert "搜索失败" in err and "未解析到结果" in err
+    # 报告里须带页面指纹，否则用户看不出站点到底返回了什么页面
+    assert "页面标题=无" in err
+    assert "正文长度=18" in err  # len("<html>empty</html>")
 
 
-def test_mywife_probe_number_updated_to_live_model_page():
+async def test_mywife_probe_number_updated_to_live_model_page():
     """探测番号: 1500 已被站点下架(500), 2306 用户实测有效。"""
     from mdcx.crawlers.mywife import MywifeCrawler
 

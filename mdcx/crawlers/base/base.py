@@ -17,6 +17,20 @@ if TYPE_CHECKING:
     from mdcx.web_async import AsyncWebClient
 
 
+def _page_fingerprint(html: str) -> str:
+    """提取「HTTP 200 但不是预期页面」时最有用的页面指纹。
+
+    站点在地域封锁、维护、年龄确认等场景下都会返回 200，xpath 一律取不到内容；
+    若只报「搜索页未解析到结果」，用户在网络诊断报告里无从判断站点到底返回了什么。
+    这里带上 `<title>` 与正文长度，报告可直接看出是风控页、维护页还是空页面。
+    """
+    title = ""
+    matched = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    if matched:
+        title = " ".join(matched.group(1).split())[:80]
+    return f"页面标题={title or '无'}, 正文长度={len(html)}"
+
+
 class GenericBaseCrawler[T: Context = Context](ABC):
     """
     爬虫基类. 所有具体爬虫均应继承此类并实现其抽象方法.
@@ -251,7 +265,7 @@ class GenericBaseCrawler[T: Context = Context](ABC):
             if detail_urls:
                 ctx.debug(f"详情页 URL: {detail_urls}")
                 return detail_urls if isinstance(detail_urls, list) else [detail_urls]
-            reasons.append("搜索页未解析到结果")
+            reasons.append(f"搜索页未解析到结果（{_page_fingerprint(html)}）")
         # 去重：所有搜索 URL 都返回相同原因时只显示一次
         unique_reasons = list(dict.fromkeys(reasons))
         raise CrawlerException(f"搜索失败: {' | '.join(unique_reasons)[:400]}")

@@ -378,7 +378,7 @@ async def _probe_crawler_by_run(
         else:
             error_display = error_msg
         message = (
-            f"探测失败: {error_display}"
+            f"站点可达但刮削探测失败: {error_display}"
             if error_display
             else f"站点可达，但测试番号 {probe_number} 未被该站点收录（单厂牌/收录有限站点常见，属正常情况，若实际刮削正常可忽略本警告）"
         )
@@ -478,7 +478,7 @@ async def _probe_crawler_capability(
     except NotImplementedError:
         return NetworkCheckStatus.WARNING, "站点可达但无法自动探测刮削，可用设置页指定网址实测"
     except CrawlerException as exc:
-        return NetworkCheckStatus.WARNING, f"站点可达但探测失败: {exc}"
+        return NetworkCheckStatus.WARNING, f"站点可达但刮削探测失败: {exc}"
     except Exception as exc:
         return NetworkCheckStatus.WARNING, f"站点可达但刮削探测异常: {exc}"
 
@@ -488,15 +488,29 @@ _TRANSIENT_PROBE_MARKERS = (
     "刮削探测超时",
     "站点可达但搜索页请求失败",
     "站点可达但刮削探测异常",
-    "站点可达但探测失败",
+    "站点可达但刮削探测失败",
 )
 
-# 首次即定论、重试必然同样结论的探测结果（不在上面的标记里）：
+# 首次即定论、重试必然同样结论的探测结果（显式列出，优先于上面的瞬时标记判断）：
 # 「测试番号未被该站点收录」是业务常态、「被 Cloudflare 拦截」是确定性拦截、
-# 「无法自动探测刮削」是爬虫能力缺失——为它们白等 45+60s 没有意义（议题 #118）。
+# 「搜索页返回 404」是探测番号已下架、「人机验证」是站点侧硬拦截、
+# 「无法自动探测刮削」是爬虫能力缺失、「被 CloudFront 封锁」由出口 IP 决定
+# （同一节点重试仍是同一 IP）——为它们白等 45+60s 没有意义（议题 #118）。
+# 爬虫在 _parse_search_page 里主动抛出的 CrawlerException 也会走「刮削探测失败」分支，
+# 这里列出这些确定性特征，避免它们被误判成瞬时性而白白递进重试。
+_DETERMINISTIC_PROBE_MARKERS = (
+    "未被该站点收录",
+    "被 Cloudflare 拦截",
+    "返回 404",
+    "人机验证",
+    "无法自动探测刮削",
+    "被 CloudFront 封锁",
+)
 
 
 def _is_transient_probe_result(message: str) -> bool:
+    if any(marker in message for marker in _DETERMINISTIC_PROBE_MARKERS):
+        return False
     return any(marker in message for marker in _TRANSIENT_PROBE_MARKERS)
 
 
@@ -510,7 +524,7 @@ async def _probe_crawler_capability_with_retry(
     """单站刮削探测：轮内按 30s → 45s 自动递进重试（议题 #118，两档）。
 
     任一次成功立即定论；只有瞬时性结果才继续下一档，确定性结果首次即定论。
-    阶梯全部走完仍未通过时给出终局说明（「判定该站刮削探测无效」），
+    阶梯全部走完仍未通过时给出终局说明（「站点无效：站点刮削探测N次…均超时」），
     避免用户以为再等等就能过。重试探测各次前输出一行进度，防止看着像卡死。
     """
     emit = progress or (lambda line: None)
@@ -520,7 +534,7 @@ async def _probe_crawler_capability_with_retry(
     for attempt in range(attempts):
         timeout = scrape_probe_attempt_timeout(attempt)
         if attempt:
-            pass  # 不打印重试探测行
+            emit(f"   ↳     {spec.name}第{attempt + 1}/{attempts}次刮削探测，超时上限{timeout:.0f}s")
         status, message = await _probe_crawler_capability(client, spec, timeout)
         if status is None or not _is_transient_probe_result(message):
             return status, message
@@ -533,11 +547,11 @@ async def _probe_crawler_capability_with_retry(
     if all_timed_out:
         return (
             NetworkCheckStatus.WARNING,
-            f"刮削探测{attempts}次{ladder}均超时，判定站点无效",
+            f"站点无效：站点刮削探测{attempts}次{ladder}均超时",
         )
     return (
         NetworkCheckStatus.WARNING,
-        f"刮削探测{attempts}次{ladder}均超时，{message}",
+        f"站点探测{attempts}次{ladder}均未通过，最后一次: {message}",
     )
 
 
@@ -1236,7 +1250,7 @@ def _classify_theporndb_token(status_code: int, text: str) -> tuple[NetworkCheck
     if status_code == 401 and "Unauthenticated" in text:
         return NetworkCheckStatus.FAILED, "API Token 错误"
     if status_code == 200 and '"data"' in text:
-        return NetworkCheckStatus.OK, "API Token 有效"
+        return NetworkCheckStatus.OK, "API 查询正常"
     if status_code == 200:
         return NetworkCheckStatus.WARNING, "API 返回数据异常"
     return _classify_http_result(

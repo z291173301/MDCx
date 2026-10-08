@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.2.8 (2026-10-06)
+## v2.2.8 (2026-10-08)
 
 ### 新增
 
@@ -41,6 +41,18 @@
   - DeepL 解析不安全：`res["translations"][0]["text"]` 缺键/空数组/非 dict 会抛异常中断 `gather`。新增 `_extract_deepl_text()` 安全提取
   - 免费/付费 endpoint 误判：`":fx" in key` 改为 `endswith(":fx")`，避免 Pro key 误路由到 `api-free`
   - `deepl_translate/deeplx_translate` 共用单一 `ls`：标题日文+简介英文时其一 `source_lang` 必错。改为按字段各自 `_get_deepl_source_language()` 检测，`ls` 仅兼容保留
+- **MGStage 探测「有时候正常，但经常出现搜索页未解析到结果」**（用户实测报告 `mgstage 200 609 ms 代理 探测失败: 搜索失败: 搜索页未解析到结果`）。核查后确认不是探测番号失效（同一探测 URL 有成功缓存），而是两处缺陷叠加：
+  - `mdcx/core/network_check.py`：`_probe_crawler_by_run` 失败文案写成 `探测失败: …`，既缺 `站点可达但` 前缀，又不含 `_TRANSIENT_PROBE_MARKERS` 任何标记 → 被判成确定性失败 → 30s/45s 重试阶梯一次都不跑，站点侧偶发软拦截被当场判死。已改为 `站点可达但刮削探测失败: …`（`_probe_crawler_capability` 的 `CrawlerException` 分支同步），间歇性失败现在会自动按 30s/45s 重试
+  - `mdcx/crawlers/mgstage.py`：`MgstageCrawler` 未覆写 `_get_cookies()`，网络检测的直连探测请求不带 `adc=1`，与真实刮削路径（`_fetch_search`/`_fetch_detail` 都带）拿到的页面不一致。已覆写返回 `{"adc": "1"}`
+  - `mdcx/crawlers/mgstage.py` `_parse_search_page`：MGStage 挂在 CloudFront 上，地域封锁/年龄确认/番号下架都是 HTTP 200 非商品页，旧版一律归为「未解析到结果」，用户无从判断该换节点还是该换番号。已按 `aventertainments` 先例点名三类页面（CloudFront 封锁、年龄确认页、404 下架页）并抛精确 `CrawlerException`；正常商品页与未知页面语义不变
+  - `mdcx/core/network_check.py` `_DETERMINISTIC_PROBE_MARKERS` 补 `被 CloudFront 封锁`：地域封锁由出口 IP 决定，同节点重试仍是同一 IP，不应白等 30s+45s
+  - `mdcx/crawlers/base/base.py` `_search`：「搜索页未解析到结果」补页面指纹（`<title>` + 正文长度），报告里能直接看出站点返回的是风控页、维护页还是空页面
+  - 回归：新增 `tests/crawlers/test_mgstage.py`（7 用例：adc Cookie、三类假 200 页面点名、商品页/未知页面语义），`tests/crawlers/test_search_failure_reasons.py` 补指纹断言
+- **网络检测回归修复**（`tests/test_network_check.py` 13 项由红转绿，根因是文案/命名与测试脱节而非功能缺陷）：
+  - 刮削探测重试进度行被改成空操作（`if attempt: pass`），与 docstring 声称的「各次前输出一行进度」矛盾。已恢复 `↳ <站点>第N/M次刮削探测，超时上限…s`
+  - 终局说明措辞与根因分组条件对齐：`站点无效：站点刮削探测2次30s/45s均超时`（全超时）、`站点探测2次30s/45s均未通过，最后一次: …`（非全超时），不再出现「未全部超时却写均超时」的矛盾
+  - 测试里的检测组名/检测项名对齐现名：`基础连通性` → `网络连通`、`刮削站点` → `站点检测`、`CF Bypass` → `Cloudflare Bypass`（6 个用例因旧组名取不到任何 spec 而空转返回 0 条结果）
+- **网络检测 CF Bypass 用例对齐**：通过挑战文案含适配层模式后缀（`连接正常，通过挑战（mirror）`），断言相应改为断言「通过挑战」而非旧项名
 
 ### 调整
 
@@ -48,7 +60,9 @@
 - **网络检测报告文案调整**（`mdcx/core/network_check.py`、`tests/test_network_check.py`）：
   - 刮削探测重试耗尽的终局说明：`站点可达但刮削探测2次均未通过（30s/45s），最后一次: …` → `刮削探测2次30s/45s均超时，站点可达但搜索页请求失败: …`（末次原因直接内联，不再嵌套「最后一次:」前缀；`站点探测` 前缀改回 `刮削探测`，与根因分组名一致，避免与「网络连通」类站点探测混淆）
   - 根因分组「刮削探测多次超时」：去掉行首 `  • ` 缩进与项目符号，`×N` 与数字/括号内多余空格一并去掉 —— `刮削探测多次超时×1：站点能连上但刮削响应过慢，已按30s/45s自动重试，多为代理节点质量或站点负载，可换节点/稍后再测`
-  - 根因分组判定条件放宽到 `站点探测`/`刮削探测` + `均超时`/`均未通过`，新文案（含「判定站点无效」终局说明）不再掉进「其他异常」
+  - 根因分组判定条件放宽到 `站点探测`/`刮削探测` + `均超时`/`均未通过`，新文案（含「站点无效：站点刮削探测2次30s/45s均超时」终局说明）不再掉进「其他异常」
+  - 终局说明前置结论：`站点可达但刮削探测2次30s/45s均超时，判定该站刮削探测无效` → `站点无效：站点刮削探测2次30s/45s均超时`（结论前置，尾巴去掉重复解释）
+  - ThePornDB Token 检测通过文案：`API Token 有效` → `API 查询正常`，与 `dmm_api`/`thejavdb_api`/`missav_api` 三项统一（仅消息文案，`_classify_theporndb_token` 与 `wiki/常见问题-FAQ.md` 同步）
   - 辅助服务检测项名 `CF Bypass` → `Cloudflare Bypass`（`spec.name` 三处引用同步），说明文案 `检测到 Cloudflare 挑战页时自动启动适配层` → `检测到Cloudflare挑战页时自动启动适配层`
   - JavDB / JavBus Cookie 失效提示：`站点可访问，但JavDB Cookie可能无效` / `站点可访问，但JavBus Cookie可能无效` → `访问正常，但JavDB网站Cookie可能无效` / `访问正常，但Javbus网站Cookie可能无效`
   - 镜像抽样检测项名：`madouqu镜像` 等 8 项统一加间隔号 —— `madouqu镜像` → `madouqu·镜像`（`xcity`/`freejavbt`/`javbus`/`iqqtv`/`7mmtv`/`missav`/`javlibrary` 同改），与 `official·caribbeancom` 命名一致；`endswith("镜像")` 守卫（镜像项跳过刮削探测）不受影响
