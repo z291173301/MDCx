@@ -5050,9 +5050,14 @@ class MyMAinWindow(QMainWindow):
         bottom = max(sp_h - (692 - 630), 100)  # 控件组设计基线 y=630
         ui.label_config.setGeometry(0, max(sp_h - (692 - 620), 90), max(sp_w - 21, 400), 72)
         ui.comboBox_change_config.move(100, max(bottom + 5, 105))
-        ui.pushButton_save_new_config.move(270, bottom)
-        ui.pushButton_init_config.move(380, bottom)
         ui.pushButton_save_config.move(max(sp_w - 241 - 89, 500), bottom)
+        # 另存为/恢复默认向右移动，使三段间距相等：
+        # 当前配置右→另存为左 = 另存为右→恢复默认左 = 恢复默认右→保存左
+        _cb_r = ui.comboBox_change_config.x() + ui.comboBox_change_config.width()
+        _save_l = ui.pushButton_save_config.x()
+        _gap = max((_save_l - _cb_r - ui.pushButton_save_new_config.width() - ui.pushButton_init_config.width()) / 3, 0)
+        ui.pushButton_save_new_config.move(int(_cb_r + _gap), bottom)
+        ui.pushButton_init_config.move(int(_cb_r + _gap * 2 + ui.pushButton_save_new_config.width()), bottom)
         # 「当前配置:」标签（设计 y=629，与基线 630 差 1）随浮框组贴底，
         # 否则最大化后停在设计位置、悬在滚动内容中部（用户截图中的浮框问题）
         ui.label_241.move(20, max(bottom - 1, 100))
@@ -5078,9 +5083,13 @@ class MyMAinWindow(QMainWindow):
             t_bottom = max(tp_h - (692 - 630), 100)
             ui.label_config_tool.setGeometry(0, max(tp_h - (692 - 620), 90), max(tp_w - 21, 400), 72)
             ui.comboBox_change_config_tool.move(100, max(t_bottom + 5, 105))
-            ui.pushButton_save_new_config_tool.move(270, t_bottom)
-            ui.pushButton_init_config_tool.move(380, t_bottom)
             ui.pushButton_save_config_tool.move(max(tp_w - 241 - 89, 500), t_bottom)
+            # 与 page_setting 一致：三段间距相等
+            _cb_r_t = ui.comboBox_change_config_tool.x() + ui.comboBox_change_config_tool.width()
+            _save_l_t = ui.pushButton_save_config_tool.x()
+            _gap_t = max((_save_l_t - _cb_r_t - ui.pushButton_save_new_config_tool.width() - ui.pushButton_init_config_tool.width()) / 3, 0)
+            ui.pushButton_save_new_config_tool.move(int(_cb_r_t + _gap_t), t_bottom)
+            ui.pushButton_init_config_tool.move(int(_cb_r_t + _gap_t * 2 + ui.pushButton_save_new_config_tool.width()), t_bottom)
             ui.label_241_tool.move(20, max(t_bottom - 1, 100))
 
         # ============ page_net: textBrowser_net_main + 右侧按钮 ============
