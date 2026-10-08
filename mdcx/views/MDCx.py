@@ -5244,7 +5244,7 @@ class Ui_MDCx(object):
         self.label_85.setObjectName("label_85")
         self.verticalLayout_3.addWidget(self.label_85)
         self.label_310 = QtWidgets.QLabel(parent=self.groupBox_24)
-        self.label_310.setGeometry(QtCore.QRect(60, 453, 616, 42))
+        self.label_310.setGeometry(QtCore.QRect(58, 453, 616, 42))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
