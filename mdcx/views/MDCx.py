@@ -5244,7 +5244,7 @@ class Ui_MDCx(object):
         self.label_85.setObjectName("label_85")
         self.verticalLayout_3.addWidget(self.label_85)
         self.label_310 = QtWidgets.QLabel(parent=self.groupBox_24)
-        self.label_310.setGeometry(QtCore.QRect(58, 453, 616, 42))
+        self.label_310.setGeometry(QtCore.QRect(60, 453, 616, 42))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed, QtWidgets.QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -13534,7 +13534,7 @@ class Ui_MDCx(object):
         )
         self.radioButton_scrape_speed.setText(_translate("MDCx", "速度优先"))
         self.label_315.setText(
-            _translate("MDCx", "⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」信息不全！")
+            _translate("MDCx", "⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」模式信息不完整")
         )
         self.checkBox_field_priority_try_all_images.setText(_translate("MDCx", "尝试下载所有图片"))
         self.label_field_priority_try_all_images.setText(
@@ -13585,7 +13585,7 @@ class Ui_MDCx(object):
             )
         )
         self.label_310.setText(
-            _translate("MDCx", "⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」信息不全！")
+            _translate("MDCx", "⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」模式信息不完整")
         )
         self.groupBox_33.setTitle(_translate("MDCx", "保留旧文件"))
         self.checkBox_old_poster.setText(_translate("MDCx", "封面图"))

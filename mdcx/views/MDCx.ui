@@ -10501,7 +10501,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>QFrame::NoFrame</enum>
                             </property>
                             <property name="text">
-                              <string>⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」信息不全！</string>
+                              <string>⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」模式信息不完整</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -11215,7 +11215,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <enum>QFrame::NoFrame</enum>
                       </property>
                       <property name="text">
-                        <string>⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」信息不全！</string>
+                        <string>⚠️ 下载剧照、预告片，请选择「字段优先」或「指定网站」！「速度优先」模式信息不完整</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
