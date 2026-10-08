@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 from typing import override
+from urllib.parse import urljoin
 
 from lxml import etree
 from parsel import Selector
@@ -145,11 +146,38 @@ def _looks_like_not_found(page_text: str) -> bool:
     return "お探しのページは" in page_text or "ページが見つかりません" in page_text
 
 
+# 年龄认证页特征：标题「年齢認証」+ 正文「あなたは18歳以上ですか」。正常商品页不含这些字样。
+_AGE_GATE_MARKERS = ("年齢認証", "あなたは18歳以上ですか", "age verification", "adult confirmation")
+
+
 def _looks_like_age_gate(page_text: str) -> bool:
-    """年龄确认页识别：adc Cookie 失效时 MGStage 会先弹确认页再跳详情页。"""
+    """年龄认证页识别：adc Cookie 未生效时 MGStage 会先弹确认页再跳详情页。"""
+    if not page_text:
+        return False
     lowered = page_text.lower()
-    markers = ("age verification", "adult confirmation", "18歳以上")
-    return any(marker in lowered for marker in markers)
+    return any(marker in lowered for marker in _AGE_GATE_MARKERS)
+
+
+def _extract_adult_entry_url(page_text: str) -> str | None:
+    """从年龄认证页里取「はい（アダルトへ）」的目标地址，取不到返回 None。
+
+    MGStage 首页/详情页在无 adc Cookie 时会返回 200 的年龄认证页，页面上有两个入口：
+    「はい（アダルトへ）」进入成人内容、「いいえ（MGSシアターへ）」进入剧场版。
+    成人内容才是刮削目标，一律选前者。
+    """
+    try:
+        root = etree.fromstring(page_text, etree.HTMLParser())
+    except Exception:
+        return None
+    for anchor in root.xpath("//a[@href]"):
+        label = "".join(anchor.itertext()).strip()
+        if not label or "いいえ" in label:
+            continue
+        if "アダルトへ" in label or "はい" in label:
+            href = (anchor.get("href") or "").strip()
+            if href:
+                return href
+    return None
 
 
 def remove_number_leading_zero(number: str) -> str:
@@ -176,8 +204,8 @@ def build_candidate_numbers(number: str, short_number: str) -> list[str]:
 
 class MgstageCrawler(BaseCrawler):
     description = "MGStage 官网（仅能有码+素人）"
-    # MGStage 主打素人系列（image.mgstage.com 直链已验证收录）；SSNI 等 S1 番号未收录
-    probe_number = "259LUXU-1111"
+    # 探测番号取自 /product/product_detail/{番号}/ 详情页（实测收录且长期在售）
+    probe_number = "ABF-389"
 
     @classmethod
     @override
@@ -259,10 +287,32 @@ class MgstageCrawler(BaseCrawler):
             external_id=detail_url,
         )
 
+    async def _get_page_text(self, ctx: Context, url: str) -> tuple[str | None, str]:
+        """抓页面文本；命中年龄认证页时自动点「はい（アダルトへ）」重取一次。
+
+        MGStage 首页与详情页在 adc Cookie 未生效时会返回 200 的年龄认证页
+        （十八禁 logo +「あなたは18歳以上ですか」+ 两个入口链接），它是刮削必经的中间页。
+        站点自身靠 adc Cookie 直接跳过，我们额外做一次「选はい」的兜底，
+        保证首页/详情页两条路径拿到的是成人内容而不是 MGS 剧场版。
+        """
+        cookies = self._get_cookies(ctx)
+        text, error = await self.async_client.get_text(url, cookies=cookies)
+        if not text or not _looks_like_age_gate(text):
+            return text, error
+        href = _extract_adult_entry_url(text)
+        if not href:
+            return text, error
+        target = urljoin(f"{self.base_url}/", href)
+        ctx.debug(f"MGStage 命中年龄认证页，自动选择「はい（アダルトへ）」: {target}")
+        confirmed, confirm_error = await self.async_client.get_text(target, cookies=cookies)
+        if confirmed:
+            return confirmed, ""
+        return text, confirm_error or error
+
     @override
     async def _fetch_search(self, ctx: Context, url: str, use_browser: bool | None = False) -> tuple[str | None, str]:
-        return await self.async_client.get_text(url, cookies={"adc": "1"})
+        return await self._get_page_text(ctx, url)
 
     @override
     async def _fetch_detail(self, ctx: Context, url: str, use_browser: bool | None = False) -> tuple[str | None, str]:
-        return await self.async_client.get_text(url, cookies={"adc": "1"})
+        return await self._get_page_text(ctx, url)

@@ -263,15 +263,13 @@ async def test_run_network_check_item_retries_probe_within_first_round(monkeypat
         return NetworkCheckStatus.WARNING, "站点可达但刮削探测超时"
 
     monkeypatch.setattr(nc, "_probe_crawler_capability", fake)
-    lines: list[str] = []
     spec = NetworkCheckSpec(name="avbase", group="刮削站点", url="https://www.avbase.net", site=Website.AVBASE)
 
-    result = await run_network_check_item(spec, client=FakeClient(), progress=lines.append)
+    result = await run_network_check_item(spec, client=FakeClient())
 
     assert seen == [30.0, 45.0], "单项检测必须走满轮内阶梯"
     assert result.status == NetworkCheckStatus.WARNING
     assert result.message == "站点无效：站点刮削探测2次30s/45s均超时"
-    assert any("avbase第2/2次刮削探测" in line for line in lines), lines
 
 
 def test_message_for_error_tls_handshake():
@@ -386,10 +384,10 @@ async def test_run_network_check_survives_task_level_exception(monkeypatch: pyte
 
     real_item = nc_module.run_network_check_item
 
-    async def flaky_item(spec, *, cancel_event=None, client=None, progress=None):
+    async def flaky_item(spec, *, cancel_event=None, client=None):
         if spec.name == "boom":
             raise TimeoutError  # 空消息异常，复刻用户场景的形态
-        return await real_item(spec, cancel_event=cancel_event, client=client, progress=progress)
+        return await real_item(spec, cancel_event=cancel_event, client=client)
 
     monkeypatch.setattr("mdcx.core.network_check.run_network_check_item", flaky_item)
     lines: list[str] = []
@@ -425,10 +423,10 @@ async def test_run_network_check_cancelled_task_does_not_stop(monkeypatch: pytes
 
     real_item = nc.run_network_check_item
 
-    async def flaky_item(spec, *, cancel_event=None, client=None, progress=None):
+    async def flaky_item(spec, *, cancel_event=None, client=None):
         if spec.name == "cancelled":
             raise asyncio.CancelledError
-        return await real_item(spec, cancel_event=cancel_event, client=client, progress=progress)
+        return await real_item(spec, cancel_event=cancel_event, client=client)
 
     monkeypatch.setattr("mdcx.core.network_check.run_network_check_item", flaky_item)
     lines: list[str] = []
@@ -913,11 +911,8 @@ async def test_probe_retry_stops_when_a_later_attempt_passes(monkeypatch: pytest
             (NetworkCheckStatus.OK, "连接正常，刮削正常"),
         ],
     )
-    lines: list[str] = []
 
-    status, message = await nc._probe_crawler_capability_with_retry(
-        ProbeFakeClient(), _PROBE_SPEC, progress=lines.append
-    )
+    status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
     assert status == NetworkCheckStatus.OK
     assert "刮削正常" in message
@@ -951,15 +946,25 @@ async def test_probe_retry_skips_deterministic_result(monkeypatch: pytest.Monkey
 
 
 @pytest.mark.anyio
-async def test_probe_retry_emits_attempt_progress_lines(monkeypatch: pytest.MonkeyPatch):
-    """重试要留痕，否则用户面对十几秒静默以为检测卡死。"""
-    _stub_probe_attempts(monkeypatch, [(NetworkCheckStatus.WARNING, "站点可达但刮削探测超时")])
-    lines: list[str] = []
+async def test_probe_retry_emits_no_intermediate_progress_lines(monkeypatch: pytest.MonkeyPatch):
+    """重试逐档进度行已下线：检测页每站只留一条最终结论，「↳ 站点第2/2次…」曾被误读成独立检测项。"""
 
-    await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC, progress=lines.append)
+    async def fake(client, spec, probe_timeout=None):
+        return NetworkCheckStatus.WARNING, "站点可达但刮削探测超时"
 
-    assert any("avbase第2/2次刮削探测" in line and "45s" in line for line in lines), lines
-    assert not any("第 1/2 次" in line for line in lines), "首探无需额外提示"
+    monkeypatch.setattr(nc, "_probe_crawler_capability", fake)
+    emitted: list[str] = []
+
+    spec = NetworkCheckSpec(name="avbase", group="站点检测", url="https://www.avbase.net", site=Website.AVBASE)
+    results = await run_network_check(
+        specs=[spec],
+        client=ProbeFakeClient(),
+        progress=emitted.append,
+        emit_header=False,
+    )
+
+    assert not any("次刮削探测" in line for line in emitted), emitted
+    assert results[0].message == "站点无效：站点刮削探测2次30s/45s均超时"
 
 
 @pytest.mark.anyio
@@ -998,7 +1003,7 @@ async def test_probe_retry_mixed_transient_keeps_last_reason(monkeypatch: pytest
     status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
     assert status == NetworkCheckStatus.WARNING
-    assert message.startswith("站点探测2次30s/45s均未通过，")
+    assert message.startswith("探测失败：站点探测2次30s/45s均未通过: ")
     assert message.endswith("站点可达但刮削探测失败: 500")
 
 

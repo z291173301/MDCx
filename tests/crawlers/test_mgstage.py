@@ -3,8 +3,9 @@
 用户实测：`mgstage 200 609 ms 代理 探测失败: 搜索失败: 搜索页未解析到结果`，
 且「有时候正常，但经常出现」。根因是站点侧软性拦截返回 200 非商品页，旧版一律
 归为「未解析到结果」，用户无从判断是地域封锁、年龄确认页还是番号已下架。
-这里锁定两类行为：`_get_cookies` 带 adc（探测与真实刮削一致），
-以及「假 200」页面必须点名。
+这里锁定三类行为：探测番号指向真实收录的详情页、`_get_cookies` 带 adc
+（探测与真实刮削一致）、「假 200」页面必须点名，以及命中年龄认证页时
+自动选「はい（アダルトへ）」。
 """
 
 import pytest
@@ -17,11 +18,102 @@ from mdcx.models.model_types import CrawlerInput
 pytestmark = pytest.mark.asyncio
 
 
-def _crawler_and_ctx():
-    crawler = MgstageCrawler(client=None, browser=None)
+def _crawler_and_ctx(number: str = "259LUXU-1111", client=None):
+    crawler = MgstageCrawler(client=client, browser=None)
     inp = CrawlerInput.empty()
-    inp.number = "259LUXU-1111"
+    inp.number = number
     return crawler, crawler.new_context(inp)
+
+
+AGE_GATE_HTML = """
+<html><head><title>MGS動画(成人認証) - アダルト強調</title></head><body>
+<div class="agecheck"><img src="/img/18.png" alt="18禁">
+<h2>年齢認証</h2>
+<p>ここから先は、アダルト商品を取り扱うアダルトサイトとなります。<br>
+18歳未満の方のアクセスは固くお断り致します。</p>
+<p>あなたは18歳以上ですか？</p>
+<a href="/index.php?adc=1&amp;from=age">はい（アダルトへ）</a>
+<a href="/theater/index.php">いいえ（MGSシアターへ）</a>
+</div></body></html>
+"""
+
+
+class FakeClient:
+    """按 URL 返回预置页面，记录请求顺序。"""
+
+    def __init__(self, pages: dict[str, str | None]):
+        self.pages = pages
+        self.calls: list[str] = []
+
+    async def get_text(self, url, **kwargs):
+        self.calls.append(url)
+        for pattern, page in self.pages.items():
+            if pattern in url:
+                return (page, "" if page else "404 not found")
+        return None, "unexpected url"
+
+
+async def test_fetch_search_auto_confirms_age_gate():
+    """命中年龄认证页时自动选「はい（アダルトへ）」再取一次（用户要求）"""
+    product_html = '<html><body><div id="center_column"><div><h1>黒倒女医</h1></div></body></html>'
+    client = FakeClient({"adc=1": product_html, "product_detail": AGE_GATE_HTML})
+    crawler, ctx = _crawler_and_ctx("ABF-389", client=client)
+
+    text, error = await crawler._fetch_search(ctx, "https://www.mgstage.com/product/product_detail/ABF-389/")
+
+    assert text == product_html
+    assert error == ""
+    assert client.calls == [
+        "https://www.mgstage.com/product/product_detail/ABF-389/",
+        "https://www.mgstage.com/index.php?adc=1&from=age",
+    ]
+
+
+async def test_fetch_search_passes_through_when_not_age_gate():
+    """正常页面只请求一次，不额外打扰站点"""
+    product_html = "<html><body>ok</body></html>"
+    client = FakeClient({"product_detail": product_html})
+    crawler, ctx = _crawler_and_ctx("ABF-389", client=client)
+
+    text, _ = await crawler._fetch_search(ctx, "https://www.mgstage.com/product/product_detail/ABF-389/")
+
+    assert text == product_html
+    assert len(client.calls) == 1
+
+
+async def test_fetch_detail_auto_confirms_age_gate():
+    """详情页同样走年龄认证兜底（首页以外的路径也要覆盖）"""
+    detail_html = "<html><body>detail</body></html>"
+    client = FakeClient({"adc=1": detail_html, "product_detail": AGE_GATE_HTML})
+    crawler, ctx = _crawler_and_ctx("ABF-389", client=client)
+
+    text, _ = await crawler._fetch_detail(ctx, "https://www.mgstage.com/product/product_detail/ABF-389/")
+
+    assert text == detail_html
+    assert len(client.calls) == 2
+
+
+async def test_fetch_search_keeps_age_gate_page_when_no_adult_link():
+    """年龄认证页上没有「はい」链接时保留原页，交给 _parse_search_page 点名"""
+    client = FakeClient({"product_detail": "<html><body>年齢認証</body></html>"})
+    crawler, ctx = _crawler_and_ctx("ABF-389", client=client)
+
+    text, error = await crawler._fetch_search(ctx, "https://www.mgstage.com/product/product_detail/ABF-389/")
+
+    assert "年齢認証" in text
+    assert error == ""
+    assert len(client.calls) == 1
+
+
+async def test_fetch_search_falls_back_to_age_gate_page_when_confirm_fails():
+    """确认页请求失败时保留原页与原始错误，不能把异常页吞掉"""
+    client = FakeClient({"adc=1": None, "product_detail": AGE_GATE_HTML})
+    crawler, ctx = _crawler_and_ctx("ABF-389", client=client)
+
+    text, error = await crawler._fetch_search(ctx, "https://www.mgstage.com/product/product_detail/ABF-389/")
+
+    assert text == AGE_GATE_HTML
+    assert error == "404 not found"
 
 
 async def test_get_cookies_sends_adc_like_real_scrape():
@@ -30,9 +122,15 @@ async def test_get_cookies_sends_adc_like_real_scrape():
     assert crawler._get_cookies(ctx) == {"adc": "1"}
 
 
-async def test_probe_number_still_recorded():
-    """探测番号 259LUXU-1111 用户实测收录，勿随意更换"""
-    assert MgstageCrawler.probe_number == "259LUXU-1111"
+async def test_probe_number_points_at_live_product_page():
+    """探测番号必须是站点真实收录的详情页番号，否则探测永远失败"""
+    assert MgstageCrawler.probe_number == "ABF-389"
+
+
+async def test_probe_number_search_url_shape():
+    """探测番号拼出的 URL 就是用户实测能解析成功的详情页地址"""
+    crawler, ctx = _crawler_and_ctx("ABF-389")
+    assert await crawler._generate_search_url(ctx) == ["https://www.mgstage.com/product/product_detail/ABF-389/"]
 
 
 async def test_parse_search_page_names_cloudfront_geo_block():

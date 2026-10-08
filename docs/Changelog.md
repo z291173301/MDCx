@@ -15,6 +15,11 @@
 
 ### 修复
 
+- **网络检测不再打印逐档重试进度行**（`mdcx/core/network_check.py`）：`_probe_crawler_capability_with_retry` 第 2 次探测前会发 `↳ 站点第N/M次刮削探测，超时上限45s`，该行看着像独立检测项（站点名重复出现、`↳` 缩进层级与结果行混淆），且 30s/45s 两档已由检测页头部「超时阶梯」说明，重复打印只是噪音。已删除该 emit，并连带移除 `_probe_crawler_capability_with_retry` / `run_network_check_item` 上已无用的 `progress` 形参。30s/45s 自动递进重试行为与终局文案（「站点无效：站点刮削探测2次30s/45s均超时」）不变
+- **刮削探测未通过时的检测行由几百字压到一行**：
+  - `mdcx/core/network_check.py`：终局说明 `站点探测2次30s/45s均未通过，最后一次: …` → `探测失败：站点探测2次30s/45s均未通过: …`（结论前置、去掉嵌套的「最后一次:」前缀）
+  - `mdcx/crawlers/base/base.py` `_search`：多候选番号（如 MDX-0236 / MDX0236）会各探一次搜索页，原先把每条的 `搜索页未解析到结果（页面标题=…, 正文长度=…） | …` 全拼进异常消息，检测行被近似的文案刷屏。现按「抹掉页面指纹后」去重、同根因只留首条指纹，不同根因（`请求失败` / `未解析到结果`）仍分别列出；指纹括号同时改为逗号（`搜索页未解析到结果，页面标题=…`，与用户给定文案一致）
+  - 回归：`tests/crawlers/test_search_failure_reasons.py` 新增同根因多指纹折叠用例，`tests/test_network_check.py` 同步终局文案断言
 - **版本号**：`2.2.7` → `2.2.8`（`pyproject.toml`、`mdcx/consts.py`）
 - **锁定类型「动漫」相关链路补漏**（`mdcx/core/file_crawler.py`、`mdcx/core/web.py`、`mdcx/config/models.py`、`mdcx/controllers/main_window/main_window.py`、`site_priority_dialog.py`、`save_config.py`，回归 `tests/test_file_crawler_runtime.py`）：
   - 自动识别路径判断漏关键字：只含 `getchu/里番/裏番`，与界面文案「路径含有里番、动漫自动用 getchu」不符，`/动漫/...` 会误判为有码。已补 `动漫/動漫` 关键字
@@ -53,6 +58,8 @@
   - 终局说明措辞与根因分组条件对齐：`站点无效：站点刮削探测2次30s/45s均超时`（全超时）、`站点探测2次30s/45s均未通过，最后一次: …`（非全超时），不再出现「未全部超时却写均超时」的矛盾
   - 测试里的检测组名/检测项名对齐现名：`基础连通性` → `网络连通`、`刮削站点` → `站点检测`、`CF Bypass` → `Cloudflare Bypass`（6 个用例因旧组名取不到任何 spec 而空转返回 0 条结果）
 - **网络检测 CF Bypass 用例对齐**：通过挑战文案含适配层模式后缀（`连接正常，通过挑战（mirror）`），断言相应改为断言「通过挑战」而非旧项名
+- **MGStage 探测番号改为 `ABF-389`**（`mdcx/crawlers/mgstage.py`）：`259LUXU-1111` → `ABF-389`，探测地址 `https://www.mgstage.com/product/product_detail/ABF-389/`（用户实测收录且在售）。同族先例：`prestige` 用 `ABW-130`、`xcity` 用 `ABF-050`
+- **MGStage 年龄认证页自动选「はい（アダルトへ）」**（`mdcx/crawlers/mgstage.py`）：`https://www.mgstage.com/` 在 `adc` Cookie 未生效时会返回 200 的年龄认证页（十八禁 logo +「あなたは18歳以上ですか」+ 两个入口链接）。新增 `_extract_adult_entry_url()` 提取「はい（アダルトへ）」的 href（显式排除「いいえ（MGSシアターへ）」），`_fetch_search`/`_fetch_detail` 统一走新的 `_get_page_text()`，命中年龄认证页就自动跟随一次；确认页请求失败时保留原页与原始错误，异常页仍由 `_parse_search_page` 点名。同时收紧 `_looks_like_age_gate` 特征词（`年齢認証`/`あなたは18歳以上ですか`/`age verification`/`adult confirmation`，替换掉过宽的 `18歳以上`）。回归：`tests/crawlers/test_mgstage.py` 补 5 用例（探测番号及其 URL 形态、自动确认「はい」、非年龄认证页只请求一次、详情页同样兜底、无入口链接与确认失败时的回退）
 
 ### 调整
 

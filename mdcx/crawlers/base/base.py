@@ -31,6 +31,10 @@ def _page_fingerprint(html: str) -> str:
     return f"页面标题={title or '无'}, 正文长度={len(html)}"
 
 
+# 页面指纹片段（`_page_fingerprint` 的输出），用于失败原因去重时抹掉逐次差异
+_FINGERPRINT_RE = re.compile(r"页面标题=.*?, 正文长度=\d+")
+
+
 class GenericBaseCrawler[T: Context = Context](ABC):
     """
     爬虫基类. 所有具体爬虫均应继承此类并实现其抽象方法.
@@ -265,9 +269,18 @@ class GenericBaseCrawler[T: Context = Context](ABC):
             if detail_urls:
                 ctx.debug(f"详情页 URL: {detail_urls}")
                 return detail_urls if isinstance(detail_urls, list) else [detail_urls]
-            reasons.append(f"搜索页未解析到结果（{_page_fingerprint(html)}）")
-        # 去重：所有搜索 URL 都返回相同原因时只显示一次
-        unique_reasons = list(dict.fromkeys(reasons))
+            reasons.append(f"搜索页未解析到结果，{_page_fingerprint(html)}")
+        # 去重：所有搜索 URL 都返回相同原因时只显示一次；同一根因的多条指纹
+        # （多候选番号各探一次，如 MDX-0236 / MDX0236）也只留首条，否则
+        # 检测行被四条几乎相同的文案刷成几百字，用户看不出重点。
+        unique_reasons: list[str] = []
+        seen: set[str] = set()
+        for reason in reasons:
+            key = _FINGERPRINT_RE.sub("页面指纹", reason)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_reasons.append(reason)
         raise CrawlerException(f"搜索失败: {' | '.join(unique_reasons)[:400]}")
 
     async def _detail(self, ctx: T, detail_urls: list[str]) -> CrawlerData | None:

@@ -93,6 +93,50 @@ async def test_search_failure_distinguishes_no_result():
     assert "正文长度=18" in err  # len("<html>empty</html>")
 
 
+async def test_search_failure_collapses_same_cause_fingerprints():
+    """同一根因的多候选番号指纹只留首条：检测行不能被近似的文案刷屏。
+
+    实测 madouqu 探测 MDX-0236 时会生成 MDX-0236 / MDX0236 两组候选共 4 个搜索页，
+    四条「搜索页未解析到结果（页面标题=…, 正文长度=…）」全进异常消息，检测行变成几百字。
+    """
+    from mdcx.crawlers.base import BaseCrawler
+
+    class _ProbeCrawler3(BaseCrawler):
+        _skip_auto_register = True
+        description = "probe test 3"
+
+        @classmethod
+        def site(cls):
+            raise NotImplementedError
+
+        @classmethod
+        def base_url_(cls):
+            return "https://example.invalid"
+
+        async def _generate_search_url(self, ctx):
+            return [f"https://example.invalid/search?n={i}" for i in range(4)]
+
+        async def _fetch_search(self, ctx, url):
+            return f"<html><title>MDX-0236 {url[-1]}</title>{'x' * (100 + len(url))}</html>", ""
+
+        async def _parse_search_page(self, ctx, html, search_url):
+            return None
+
+        async def _parse_detail_page(self, ctx, html, detail_url):
+            return None
+
+    crawler = _ProbeCrawler3(client=None, browser=None)
+    inp = CrawlerInput.empty()
+    inp.number = "MDX-0236"
+    resp = await crawler.run(inp)
+    err = str(resp.debug_info.error)
+    assert "搜索失败" in err and "未解析到结果" in err
+    assert err.count("搜索页未解析到结果") == 1, err
+    assert " | " not in err, err
+    # 首条指纹保留（页面标题 + 正文长度），用户仍能判断站点返回了什么页面
+    assert "页面标题=" in err and "正文长度=" in err
+
+
 async def test_mywife_probe_number_updated_to_live_model_page():
     """探测番号: 1500 已被站点下架(500), 2306 用户实测有效。"""
     from mdcx.crawlers.mywife import MywifeCrawler

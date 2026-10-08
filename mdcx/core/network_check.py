@@ -518,23 +518,20 @@ async def _probe_crawler_capability_with_retry(
     client: Any,
     spec: NetworkCheckSpec,
     *,
-    progress: ProgressCallback | None = None,
     cancel_event: threading.Event | None = None,
 ) -> tuple[NetworkCheckStatus | None, str]:
     """单站刮削探测：轮内按 30s → 45s 自动递进重试（议题 #118，两档）。
 
     任一次成功立即定论；只有瞬时性结果才继续下一档，确定性结果首次即定论。
     阶梯全部走完仍未通过时给出终局说明（「站点无效：站点刮削探测N次…均超时」），
-    避免用户以为再等等就能过。重试探测各次前输出一行进度，防止看着像卡死。
+    避免用户以为再等等就能过。重试过程静默，不再逐档打印进度行——检测页只需
+    看到每站一条最终结论，中间态噪音大且易被误读成独立检测项。
     """
-    emit = progress or (lambda line: None)
     attempts = len(SCRAPE_PROBE_ATTEMPT_TIMEOUTS)
     all_timed_out = True
 
     for attempt in range(attempts):
         timeout = scrape_probe_attempt_timeout(attempt)
-        if attempt:
-            emit(f"   ↳     {spec.name}第{attempt + 1}/{attempts}次刮削探测，超时上限{timeout:.0f}s")
         status, message = await _probe_crawler_capability(client, spec, timeout)
         if status is None or not _is_transient_probe_result(message):
             return status, message
@@ -551,7 +548,7 @@ async def _probe_crawler_capability_with_retry(
         )
     return (
         NetworkCheckStatus.WARNING,
-        f"站点探测{attempts}次{ladder}均未通过，最后一次: {message}",
+        f"探测失败：站点探测{attempts}次{ladder}均未通过: {message}",
     )
 
 
@@ -1064,7 +1061,6 @@ async def run_network_check_item(
     *,
     cancel_event: threading.Event | None = None,
     client: "AsyncWebClient | Any | None" = None,
-    progress: ProgressCallback | None = None,
 ) -> NetworkCheckResult:
     if cancel_event and cancel_event.is_set():
         return NetworkCheckResult(spec=spec, status=NetworkCheckStatus.CANCELLED, message="已取消")
@@ -1219,7 +1215,7 @@ async def run_network_check_item(
             and not spec.name.endswith("镜像")
         ):
             probe_status, probe_message = await _probe_crawler_capability_with_retry(
-                request_client, spec, progress=progress, cancel_event=cancel_event
+                request_client, spec, cancel_event=cancel_event
             )
             if probe_status is not None:
                 status, message = probe_status, probe_message
@@ -1349,7 +1345,7 @@ async def run_network_check(
 
     async def run_one(spec: NetworkCheckSpec) -> NetworkCheckResult:
         async with semaphore:
-            return await run_network_check_item(spec, cancel_event=cancel_event, client=run_client, progress=progress)
+            return await run_network_check_item(spec, cancel_event=cancel_event, client=run_client)
 
     start_time = time.perf_counter()
     proxy_down = False
