@@ -13756,7 +13756,7 @@ class Ui_MDCx(object):
         self.label_actor_name_more.setText(_translate("MDCx", "演员名末端插入："))
         self.groupBox_46.setTitle(_translate("MDCx", "马赛克命名规则"))
         self.label_285.setText(
-            _translate("MDCx", "指命名时在番号后添加版本命名字符，你也可以使用moword来调整字符添加的位置")
+            _translate("MDCx", "指命名时在番号后添加版本命名字符，你也可以使用moword字段调整马赛克字符添加的位置")
         )
         self.label_189.setText(_translate("MDCx", "无码番号："))
         self.label_117.setText(
@@ -13764,7 +13764,7 @@ class Ui_MDCx(object):
                 "MDCx",
                 "\n"
                 "                          <p\n"
-                "                          style='line-height:20px'>指无码流出版本，当文件路径中含有流出、Leaked字样时，该文件将被识别为无码流出版本，在重命名文件名称及目录名时，在番号后显示该字符表示为无码流出版本</p>",
+                "                          style='line-height:20px'>指无码流出版本，当文件路径中含有流出、Leaked等字样时，该文件将被识别为无码流出版本，在重命名文件名称及目录名时，在番号后显示该字符表示为无码流出版本</p>",
             )
         )
         self.label_175.setText(_translate("MDCx", "无码流出："))
