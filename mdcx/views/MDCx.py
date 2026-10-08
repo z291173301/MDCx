@@ -13640,7 +13640,7 @@ class Ui_MDCx(object):
         self.label_dmm_fallback.setText(
             _translate(
                 "MDCx",
-                "站点图源全部失败时，程序将按番号直构官方CDN高清图：DMM高清封面图，并将自动学习厂牌前缀，下载MGStages素人高清海报",
+                "站点图源全部失败时，程序将按番号直构官方CDN高清图片：DMM高清封面图，并将自动学习厂牌前缀，下载MGStages素人高清海报",
             )
         )
         self.checkBox_super_resolution_poster.setToolTip(
@@ -13653,7 +13653,7 @@ class Ui_MDCx(object):
         self.label_super_resolution_poster.setText(
             _translate(
                 "MDCx",
-                "最长边低于800px时AI放大补清；Windows/Linux已内置MacOS/源码首次下载约30-60MB，无Vulkan或失败保持原图",
+                "最长边低于800px时AI放大补清；Windows、Linux已内置源程序MacOS源代码首次下载约30-60MB，无Vulkan或失败保持原图",
             )
         )
         self.groupBox_66.setTitle(_translate("MDCx", "显示剧照"))
