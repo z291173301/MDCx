@@ -13041,7 +13041,7 @@ class Ui_MDCx(object):
         self.label_3.setText(_translate("MDCx", "文件路径："))
         self.label.setText(
             _translate(
-                "MDCx", "不要填写网站首页地址！！！要填写该番号的网页地址！！！然后选择对应的网站，点击刮削即可！"
+                "MDCx", "记住不要填写网站首页地址！！！要填写该番号的网页地址！！！然后选择对应的网站，直接点击刮削即可"
             )
         )
         self.pushButton_select_file_clear_info.setText(_translate("MDCx", "清空信息"))
