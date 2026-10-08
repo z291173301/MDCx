@@ -12431,7 +12431,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>默认识别分集：-CD1｜-PART1｜-HD1｜-1.mp4，文件名称中含有这些字符时将识别其中的分集信息</string>
+                        <string>默认识别分集：-CD1｜-PART1｜-HD1｜-1.mp4，文件名称中含有前面这些字符时将自动识别其中的分集信息</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -13801,7 +13801,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>每个视频创建一个「视频名-trailer.mp4」，多分集时会创建多个</string>
+                              <string>每个视频单独创建一个「视频名-trailer.mp4」，多分集时会创建多个文件</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>
@@ -13820,7 +13820,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>在视频目录下创建trailers文件夹，多分集共用一个trailer.mp4</string>
+                              <string>在视频文件目录下创建trailers文件夹，多个分集将共用一个trailer.mp4</string>
                             </property>
                             <property name="wordWrap">
                               <bool>true</bool>

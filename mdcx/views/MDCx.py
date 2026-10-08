@@ -13717,7 +13717,7 @@ class Ui_MDCx(object):
         self.radioButton_cd_part_digital.setText(_translate("MDCx", "-001"))
         self.label_349.setText(_translate("MDCx", "数字，-1、-2、-3"))
         self.label_99.setText(
-            _translate("MDCx", "默认识别分集：-CD1｜-PART1｜-HD1｜-1.mp4，文件名称中含有这些字符时将识别其中的分集信息")
+            _translate("MDCx", "默认识别分集：-CD1｜-PART1｜-HD1｜-1.mp4，文件名称中含有前面这些字符时将自动识别其中的分集信息")
         )
         self.checkBox_cd_part_a.setText(_translate("MDCx", "-A.mp4｜.A.mp4｜12A.mp4 (字母结尾的分集，不含字母C)"))
         self.label_350.setText(_translate("MDCx", "允许识别分集："))
@@ -13803,8 +13803,8 @@ class Ui_MDCx(object):
         self.groupBox_62.setTitle(_translate("MDCx", "预告片命名规则"))
         self.radioButton_trailer_with_filename.setText(_translate("MDCx", "视频文件名-trailer.mp4 "))
         self.radioButton_trailer_no_filename.setText(_translate("MDCx", "trailer.mp4"))
-        self.label_115.setText(_translate("MDCx", "每个视频创建一个「视频名-trailer.mp4」，多分集时会创建多个"))
-        self.label_122.setText(_translate("MDCx", "在视频目录下创建trailers文件夹，多分集共用一个trailer.mp4"))
+        self.label_115.setText(_translate("MDCx", "每个视频单独创建一个「视频名-trailer.mp4」，多分集时会创建多个文件"))
+        self.label_122.setText(_translate("MDCx", "在视频文件目录下创建trailers文件夹，多个分集将共用一个trailer.mp4"))
         self.groupBox_40.setTitle(_translate("MDCx", "字段命名规则"))
         self.label_407.setText(_translate("MDCx", "演员："))
         self.label_146.setText(
