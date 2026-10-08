@@ -991,7 +991,7 @@ async def test_probe_retry_mixed_transient_keeps_last_reason(monkeypatch: pytest
     status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
     assert status == NetworkCheckStatus.WARNING
-    assert message.startswith("站点探测2次30s/45s均超时，")
+    assert message.startswith("刮削探测2次30s/45s均超时，")
     assert message.endswith("站点可达但探测失败: 500")
 
 

@@ -533,11 +533,11 @@ async def _probe_crawler_capability_with_retry(
     if all_timed_out:
         return (
             NetworkCheckStatus.WARNING,
-            f"站点探测{attempts}次{ladder}均超时，判定站点无效",
+            f"刮削探测{attempts}次{ladder}均超时，判定站点无效",
         )
     return (
         NetworkCheckStatus.WARNING,
-        f"站点探测{attempts}次{ladder}均超时，{message}",
+        f"刮削探测{attempts}次{ladder}均超时，{message}",
     )
 
 
