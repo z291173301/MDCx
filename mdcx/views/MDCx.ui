@@ -14328,7 +14328,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>&lt;p&gt;QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，低于540P时用高度值命名&lt;/p&gt;</string>
+                        <string>&lt;p&gt;QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，分辨率低于540P时使用高度值命名&lt;/p&gt;</string>
                       </property>
                       <property name="alignment">
                         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -14504,7 +14504,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                         <string notr="true">color: rgb(8, 128, 128);</string>
                       </property>
                       <property name="text">
-                        <string>指命名时在番号后添加4K（仅4K），也可以使用definition字段来调整添加位置</string>
+                        <string>指命名时在番号后添加4K（仅4K）字符，也可以使用definition字段来调整字符添加位置</string>
                       </property>
                       <property name="wordWrap">
                         <bool>true</bool>
@@ -14606,7 +14606,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                       <property name="text">
                         <string>&lt;p&gt;1）Emby支持多版本显示，类似选集，
                           需要：&lt;/p&gt;&lt;p&gt;视频番号文件名称的开头部分必须包含视频目录名，比如：SSIS-111.mp4/SSIS-111-4K.mp4
-                          &lt;/p&gt;&lt;p&gt;查看规则：&lt;a
+                          &lt;/p&gt;&lt;p&gt;请查看规则：&lt;a
                           href="https://support.emby.media/support/solutions/articles/44001159102-movie-naming"&gt;&lt;span
                           style=" text-decoration: underline;
                           color:#094fd1;"&gt;https://support.emby.media/support/solutions/articles/44001159102-movie-naming&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;&lt;p&gt;2）分集视频默认会显示为附加视频，如果要以多版本样式显示，分集命名规则还需要选择-001&lt;/p&gt;</string>

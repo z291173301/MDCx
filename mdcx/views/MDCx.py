@@ -13845,7 +13845,7 @@ class Ui_MDCx(object):
         self.label_330.setText(_translate("MDCx", "以视频清晰度的英文缩写来命名不同画质"))
         self.label_331.setText(
             _translate(
-                "MDCx", "<p>QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，低于540P时用高度值命名</p>"
+                "MDCx", "<p>QHD=540P，HD=720P/960P，FHD=1080P，QHD=1440P(2K)，UHD=4K/8K，分辨率低于540P时使用高度值命名</p>"
             )
         )
         self.radioButton_videosize_video.setText(_translate("MDCx", "读取视频画面的高度"))
@@ -13855,7 +13855,7 @@ class Ui_MDCx(object):
         self.label_357.setText(_translate("MDCx", "末端添加4K字符："))
         self.checkBox_filename_4k.setText(_translate("MDCx", "视频文件名"))
         self.label_358.setText(
-            _translate("MDCx", "指命名时在番号后添加4K（仅4K），也可以使用definition字段来调整添加位置")
+            _translate("MDCx", "指命名时在番号后添加4K（仅4K）字符，也可以使用definition字段来调整字符添加位置")
         )
         self.checkBox_foldername_4k.setText(_translate("MDCx", "视频目录名"))
         self.groupBox_67.setTitle(_translate("MDCx", "其他说明"))
@@ -13865,7 +13865,7 @@ class Ui_MDCx(object):
                 "MDCx",
                 "<p>1）Emby支持多版本显示，类似选集，\n"
                 "                          需要：</p><p>视频番号文件名称的开头部分必须包含视频目录名，比如：SSIS-111.mp4/SSIS-111-4K.mp4\n"
-                "                          </p><p>查看规则：<a\n"
+                "                          </p><p>请查看规则：<a\n"
                 '                          href="https://support.emby.media/support/solutions/articles/44001159102-movie-naming"><span\n'
                 '                          style=" text-decoration: underline;\n'
                 '                          color:#094fd1;">https://support.emby.media/support/solutions/articles/44001159102-movie-naming</span></a></p><p>2）分集视频默认会显示为附加视频，如果要以多版本样式显示，分集命名规则还需要选择-001</p>',
