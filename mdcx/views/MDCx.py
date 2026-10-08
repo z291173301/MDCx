@@ -13628,7 +13628,7 @@ class Ui_MDCx(object):
         self.pushButton_del_all_extrafanart_copy.setText(_translate("MDCx", "删除所有剧照副本"))
         self.groupBox_52.setTitle(_translate("MDCx", "下载高清图"))
         self.checkBox_amazon_big_pic.setText(_translate("MDCx", "启用 Amazon 查找高清封面图"))
-        self.label_397.setText(_translate("MDCx", "仅影响Amazon高清封面图搜索，不影响普通图片的下载和保存"))
+        self.label_397.setText(_translate("MDCx", "仅影响Amazon高清封面图片搜索和下载，不影响普通图片的下载和保存"))
         self.checkBox_amazon_skip_poster_size_precheck.setText(_translate("MDCx", "跳过前置 Poster 大小校验"))
         self.label_amazon_skip_poster_size_precheck.setText(
             _translate(

@@ -11627,7 +11627,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string notr="true">color: rgb(8, 128, 128);</string>
                             </property>
                             <property name="text">
-                              <string>仅影响Amazon高清封面图搜索，不影响普通图片的下载和保存</string>
+                              <string>仅影响Amazon高清封面图片搜索和下载，不影响普通图片的下载和保存</string>
                             </property>
                           </widget>
                         </item>
