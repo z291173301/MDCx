@@ -229,7 +229,7 @@ async def test_probe_crawler_strips_special_check_path_from_base_url(monkeypatch
 
 @pytest.mark.anyio
 async def test_mirror_sample_spec_skips_scrape_probe(monkeypatch: pytest.MonkeyPatch):
-    """议题 #77：镜像抽样项（如 xcity镜像）只验证连通性，不做刮削探测。
+    """议题 #77：镜像抽样项（如 xcity·镜像）只验证连通性，不做刮削探测。
 
     实证：xcity.jp 是展示页域名、/api/search 不存在（实测 404；API 只在 tc.xcity.jp），
     探测按主站 URL 模式打到镜像域名必出「搜索页请求失败」误报。
@@ -245,7 +245,7 @@ async def test_mirror_sample_spec_skips_scrape_probe(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr(crawlers_mod, "get_crawler", lambda site: ShouldNotBeCalled)
 
-    spec = NetworkCheckSpec(name="xcity镜像", group="刮削站点", url="https://xcity.jp", site=Website.XCITY)
+    spec = NetworkCheckSpec(name="xcity·镜像", group="刮削站点", url="https://xcity.jp", site=Website.XCITY)
     result = await run_network_check_item(spec, client=FakeClient())
 
     assert result.status == NetworkCheckStatus.OK
@@ -350,7 +350,7 @@ def test_format_summary_groups_failure_causes():
     assert "CF Bypass 已尝试但未解开 ×1" in text
     assert "节点" in text
     # 议题 #118：轮内重试仍超时的站点要单独成组，不能混进「其他异常」或「未收录」
-    assert "刮削探测多次超时 ×1" in text
+    assert "刮削探测多次超时×1" in text
     assert "30s/45s" in text
 
 
@@ -984,16 +984,15 @@ async def test_probe_retry_mixed_transient_keeps_last_reason(monkeypatch: pytest
         monkeypatch,
         [
             (NetworkCheckStatus.WARNING, "站点可达但搜索页请求失败: conn reset"),
-            (NetworkCheckStatus.WARNING, "站点可达但刮削探测失败: 500"),
+            (NetworkCheckStatus.WARNING, "站点可达但探测失败: 500"),
         ],
     )
 
     status, message = await nc._probe_crawler_capability_with_retry(ProbeFakeClient(), _PROBE_SPEC)
 
     assert status == NetworkCheckStatus.WARNING
-    assert "2 次均未通过" in message
-    assert "最后一次" in message
-    assert "500" in message
+    assert message.startswith("站点探测2次30s/45s均超时，")
+    assert message.endswith("站点可达但探测失败: 500")
 
 
 @pytest.mark.anyio

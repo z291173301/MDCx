@@ -133,7 +133,7 @@ def _status_code_text(status_code: int | None) -> str:
 
 
 # 诊断表格按"显示宽度"对齐：f-string 的宽度按字符数，中日韩字符与 emoji 在
-# 等宽字体下占 2 列，直接用 <18/>8 会对不齐（如 madouqu镜像会把后序列挤偏）。
+# 等宽字体下占 2 列，直接用 <18/>8 会对不齐（如 madouqu·镜像会把后序列挤偏）。
 # 这里 W/F 算 2 列、结合符（VS16 等）算 0 列、其余（含状态图标 emoji）按实际占宽算。
 _WIDE_ICONS = frozenset("✅⚠❌ℹ⛔")
 
@@ -285,13 +285,13 @@ def _classify_http_result(spec: NetworkCheckSpec, status_code: int, text: str) -
         if "/logout" in text:
             return NetworkCheckStatus.OK, "连接正常，Cookie 有效"
         if manager.config.javdb:
-            return NetworkCheckStatus.WARNING, "站点可访问，但JavDB Cookie可能无效"
+            return NetworkCheckStatus.WARNING, "访问正常，但JavDB网站Cookie可能无效"
         return NetworkCheckStatus.OK, "连接正常"
 
     if spec.site == Website.JAVBUS:
         manager = _manager()
         if "lostpasswd" in text and manager.config.javbus:
-            return NetworkCheckStatus.WARNING, "站点可访问，但JavBus Cookie可能无效"
+            return NetworkCheckStatus.WARNING, "访问正常，但Javbus网站Cookie可能无效"
         if "lostpasswd" in text:
             return NetworkCheckStatus.WARNING, "当前节点可能需要 JavBus Cookie"
         return NetworkCheckStatus.OK, "连接正常"
@@ -537,7 +537,7 @@ async def _probe_crawler_capability_with_retry(
         )
     return (
         NetworkCheckStatus.WARNING,
-        f"站点可达但刮削探测{attempts}次均未通过（{ladder}），最后一次: {message}",
+        f"站点探测{attempts}次{ladder}均超时，{message}",
     )
 
 
@@ -692,7 +692,7 @@ def format_summary(
             cause_counts["cf"] += 1
         elif "节点" in message and ("封禁" in message or "出口" in message):
             cause_counts["node_blocked"] += 1
-        elif "刮削探测" in message and ("均超时" in message or "均未通过" in message):
+        elif ("站点探测" in message or "刮削探测" in message) and ("均超时" in message or "均未通过" in message):
             # 轮内自动重试（议题 #118）后仍失败的站点，与"连不上"是两回事，单独成组
             cause_counts["probe_timeout"] += 1
         elif "请求超时" in message or "连接超时" in message or "无法连接" in message or "DNS" in message:
@@ -717,8 +717,8 @@ def format_summary(
             lines.append(f"  • 节点/IP 被封 ×{cause_counts['node_blocked']}：请更换代理节点或改用其他出口重试")
         if cause_counts["probe_timeout"]:
             lines.append(
-                f"  • 刮削探测多次超时 ×{cause_counts['probe_timeout']}：站点能连上但刮削响应过慢"
-                f"（已按 {scrape_probe_ladder_text()} 自动重试），多为代理节点质量或站点负载，可换节点/稍后再测"
+                f"刮削探测多次超时×{cause_counts['probe_timeout']}：站点能连上但刮削响应过慢，"
+                f"已按{scrape_probe_ladder_text()}自动重试，多为代理节点质量或站点负载，可换节点/稍后再测"
             )
         if cause_counts["unreachable"]:
             lines.append(f"  • 站点暂时不可达 ×{cause_counts['unreachable']}：检查网络或稍后重试")
@@ -927,7 +927,7 @@ async def _build_site_specs() -> list[NetworkCheckSpec]:
                 extra_sampled = True
                 specs.append(
                     NetworkCheckSpec(
-                        name=f"{site.value}镜像",
+                        name=f"{site.value}·镜像",
                         group="站点检测",
                         url=extra_url,
                         site=site,
@@ -963,14 +963,21 @@ def _build_static_specs() -> list[NetworkCheckSpec]:
         bypass_proxy = manager.config.cf_bypass_proxy.strip()
         if bypass_proxy:
             health_url += "&proxy=" + quote_plus(bypass_proxy)
-        specs.append(NetworkCheckSpec(name="CF Bypass", group="辅助服务", url=health_url, use_proxy=False))
+        specs.append(
+            NetworkCheckSpec(
+                name="Cloudflare Bypass",
+                group="辅助服务",
+                url=health_url,
+                use_proxy=False,
+            )
+        )
     else:
         note = "未配置，仅遇到 Cloudflare 挑战页时需要"
         if manager.config.cf_bypass_trawl_url.strip():
-            note = "无需单独配置：已配外部CF服务，检测到 Cloudflare 挑战页时自动启动适配层"
+            note = "无需单独配置：已配外部CF服务，检测到Cloudflare挑战页时自动启动适配层"
         specs.append(
             NetworkCheckSpec(
-                name="CF Bypass",
+                name="Cloudflare Bypass",
                 group="辅助服务",
                 url="",
                 note=note,
@@ -1182,7 +1189,7 @@ async def run_network_check_item(
             status, message = _classify_thejavdb_api(int(response.status_code), text)
         elif spec.validator == "missav_api":
             status, message = _classify_missav_api(int(response.status_code), text)
-        elif spec.name == "CF Bypass" and status == NetworkCheckStatus.OK:
+        elif spec.name == "Cloudflare Bypass" and status == NetworkCheckStatus.OK:
             message = "服务可用"
         if status == NetworkCheckStatus.OK and fallback_bypass_mode:
             mode_text = f"（{fallback_bypass_mode}）"
@@ -1192,7 +1199,7 @@ async def run_network_check_item(
             status == NetworkCheckStatus.OK
             and spec.site is not None
             and not spec.validator
-            and spec.name != "CF Bypass"
+            and spec.name != "Cloudflare Bypass"
             # 镜像抽样项只看连通性（议题 #77）：镜像域名未必复刻主站全部接口
             # （实测 xcity.jp 无 /api/search），探测会按主站 URL 模式产生误报。
             and not spec.name.endswith("镜像")

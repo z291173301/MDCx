@@ -45,6 +45,13 @@
 ### 调整
 
 - **命名模板 UI 示例修正为标准 Jinja2**（`mdcx/views/MDCx.ui`、`MDCx.py`）：`{number}{%if studio%}` → `{{ number }}{% if studio %}`。单花括号与双花括号不可互换（`{number}` 原样输出、`{%ifstudio%}` 报 `unknown tag`，已实测证伪），旧单花括号模板仅在配置迁移时转写，运行时只认标准写法
+- **网络检测报告文案调整**（`mdcx/core/network_check.py`、`tests/test_network_check.py`）：
+  - 刮削探测重试耗尽的终局说明：`站点可达但刮削探测2次均未通过（30s/45s），最后一次: …` → `站点探测2次30s/45s均超时，站点可达但搜索页请求失败: …`（末次原因直接内联，不再嵌套「最后一次:」前缀）
+  - 根因分组「刮削探测多次超时」：去掉行首 `  • ` 缩进与项目符号，`×N` 与数字/括号内多余空格一并去掉 —— `刮削探测多次超时×1：站点能连上但刮削响应过慢，已按30s/45s自动重试，多为代理节点质量或站点负载，可换节点/稍后再测`
+  - 根因分组判定条件放宽到 `站点探测`/`刮削探测` + `均超时`/`均未通过`，新文案（含「判定站点无效」终局说明）不再掉进「其他异常」
+  - 辅助服务检测项名 `CF Bypass` → `Cloudflare Bypass`（`spec.name` 三处引用同步），说明文案 `检测到 Cloudflare 挑战页时自动启动适配层` → `检测到Cloudflare挑战页时自动启动适配层`
+  - JavDB / JavBus Cookie 失效提示：`站点可访问，但JavDB Cookie可能无效` / `站点可访问，但JavBus Cookie可能无效` → `访问正常，但JavDB网站Cookie可能无效` / `访问正常，但Javbus网站Cookie可能无效`
+  - 镜像抽样检测项名：`madouqu镜像` 等 8 项统一加间隔号 —— `madouqu镜像` → `madouqu·镜像`（`xcity`/`freejavbt`/`javbus`/`iqqtv`/`7mmtv`/`missav`/`javlibrary` 同改），与 `official·caribbeancom` 命名一致；`endswith("镜像")` 守卫（镜像项跳过刮削探测）不受影响
 - **年份/年评分缺失留空**：`year` 不再填 `0000`、`score` 不再补 `0.0`（`_deal_res` 把 `0`/`0.0` 归一为空，`build_naming_context` 留空，NFO 为空不写 `<year>`/`<rating>`，模板 `{% if %}` 正常省略）
 - **评分抓取增强**（`javdb`/`javdb_api`/`javlibrary`）：根因是 pretty-printed HTML 换行空白（首文本节点取空、`strip("()")` 去不掉缩进）。JavDB 新增共享 `extract_javdb_score()`（`string()` 取拼接文本，兼容中文`分`/英文 `points`/整数分/`8.5, 120人`），JavLibrary 先去空白再去括号+数字校验。回归 `tests/crawlers/test_score_parsing.py`（9 用例）
 - **评分追加来源站点后缀**：非零评分存为 `8.5(Javlibrary)` / `4.2(Javdb)` 形式以区分各站量纲（JavDB 约 5 分制 / JavLibrary 10 分制），站点取合并后 `field_sources[SCORE]`；NFO、命名模板零值判定、相似推荐统一走 `mdcx/utils.parse_score_number()` 取数字前缀，NFO `<rating>` 只写数字
