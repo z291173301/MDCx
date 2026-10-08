@@ -76,7 +76,7 @@ def _goto(win, app, page_name):
 def _donate_one_size_budget(win) -> int:
     """`_layout_donate` 的可用高度预算常数项，与 `main_window.py` 逐项对齐。
 
-    真实实现（顶锚定版）：`one_size = 窗高 − 预留行高 − gap − 链接高 − 链接间距 − 内距 − 导航底`
+    真实实现（顶锚定版）：`one_size = 窗高 − 预留行高 − gap − 链接高 − 链接间距 − 顶间距(_DONATE_TOP_GAP) − 导航底`
     （见 `main_window.py: _DONATE_QR_SIZE` 处注释）。窗高是唯一变量，故抽成本函数后
     「某档窗高能否放满 180」就是 `窗高 >= 返回值 + 180`，测试不必写死阈值（字体度量随
     fixture 的 `set_style` 桩而变；真实运行 100% 字号的门槛是 693）。
@@ -93,7 +93,7 @@ def _donate_one_size_budget(win) -> int:
         + gap
         + win._DONATE_LINK_H
         + win._DONATE_LINK_GAP
-        + win._DONATE_PAD
+        + win._DONATE_TOP_GAP
         + win._dock_nav_top_base()
         + win._DOCK_NAV_H
         + max(0, win._DOCK_STATUS_H_MIN - reserve)
@@ -1166,7 +1166,7 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     **注意 693 档放不满 180 是正常且可接受的**：本文件 win fixture 把 set_style stub
     掉，QSS 的 13px 不生效，_dock_status_text_h() 得 54（真实运行 60）；叠加
     nav_top=50（隐藏标题栏）使 nav_bottom=440，本环境默认窗高下 avail 只有 147。
-    真实运行的预算是 height − 514，故 height ≥ 694 即为 180（默认窗高 700 满足）。
+    真实运行的预算是 height − 513，故 height ≥ 693 即为 180（默认窗高 700 满足）。
     因此断言「达到上限的档位之间留白恒定」+「未达上限的档位仍左右对称」，
     而不是要求 693 也等于 180。
     """
@@ -1803,7 +1803,7 @@ def test_donate_group_is_top_anchored_and_status_text_never_clipped(win, app):
     于是最大化时状态文字压在窗底、末行「🔍 点击检查最新版」被裁（截图可见）。
 
     四条断言（阈值全部由预算反算，不写死像素）：
-      ① 块顶 ≡ 导航底 + _DONATE_PAD，且二维码/链接/文字首行三者只由块顶与**固定量**决定；
+      ① 块顶 ≡ 导航底 + _DONATE_TOP_GAP（2px，使用说明→二维码的间距），且二维码/链接/文字首行三者只由块顶与**固定量**决定；
       ② 放得满设计边长的各档窗高下，二维码与链接的几何**逐值相同**（位置与窗高无关，
          这比第十三轮「读取/刮削不动」的承诺更强）；
       ③ 文字带底边恒在窗内（末行不被裁），且实际文字高度 ≤ 预留带；
@@ -1834,7 +1834,7 @@ def test_donate_group_is_top_anchored_and_status_text_never_clipped(win, app):
         win.show()
         app.processEvents()
         nav_bottom = nav.y() + nav.height()
-        group_top = nav_bottom + win._DONATE_PAD
+        group_top = nav_bottom + win._DONATE_TOP_GAP
         # ① 块顶锚在导航底（能顶多高就多高），三者自上而下严丝合缝
         assert qr.y() == group_top, f"h={height}: 二维码顶 {qr.y()} 未锚在块顶 {group_top}"
         assert link.y() == qr.y() + qr.height() + win._DONATE_LINK_GAP, (
@@ -2021,8 +2021,8 @@ def test_donate_group_is_bottom_anchored_when_maximized(win, app):
 
     # ⑥ 还原后必须回到**顶锚**：块顶重新贴回导航底，文字带不再贴窗底
     nav_bottom = nav.y() + nav.height()
-    assert qr.y() == nav_bottom + win._DONATE_PAD, (
-        f"还原后未回到顶锚：二维码顶 {qr.y()} != 块顶 {nav_bottom + win._DONATE_PAD}"
+    assert qr.y() == nav_bottom + win._DONATE_TOP_GAP, (
+        f"还原后未回到顶锚：二维码顶 {qr.y()} != 块顶 {nav_bottom + win._DONATE_TOP_GAP}"
     )
     assert status.y() + status.height() != 700 - win._DONATE_BOTTOM_SLACK, (
         "还原后仍是底锚（文字带还贴窗底预留）"

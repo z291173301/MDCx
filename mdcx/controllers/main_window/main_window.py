@@ -3977,7 +3977,7 @@ class MyMAinWindow(QMainWindow):
     # 以下三个间距按「默认窗口 1030x700 下二维码尽量大」倒推得出（用户第 10 轮要求）。
     # 第十五轮把块改成顶锚后，预算公式改写为（真实运行：nav_top 20、_DOCK_NAV_H 376
     # → nav_bottom 396、5 行预留**真实** 85）：
-    #   one_size = 窗底 − (nav_bottom + PAD) − LINK_GAP − LINK_H − TEXT_GAP − 预留
+    #   one_size = 窗底 − (nav_bottom + _DONATE_TOP_GAP) − LINK_GAP − LINK_H − TEXT_GAP − 预留
     # 原值 TEXT_GAP 17 / LINK_GAP 6 / PAD 6 时 one_size 只有 155，二维码被卡在 155。
     # 第十三轮收到 10 / 2 / 2（预留按 lineSpacing 估成 75，gap = 10+LIFT 6 = 16，
     # 合计与本轮的 6+85 = 91 **完全相等**），第十五轮只是把「估错的 10px」从预留挪进
@@ -4001,9 +4001,16 @@ class MyMAinWindow(QMainWindow):
     # 独立于 _DONATE_PAD：后者是色块与导航/状态文字的内边距，收窄它是为了把高度
     # 全留给二维码；两码之间的间距是给用户看的分隔，要「疏」不要「紧」。
     _DONATE_ALIPAY_GAP = 22
-    # 与导航区/状态区的内边距。第十五轮起它**只**当「导航底 → 赞助块顶」的顶间距用
-    # （赞助块改为顶锚，见 _layout_donate），不再参与 gap 公式。
-    _DONATE_PAD = 0  # 赞助块顶端与导航区底边无间距（用户要求二维码上移）
+    # 与导航区/状态区的内边距。第十五轮起其只在**底锚（最大化）**路径的净高
+    # 公式（avail = qr_bottom − PAD − nav_bottom）与「[赞助作者]→状态文字」
+    # 间距下限护栏里用；顶锚档的「导航底 → 块顶」间距由 _DONATE_TOP_GAP 控制
+    #（保持最大化布局逐像素不变，非最大化块顶下移 2px，用户最新轮要求）。
+    _DONATE_PAD = 0  # 底锚档净高护栏/间距下限专用，顶锚不再用它
+    # 非最大化（顶锚）时「使用说明按钮底 → 二维码顶」的间距。
+    # 用户最新轮：使用说明与二维码图片间距 2px、二维码与 [赞助作者] 间距
+    # 仍是 2px（_DONATE_LINK_GAP 不变），即二维码下移 2px、[赞助作者]
+    # 跟着下移 2px；最大化（底锚）布局不动，故独立成常量、不改 _DONATE_PAD。
+    _DONATE_TOP_GAP = 2
     # **底锚（最大化）时**状态文字带底边离窗底预留的高度——沿用旧版议题 #102 的
     # `_DOCK_STATUS_BOTTOM_PAD = 40`。
     # 第十六轮实测（100% 字号、最大化 1040 高、读取完成后 5 行文字）：
@@ -4025,8 +4032,10 @@ class MyMAinWindow(QMainWindow):
     #   · 可用高度 < 180  → 按可用高度等比缩小（用户明确要求「还是将收款码缩小」）；
     #   · 缩小到 _DONATE_QR_MIN 以下 → 整块隐藏（40px 的码已无法辨识，叠字/糊码更糟）。
     # 高度预算（真实运行：nav_top 20、_DOCK_NAV_H 376 → nav_bottom 396、5 行预留 **85**）：
-    #   one_size = 窗底 − 块顶(nav_bottom + PAD 2) − LINK_GAP 2 − LINK_H 22 − gap 6 − 预留 85
+    #   one_size = 窗底 − 块顶(nav_bottom + _DONATE_TOP_GAP 2) − LINK_GAP 2 − LINK_H 22 − gap 6 − 预留 85
     #           = height − 396 − 117 = height − 513
+    # （块顶 = nav_bottom + _DONATE_TOP_GAP(2)；第十六轮 _DONATE_PAD 曾被改成 0，
+    #   最新轮按「使用说明→二维码 = 2px」把这 2px 还给了 _DONATE_TOP_GAP，预算回到 height − 513。）
     # 与第十三轮算出的 `height − 513` **逐值相同**（那一轮是 预留 75 + gap 16，本轮是
     # 预留 85 + gap 6 —— 估错的 10px 原样挪进间距，块的总消耗不变）。所以：
     #   · 默认窗高 700 起余 7px、≥693 二维码恒 180，且**读取前后完全相同**；
@@ -4300,7 +4309,7 @@ class MyMAinWindow(QMainWindow):
         **① 非最大化 → 顶锚**（第十五轮，用户原话「最小化时在不压缩二维码180px的高度、
         不遮盖[赞助作者]、刮削完成 7/7的字体的前提下将…整体向上移动，允许向上移动多少px
         就向上移动多少px，移动到最大允许的高度px值」）：
-            group_top = nav_bottom + _DONATE_PAD
+            group_top = nav_bottom + _DONATE_TOP_GAP
             qr_top    = group_top（支付宝码显示时微信码顺延到支付宝码下方）
             link_top  = qr_top + qr_size + _DONATE_LINK_GAP
             text_top  = link_top + _DONATE_LINK_H + gap
@@ -4323,6 +4332,8 @@ class MyMAinWindow(QMainWindow):
         两种锚法都**只用固定量**定位（`status_bottom`、`nav_bottom`、`reserve_h`、`gap`…），
         与状态文字当前几行无关，故第十三轮「读取/刮削不动」的不变量在两档都成立，且
         **非最大化一侧的几何与第十五轮逐值相同**（同一套常数、同一套公式，未改一个像素）。
+        最新轮起例外：块顶从「nav_bottom + 0」改为「nav_bottom + _DONATE_TOP_GAP(2)」，
+        即二维码/[赞助作者]整体下移 2px（用户：使用说明→二维码 2px）；最大化一侧不动。
 
         ## 不变量：定位与文字行数无关
 
@@ -4402,8 +4413,8 @@ class MyMAinWindow(QMainWindow):
             qr_deficit = max(0, self._DONATE_QR_SIZE - avail)  # 交给调用方上移导航补
         else:
             # ── 顶锚：自导航底往下摆 ────────────────────────────────────────────────
-            # 块顶：顶锚导航底，再留 _DONATE_PAD 的顶间距（能有多高就多高，见 docstring）。
-            group_top = nav_bottom + self._DONATE_PAD
+            # 块顶：顶锚导航底，再留 _DONATE_TOP_GAP 的顶间距（能有多高就多高，见 docstring）。
+            group_top = nav_bottom + self._DONATE_TOP_GAP
             # 二维码之外的全部固定占用（码下 → 窗底）：链接间距 + 链接高 + 间距 + 预留带。
             fixed_below = self._DONATE_LINK_GAP + self._DONATE_LINK_H + gap + reserve_h
             # 微信码可用高度 = 窗底 − 块顶 − 固定占用；只由固定量算出，与文字行数无关。

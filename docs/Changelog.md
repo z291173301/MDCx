@@ -15,6 +15,11 @@
 
 ### 修复
 
+- **非最大化侧栏「使用说明→二维码」间距由 0 调到 2px，「二维码→[赞助作者]」维持 2px（用户最新轮诉求）**：
+  - 诉求原文：「最小化时软件界面的二维码图片向下移动2px，[赞助作者]向下移动4px，最终使用说明与二维码图片的间距为2px，二维码图片与[赞助作者]的间距为2px，最大化时的页面布局、控件、组件、提示词等等均保持不变」。
+  - 根因/处理：顶锚路径的块顶原先是 `nav_bottom + _DONATE_PAD`（`_DONATE_PAD = 0`，紧贴「使用说明」），现新增 `_DONATE_TOP_GAP = 2`，块顶 = `nav_bottom + 2`，即二维码下移 2px、`[赞助作者]` 随链式间距（`_DONATE_LINK_GAP = 2` 不变）同步下移。最大化（底锚）路径一行未动——`_DONATE_PAD` 仍只在 `avail = qr_bottom − PAD − nav_bottom` 净高护栏与 `[赞助作者]→状态文字` 间距下限里用，底锚预算常数不变；`one_size` 预算反到 `height − 513`，与注释逐值一致，「≥693 高恒 180」的门槛恢复。
+  - 诉求中「[赞助作者] 向下移动 4px」与「二维码→[赞助作者] 间距 2px」在旧几何下无法同时成立（旧二者间距本就 2px），已向用户确认以「两处间距都 2px」为准（即 QR +2、[赞助作者] +2）。
+  - 回归：`tests/test_window_state_matrix.py` 的顶锚预算函数 `_donate_one_size_budget()`、`test_donate_group_is_top_anchored_and_status_text_never_clipped`、`test_donate_group_is_bottom_anchored_when_maximized`（还原断言）同步改用 `_DONATE_TOP_GAP`；donate 相关用例 5 过 4 红，红的是桩环境（set_style stub）下与改动前完全相同的 4 例（逐项核对过失败行与旧 HEAD 一致）。
 - **网络检测不再打印逐档重试进度行**（`mdcx/core/network_check.py`）：`_probe_crawler_capability_with_retry` 第 2 次探测前会发 `↳ 站点第N/M次刮削探测，超时上限45s`，该行看着像独立检测项（站点名重复出现、`↳` 缩进层级与结果行混淆），且 30s/45s 两档已由检测页头部「超时阶梯」说明，重复打印只是噪音。已删除该 emit，并连带移除 `_probe_crawler_capability_with_retry` / `run_network_check_item` 上已无用的 `progress` 形参。30s/45s 自动递进重试行为与终局文案（「站点无效：站点刮削探测2次30s/45s均超时」）不变
 - **刮削探测未通过时的检测行由几百字压到一行**：
   - `mdcx/core/network_check.py`：终局说明 `站点探测2次30s/45s均未通过，最后一次: …` → `探测失败：站点探测2次30s/45s均未通过: …`（结论前置、去掉嵌套的「最后一次:」前缀）
