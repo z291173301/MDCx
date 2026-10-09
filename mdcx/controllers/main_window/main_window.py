@@ -8228,7 +8228,7 @@ class MyMAinWindow(QMainWindow):
         signal_qt.show_log_text(version_info)
         if feedback or download_link:
             self.main_logs_show.emit(f"{feedback}{download_link}")
-        signal_qt.show_log_text("================================================================================")
+        signal_qt.show_log_text("============================================================================================================")
         # 议题 #73: 用户误以为启动自检在某项失败后"停止检测"。声明自检范围与
         # 全量检测入口, 避免混淆（全量检测在「检测网络」页, 单站失败互相独立）。
         signal_qt.show_log_text(
