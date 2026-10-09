@@ -1471,10 +1471,10 @@ class MyMAinWindow(QMainWindow):
     }
 
     # ── 演员页窄态（最小化/还原）右移对齐 ──
-    # 锚点（自身保持不动）：checkBox_actor_info_photo「补全完成后自动补全演员头像」。
-    # 它是 groupBox_64 的绝对定位右缘锚定项，窄态 abs = 480 + extra，于是各行的
-    # need 全都随 extra 变化；实际 x 一律运行时 mapTo 实测，不写死。
-    _ACTOR_NARROW_ANCHOR = "checkBox_actor_info_photo"
+    # 锚点（自身保持不动）：checkBox_actor_photo_ne_face「使用Graphis头像」。
+    # 它是 A2 列的对齐基准，窄态下各缺信息/缺头像行向左移动到与 A2 严格上下对齐。
+    # 最大化时（_actor_page_stretch_extra() > 0）窄态逻辑不生效，全部保持不变。
+    _ACTOR_NARROW_ANCHOR = "checkBox_actor_photo_ne_face"
     # 走「目标收窄 + 同行间距撑开」让位的行（需求①②④）：
     # (行布局, 目标控件, 容器, 需钉宽的项[(控件, 钉宽)])
     # 前两行的容器宽恒为设计值 511（layoutWidget_15 每遍被 _sync_actor_info_columns
