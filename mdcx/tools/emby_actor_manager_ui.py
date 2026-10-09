@@ -1714,7 +1714,23 @@ class EmbyActorSettingsDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Emby/Jellyfin 演员设置")
-        self.setMinimumWidth(420)
+        self.setMinimumSize(480, 720)
+        self.resize(480, 720)
+        # 打开时默认在屏幕可用区居中；小屏时钳制，避免标题栏移出可视区。
+        _w, _h = 480, 720
+        try:
+            screen = QGuiApplication.primaryScreen()
+            avail = screen.availableGeometry() if screen is not None else None
+            if avail is not None and avail.isValid():
+                _w = min(_w, avail.width())
+                _h = min(_h, avail.height())
+                self.resize(_w, _h)
+                self.move(
+                    avail.x() + max(0, (avail.width() - _w) // 2),
+                    avail.y() + max(0, (avail.height() - _h) // 2),
+                )
+        except Exception:
+            pass
         layout = QVBoxLayout(self)
 
         filter_group = QGroupBox("Emby/Jellyfin 演员获取过滤")
@@ -1968,13 +1984,16 @@ class ActorSourceTestDialog(QDialog):
         panel = _SourceQuickSettingsPanel(self, show_folder_row=False, fixed_width=None)
         panel.setMinimumWidth(200)
         self._panel = panel
+        # 面板自身尺寸变化后同步底部盒：面板 Resize 事件里读到的已是布局后的最终宽度，
+        # 专治最大化→还原等多帧 resize 中对话框 resizeEvent 读到旧值、盒宽卡死的问题。
+        panel.installEventFilter(self)
         main_row.addWidget(panel, stretch=1)
 
         root.addLayout(main_row)
         self._main_row = main_row
 
         # 底部标题行：左“各数据源结果”，右“本地头像目录”+输入框+浏览。
-        # 输入框盒宽度随上面板同步（resizeEvent 里对齐），冒号对准“获取信息”按钮右边界。
+        # 输入框盒宽度随上面板同步、右对齐到对话框右边缘，冒号对准“获取信息”按钮右边界。
         bottom_header = QHBoxLayout()
         bottom_header.addWidget(QLabel("各数据源结果:"))
         bottom_header.addStretch(1)
@@ -2003,6 +2022,9 @@ class ActorSourceTestDialog(QDialog):
         self.folder_edit.textChanged.connect(self._save_folder)
         self._avatar_pixmap = None
         self._thread = None
+        # 布局请求在事件分发中同步执行完布局，延迟一拍读到的即最终几何，
+        # 兜底多帧 resize（最大化→还原）中各同步读取拿到的旧值。
+        self.installEventFilter(self)
 
     def _browse_folder(self):
         path = QFileDialog.getExistingDirectory(self, "选择本地头像目录", self.folder_edit.text())
@@ -2095,18 +2117,23 @@ class ActorSourceTestDialog(QDialog):
         )
 
     def _fit_avatar_frame(self):
-        """头像预览框左右扩展到左列整个可显示宽度，宽高比保持 190:310；高度不够时按高度回缩。"""
+        """头像预览框左右扩展到左列整个可显示宽度，宽高比保持 190:310；高度不够时按高度回缩。
+        宽度同时钳制在 1:2:1 公平份额内：头像固定尺寸会反过来撑住列宽，读当前列宽做目标
+        在多帧 resize（最大化→还原）后会卡在偏大的自洽不动点；钳到公平份额后单调收敛。"""
         try:
             row = getattr(self, "_main_row", None)
             col = getattr(self, "_left_col", None)
             if row is None or col is None:
                 return
-            item = row.itemAt(0)
-            if item is None:
+            items = [row.itemAt(i) for i in range(3)]
+            if any(it is None for it in items):
                 return
-            geo = item.geometry()
-            avail_w = geo.width()
-            avail_h = geo.height() - self.btn_image.height() - col.spacing() * 3 - col.contentsMargins().top() - col.contentsMargins().bottom()
+            g0, g1, g2 = (it.geometry() for it in items)
+            # 用三列实际几何反推公平份额，不依赖边距/间距常量
+            gaps = (g1.x() - g0.right() - 1) + (g2.x() - g1.right() - 1)
+            fair = (g2.right() - g0.x() + 1 - gaps) / 4.0
+            avail_w = min(g0.width(), int(fair))
+            avail_h = g0.height() - self.btn_image.height() - col.spacing() * 3 - col.contentsMargins().top() - col.contentsMargins().bottom()
             if avail_w < 10 or avail_h < 10:
                 return
             ratio = 310 / 190
@@ -2119,13 +2146,50 @@ class ActorSourceTestDialog(QDialog):
         except Exception:
             pass
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
+    def _sync_folder_box(self):
+        """底部输入框盒宽度随上面板同步、右对齐，冒号对准“获取信息”按钮右边界。"""
         try:
             panel = getattr(self, "_panel", None)
             box = getattr(self, "_folder_box", None)
-            if panel is not None and box is not None and panel.width() > 0 and box.width() != panel.width():
+            if panel is None or box is None or panel.width() <= 0:
+                return
+            if box.width() != panel.width():
                 box.setFixedWidth(panel.width())
+        except Exception:
+            pass
+
+    def eventFilter(self, a0, a1):
+        try:
+            if a1 is not None:
+                t = a1.type()
+                if t == QEvent.Type.Resize and a0 is getattr(self, "_panel", None):
+                    self._sync_folder_box()
+                elif t == QEvent.Type.LayoutRequest and a0 is self:
+                    QTimer.singleShot(0, self._after_layout)
+        except Exception:
+            pass
+        return super().eventFilter(a0, a1)
+
+    def _after_layout(self):
+        """布局执行完后按最终几何重算：盒宽跟随面板、头像框适配左列、头像重绘。
+        各子函数幂等且有同值保护，不会引起新的布局请求，自收敛。"""
+        try:
+            self._sync_folder_box()
+        except Exception:
+            pass
+        try:
+            self._fit_avatar_frame()
+        except Exception:
+            pass
+        try:
+            self._rescale_avatar()
+        except Exception:
+            pass
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        try:
+            self._sync_folder_box()
         except Exception:
             pass
         try:
