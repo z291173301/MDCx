@@ -580,10 +580,12 @@ def Init_Singal(self: "MyMAinWindow"):
     # endregion
 
     # region 鼠标点击
-    self.Ui.label_show_version.mousePressEvent = self.label_version_clicked
-    self.Ui.label_local_number.mousePressEvent = self.label_local_number_clicked
-
     def n(a): ...  # mousePressEvent 的返回值必须是 None, 用这个包装一下
+
+    self.Ui.label_show_version.mousePressEvent = lambda ev: n(
+        webbrowser.open(GITHUB_RELEASES_URL)
+    )
+    self.Ui.label_local_number.mousePressEvent = self.label_local_number_clicked
 
     self.Ui.label_download_actor_zip.mousePressEvent = lambda ev: n(
         webbrowser.open("https://github.com/moyy996/AVDC/releases/tag/%E5%A4%B4%E5%83%8F%E5%8C%85-2")

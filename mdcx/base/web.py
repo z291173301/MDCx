@@ -1200,7 +1200,6 @@ def _fetch_remote_version_from_api(timeout: float, proxies: list[str], headers: 
             last_error = f"未找到 MDCx 版本发布（最近发布: {', '.join(tags)}）"
         except Exception:
             last_error = "响应解析异常"
-        return None, last_error
 
     return None, last_error
 
