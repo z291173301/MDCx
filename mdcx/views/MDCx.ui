@@ -27370,7 +27370,7 @@ p, li { white-space: pre-wrap; }
             </rect>
           </property>
           <property name="text">
-            <string>编辑 NFO</string>
+            <string>编辑NFO</string>
           </property>
         </widget>
         <widget class="QLabel" name="label_save_tips">

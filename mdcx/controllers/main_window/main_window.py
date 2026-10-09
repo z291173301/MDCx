@@ -953,6 +953,12 @@ class MyMAinWindow(QMainWindow):
     # 间距在最大化/还原两态完全一致（最大化不再随树拉伸而越拉越远）。
     _MAIN_TREE_CLEAR_DX = 160
 
+    # 软件界面「编辑 NFO/打开文件夹/播放/右键菜单」四按钮组的设计态右缘
+    # （.ui：最右 pushButton_right_menu x=547 + 宽 40 = 587）。最大化/还原两态都把
+    # 组右缘钉到缩略图框右边界；本常量是极窄窗（缩略图右缘退到 587 左侧）时的下限，
+    # 保证按钮组只右移不左移，绝不压住「标题：」值行（设计态右界 417）。
+    _MAIN_ACTION_ROW_RIGHT = 587
+
     # 高级页「界面外观」行的 layoutWidget5 设计宽度（MDCx.ui 里
     # QRect(0,-10,550,51)）。最大化时该容器要临时加宽以对齐，见
     # _sync_advanced_page_align 的设计态对照值（.ui 里 layoutWidget5 = 550x51）；
@@ -4913,27 +4919,24 @@ class MyMAinWindow(QMainWindow):
             int(222 * cover_scale), cover_bottom, int(201 * cover_scale), int(40 * cover_scale)
         )
         thumb_right = int(580 * cover_scale)
-        # 软件界面最大化时：编辑 NFO/打开文件夹/播放/右键菜单四个按钮整体右移到
-        # 缩略图右边界（右缘对齐 thumb_right，组内相对位置与间距不变）；显示封面
-        # 勾选框右缘同样对齐到缩略图右边界。非最大化时恢复设计坐标，保持原布局不变。
+        # 编辑 NFO/打开文件夹/播放/右键菜单四个按钮：右缘恒与缩略图框右边界严格上下
+        # 对齐（组内相对位置与间距不变，组宽 160 = 4×40），最大化/还原两态同一条规则，
+        # 缩略图框自身位置不动。对齐基准取缩略图实际右缘（x+w）而非 int(580*scale)，
+        # 避免两处 int() 分开取整出现 1px 偏差。
+        # 极窄窗（缩略图右缘退到设计右缘 587 左侧）时夹回设计位：只右移不左移。
+        _align_right = max(ui.label_thumb.x() + ui.label_thumb.width(), self._MAIN_ACTION_ROW_RIGHT)
+        _rx = _align_right - ui.pushButton_right_menu.width()
+        _px = _rx - ui.pushButton_play.width()
+        _fx = _px - ui.pushButton_open_folder.width()
+        _nx = _fx - ui.pushButton_open_nfo.width()
+        ui.pushButton_right_menu.move(_rx, 110)
+        ui.pushButton_play.move(_px, 110)
+        ui.pushButton_open_folder.move(_fx, 110)
+        ui.pushButton_open_nfo.move(_nx, 110)
+        # 显示封面勾选框右缘同样对齐到缩略图右边界：最大化走对齐，还原/最小化沿用设计坐标 490
         if _maxed:
-            # 按缩略图实际右缘对齐（x+w），避免 int(252*s)+int(328*s) 与 int(580*s)
-            # 分开取整时的 1px 偏差
-            _align_right = ui.label_thumb.x() + ui.label_thumb.width()
-            _rx = _align_right - ui.pushButton_right_menu.width()
-            _px = _rx - ui.pushButton_play.width()
-            _fx = _px - ui.pushButton_open_folder.width()
-            _nx = _fx - ui.pushButton_open_nfo.width()
-            ui.pushButton_right_menu.move(_rx, 110)
-            ui.pushButton_play.move(_px, 110)
-            ui.pushButton_open_folder.move(_fx, 110)
-            ui.pushButton_open_nfo.move(_nx, 110)
             ui.checkBox_cover.move(_align_right - ui.checkBox_cover.width(), cover_bottom)
         else:
-            ui.pushButton_open_nfo.move(427, 110)
-            ui.pushButton_open_folder.move(467, 110)
-            ui.pushButton_play.move(507, 110)
-            ui.pushButton_right_menu.move(547, 110)
             ui.checkBox_cover.move(490, cover_bottom)
         # 信息区各控件：左列标签锚定设计 x=30（与「番号/标题/封面」对齐），y 统一下移
         # info_delta；下划线/值列按 cover_scale 等比例加长（议题 #141）：
