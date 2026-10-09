@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.2.9 (2026-10-18)
+
+### 修复
+
+- **最小化态工具页「全量更新并入」整行右移，左缘与封面补图组「覆盖已有图片」严格上下对齐（用户最新轮诉求）**（`mdcx/controllers/main_window/main_window.py`，回归 `tests/test_actor_db_sync_row_align.py`）：
+  - 诉求原文：「软件工具最小化时全量更新并入按钮向右移动到与覆盖已有图片按钮严格上下对齐的位置，右侧的起始行数、单次限制及提示词同步向右移动，覆盖已有图片按钮位置保持不变，最大化时页面布局、组件、控件、提示等等保持不变」（用户截图里「全量更新并入」被组框左缘裁成「更新并入」，红框标注「向右移动」）。
+  - 根因：`_sync_actor_db_tool_layout` 的最小化分支把该行**右缘钉到 552**（封面补图番号输入框右缘 `136+416`）再反推左缘，而六个控件的设计宽合计 `142+56+64+56+72+211 = 601`，故 `start_x = 552 − 601 = −49` —— 首枚复选框被推到组框左缘**之外**（组内 x 为负、绝对 x 为 70−40=… 实测组框 x=30 故绝对 x=−19），正是截图里的裁字。旧代码对「六控件零间隙顺排」的自洽性有假设，却从未校验 `总宽 ≤ 目标右缘 − 目标左缘`。
+  - 改法：新增类常量 `_ACTOR_DB_SYNC_ROW_NAMES`（六个控件的设计横排顺序）与实例方法 `_actor_db_sync_row_left(ui, box)`——不做任何算术反推，直接**实测**「覆盖已有图片」的组内局部 x 作为整行左缘；最小化分支的 `start_x = target_right − total_width` 换成 `current_x = self._actor_db_sync_row_left(ui, box)`，其余（`sync_y = 358`、零间隙顺排、高 28、末尾 `return`）一字未动。行内相对位置、y、高、右端提示词宽度全部与改动前一致，只是整体右移 89px：组内 x 由 `-49/93/149/213/269/341` 变为 `40/182/238/302/358/430`，行右缘 552 → 641，落在组内缘以内不溢出。
+  - **为什么能直接实测**：两枚复选框分属兄弟 groupBox，跨框 `mapTo` 是未定义行为，故经共同祖先（`scrollArea_10` 内容区 `scrollAreaWidgetContents_gongju`）中转——`overwrite.mapTo(host, QPoint(0,0)).x() − box.mapTo(host, QPoint(0,0)).x()`。`_sync_page_layouts` 里本方法早于 `_sync_cover_backfill_option_row` 执行，读到的是上一遍写回的几何，但该复选框的 x 恒为设计值 40（`_sync_cover_backfill_option_row` 只按 `extra` 平移另两枚，首框永远钉 40），跨遍稳定。结构不符预期（缺框/缺控件/父子关系变化）时回退设计值 40，即 `.ui` 设计几何。
+  - 「覆盖已有图片」位置不变：本改动完全没碰 `_COVER_BACKFILL_OPTION_DESIGN` 与 `_sync_cover_backfill_option_row`，该框仍恒在组内 x=40（宽 161 高 20 未动），另两枚仍按 `220+half` / `410+extra` 跟随。
+  - 最大化态一行未动：`_sync_actor_db_tool_layout` 的最大化分支不经过本方法，仍是 checkbox/label/spin 保持设计几何 `40/186/246/314/374`、提示词动态贴在末位 spin +10 处且宽 261（右缘随 `extra` 伸展）；实测两态全绿、与改动前逐像素一致。`.ui` / `MDCx.py` 未改（设计几何本就是 40 起，且 `test_mdcx_py_in_sync_with_ui` 钉死二者同步）。
+  - 回归：新增 `tests/test_actor_db_sync_row_align.py`（9 项通过）——① 窗宽 760/900/1080/1400/1920 下首枚绝对 x 与「覆盖已有图片」绝对 x **完全相等**（经共同祖先 `mapTo` 换算），整行宽度取设计值、零间隙相接、右缘 641、y/h 统一 358/28、左缘不再为负；② `起始行数`/`单次限制`/提示词相对首枚的偏移量恒为设计宽累加，整行不越组框右缘；③ 「覆盖已有图片」仍钉 40、尺寸不变，另两枚仍按 `half`/`extra` 拉开；④ 最大化态前五项仍为 `40/186/246/314/374`、提示词仍 `spin+10` 宽 261，还原回 1080 宽无残留漂移；⑤ 1920→1080 往返几何逐像素幂等。
+  - 既有套件：`tests/test_cover_backfill_option_row.py`、`test_actor_db_button_consistency.py`、`test_ui_geometry.py`、`test_definition_group_spacing.py`、`test_tool_page_right_align.py`、`test_main_action_row_align.py`、`test_actor_db_hint_height.py`、`test_symlink_button_width.py`、`test_cover_info_maximize.py`、`test_tool_handlers.py` 全绿。⚠️ 遗留未动（改动前既有、与本次无关）：`tests/test_ui_structure.py::test_mdcx_py_in_sync_with_ui` 红（`MDCx.py` 与 `.ui` 重新编译结果在长 `translate(...)` 上的 ruff 换行差异）；`tests/test_window_state_matrix.py` 4 红（3 例 donate 顶/底锚 + `_adaptive_window_sizes` 默认窗宽 1030x700 vs 本机实测 1080x720）——已用临时插件把 `_actor_db_sync_row_left` 还原为 −49 复跑，失败集合一致，确认与本次改动无关。
+
+### 调整
+
+- **版本号**：`2.2.8` → `2.2.9`、`LOCAL_VERSION` `20261008` → `20261018`（`mdcx/consts.py`、`pyproject.toml`、`uv.lock` 根包 `mdcx`、`docs/Changelog.md` 首个版本段；五处同步点由 `scripts/bump.py --check` 与 `tests/test_version_consistency.py` 钉死）
+
 ## v2.2.8 (2026-10-08)
 
 ### 新增
@@ -15,15 +33,6 @@
 
 ### 修复
 
-- **最小化态工具页「全量更新并入」整行右移，左缘与封面补图组「覆盖已有图片」严格上下对齐（用户最新轮诉求）**（`mdcx/controllers/main_window/main_window.py`，回归 `tests/test_actor_db_sync_row_align.py`）：
-  - 诉求原文：「软件工具最小化时全量更新并入按钮向右移动到与覆盖已有图片按钮严格上下对齐的位置，右侧的起始行数、单次限制及提示词同步向右移动，覆盖已有图片按钮位置保持不变，最大化时页面布局、组件、控件、提示等等保持不变」（用户截图里「全量更新并入」被组框左缘裁成「更新并入」，红框标注「向右移动」）。
-  - 根因：`_sync_actor_db_tool_layout` 的最小化分支把该行**右缘钉到 552**（封面补图番号输入框右缘 `136+416`）再反推左缘，而六个控件的设计宽合计 `142+56+64+56+72+211 = 601`，故 `start_x = 552 − 601 = −49` —— 首枚复选框被推到组框左缘**之外**（组内 x 为负、绝对 x 为 70−40=… 实测组框 x=30 故绝对 x=−19），正是截图里的裁字。旧代码对「六控件零间隙顺排」的自洽性有假设，却从未校验 `总宽 ≤ 目标右缘 − 目标左缘`。
-  - 改法：新增类常量 `_ACTOR_DB_SYNC_ROW_NAMES`（六个控件的设计横排顺序）与实例方法 `_actor_db_sync_row_left(ui, box)`——不做任何算术反推，直接**实测**「覆盖已有图片」的组内局部 x 作为整行左缘；最小化分支的 `start_x = target_right − total_width` 换成 `current_x = self._actor_db_sync_row_left(ui, box)`，其余（`sync_y = 358`、零间隙顺排、高 28、末尾 `return`）一字未动。行内相对位置、y、高、右端提示词宽度全部与改动前一致，只是整体右移 89px：组内 x 由 `-49/93/149/213/269/341` 变为 `40/182/238/302/358/430`，行右缘 552 → 641，落在组内缘以内不溢出。
-  - **为什么能直接实测**：两枚复选框分属兄弟 groupBox，跨框 `mapTo` 是未定义行为，故经共同祖先（`scrollArea_10` 内容区 `scrollAreaWidgetContents_gongju`）中转——`overwrite.mapTo(host, QPoint(0,0)).x() − box.mapTo(host, QPoint(0,0)).x()`。`_sync_page_layouts` 里本方法早于 `_sync_cover_backfill_option_row` 执行，读到的是上一遍写回的几何，但该复选框的 x 恒为设计值 40（`_sync_cover_backfill_option_row` 只按 `extra` 平移另两枚，首框永远钉 40），跨遍稳定。结构不符预期（缺框/缺控件/父子关系变化）时回退设计值 40，即 `.ui` 设计几何。
-  - 「覆盖已有图片」位置不变：本改动完全没碰 `_COVER_BACKFILL_OPTION_DESIGN` 与 `_sync_cover_backfill_option_row`，该框仍恒在组内 x=40（宽 161 高 20 未动），另两枚仍按 `220+half` / `410+extra` 跟随。
-  - 最大化态一行未动：`_sync_actor_db_tool_layout` 的最大化分支不经过本方法，仍是 checkbox/label/spin 保持设计几何 `40/186/246/314/374`、提示词动态贴在末位 spin +10 处且宽 261（右缘随 `extra` 伸展）；实测两态全绿、与改动前逐像素一致。`.ui` / `MDCx.py` 未改（设计几何本就是 40 起，且 `test_mdcx_py_in_sync_with_ui` 钉死二者同步）。
-  - 回归：新增 `tests/test_actor_db_sync_row_align.py`（9 项通过）——① 窗宽 760/900/1080/1400/1920 下首枚绝对 x 与「覆盖已有图片」绝对 x **完全相等**（经共同祖先 `mapTo` 换算），整行宽度取设计值、零间隙相接、右缘 641、y/h 统一 358/28、左缘不再为负；② `起始行数`/`单次限制`/提示词相对首枚的偏移量恒为设计宽累加，整行不越组框右缘；③ 「覆盖已有图片」仍钉 40、尺寸不变，另两枚仍按 `half`/`extra` 拉开；④ 最大化态前五项仍为 `40/186/246/314/374`、提示词仍 `spin+10` 宽 261，还原回 1080 宽无残留漂移；⑤ 1920→1080 往返几何逐像素幂等。
-  - 既有套件：`tests/test_cover_backfill_option_row.py`、`test_actor_db_button_consistency.py`、`test_ui_geometry.py`、`test_definition_group_spacing.py`、`test_tool_page_right_align.py`、`test_main_action_row_align.py`、`test_actor_db_hint_height.py`、`test_symlink_button_width.py`、`test_cover_info_maximize.py`、`test_tool_handlers.py` 全绿。⚠️ 遗留未动（改动前既有、与本次无关）：`tests/test_ui_structure.py::test_mdcx_py_in_sync_with_ui` 红（`MDCx.py` 与 `.ui` 重新编译结果在长 `translate(...)` 上的 ruff 换行差异）；`tests/test_window_state_matrix.py` 4 红（3 例 donate 顶/底锚 + `_adaptive_window_sizes` 默认窗宽 1030x700 vs 本机实测 1080x720）——已用临时插件把 `_actor_db_sync_row_left` 还原为 −49 复跑，失败集合一致，确认与本次改动无关。
 - **检测网络报告内的分隔线改为跟随面板可视宽自适应，与面板最上/最下两条横幅永远同长**（`mdcx/core/network_check.py`、`mdcx/controllers/main_window/handlers.py`、`mdcx/controllers/main_window/main_window.py`，回归 `tests/test_network_check.py`）：
   - 诉求：用户贴出的报告里，开头「-」虚线与结尾「=」线两条长度对不上（截图实测 109 vs 105），要求两条一样长。经核对，报告内 4 条分隔线（`基础环境` 表格上下两条 `=`、汇总区开头 `-`、结尾 `=`）此前全是硬编码 `"-" * 101` / `"=" * 101`，而面板最上/最下那两条横幅走的是另一套自适应逻辑（`MyMAinWindow._net_separator_chars()` 按文本区可视宽 ÷ 等宽字宽算，只量一次并缓存），同一屏里两套宽度各算各的，必然对不齐。
   - 改法：`handlers.py` 把原先内嵌在 `show_netstatus` 里的 `max(int(w or 0) - 8, 8)` 收敛函数提取为公开的 `net_separator_width()`（**公式逐字不变**，`show_netstatus` 行为完全不变）；`network_check.py` 新增 `DEFAULT_SEPARATOR_WIDTH = 88` 兜底常量与 `_separator(char, width)`，`_format_header()` / `format_summary()` 新增可选形参 `separator_width`，`run_network_check()` 透传该形参，四条分隔线统一走 `_separator`；`main_window.py` 新增 `_measure_net_report_sep_chars()`（在**主线程**点按钮时量一次并存进 `_net_report_sep_chars`）与只读的 `_net_report_separator_width()`，两个入口（`pushButton_check_net_clicked` / `pushButton_net_retry_clicked`）各自在线程启动前调用一次，`network_check()` / `_run_net_retry()` 把该整数传给 `run_network_check`。
