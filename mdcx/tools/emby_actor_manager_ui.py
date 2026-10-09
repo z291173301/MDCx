@@ -1625,7 +1625,7 @@ IMAGE_SOURCE_NAMES = {
     "local": "本地头像保存目录",
 }
 INFO_SOURCE_NAMES = {
-    "local": "本地演员姓名数据",
+    "local": "本地演员名数据库",
     "wiki": "维基百科中文网站",
     "minnano": "Minnano-av.com",
     "database": "本地已保存数据库",
