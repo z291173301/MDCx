@@ -1652,7 +1652,7 @@ IMAGE_SOURCE_NAMES = {
     "local": "本地头像保存目录",
 }
 INFO_SOURCE_NAMES = {
-    "local": "本地演员名数据库",
+    "local": "本地演员名数据表",
     "wiki": "维基百科中文网站",
     "minnano": "Minnano-av.com",
     "database": "本地已保存数据库",
@@ -1763,10 +1763,9 @@ class EmbyActorSettingsDialog(QDialog):
         super().__init__(None)
         self.setWindowTitle("Emby/Jellyfin 演员设置")
         self.setWindowFlags(
-            self.windowFlags()
-            | Qt.WindowType.Window
-            | Qt.WindowType.WindowMinimizeButtonHint
-            | Qt.WindowType.WindowMaximizeButtonHint
+            (self.windowFlags()
+             | Qt.WindowType.Window)
+            & ~(Qt.WindowType.WindowMaximizeButtonHint | Qt.WindowType.WindowMinimizeButtonHint)
         )
         # 关闭时由 Qt 销毁 C++ 对象，管理器侧的 destroyed 信号随之清空引用。
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
@@ -1940,7 +1939,7 @@ async def _actor_source_test_execute(
     }
     _INFO_PROGRESS = {
         "minnano": "正在从Minnano-av.com获取信息",
-        "local": "正在从本地演员名数据库获取信息",
+        "local": "正在从本地演员名数据表获取信息",
         "wiki": "正在从维基百科中文网站获取信息",
         "database": "正在从本地已保存数据库获取信息",
     }
@@ -1952,8 +1951,8 @@ async def _actor_source_test_execute(
         "graphis": "Graphis网站头像",
     }
     _INFO_RESULT_NAMES = {
-        "minnano": "Minnano-av信息",
-        "local": "本地演员名数据库",
+        "minnano": "Minnano-av.com",
+        "local": "本地演员名数据表",
         "wiki": "维基百科中文网站",
         "database": "本地已保存数据库",
     }
