@@ -1648,7 +1648,7 @@ class EmbyActorManagerDialog(QDialog):
 IMAGE_SOURCE_NAMES = {
     "gfriends": "Gfriends网络头像",
     "graphis": "Graphis头像/背景",
-    "minnano": "Minnano-av头像",
+    "minnano": "Minnano-av.com",
     "local": "本地头像保存目录",
 }
 INFO_SOURCE_NAMES = {
@@ -1947,7 +1947,7 @@ async def _actor_source_test_execute(
     # 底部结果框展示名（用户指定文案）。
     _IMAGE_RESULT_NAMES = {
         "local": "本地头像目录缓存",
-        "minnano": "Minnano-av头像",
+        "minnano": "Minnano-av.com",
         "gfriends": "Gfriends网络头像",
         "graphis": "Graphis网站头像",
     }
