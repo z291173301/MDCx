@@ -1569,7 +1569,7 @@
                   <x>0</x>
                   <y>0</y>
                   <width>860</width>
-                  <height>2225</height>
+                  <height>2187</height>
                 </rect>
               </property>
               <property name="autoFillBackground">
@@ -1715,7 +1715,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>749</y>
+                    <y>733</y>
                     <width>701</width>
                     <height>141</height>
                   </rect>
@@ -1766,7 +1766,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1582</y>
+                    <y>1566</y>
                     <width>701</width>
                     <height>241</height>
                   </rect>
@@ -1942,7 +1942,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1391</y>
+                    <y>1375</y>
                     <width>701</width>
                     <height>171</height>
                   </rect>
@@ -2021,7 +2021,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1130</y>
+                    <y>1114</y>
                     <width>701</width>
                     <height>241</height>
                   </rect>
@@ -2741,7 +2741,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>910</y>
+                    <y>894</y>
                     <width>701</width>
                     <height>200</height>
                   </rect>
@@ -2905,7 +2905,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>30</x>
-                      <y>1865</y>
+                      <y>1827</y>
                       <width>701</width>
                       <height>340</height>
                     </rect>
