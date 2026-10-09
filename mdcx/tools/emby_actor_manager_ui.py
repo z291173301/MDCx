@@ -30,6 +30,7 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     QSplitter,
     QStatusBar,
     QTableWidget,
@@ -920,7 +921,7 @@ class EmbyActorManagerDialog(QDialog):
         reply = QMessageBox.question(
             self,
             "确认清空缓存",
-            "将删除已下载的演员头像缓存（下次获取时会重新下载）。\n是否继续？",
+            "将删除已下载的演员头像缓存，下次获取时会重新下载\n是否继续？",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -1637,9 +1638,10 @@ class _SourceQuickSettingsPanel(QGroupBox):
     数据源测试窗口与演员详情窗口共用，避免两处重复实现。
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, show_folder_row: bool = True, fixed_width: int | None = 300):
         super().__init__("快速设置", parent)
-        self.setFixedWidth(300)
+        if fixed_width is not None:
+            self.setFixedWidth(fixed_width)
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel("头像数据源（拖拽排序）:"))
         self.image_list = QListWidget()
@@ -1652,17 +1654,18 @@ class _SourceQuickSettingsPanel(QGroupBox):
         self._fill_list(self.info_list, manager.config.actor_info_sources, INFO_SOURCE_NAMES)
         layout.addWidget(self.info_list)
         layout.addStretch()
-        layout.addWidget(QLabel("本地头像目录:"))
-        folder_row = QHBoxLayout()
-        folder_row.setContentsMargins(-460, 0, 0, 0)
-        folder_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        self.folder_edit = QLineEdit(manager.config.actor_photo_folder)
-        self.folder_edit.setMinimumWidth(260)
-        browse_btn = QPushButton("浏览")
-        browse_btn.clicked.connect(self._browse_folder)
-        folder_row.addWidget(self.folder_edit)
-        folder_row.addWidget(browse_btn)
-        layout.addLayout(folder_row)
+        if show_folder_row:
+            layout.addWidget(QLabel("本地头像目录:"))
+            folder_row = QHBoxLayout()
+            folder_row.setContentsMargins(-460, 0, 0, 0)
+            folder_row.setAlignment(Qt.AlignmentFlag.AlignLeft)
+            self.folder_edit = QLineEdit(manager.config.actor_photo_folder)
+            self.folder_edit.setMinimumWidth(260)
+            browse_btn = QPushButton("浏览")
+            browse_btn.clicked.connect(self._browse_folder)
+            folder_row.addWidget(self.folder_edit)
+            folder_row.addWidget(browse_btn)
+            layout.addLayout(folder_row)
 
         img_model = self.image_list.model()
         if img_model:
@@ -1670,7 +1673,8 @@ class _SourceQuickSettingsPanel(QGroupBox):
         info_model = self.info_list.model()
         if info_model:
             info_model.rowsMoved.connect(self._save)
-        self.folder_edit.textChanged.connect(self._save)
+        if getattr(self, "folder_edit", None) is not None:
+            self.folder_edit.textChanged.connect(self._save)
 
     @staticmethod
     def _fill_list(list_widget: QListWidget, sources: list[str], names: dict[str, str]):
@@ -1681,9 +1685,12 @@ class _SourceQuickSettingsPanel(QGroupBox):
             list_widget.addItem(item)
 
     def _browse_folder(self):
-        path = QFileDialog.getExistingDirectory(self, "选择本地头像目录", self.folder_edit.text())
+        folder_edit = getattr(self, "folder_edit", None)
+        if folder_edit is None:
+            return
+        path = QFileDialog.getExistingDirectory(self, "选择本地头像目录", folder_edit.text())
         if path:
-            self.folder_edit.setText(path)
+            folder_edit.setText(path)
 
     def _save(self, *args):
         cfg = manager.config.model_copy(deep=True)
@@ -1693,7 +1700,10 @@ class _SourceQuickSettingsPanel(QGroupBox):
         cfg.actor_info_sources = [
             self.info_list.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.info_list.count())
         ]
-        cfg.actor_photo_folder = self.folder_edit.text().strip()
+        folder_edit = getattr(self, "folder_edit", None)
+        cfg.actor_photo_folder = (
+            folder_edit.text().strip() if folder_edit is not None else manager.config.actor_photo_folder
+        )
         manager._replace_config(cfg)
         manager.save()
 
@@ -1915,13 +1925,14 @@ class ActorSourceTestDialog(QDialog):
         name_row.addWidget(self.btn_both)
         root.addLayout(name_row)
 
-        # 主体：左(头像) + 中(信息字段表) + 右(快速设置面板)
+        # 主体：左(头像) + 中(信息字段表) + 右(快速设置面板)，宽度 1:2:1，随窗口同步缩放
         main_row = QHBoxLayout()
 
-        # 左列：头像预览 + 获取头像
+        # 左列：头像预览 + 获取头像（预览框按列宽等比放大，见 _fit_avatar_frame）
         left_col = QVBoxLayout()
         self.avatar_label = QLabel("头像预览")
-        self.avatar_label.setFixedSize(190, 310)
+        self.avatar_label.setMinimumSize(190, 310)
+        self.avatar_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setStyleSheet("border: 1px solid #ccc; color: #888;")
         left_col.addStretch()
@@ -1930,7 +1941,8 @@ class ActorSourceTestDialog(QDialog):
         self.btn_image = QPushButton("获取头像")
         self.btn_image.setObjectName("btnPrimary")
         left_col.addWidget(self.btn_image)
-        main_row.addLayout(left_col)
+        self._left_col = left_col
+        main_row.addLayout(left_col, stretch=1)
 
         # 中列：详细信息预览（字段/值）+ 获取信息
         info_col = QVBoxLayout()
@@ -1949,16 +1961,37 @@ class ActorSourceTestDialog(QDialog):
         self.btn_info = QPushButton("获取信息")
         self.btn_info.setObjectName("btnPrimary")
         info_col.addWidget(self.btn_info)
-        main_row.addLayout(info_col, stretch=1)
+        main_row.addLayout(info_col, stretch=2)
 
-        # 右列：快速设置面板（改即自动保存）
-        panel = _SourceQuickSettingsPanel(self)
-        main_row.addWidget(panel)
+        # 右列：快速设置面板（改即自动保存；本地头像目录移到底部与结果同行，此处隐藏；
+        # 释放固定 300 宽，按 1:2:1 的 1 份随窗口缩放）
+        panel = _SourceQuickSettingsPanel(self, show_folder_row=False, fixed_width=None)
+        panel.setMinimumWidth(200)
+        self._panel = panel
+        main_row.addWidget(panel, stretch=1)
 
         root.addLayout(main_row)
+        self._main_row = main_row
 
-        # 底部：各数据源结果
-        root.addWidget(QLabel("各数据源结果:"))
+        # 底部标题行：左“各数据源结果”，右“本地头像目录”+输入框+浏览。
+        # 输入框盒宽度随上面板同步（resizeEvent 里对齐），冒号对准“获取信息”按钮右边界。
+        bottom_header = QHBoxLayout()
+        bottom_header.addWidget(QLabel("各数据源结果:"))
+        bottom_header.addStretch(1)
+        bottom_header.addWidget(QLabel("本地头像目录:"))
+        folder_box = QWidget()
+        folder_box.setFixedWidth(300)
+        folder_layout = QHBoxLayout(folder_box)
+        folder_layout.setContentsMargins(0, 0, 0, 0)
+        self.folder_edit = QLineEdit(manager.config.actor_photo_folder)
+        self.folder_edit.setCursorPosition(0)
+        folder_browse_btn = QPushButton("浏览")
+        folder_browse_btn.clicked.connect(self._browse_folder)
+        folder_layout.addWidget(self.folder_edit)
+        folder_layout.addWidget(folder_browse_btn)
+        bottom_header.addWidget(folder_box)
+        self._folder_box = folder_box
+        root.addLayout(bottom_header)
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
         self.result_text.setMaximumHeight(150)
@@ -1967,7 +2000,21 @@ class ActorSourceTestDialog(QDialog):
         self.btn_both.clicked.connect(lambda: self._run(True, True))
         self.btn_image.clicked.connect(lambda: self._run(True, False))
         self.btn_info.clicked.connect(lambda: self._run(False, True))
+        self.folder_edit.textChanged.connect(self._save_folder)
+        self._avatar_pixmap = None
         self._thread = None
+
+    def _browse_folder(self):
+        path = QFileDialog.getExistingDirectory(self, "选择本地头像目录", self.folder_edit.text())
+        if path:
+            self.folder_edit.setText(path)
+            self.folder_edit.setCursorPosition(0)
+
+    def _save_folder(self):
+        cfg = manager.config.model_copy(deep=True)
+        cfg.actor_photo_folder = self.folder_edit.text().strip()
+        manager._replace_config(cfg)
+        manager.save()
 
     def closeEvent(self, event):
         thread = getattr(self, "_thread", None)
@@ -2029,7 +2076,66 @@ class ActorSourceTestDialog(QDialog):
 
         pix = QPixmap(path)
         if not pix.isNull():
-            self.avatar_label.setPixmap(pix.scaled(self.avatar_label.size(), Qt.AspectRatioMode.KeepAspectRatio))
+            self._avatar_pixmap = pix
+            self._rescale_avatar()
+
+    def _rescale_avatar(self):
+        pix = getattr(self, "_avatar_pixmap", None)
+        if pix is None or pix.isNull():
+            return
+        target = self.avatar_label.size()
+        if target.width() < 2 or target.height() < 2:
+            return
+        self.avatar_label.setPixmap(
+            pix.scaled(
+                target,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+        )
+
+    def _fit_avatar_frame(self):
+        """头像预览框左右扩展到左列整个可显示宽度，宽高比保持 190:310；高度不够时按高度回缩。"""
+        try:
+            row = getattr(self, "_main_row", None)
+            col = getattr(self, "_left_col", None)
+            if row is None or col is None:
+                return
+            item = row.itemAt(0)
+            if item is None:
+                return
+            geo = item.geometry()
+            avail_w = geo.width()
+            avail_h = geo.height() - self.btn_image.height() - col.spacing() * 3 - col.contentsMargins().top() - col.contentsMargins().bottom()
+            if avail_w < 10 or avail_h < 10:
+                return
+            ratio = 310 / 190
+            w, h = avail_w, int(round(avail_w * ratio))
+            if h > avail_h:
+                h, w = avail_h, int(round(avail_h / ratio))
+            w, h = max(w, 10), max(h, 10)
+            if self.avatar_label.width() != w or self.avatar_label.height() != h:
+                self.avatar_label.setFixedSize(w, h)
+        except Exception:
+            pass
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        try:
+            panel = getattr(self, "_panel", None)
+            box = getattr(self, "_folder_box", None)
+            if panel is not None and box is not None and panel.width() > 0 and box.width() != panel.width():
+                box.setFixedWidth(panel.width())
+        except Exception:
+            pass
+        try:
+            self._fit_avatar_frame()
+        except Exception:
+            pass
+        try:
+            self._rescale_avatar()
+        except Exception:
+            pass
 
 
 class ActorDetailDialog(QDialog):
