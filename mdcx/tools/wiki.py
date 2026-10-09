@@ -609,8 +609,18 @@ async def _translate_content(
     return overview
 
 
+def _join_split_section_titles(text: str) -> str:
+    """合并被换行拆散的段落标题：“===== 个人资料\n=====”→“===== 个人资料 =====”。
+
+    仅当某行以 ===== 开头但行内无收尾 =====、且下一行为纯 ===== 时合并；
+    正常的单行标题不受影响。显示层 _format_overview 内有同规则副本。
+    """
+    return re.sub(r"(?m)^(={5,})[ \t]*([^=\n\s][^=\n]*?)[ \t]*\n[ \t]*(={5,})[ \t]*$", r"\1 \2 \3", text)
+
+
 def _clean_translated_overview(overview: str) -> str:
     """清理翻译后的概述文本"""
+    overview = _join_split_section_titles(overview)
     replacements = [
         ("\n= = = = = = = = = =个人资料\n", "\n===== 个人资料 =====\n"),
         ("\n=====人物介绍\n", "\n===== 人物介绍 =====\n"),
@@ -643,6 +653,7 @@ def _finalize_overview(
     """最终处理概述信息"""
     # 外部链接
     overview += f"\n===== 外部链接 =====\n{url_log}"
+    overview = _join_split_section_titles(overview)
     overview = overview.replace("\n", "<br>").replace("这篇报道有多个问题。请协助改善和在笔记页上的讨论。", "").strip()
 
     # 设置默认标签

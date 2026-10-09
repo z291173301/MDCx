@@ -9,7 +9,7 @@ from pathlib import Path
 from pydantic import HttpUrl
 from PyQt6.QtCore import QEvent, Qt, QThread, QTimer
 from PyQt6.QtCore import pyqtSignal as Signal
-from PyQt6.QtGui import QColor, QGuiApplication
+from PyQt6.QtGui import QColor, QGuiApplication, QKeySequence
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -42,12 +42,13 @@ from PyQt6.QtWidgets import (
 
 from ..config.manager import manager
 from ..config.resources import resources
-from ..models.emby import clean_overview_text, normalize_premiere_date
+from ..models.emby import clean_overview_text, normalize_premiere_date, normalize_production_year
 from ..utils import executor
 from .emby_actor_manager import (
     ActorInfo,
     build_local_avatar_index,
     clean_actor_data_batch_async,
+    fetch_actor_detail,
     fetch_actor_info_from_source,
     fetch_all_actors,
     from_gfriends,
@@ -62,7 +63,8 @@ from .emby_actor_manager import (
 
 # 演员管理器（主窗 + 设置 / 数据源测试 / 演员详情 / 选择媒体库 等子窗口）整体字号放大一号。
 # 走 QSS 而非 setFont：Qt 里样式表的 font-size 会覆盖控件字体，且样式表沿 QObject 父子链
-# 级联，子对话框（独立顶层窗口）一并生效——setFont 对顶层窗口不继承，只对子控件生效。
+# 级联——有父窗口的子对话框一并生效；设置/数据源测试是无父独立顶层窗口，各自再设一条
+# 同值规则，保证三处字号一致——setFont 对顶层窗口不继承，只对子控件生效。
 _FONT_SIZE_STEP = 1
 
 
@@ -574,6 +576,9 @@ class EmbyActorManagerDialog(QDialog):
         self._clean_failed: list[tuple[str, str]] = []  # 议题 #162: (actor_id, 失败消息)
         self._fetch_thread = None
         self._refresh_thread = None
+        # 独立子窗口单例引用（设置/数据源测试）：destroyed 信号负责清空
+        self._settings_dialog = None
+        self._test_dialog = None
         # 议题 #25: 任务会话代数——取消/重启任务后旧线程的排队回调整体作废
         self._session_gen = 0
         self._failed_names: set[str] = set()
@@ -907,12 +912,34 @@ class EmbyActorManagerDialog(QDialog):
         self._gfriends_result.connect(self._on_gfriends_result)
 
     def _on_open_settings(self):
-        dialog = EmbyActorSettingsDialog(self)
-        dialog.exec()
+        self._show_child_window("_settings_dialog", EmbyActorSettingsDialog)
 
     def _on_open_test_source(self):
-        dialog = ActorSourceTestDialog(self)
-        dialog.exec()
+        self._show_child_window("_test_dialog", ActorSourceTestDialog)
+
+    def _show_child_window(self, attr: str, factory):
+        """设置/数据源测试与管理器互相独立：非模态顶层窗口，可与管理器并存操作；
+
+        单例复用——已存在则提前台（含从最小化还原），已销毁则新建；
+        destroyed 信号清引用，避免悬空指针。
+        """
+        try:
+            existing = getattr(self, attr, None)
+            if existing is not None:
+                if existing.isMinimized():
+                    existing.showNormal()
+                else:
+                    existing.show()
+                existing.raise_()
+                existing.activateWindow()
+                return
+        except RuntimeError:
+            # C++ 对象已被销毁（WA_DeleteOnClose 释放），换新的
+            setattr(self, attr, None)
+        dialog = factory()
+        dialog.destroyed.connect(lambda *_a, _attr=attr: setattr(self, _attr, None))
+        setattr(self, attr, dialog)
+        dialog.show()
 
     def _on_clear_cache(self):
         from ..config.resources import resources
@@ -1654,6 +1681,7 @@ class _SourceQuickSettingsPanel(QGroupBox):
         self._fill_list(self.info_list, manager.config.actor_info_sources, INFO_SOURCE_NAMES)
         layout.addWidget(self.info_list)
         layout.addStretch()
+        self._lists_expanded = False
         if show_folder_row:
             layout.addWidget(QLabel("本地头像目录:"))
             folder_row = QHBoxLayout()
@@ -1675,6 +1703,24 @@ class _SourceQuickSettingsPanel(QGroupBox):
             info_model.rowsMoved.connect(self._save)
         if getattr(self, "folder_edit", None) is not None:
             self.folder_edit.textChanged.connect(self._save)
+
+    def set_lists_expanded(self, expanded: bool) -> None:
+        """最大化时头像/信息两列表 1:1 分配面板纵向富余高度；还原时恢复默认效果。
+
+        通过布局 stretch 实现：富余空间只按 stretch>0 分配，两列表 stretch=1、
+        底部弹簧保持 0，最大化时弹簧分不到高度；还原时改回 0 即恢复原状。
+        同值不重复触发布局，避免 resize 递归。
+        """
+        try:
+            if self._lists_expanded == expanded:
+                return
+            self._lists_expanded = expanded
+            _layout = self.layout()
+            if _layout is not None:
+                _layout.setStretchFactor(self.image_list, 1 if expanded else 0)
+                _layout.setStretchFactor(self.info_list, 1 if expanded else 0)
+        except Exception:
+            pass
 
     @staticmethod
     def _fill_list(list_widget: QListWidget, sources: list[str], names: dict[str, str]):
@@ -1712,8 +1758,20 @@ class EmbyActorSettingsDialog(QDialog):
     """Emby 演员数据源设置：数据源优先级排序 + 本地目录 + Gfriends + 数据库开关。"""
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        # 独立顶层窗口：parent 参数仅为兼容旧调用而保留，不再传入——管理器
+        # 最小化/关闭不再级联影响设置窗口；调用方用 show() 单例复用（见 _on_open_settings）。
+        super().__init__(None)
         self.setWindowTitle("Emby/Jellyfin 演员设置")
+        self.setWindowFlags(
+            self.windowFlags()
+            | Qt.WindowType.Window
+            | Qt.WindowType.WindowMinimizeButtonHint
+            | Qt.WindowType.WindowMaximizeButtonHint
+        )
+        # 关闭时由 Qt 销毁 C++ 对象，管理器侧的 destroyed 信号随之清空引用。
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        # 无父独立窗口收不到管理器的 QSS 级联，字号规则自带一条，与管理器同值。
+        self.setStyleSheet(f"QWidget {{ font-size: {_ui_font_pt()}; }}")
         self.setMinimumSize(480, 720)
         self.resize(480, 720)
         # 打开时默认在屏幕可用区居中；小屏时钳制，避免标题栏移出可视区。
@@ -1784,7 +1842,7 @@ class EmbyActorSettingsDialog(QDialog):
         save_btn = QPushButton("保存")
         save_btn.clicked.connect(self._save)
         cancel_btn = QPushButton("取消")
-        cancel_btn.clicked.connect(self.reject)
+        cancel_btn.clicked.connect(self.close)
         btn_row.addWidget(save_btn)
         btn_row.addWidget(cancel_btn)
         layout.addLayout(btn_row)
@@ -1811,12 +1869,15 @@ class EmbyActorSettingsDialog(QDialog):
             return
         manager._replace_config(cfg)
         manager.save()
-        self.accept()
+        # 非模态独立窗口：accept 只隐藏不销毁，下次打开会残留旧实例；直接关闭，
+        # 靠 WA_DeleteOnClose 销毁，管理器侧 destroyed 信号随之清空引用。
+        self.close()
 
 
 class ActorSourceTestThread(_CancellableWorkerThread):
     """数据源测试线程：在后台执行网络请求，通过信号回传结果。"""
 
+    progress = Signal(str)  # 实时状态（如“正在从XX获取头像/信息”），主线程更新状态栏
     result = Signal(list, object, object)  # logs, avatar_path, info_dict
     error = Signal(str)
 
@@ -1833,8 +1894,17 @@ class ActorSourceTestThread(_CancellableWorkerThread):
             # 客户端时其 cffi 定时器被注册到该一次性 loop 上；loop 关闭后定时器仍触发，
             # 回调里抛 "Event loop is closed"，Windows 上弹 Python-CFFI error。
             # 改走 executor.submit + result（提交到永不随线程关闭的后台循环），根除该弹窗。
+            # progress 经 Signal 发回主线程（跨线程 queued 投递），执行器池线程直接 emit 安全。
+            def _report(msg: str) -> None:
+                try:
+                    self.progress.emit(msg)
+                except RuntimeError:
+                    pass
+
             logs, avatar_path, info = self._run_coro(
-                _actor_source_test_execute(self._name, self._need_image, self._need_info)
+                _actor_source_test_execute(
+                    self._name, self._need_image, self._need_info, progress_callback=_report
+                )
             )
             self.result.emit(logs, avatar_path, info)
         except _WorkerCancelled:
@@ -1844,9 +1914,49 @@ class ActorSourceTestThread(_CancellableWorkerThread):
 
 
 async def _actor_source_test_execute(
-    name: str, need_image: bool, need_info: bool
+    name: str,
+    need_image: bool,
+    need_info: bool,
+    progress_callback=None,
 ) -> tuple[list[str], str | None, object]:
-    """纯数据版本：不操作 UI，返回 (logs, avatar_path, info)。"""
+    """纯数据版本：不操作 UI，返回 (logs, avatar_path, info)。
+
+    progress_callback(msg): 逐源开始前回调，由调用方经 Signal 转发到主线程做实时状态显示。
+    """
+
+    def _report(msg: str) -> None:
+        if progress_callback is not None:
+            try:
+                progress_callback(msg)
+            except Exception:
+                pass
+
+    # 与右侧快速设置面板文案保持一致的状态提示（顶部红字实时状态用，不写入底部结果框）。
+    _IMAGE_PROGRESS = {
+        "local": "正在从本地头像保存目录获取头像",
+        "minnano": "正在从Minnano-av.com获取头像",
+        "gfriends": "正在从Gfriends仓库获取网络头像",
+        "graphis": "正在从Graphis网站获取头像/背景",
+    }
+    _INFO_PROGRESS = {
+        "minnano": "正在从Minnano-av.com获取信息",
+        "local": "正在从本地演员名数据库获取信息",
+        "wiki": "正在从维基百科中文网站获取信息",
+        "database": "正在从本地已保存数据库获取信息",
+    }
+    # 底部结果框展示名（用户指定文案）。
+    _IMAGE_RESULT_NAMES = {
+        "local": "本地头像目录缓存",
+        "minnano": "Minnano-av头像",
+        "gfriends": "Gfriends网络头像",
+        "graphis": "Graphis网站头像",
+    }
+    _INFO_RESULT_NAMES = {
+        "minnano": "Minnano-av信息",
+        "local": "本地演员名数据库",
+        "wiki": "维基百科中文网站",
+        "database": "本地已保存数据库",
+    }
 
     logs: list[str] = []
     avatar_path: str | None = None
@@ -1860,6 +1970,7 @@ async def _actor_source_test_execute(
         except Exception:
             pass
         for src in manager.config.actor_image_sources:
+            _report(_IMAGE_PROGRESS.get(src, f"正在从{src}获取头像"))
             result: object = None
             try:
                 if src == "gfriends" and gfriends_index:
@@ -1871,44 +1982,107 @@ async def _actor_source_test_execute(
                 elif src == "local":
                     result = from_local_avatar(actor, manager.config.actor_photo_folder)
                 else:
-                    logs.append(f"头像[{src}]: 未知数据源")
+                    logs.append(f"{_IMAGE_RESULT_NAMES.get(src, src)}: 未知数据源")
                     continue
             except Exception as e:
-                logs.append(f"头像[{src}]: 异常 {e}")
+                logs.append(f"{_IMAGE_RESULT_NAMES.get(src, src)}: ❌ 异常 {e}")
                 continue
             if result:
-                logs.append(f"头像[{src}]: ✅ 命中")
+                logs.append(f"{_IMAGE_RESULT_NAMES.get(src, src)}: ✅ 已命中")
                 if isinstance(result, (str, Path)) and Path(result).exists():
                     avatar_path = str(result)
                 elif isinstance(result, tuple) and result and Path(result[0]).exists():
                     avatar_path = str(result[0])
             else:
-                logs.append(f"头像[{src}]: 未命中")
+                logs.append(f"{_IMAGE_RESULT_NAMES.get(src, src)}: ❌ 未命中")
 
     if need_info:
         for src in manager.config.actor_info_sources:
+            _report(_INFO_PROGRESS.get(src, f"正在从{src}获取信息"))
             try:
                 ok, desc, data = await fetch_actor_info_from_source(actor, src)
             except Exception as e:
-                logs.append(f"信息[{src}]: 异常 {e}")
+                logs.append(f"{_INFO_RESULT_NAMES.get(src, src)}: ❌ 异常 {e}")
                 continue
-            logs.append(f"信息[{src}]: {'✅' if ok else '❌'} {desc}")
+            _display = _INFO_RESULT_NAMES.get(src, src)
+            if ok:
+                _detail = ""
+                if "（" in desc and "）" in desc:
+                    try:
+                        _detail = desc.split("（", 1)[1].rsplit("）", 1)[0].replace(" ", "")
+                    except Exception:
+                        _detail = ""
+                logs.append(f"{_display}: ✅ 已命中{_detail and f'，{_detail}'}")
+            else:
+                logs.append(f"{_display}: ❌ 未命中")
             if ok and data:
-                info = data
+                if info is None:
+                    info = data
+                else:
+                    # 多源合并：后命中的源只补全空字段，不覆盖已有内容；
+                    # 简介保留更长者，避免 wiki 长简介被本地空/短简介覆盖导致预览空白。
+                    try:
+                        if getattr(info, "birthday", "") in ("", "0000-00-00") and getattr(
+                            data, "birthday", ""
+                        ) not in ("", "0000-00-00"):
+                            info.birthday = data.birthday
+                        if getattr(info, "year", "") in ("", "0000") and getattr(
+                            data, "year", ""
+                        ) not in ("", "0000"):
+                            info.year = data.year
+                        _old_ov = getattr(info, "overview", "") or ""
+                        _new_ov = getattr(data, "overview", "") or ""
+                        if _new_ov and (not _old_ov or len(_new_ov) > len(_old_ov)):
+                            info.overview = _new_ov
+                        for _f in ("locations", "taglines", "tags", "genres"):
+                            _old = list(getattr(info, _f, None) or [])
+                            _new = list(getattr(data, _f, None) or [])
+                            if _new and not _old:
+                                setattr(info, _f, _new)
+                            elif _new:
+                                _merged = _old + [x for x in _new if x not in _old]
+                                setattr(info, _f, _merged)
+                        _old_pid = getattr(info, "provider_ids", None) or {}
+                        _new_pid = getattr(data, "provider_ids", None) or {}
+                        if _new_pid:
+                            try:
+                                _old_pid.update(_new_pid)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
     return logs, avatar_path, info
 
 
 class ActorSourceTestDialog(QDialog):
-    """数据源测试窗口：按配置的数据源优先级逐源尝试获取头像/简介，展示各源结果。"""
+    """数据源测试窗口：按配置的数据源优先级逐源尝试获取头像/简介，展示各源结果。
+
+    “更新数据”把本次获取到的头像/简介写回 Emby/Jellyfin 服务器对应演员；
+    空字段保留服务器原数据（update_person_info 只写非空新值）。
+    """
+
+    _update_done = Signal(bool, str)
 
     def __init__(self, parent=None):
-        super().__init__(parent)
+        # 独立顶层窗口：parent 参数仅为兼容旧调用而保留，不再传入——管理器
+        # 最小化/关闭不再级联影响测试窗口；调用方用 show() 单例复用（见 _on_open_test_source）。
+        super().__init__(None)
         self.setWindowTitle("数据源测试")
         self.setWindowFlags(
             self.windowFlags()
             | Qt.WindowType.Window
             | Qt.WindowType.WindowMinimizeButtonHint
             | Qt.WindowType.WindowMaximizeButtonHint
+        )
+        # 关闭时由 Qt 销毁 C++ 对象（closeEvent 已先取消后台线程），
+        # 管理器侧的 destroyed 信号随之清空引用。
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
+        # 无父独立窗口收不到管理器的 QSS 级联，字号规则自带一条，与管理器同值；
+        # 蓝色主按钮样式也自带（与管理器 QPushButton#btnPrimary 同值）。
+        self.setStyleSheet(
+            f"QWidget {{ font-size: {_ui_font_pt()}; }}"
+            "QPushButton#btnPrimary { background-color: #1565c0; color: #ffffff; }"
+            "QPushButton#btnPrimary:hover { background-color: #1976d2; }"
         )
         self.setMinimumSize(1080, 720)
         self.resize(1080, 720)
@@ -1929,17 +2103,34 @@ class ActorSourceTestDialog(QDialog):
             pass
         root = QVBoxLayout(self)
 
-        # 顶部：演员名输入 + 获取头像和简介
+        # 顶部：演员姓名输入框直达按钮左边界；实时状态红字叠在输入框内部右侧。
         name_row = QHBoxLayout()
-        name_row.addWidget(QLabel("演员名:"))
+        name_row.addWidget(QLabel("演员姓名："))
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText("输入演员名（如：三上悠亚）")
         self.name_edit.returnPressed.connect(lambda: self._run(True, True))
-        name_row.addWidget(self.name_edit)
+        name_row.addWidget(self.name_edit, stretch=1)
+        # 实时状态：QLabel 以输入框为父控件浮于框内右侧，点击穿透不影响编辑；
+        # 右侧预留文本边距，演员名与状态不重叠。轮换显示“正在从XX获取头像/信息”避免无反馈。
+        self.status_label = QLabel(self.name_edit)
+        self.status_label.setStyleSheet("color: #c00000; background: transparent;")
+        self.status_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.status_label.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.status_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.status_label.setText("")
+        self.status_label.hide()
+        self.name_edit.installEventFilter(self)
         self.btn_both = QPushButton("获取头像和简介")
         self.btn_both.setObjectName("btnPrimary")
         name_row.addWidget(self.btn_both)
+        # 更新数据：把本次获取到的头像/简介写入服务器对应演员（空字段保留原数据）。
+        self.btn_update = QPushButton("更新数据")
+        self.btn_update.setObjectName("btnPrimary")
+        name_row.addWidget(self.btn_update)
         root.addLayout(name_row)
+        QTimer.singleShot(0, self._layout_status_overlay)
 
         # 主体：左(头像) + 中(信息字段表) + 右(快速设置面板)，宽度 1:2:1，随窗口同步缩放
         main_row = QHBoxLayout()
@@ -1973,10 +2164,24 @@ class ActorSourceTestDialog(QDialog):
         if v_header:
             v_header.setVisible(False)
         self.info_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.info_table.setWordWrap(True)
+        self.info_table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.info_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
+        # 值列用只读编辑框承载，此处再把表格自身的选中高亮去掉，避免出现蓝色背景。
+        self.info_table.setStyleSheet(
+            "QTableWidget::item:selected { background: palette(base); color: palette(text); }"
+            "QTableWidget::item:focus { border: none; }"
+        )
+        self.info_table.installEventFilter(self)
         info_col.addWidget(self.info_table)
         self.btn_info = QPushButton("获取信息")
         self.btn_info.setObjectName("btnPrimary")
         info_col.addWidget(self.btn_info)
+        # 记录对话框与两按钮默认高度：最大化时按钮高度随对话框高度同步拉升，还原时恢复
+        # （见 _sync_panel_stretch）。最小化/普通窗口不做任何改动。
+        self._dialog_base_h = max(1, self.height() or 720)
+        self._btn_image_base_h = self.btn_image.sizeHint().height()
+        self._btn_info_base_h = self.btn_info.sizeHint().height()
         main_row.addLayout(info_col, stretch=2)
 
         # 右列：快速设置面板（改即自动保存；本地头像目录移到底部与结果同行，此处隐藏；
@@ -2005,6 +2210,8 @@ class ActorSourceTestDialog(QDialog):
         self.folder_edit = QLineEdit(manager.config.actor_photo_folder)
         self.folder_edit.setCursorPosition(0)
         folder_browse_btn = QPushButton("浏览")
+        folder_browse_btn.setObjectName("btnPrimary")
+        self._folder_browse_btn = folder_browse_btn
         folder_browse_btn.clicked.connect(self._browse_folder)
         folder_layout.addWidget(self.folder_edit)
         folder_layout.addWidget(folder_browse_btn)
@@ -2019,9 +2226,24 @@ class ActorSourceTestDialog(QDialog):
         self.btn_both.clicked.connect(lambda: self._run(True, True))
         self.btn_image.clicked.connect(lambda: self._run(True, False))
         self.btn_info.clicked.connect(lambda: self._run(False, True))
+        self.btn_update.clicked.connect(self._on_update)
+        self._update_done.connect(self._on_update_done)
         self.folder_edit.textChanged.connect(self._save_folder)
         self._avatar_pixmap = None
         self._thread = None
+        # 更新数据用的已获取快照：_run 开始时清空，_on_result 成功时写入；
+        # 只有拿到头像或详细信息后，更新按钮才会执行写入。
+        self._fetched_name = ""
+        self._fetched_avatar = None
+        self._fetched_info = None
+        self._updating = False
+        # 最大化时随高度同步拉升的顶行控件默认高度（见 _sync_panel_stretch）：
+        # 获取头像和简介/更新数据/浏览三按钮 + 演员名输入框 + 本地头像目录输入框。
+        self._btn_both_base_h = self.btn_both.sizeHint().height()
+        self._btn_update_base_h = self.btn_update.sizeHint().height()
+        self._browse_btn_base_h = self._folder_browse_btn.sizeHint().height()
+        self._name_edit_base_h = self.name_edit.sizeHint().height()
+        self._folder_edit_base_h = self.folder_edit.sizeHint().height()
         # 布局请求在事件分发中同步执行完布局，延迟一拍读到的即最终几何，
         # 兜底多帧 resize（最大化→还原）中各同步读取拿到的旧值。
         self.installEventFilter(self)
@@ -2046,6 +2268,10 @@ class ActorSourceTestDialog(QDialog):
             except (TypeError, RuntimeError):
                 pass
             try:
+                thread.progress.disconnect()
+            except (TypeError, RuntimeError):
+                pass
+            try:
                 thread.error.disconnect()
             except (TypeError, RuntimeError):
                 pass
@@ -2054,44 +2280,461 @@ class ActorSourceTestDialog(QDialog):
                 _detach_running_thread(thread)
         super().closeEvent(event)
 
+    def _set_status(self, msg: str) -> None:
+        """框内右侧红字状态：为空时隐藏并恢复输入框边距，否则显示并预留不重叠边距。"""
+        try:
+            label = self.status_label
+            edit = self.name_edit
+        except (AttributeError, RuntimeError):
+            return
+        try:
+            label.setText(msg or "")
+            if not msg:
+                label.hide()
+                edit.setTextMargins(0, 0, 0, 0)
+                return
+            label.show()
+            self._layout_status_overlay()
+        except (AttributeError, RuntimeError):
+            pass
+
+    def _layout_status_overlay(self) -> None:
+        """把状态 QLabel 贴到输入框内部右侧，并给输入框留出右侧文本边距防重叠。
+        右侧留 6px 空隙，避免遮住输入框圆角边框。"""
+        try:
+            label = self.status_label
+            edit = self.name_edit
+        except (AttributeError, RuntimeError):
+            return
+        try:
+            if not label.text():
+                return
+            margin = 6
+            hint = label.sizeHint()
+            max_w = max(0, int(edit.width() * 0.8))
+            w = min(max(0, hint.width() + margin * 2), max_w) if max_w > 0 else hint.width()
+            w = max(w, 10)
+            h = max(edit.height(), 10)
+            label.setGeometry(edit.width() - w - 6, 0, w, h)
+            label.raise_()
+            edit.setTextMargins(0, 0, w + 8, 0)
+        except (AttributeError, RuntimeError, ValueError):
+            pass
+
+    def _set_running(self, running: bool) -> None:
+        for btn in (self.btn_both, self.btn_image, self.btn_info, self.btn_update):
+            try:
+                btn.setEnabled(not running)
+            except RuntimeError:
+                pass
+        if running:
+            self.btn_both.setText("获取中")
+        else:
+            self.btn_both.setText("获取头像和简介")
+
     def _run(self, need_image: bool, need_info: bool):
         name = self.name_edit.text().strip()
         if not name:
-            QMessageBox.warning(self, "提示", "请输入演员名")
+            QMessageBox.warning(self, "提示", "请输入演员姓名")
             return
+        old = getattr(self, "_thread", None)
+        if old is not None and old.isRunning():
+            QMessageBox.information(self, "提示", "正在获取中，请稍候")
+            return
+        if getattr(self, "_updating", False):
+            QMessageBox.information(self, "提示", "正在更新数据，请稍候")
+            return
+        kinds = []
+        if need_image:
+            kinds.append("头像")
+        if need_info:
+            kinds.append("简介")
+        start_msg = f"正在为“{name}”获取{'和'.join(kinds)}"
+        self._set_status(start_msg)
+        self.result_text.clear()
+        # 新一轮获取开始即清空旧快照：只有本轮拿到数据后，更新按钮才会执行写入。
+        self._fetched_name = name
+        self._fetched_avatar = None
+        self._fetched_info = None
+        self._set_running(True)
         self._thread = ActorSourceTestThread(self, name, need_image, need_info)
+        self._thread.progress.connect(self._on_progress)
         self._thread.result.connect(self._on_result)
         self._thread.error.connect(self._on_error)
+        self._thread.finished.connect(lambda: self._set_running(False))
         self._thread.start()
 
+    def _on_progress(self, msg: str):
+        self._set_status(msg)
+
     def _on_result(self, logs: list[str], avatar_path: str | None, info: object):
-        self.result_text.clear()
+        # 中间进度只显示在顶部输入框右侧红字状态，不写入底部结果框；此处只追加最终各源结论。
         for log in logs:
             self.result_text.append(log)
+        self._set_status("")
+        self._set_running(False)
         if avatar_path and Path(avatar_path).exists():
             self._show_avatar(avatar_path)
+            self._fetched_avatar = avatar_path
         if info:
             self._populate_info_table(info)
+            try:
+                from ..models.emby import EMbyActressInfo
+
+                if isinstance(info, EMbyActressInfo):
+                    self._fetched_info = info
+            except Exception:
+                pass
 
     def _on_error(self, msg: str):
+        self._set_status(f"❌ 错误: {msg}")
         self.result_text.append(f"❌ 错误: {msg}")
+        self._set_running(False)
+
+    @staticmethod
+    def _is_blank(value: object) -> bool:
+        """空/None/占位零值（生日 0000-00-00、年份 0000）一律视为“无数据”，更新时保留服务器原值。"""
+        if value is None:
+            return True
+        if isinstance(value, str):
+            s = value.strip()
+            return not s or s in ("0000-00-00", "0000")
+        if isinstance(value, (list, tuple, set, dict)):
+            return len(value) == 0
+        return False
+
+    def _has_fetched_data(self) -> bool:
+        """本次是否拿到可更新的数据：头像文件存在，或简介任一字段有具体值。"""
+        try:
+            if self._fetched_avatar and Path(self._fetched_avatar).exists():
+                return True
+        except Exception:
+            pass
+        info = getattr(self, "_fetched_info", None)
+        if info is None:
+            return False
+        try:
+            if not self._is_blank(getattr(info, "overview", "")):
+                return True
+            if not self._is_blank(getattr(info, "birthday", "")):
+                return True
+            if not self._is_blank(getattr(info, "year", "")):
+                return True
+            if getattr(info, "locations", None):
+                return True
+            if getattr(info, "taglines", None):
+                return True
+        except Exception:
+            pass
+        return False
+
+    def _on_update(self):
+        """更新数据：把本次获取到的头像/简介写入 Emby/Jellyfin 服务器对应演员。
+
+        未连接服务器时提示去演员管理器主页面连接；未获取到数据时不执行；
+        空字段保留服务器原数据（见 _do_update_async，只写非空新值）。
+        """
+        name = self.name_edit.text().strip()
+        if not name:
+            QMessageBox.warning(self, "提示", "请输入演员姓名")
+            return
+        old = getattr(self, "_thread", None)
+        if old is not None and old.isRunning():
+            QMessageBox.information(self, "提示", "正在获取中，请稍候")
+            return
+        if getattr(self, "_updating", False):
+            QMessageBox.information(self, "提示", "正在更新数据，请稍候")
+            return
+        if name != (getattr(self, "_fetched_name", "") or "") or not self._has_fetched_data():
+            QMessageBox.information(self, "提示", "请先获取头像或简介数据，再更新")
+            return
+        if not manager.config.emby_url or not manager.config.api_key:
+            QMessageBox.warning(self, "提示", "请先在演员管理器主页面连接 Emby/Jellyfin 服务器")
+            return
+        # 快照：后台更新期间用户改动界面不影响本次写入内容。
+        info = self._fetched_info
+        try:
+            _avatar = self._fetched_avatar if self._fetched_avatar and Path(self._fetched_avatar).exists() else None
+        except Exception:
+            _avatar = None
+        _overview = str(getattr(info, "overview", "") or "") if info is not None else ""
+        _birthday = str(getattr(info, "birthday", "") or "") if info is not None else ""
+        _year = str(getattr(info, "year", "") or "") if info is not None else ""
+        _locations = list(getattr(info, "locations", None) or []) if info is not None else []
+        _taglines = list(getattr(info, "taglines", None) or []) if info is not None else []
+        self._updating = True
+        try:
+            self.btn_update.setEnabled(False)
+            self.btn_update.setText("更新中")
+        except RuntimeError:
+            pass
+        self._set_status(f"正在更新“{name}”到服务器...")
+        try:
+            future = executor.submit(
+                self._do_update_async(name, _avatar, _overview, _birthday, _year, _locations, _taglines)
+            )
+        except Exception as e:
+            self._updating = False
+            try:
+                self.btn_update.setEnabled(True)
+                self.btn_update.setText("更新数据")
+            except RuntimeError:
+                pass
+            self._set_status("")
+            QMessageBox.critical(self, "更新失败", f"❌ 更新任务提交失败: {e}")
+            return
+
+        def _emit(fut):
+            try:
+                self._update_done.emit(*_future_result_or(fut, (False, "❌ 更新失败")))
+            except RuntimeError:
+                pass
+
+        future.add_done_callback(_emit)
+
+    async def _do_update_async(
+        self,
+        name: str,
+        avatar_path: str | None,
+        overview: str,
+        birthday: str,
+        year: str,
+        locations: list,
+        taglines: list,
+    ) -> tuple[bool, str]:
+        from .emby_actor_manager import _ACTOR_DETAIL_CACHE, _sync_actor_async, fetch_actor_detail
+        from .emby_shared import _build_jellyfin_headers, _emby_api_prefix, _emby_get_json
+
+        try:
+            # 存活探测：配置里有地址/密钥不代表此刻连通，连不上就提示去主页面连接。
+            resp, _err = await _emby_get_json(
+                f"{_emby_api_prefix()}/System/Info",
+                headers=_build_jellyfin_headers(),
+            )
+            if not resp:
+                return False, "⚠️ 未连接到 Emby/Jellyfin 服务器，请先在演员管理器主页面连接后再更新"
+            detail = await fetch_actor_detail(name)
+            if not detail or not detail.get("Id"):
+                return False, f"❌ 服务器中未找到演员“{name}”，请确认该演员已在媒体库中"
+            actor = ActorInfo(
+                name=detail.get("Name") or name,
+                actor_id=detail.get("Id", ""),
+                server_id=detail.get("ServerId", ""),
+            )
+            # 服务器现有值全部带上：空字段回填既不覆盖，也避免 Emby 空引用 400。
+            actor.existing_overview = detail.get("Overview") or ""
+            actor.existing_taglines = detail.get("Taglines") or []
+            actor.existing_production_year = detail.get("ProductionYear")
+            actor.existing_premiere_date = detail.get("PremiereDate") or ""
+            actor.existing_production_locations = detail.get("ProductionLocations") or []
+            actor.existing_provider_ids = detail.get("ProviderIds") or {}
+            actor.existing_genres = detail.get("Genres") or []
+            actor.existing_tags = detail.get("Tags") or []
+            # 只有有具体值/图像的字段才记为新值写入；空一律保留服务器原数据。
+            need_info = False
+            if (overview or "").strip():
+                actor.new_overview = overview
+                need_info = True
+            _tags = [str(t).strip() for t in (taglines or []) if str(t).strip()]
+            if _tags:
+                actor.new_taglines = _tags
+                need_info = True
+            _locs = [str(v).strip() for v in (locations or []) if str(v).strip()]
+            if _locs:
+                actor.new_production_locations = _locs
+                need_info = True
+            if normalize_premiere_date(birthday):
+                actor.new_premiere_date = birthday
+                need_info = True
+            if normalize_production_year(year) is not None:
+                actor.new_production_year = normalize_production_year(year)
+                need_info = True
+            need_image = False
+            if avatar_path:
+                try:
+                    if Path(avatar_path).exists():
+                        actor.new_image_path = avatar_path
+                        need_image = True
+                except Exception:
+                    pass
+            if not need_info and not need_image:
+                return False, "本次获取到的数据均为空，已保留服务器原数据，未执行更新"
+            actor.need_update_info = need_info
+            actor.need_update_image = need_image
+            sync_type = "both" if (need_info and need_image) else ("image" if need_image else "info")
+            ok, msg = await _sync_actor_async(actor, sync_type)
+            if ok:
+                try:
+                    _ACTOR_DETAIL_CACHE.pop(name, None)
+                except Exception:
+                    pass
+            return ok, msg
+        except Exception as e:
+            return False, f"❌ 更新异常: {e}"
+
+    def _on_update_done(self, ok: bool, msg: str):
+        self._updating = False
+        try:
+            self.btn_update.setEnabled(True)
+            self.btn_update.setText("更新数据")
+        except RuntimeError:
+            return
+        self._set_status("" if ok else "❌ 更新失败")
+        try:
+            self.result_text.append(msg)
+        except RuntimeError:
+            pass
+        try:
+            if ok:
+                QMessageBox.information(self, "更新完成", msg)
+            else:
+                QMessageBox.warning(self, "提示", msg)
+        except RuntimeError:
+            pass
+
+    @staticmethod
+    def _format_overview(text: object) -> str:
+        """简介格式化为一行一条：<br>/<p> 等转换行，去残留标签，空白行最多保留一个。"""
+        import html as _html
+
+        if not isinstance(text, str) or not text:
+            return ""
+        t = re.sub(r"(?i)<br\s*/?>", "\n", text)
+        t = re.sub(r"(?i)</p\s*>", "\n", t)
+        t = re.sub(r"(?i)<p[^>]*>", "", t)
+        t = re.sub(r"<[^>]+>", "", t)
+        # 合并被换行拆散的段落标题：“===== 个人资料\n=====”→“===== 个人资料 =====”。
+        # 仅当某行以 ===== 开头但行内无收尾 =====、且下一行为纯 ===== 时合并；
+        # 正常的单行标题无换行穿插，不受影响（与 wiki.py:_join_split_section_titles 同规则）。
+        t = re.sub(r"(?m)^(={5,})[ \t]*([^=\n\s][^=\n]*?)[ \t]*\n[ \t]*(={5,})[ \t]*$", r"\1 \2 \3", t)
+        try:
+            t = _html.unescape(t)
+        except Exception:
+            pass
+        t = t.replace("\r\n", "\n").replace("\r", "\n")
+        lines = [ln.strip() for ln in t.split("\n")]
+        # 去首尾空行，中间连续空行压成一个
+        while lines and not lines[0]:
+            lines.pop(0)
+        while lines and not lines[-1]:
+            lines.pop()
+        out: list[str] = []
+        _blank = False
+        for ln in lines:
+            if not ln:
+                if not _blank:
+                    out.append("")
+                _blank = True
+            else:
+                out.append(ln)
+                _blank = False
+        return "\n".join(out)
 
     def _populate_info_table(self, info: object):
         from ..models.emby import EMbyActressInfo
 
         if not isinstance(info, EMbyActressInfo):
             return
+        _overview = self._format_overview(info.overview or "")
         rows = [
             ("生日", info.birthday),
             ("年份", str(info.year) if info.year else ""),
             ("出生地", ", ".join(info.locations or [])),
             ("标签", ", ".join(info.taglines or [])),
-            ("简介", info.overview or ""),
+            ("简介", _overview),
         ]
+        # 切换前清除旧 cell widget，避免复用残留。
+        try:
+            for _r in range(5):
+                try:
+                    self.info_table.removeCellWidget(_r, 1)
+                except Exception:
+                    pass
+        except Exception:
+            pass
         self.info_table.setRowCount(len(rows))
         for r, (field, value) in enumerate(rows):
             self.info_table.setItem(r, 0, QTableWidgetItem(field))
-            self.info_table.setItem(r, 1, QTableWidgetItem(str(value)))
+            if r == 4:
+                continue
+            # 单行值用只读 QLineEdit 承载：不受表格选中高亮影响（无蓝底），框内可拖选复制。
+            try:
+                _edit = QLineEdit(str(value))
+                _edit.setReadOnly(True)
+                _edit.setFrame(False)
+                _edit.setStyleSheet("QLineEdit { border: none; background: palette(base); }")
+                self.info_table.setCellWidget(r, 1, _edit)
+            except Exception:
+                self.info_table.setItem(r, 1, QTableWidgetItem(str(value)))
+        # 简介用只读 QTextEdit 承载：支持鼠标拖选复制，行内换行显示。
+        try:
+            _bio = QTextEdit()
+            _bio.setReadOnly(True)
+            _bio.setPlainText(_overview)
+            _bio.setTextInteractionFlags(
+                Qt.TextInteractionFlag.TextSelectableByMouse
+                | Qt.TextInteractionFlag.TextSelectableByKeyboard
+            )
+            _bio.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+            _bio.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            _bio.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+            _bio.setStyleSheet("QTextEdit { border: none; background: palette(base); }")
+            _bio.setFrameStyle(0)
+            self.info_table.setCellWidget(4, 1, _bio)
+        except Exception:
+            _item = QTableWidgetItem(_overview)
+            _item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+            self.info_table.setItem(4, 1, _item)
+        self._fit_overview_row()
+        # 填充后清除表格选中/当前格，避免值列出现蓝色选中背景。
+        try:
+            self.info_table.clearSelection()
+        except Exception:
+            pass
+        # 列宽确定后文档换行高度才准确，下一帧再按最终宽度重算一次（重算后同样清选中）。
+        try:
+            QTimer.singleShot(0, self._fit_overview_row)
+        except Exception:
+            pass
+
+    def _fit_overview_row(self) -> None:
+        """简介行高：默认 8 倍行高，内容更高按文档高度撑高，到文字下方为止。
+
+        不再填满表格视口：行高只与内容有关，表格剩余区域保持默认底色。
+        末尾顺手清除选中，避免出现蓝色选中背景。"""
+        try:
+            _vh = self.info_table.verticalHeader()
+            _base = (_vh.defaultSectionSize() if _vh is not None else 0) or 30
+            for _r in range(4):
+                try:
+                    if self.info_table.rowHeight(_r) != _base:
+                        self.info_table.setRowHeight(_r, _base)
+                except Exception:
+                    pass
+            _default = _base * 8
+            _content = 0
+            try:
+                _w = self.info_table.cellWidget(4, 1)
+                if _w is not None:
+                    _doc_h = _w.document().size().height()
+                    _content = int(_doc_h + _w.contentsMargins().top() + _w.contentsMargins().bottom() + 12)
+                else:
+                    _it = self.info_table.item(4, 1)
+                    if _it is not None:
+                        _n = max(1, (_it.text() or "").count("\n") + 1)
+                        _fm_h = self.info_table.fontMetrics().lineSpacing() or 16
+                        _content = _n * _fm_h + 12
+            except Exception:
+                pass
+            _want = max(_default, _content)
+            if _want > 0 and self.info_table.rowHeight(4) != int(_want):
+                self.info_table.setRowHeight(4, int(_want))
+            try:
+                self.info_table.clearSelection()
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def _show_avatar(self, path: str):
         from PyQt6.QtGui import QPixmap
@@ -2164,15 +2807,138 @@ class ActorSourceTestDialog(QDialog):
                 t = a1.type()
                 if t == QEvent.Type.Resize and a0 is getattr(self, "_panel", None):
                     self._sync_folder_box()
+                elif t == QEvent.Type.Resize and a0 is getattr(self, "name_edit", None):
+                    self._layout_status_overlay()
+                elif t == QEvent.Type.Resize and a0 is getattr(self, "info_table", None):
+                    self._fit_overview_row()
                 elif t == QEvent.Type.LayoutRequest and a0 is self:
                     QTimer.singleShot(0, self._after_layout)
+                elif t == QEvent.Type.KeyPress and a0 is getattr(self, "info_table", None):
+                    try:
+                        if a1.matches(QKeySequence.StandardKey.Copy):
+                            self._copy_info_selection()
+                            return True
+                    except Exception:
+                        pass
         except Exception:
             pass
         return super().eventFilter(a0, a1)
 
+    def _copy_info_selection(self) -> None:
+        """复制信息表选中单元格文本（无选中时复制简介全文），供 Ctrl+C 用。"""
+        try:
+            _idx = self.info_table.selectedIndexes()
+            _texts: list[str] = []
+            if _idx:
+                for _i in sorted(_idx, key=lambda x: (x.row(), x.column())):
+                    if _i.column() == 1:
+                        if _i.row() == 4:
+                            _w = self.info_table.cellWidget(4, 1)
+                            if _w is not None:
+                                try:
+                                    _cur = _w.textCursor()
+                                    _texts.append(
+                                        _cur.selectedText()
+                                        if _cur.hasSelection()
+                                        else _w.toPlainText()
+                                    )
+                                    continue
+                                except Exception:
+                                    pass
+                        _w04 = None
+                        try:
+                            _w04 = self.info_table.cellWidget(_i.row(), _i.column())
+                        except Exception:
+                            _w04 = None
+                        if _w04 is not None and isinstance(_w04, QLineEdit):
+                            try:
+                                _texts.append(
+                                    _w04.selectedText() if _w04.hasSelectedText() else _w04.text()
+                                )
+                            except Exception:
+                                _texts.append(_w04.text() or "")
+                        else:
+                            _it = self.info_table.item(_i.row(), _i.column())
+                            if _it is not None:
+                                _texts.append(_it.text() or "")
+                _data = "\n".join(_texts).strip()
+            else:
+                _w = self.info_table.cellWidget(4, 1)
+                _data = (_w.toPlainText() if _w is not None else "").strip()
+            if _data:
+                QApplication.clipboard().setText(_data)
+        except Exception:
+            pass
+
+    def _sync_panel_stretch(self) -> None:
+        """最大化时的专属效果，还原时全部恢复默认；按钮高度只在数值变化时设置。
+
+        - 右侧头像/信息两列表 1:1 分配富余高度；
+        - “获取头像”“获取信息”两按钮高度按对话框当前高度/默认高度的比例同步拉升。
+        普通/最小化窗口时不做任何改动，与原来完全一致。
+        """
+        try:
+            try:
+                _max = self.isMaximized()
+            except Exception:
+                _max = False
+            _panel = getattr(self, "_panel", None)
+            if _panel is not None and hasattr(_panel, "set_lists_expanded"):
+                try:
+                    _panel.set_lists_expanded(bool(_max))
+                except Exception:
+                    pass
+            try:
+                _base_h = getattr(self, "_dialog_base_h", 0) or 0
+                _cur_h = self.height() or 0
+                _ratio = (_cur_h / _base_h) if (_max and _base_h > 0 and _cur_h > 0) else 1.0
+            except Exception:
+                _ratio = 1.0
+            for _btn_name, _base_name in (
+                ("btn_image", "_btn_image_base_h"),
+                ("btn_info", "_btn_info_base_h"),
+            ):
+                try:
+                    _btn = getattr(self, _btn_name, None)
+                    if _btn is None:
+                        continue
+                    _base = getattr(self, _base_name, 0) or 0
+                    if _base <= 0:
+                        try:
+                            _base = _btn.sizeHint().height()
+                        except Exception:
+                            continue
+                    _target = max(1, int(round(_base * _ratio)))
+                    if _btn.minimumHeight() != _target:
+                        _btn.setMinimumHeight(_target)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        try:
+            if event is not None and event.type() == QEvent.Type.WindowStateChange:
+                self._sync_panel_stretch()
+        except Exception:
+            pass
+
     def _after_layout(self):
-        """布局执行完后按最终几何重算：盒宽跟随面板、头像框适配左列、头像重绘。
+        """布局执行完后按最终几何重算：盒宽跟随面板、头像框适配左列、头像重绘、框内状态对齐。
         各子函数幂等且有同值保护，不会引起新的布局请求，自收敛。"""
+        try:
+            self._sync_panel_stretch()
+        except Exception:
+            pass
+        try:
+            self._layout_status_overlay()
+        except Exception:
+            pass
+        try:
+            self._fit_overview_row()
+        except Exception:
+            pass
         try:
             self._sync_folder_box()
         except Exception:
@@ -2188,6 +2954,18 @@ class ActorSourceTestDialog(QDialog):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        try:
+            self._sync_panel_stretch()
+        except Exception:
+            pass
+        try:
+            self._layout_status_overlay()
+        except Exception:
+            pass
+        try:
+            self._fit_overview_row()
+        except Exception:
+            pass
         try:
             self._sync_folder_box()
         except Exception:
