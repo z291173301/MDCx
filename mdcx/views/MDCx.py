@@ -13159,7 +13159,9 @@ class Ui_MDCx(object):
             )
         )
         self.spinBox_actor_db_sync_limit.setSpecialValueText(_translate("MDCx", "不限"))
-        self.label_actor_db_sync_slice_hint.setText(_translate("MDCx", "起始行数0+单次限制5000=默认更新值"))
+        self.label_actor_db_sync_slice_hint.setText(
+            _translate("MDCx", "起始行数0+单次限制5000=默认更新数据表行数")
+        )
         self.label_actor_db_sync_aliases_desc.setText(
             _translate(
                 "MDCx",

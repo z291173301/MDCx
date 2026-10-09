@@ -2730,7 +2730,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <string notr="true">color: rgb(8, 128, 128); font-size: 12px;</string>
                   </property>
                   <property name="text">
-                    <string>起始行数0+单次限制5000=默认更新值</string>
+                    <string>起始行数0+单次限制5000=默认更新数据表行数</string>
                   </property>
                     <property name="wordWrap">
                       <bool>true</bool>

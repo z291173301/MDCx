@@ -8170,7 +8170,7 @@ class MyMAinWindow(QMainWindow):
         # 议题 #73: 用户误以为启动自检在某项失败后"停止检测"。声明自检范围与
         # 全量检测入口, 避免混淆（全量检测在「检测网络」页, 单站失败互相独立）。
         signal_qt.show_log_text(
-            " 启动自检：数据库 / ThePornDB / JavDb / JavBus / FC2PPVDB 连通性（如需检测全部站点，请到左侧「检测网络」页）"
+            " 启动自检：数据库/ThePornDB/JavDb/JavBus/FC2PPVDB连通性，如需检测全部站点，请到左侧「检测网络」页点击开始检测"
         )
         # QWidget 与 cookie 检查必须在主线程执行：通过信号调度回主线程
         self.version_check_done.emit(has_new_version)
@@ -11317,11 +11317,11 @@ class MyMAinWindow(QMainWindow):
                 elif "ray-id" in response:
                     tips = "❌ 访问被 CloudFlare 拦截！"
                 elif "/logout" in response:  # 已登录，有登出按钮
-                    vip_info = "未开通 VIP"
+                    vip_info = "未开通VIP"
                     tips = f"✅ 连接正常！（{vip_info}）"
                     if input_cookie:
                         if "icon-diamond" in response or "/v/D16Q5" in response:  # 有钻石图标或者跳到详情页表示已开通
-                            vip_info = "已开通 VIP"
+                            vip_info = "已开通VIP"
                         if manager.config.javdb != input_cookie:  # 保存cookie
                             tips = f"✅ 连接正常！（{vip_info}）Cookie 已保存！"
                             self.exec_save_config.emit()

@@ -114,7 +114,7 @@ def test_startup_selfcheck_includes_fc2ppvdb():
 
     # 声明：启动自检文案包含 FC2PPVDB
     text = Path(mw_mod.__file__).read_text(encoding="utf-8")
-    assert "启动自检：数据库 / ThePornDB / JavDb / JavBus / FC2PPVDB" in text, "启动自检文案未含 FC2PPVDB"
+    assert "启动自检：数据库/ThePornDB/JavDb/JavBus/FC2PPVDB连通性" in text, "启动自检文案未含 FC2PPVDB"
 
 
 def test_fc2ppvdb_login_key_accepts_hyphenated_session():
