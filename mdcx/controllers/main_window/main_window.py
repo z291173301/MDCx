@@ -1198,6 +1198,30 @@ class MyMAinWindow(QMainWindow):
         design_w = cls._ACTOR_DB_TOOL_DESIGN["label_actor_db_sync_aliases_desc"][2]
         return max(min(box_w - 80, cls._ACTOR_DB_ALIASES_DESC_MAX_W), design_w)
 
+    # 「起始行数0+单次限制5000=默认更新数据表行数」提示标签（label_actor_db_sync_slice_hint）
+    # 最小化态单行整串所需的额外余量。背景：文案由「默认更新值」改为「默认更新数据表
+    # 行数」后，12px 字号下该串 horizontalAdvance 由 240px 涨到 288px，超过设计宽
+    # 211px；标签 wordWrap=True，排不下就折成两行、第二行被 28px 行高裁掉尾字。
+    # 实测（离屏）：QTextDocument 量高在宽 ≤295px 时为 36px（两行）、≥296px 时
+    # 22px（单行），即单行临界宽约 288+8=296；余量取 8px。QLabel.heightForWidth
+    # 在此不可信（宽 211 也报 26px），判据以 QTextDocument 为准，同
+    # tests/test_actor_db_hint_height.py 的坑注。
+    _ACTOR_DB_SLICE_HINT_PAD = 8
+
+    @classmethod
+    def _actor_db_slice_hint_width(cls, hint) -> int:
+        """最小化态分片行提示标签宽度：按字体度量取单行整串宽，不足设计宽时仍取设计宽。
+
+        hint 的 wordWrap=True 是设计需要（窄窗时不让文字顶出组框左缘外），但常态下
+        设计宽 211px 排不下加长后的整串文案，折行会裁字；故按「整串宽 + 余量」加宽，
+        不足设计宽时（换回短文案或大字号以外的度量差异）保持 211px 不动。
+        行内左缘仍由 _ACTOR_DB_SYNC_ROW_NAMES 顺排决定，只有末位标签的宽度向右拓展。
+        """
+        hint.ensurePolished()  # 字号来自样式表，未 polish 时 fontMetrics 不反映 12px
+        design_w = cls._ACTOR_DB_TOOL_DESIGN["label_actor_db_sync_slice_hint"][2]
+        need = hint.fontMetrics().horizontalAdvance(hint.text()) + cls._ACTOR_DB_SLICE_HINT_PAD
+        return max(design_w, need)
+
     def _actor_db_sync_row_left(self, ui, box) -> int:
         """最小化态别名分片行的左缘（组内局部 x）：与封面补图组「覆盖已有图片」严格同列。
 
@@ -1501,8 +1525,10 @@ class MyMAinWindow(QMainWindow):
         - 常态（最小化/还原）：按 _ACTOR_DB_TOOL_DESIGN 紧凑排布；
         - 最大化：宽幅控件拉宽，右列按钮（LibreDMM/停止/minnano/检查）保持在右列。
 
-        例外一处：常态下「补全别名」说明按组框可用宽加宽（封顶 768px，见
-        _ACTOR_DB_ALIASES_DESC_MAX_W 的折行实测），这是该标签唯一不钉设计宽的地方。
+        例外两处：常态下「补全别名」说明按组框可用宽加宽（封顶 768px，见
+        _ACTOR_DB_ALIASES_DESC_MAX_W 的折行实测）；常态下末位提示标签
+        「起始行数0+单次限制5000=默认更新数据表行数」按字体度量取单行整串宽
+        （设计宽排不下会折行裁字，见 _actor_db_slice_hint_width）。
         """
         ui = getattr(self, "Ui", None)
         if ui is None:
@@ -1551,11 +1577,20 @@ class MyMAinWindow(QMainWindow):
             # 番号输入框右缘 552 反推左缘，六控件设计宽合计 601 > 552-40，
             # 左缘被推到 -49（组框左缘之外），首枚复选框被裁成「更新并入」；
             # 改由 _actor_db_sync_row_left 直接取对齐左缘（设计值 40），
-            # 整行随之前移，右缘随之落到 641，组内缘以内不溢出。
+            # 整行随之前移，右缘随之落到 641（末位提示标签按字体度量加宽后为 726，
+            # 见下方 _actor_db_slice_hint_width），窄窗下本就略越组框右缘——
+            # 组框不裁剪子控件，与组宽无关。
             sync_y = 358
             current_x = self._actor_db_sync_row_left(ui, box)
             for name in self._ACTOR_DB_SYNC_ROW_NAMES:
                 w = self._ACTOR_DB_TOOL_DESIGN[name][2]
+                # 末位提示标签按字体度量取单行整串宽（加长文案后 211px 设计宽排不下，
+                # wordWrap 会折成两行、第二行被 28px 行高裁掉）：宽度不够就向右拓展，
+                # 左缘仍紧接末位 spin，行内其余五项逐像素不动。组框不裁剪子控件，
+                # 窄窗下整行本就越出组框右缘（实测 760px 窗宽时右缘 641 > 组宽 409），
+                # 故此处不再按组框可用宽封顶，避免又折回两行。见 _actor_db_slice_hint_width。
+                if name == "label_actor_db_sync_slice_hint":
+                    w = self._actor_db_slice_hint_width(widgets[name])
                 widgets[name].setGeometry(current_x, sync_y, w, 28)
                 current_x += w
             return

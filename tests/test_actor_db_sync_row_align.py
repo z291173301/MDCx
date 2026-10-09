@@ -10,8 +10,13 @@
 —— 复选框被推到组框左缘之外，界面上被裁成「更新并入」。现改为由
 ``_actor_db_sync_row_left`` 直接取「覆盖已有图片」的组内局部 x（设计值 40）作左缘。
 
-实现见 ``main_window.MyMAinWindow._actor_db_sync_row_left`` 与
-``_ACTOR_DB_SYNC_ROW_NAMES``。
+需求（最小化/还原态，末位提示标签）：「起始行数0+单次限制5000=默认更新数据表行数」
+必须整串一行显示，宽度不够就向右拓展——即该标签宽度不再钉设计宽 211px，改按
+``_actor_db_slice_hint_width`` 取「整串实测宽 + 余量」与设计宽的较大者；左缘仍紧接
+末位 spin、行内其余五项逐像素不动。
+
+实现见 ``main_window.MyMAinWindow._actor_db_sync_row_left``、
+``_ACTOR_DB_SYNC_ROW_NAMES`` 与 ``_actor_db_slice_hint_width``。
 """
 
 import os
@@ -20,6 +25,7 @@ import sys
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
+from PyQt6.QtGui import QTextDocument
 from PyQt6.QtWidgets import QApplication
 
 _app: QApplication | None = None
@@ -34,13 +40,41 @@ ROW_NAMES = [
     "label_actor_db_sync_slice_hint",
 ]
 # 设计宽/高（来自 _ACTOR_DB_TOOL_DESIGN，最大化态的提示词宽度除外，见下）
+# 末位提示标签的 211 只是宽度下限，实际宽度见 _expected_hint_width。
 DESIGN_WIDTHS = [142, 56, 64, 56, 72, 211]
 ROW_Y = 358
 ROW_H = 28
 # 「覆盖已有图片」的组内设计 x（_COVER_BACKFILL_OPTION_DESIGN，永不随窗宽移动）
 OVERWRITE_DESIGN_X = 40
-# 分片行在最小化态的组内右缘（40 + 设计宽合计 601 = 641）
-NARROW_ROW_RIGHT = OVERWRITE_DESIGN_X + sum(DESIGN_WIDTHS)
+# 提示标签单行整串宽的额外余量（镜像 main_window._ACTOR_DB_SLICE_HINT_PAD）
+HINT_PAD = 8
+
+
+def _expected_hint_width(ui) -> int:
+    """末位提示标签在最小化态的期望宽度：max(设计宽 211, 整串实测宽 + 余量)。"""
+    hint = ui.label_actor_db_sync_slice_hint
+    hint.ensurePolished()  # 字号来自样式表，未 polish 时字体度量不反映 12px
+    need = hint.fontMetrics().horizontalAdvance(hint.text()) + HINT_PAD
+    return max(DESIGN_WIDTHS[-1], need)
+
+
+def _narrow_row_right(ui) -> int:
+    """分片行在最小化态的组内右缘（前五项设计宽累加 + 末位标签按度量取宽）。"""
+    return OVERWRITE_DESIGN_X + sum(DESIGN_WIDTHS[:-1]) + _expected_hint_width(ui)
+
+
+def _doc_height(hint, width: int) -> float:
+    """按给定宽度排版该标签整串文案后的文档高（QLabel 折行判据的权威口径）。
+
+    QLabel.heightForWidth 在本控件上不可信（宽 211px 也只报 26px，见
+    tests/test_actor_db_hint_height.py 的同一坑注），故改用 QTextDocument 量高：
+    单行与两行的量高相差一个行高（实测 22px vs 36px），据此判定是否折行。
+    """
+    doc = QTextDocument()
+    doc.setDefaultFont(hint.font())
+    doc.setTextWidth(width)
+    doc.setPlainText(hint.text())
+    return doc.size().height()
 
 
 def _ensure_app() -> QApplication:
@@ -125,10 +159,12 @@ def _abs_x(win, widget) -> int:
 
 
 def _assert_narrow_row(win) -> None:
-    """最小化态：首枚左缘 == 覆盖已有图片绝对 x，整行零间隙顺排、y/h 一致、不越组框。"""
+    """最小化态：首枚左缘 == 覆盖已有图片绝对 x，整行零间隙顺排、y/h 一致、末位按度量加宽。"""
     ui = win.Ui
     row = _row(ui)
     overwrite = ui.checkBox_cover_backfill_overwrite
+    hint_w = _expected_hint_width(ui)
+    expect_widths = DESIGN_WIDTHS[:-1] + [hint_w]
 
     # ① 严格上下对齐：绝对 x 完全相等（这是本需求的唯一硬指标）
     assert _abs_x(win, row[0]) == _abs_x(win, overwrite), (
@@ -139,14 +175,14 @@ def _assert_narrow_row(win) -> None:
     assert overwrite.x() == OVERWRITE_DESIGN_X, f"覆盖已有图片 x 被改动: {overwrite.x()}"
     assert overwrite.width() == 161 and overwrite.height() == 20, "覆盖已有图片尺寸被改动"
 
-    # ② 整行零间隙顺排：各控件宽度取设计值、依次直接相接
+    # ② 整行零间隙顺排：前五项取设计值，末位提示标签取「单行整串宽 + 余量」
     xs = [w.x() for w in row]
     ws = [w.width() for w in row]
-    assert ws == DESIGN_WIDTHS, f"分片行控件宽度被改动: {ws}"
+    assert ws == expect_widths, f"分片行控件宽度被改动: {ws}（期望 {expect_widths}，末位按字体度量取宽）"
     assert xs[0] == OVERWRITE_DESIGN_X, f"分片行左缘应等于覆盖已有图片的 x: {xs[0]}"
     for i in range(1, len(row)):
         assert xs[i] == xs[i - 1] + ws[i - 1], f"{ROW_NAMES[i]} 未与左邻相接: {xs}（设计宽 {DESIGN_WIDTHS}）"
-    assert xs[-1] + ws[-1] == NARROW_ROW_RIGHT, f"分片行右缘应为 {NARROW_ROW_RIGHT}: {xs[-1] + ws[-1]}"
+    assert xs[-1] + ws[-1] == _narrow_row_right(ui), f"分片行右缘应为 {_narrow_row_right(ui)}: {xs[-1] + ws[-1]}"
 
     # 纵向位置/高度统一，且整行不越出组框左缘（事故回归点：曾被推到 -49）
     assert all(w.y() == ROW_Y for w in row), f"分片行 y 不统一: {[w.y() for w in row]}"
@@ -174,11 +210,28 @@ def test_alias_row_moves_right_by_same_delta(win, app):
     base_x = row[0].x()
     for widget, off in zip(row, offsets, strict=True):
         assert widget.x() == base_x + off, f"{widget.objectName()} 未随整行同步右移: {widget.x()} != {base_x + off}"
-    # 整行右移后仍不越组框右缘
+    # 前五项右缘不越组框右缘（末位提示标签按需求向右拓展，故不参与该断言）
     box = win.Ui.groupBox_actor_db_maintenance
-    assert row[-1].x() + row[-1].width() <= box.width(), (
-        f"分片行右缘 {row[-1].x() + row[-1].width()} 越出组框宽 {box.width()}"
+    prefix_right = row[4].x() + row[4].width()
+    assert prefix_right <= box.width(), f"分片行前五项右缘 {prefix_right} 越出组框宽 {box.width()}"
+
+
+@pytest.mark.parametrize("width", [760, 1080, 1920])
+def test_slice_hint_single_line_in_normal_state(win, app, width):
+    """最小化态：提示词整串一行显示（宽度不够时向右拓展，不折行、不裁字）。"""
+    _resize(win, app, width)
+    hint = win.Ui.label_actor_db_sync_slice_hint
+    hint.ensurePolished()
+    assert hint.x() == OVERWRITE_DESIGN_X + sum(DESIGN_WIDTHS[:-1]), f"提示词左缘被改动: {hint.x()}"
+    assert hint.width() == _expected_hint_width(win.Ui), (
+        f"提示词宽度应为 max(211, 实测整串宽+{HINT_PAD}): {hint.width()}"
     )
+    # 权威判据：按实际宽度排版的文档高等于不限宽时的单行高 → 未折行
+    assert _doc_height(hint, hint.width()) == _doc_height(hint, 100000), (
+        f"{width}px 窗宽下提示词折行了：单行高 {_doc_height(hint, 100000)}，实得 {_doc_height(hint, hint.width())}"
+    )
+    # 回归对照：设计宽 211px 确实排不下（这正是加宽的原因）
+    assert _doc_height(hint, DESIGN_WIDTHS[-1]) > _doc_height(hint, 100000), "设计宽下已能单行，加宽逻辑失去依据"
 
 
 def test_overwrite_row_other_options_still_follow_extra(win, app):
@@ -218,6 +271,7 @@ def test_maximized_state_unchanged(win, app, monkeypatch):
     spin = row[4]
     hint = row[5]
     assert hint.x() == spin.x() + spin.width() + 10, f"最大化态提示词位置被改动: {hint.x()}"
+    # 最大化态维持既有硬编码 261px（本次需求只针对最小化态的单行显示）
     assert hint.width() == 261, f"最大化态提示词宽度被改动: {hint.width()}"
     assert all(w.y() == ROW_Y for w in row), f"最大化态分片行 y 被改动: {[w.y() for w in row]}"
     assert ui.checkBox_cover_backfill_overwrite.x() == OVERWRITE_DESIGN_X

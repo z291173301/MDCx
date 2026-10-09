@@ -4,6 +4,17 @@
 
 ### 修复
 
+- **演员库分片行提示词改为「起始行数0+单次限制5000=默认更新数据表行数」，并在最小化态整串一行显示（宽度不够就向右拓展）**（用户最新两轮诉求，回归 `tests/test_actor_db_sync_row_align.py`）：
+  - 诉求原文：①「把提示词文案……改成默认更新数据表行数」（`.ui` 与 `.py` 两处一并改）；②「最小化时默认更新数据表行数在一行显示，不够就向右拓展」。
+  - 现象与根因：文案多出「数据表」三字后，12px 字号下整串 `fontMetrics().horizontalAdvance` 由 240px 涨到 **288px**，超过该标签设计宽 211px；`label_actor_db_sync_slice_hint` 的 `wordWrap=True` 排不下就折成两行，而行高只有 28px（两行文档高 36px），第二行被裁——正是截图里「默认更新数据表行数」缺字的现象。
+  - 改法一（文案）：`MDCx.ui` 第 2733 行与 `MDCx.py` 的 `retranslateUi` 各改一处。`MDCx.py` 该行按 pyuic6+ruff 产物排成**单行**，使 `test_mdcx_py_in_sync_with_ui` 的剩余差异回落到既有的 `label_actor_db_sync_aliases_desc` 那 5 行。
+  - 改法二（宽度）：新增类常量 `_ACTOR_DB_SLICE_HINT_PAD = 8` 与类方法 `_actor_db_slice_hint_width(hint)`——先 `ensurePolished()`（字号来自样式表，未 polish 时字体度量拿不到 12px），再取 `fontMetrics().horizontalAdvance(text) + 8` 与设计宽 211 的**较大者**。`_sync_actor_db_tool_layout` 最小化分支的零间隙顺排循环走到末位标签时改用该宽度：左缘仍紧接末位 spin（组内 x=430 不变），行内前五项 `40/182/238/302/358` 与宽 `142/56/64/56/72` 逐像素不动，只有末位标签向右拓展（实测 288+8=296）。
+  - 为什么不按组框可用宽封顶：groupBox 不裁剪子控件，且窄窗下整行本就越出组框右缘（实测 760px 窗宽时组宽 409 而行右缘 641），封顶等于重新折回两行、退回用户反馈的现象。
+  - 判据选型：`QLabel.heightForWidth` 在该控件上不可信（宽 211px 也只报 26px，同 `tests/test_actor_db_hint_height.py` 的坑注），以 `QTextDocument` 量高为准——实测宽 ≤295px → 36px（两行）、≥296px → 22px（单行），余量 8px 由此而来。
+  - 实测（离屏，窗宽 760/900/1080/1400/1920 五档结果一致）：行内 x = `40/182/238/302/358/430`、宽 = `142/56/64/56/72/296`，hint 几何 `(430, 358, 296, 28)`，按实宽排版的文档高 22px 等于不限宽的单行高（改前 36px）。
+  - 回归：`tests/test_actor_db_sync_row_align.py` 的末位宽度/右缘断言由常量 641 改为 `max(211, 实测整串宽 + 8)`，新增 `test_slice_hint_single_line_in_normal_state`（760/1080/1920 三档：左缘仍 430、宽度等于按度量取值、按实宽排版的文档高等于不限宽单行高，并以 211px 下确实折行作反向对照）；该文件 12 项全绿，`test_actor_db_hint_height.py`/`test_ui_geometry.py`/`test_actor_db_tool.py`/`test_actor_db_structure.py`/`test_actor_db_button_consistency.py`/`test_tool_page_right_align.py` 共 50 项全绿。
+  - ⚠️ 遗留未动：① **最大化态提示词仍是硬编码宽 261**（`_sync_actor_db_tool_layout` 最大化分支），本机离屏度量下 261 < 296、同样会折行裁字；因上一轮用户明确要求「最大化时…保持不变」且 `test_maximized_state_unchanged` 钉死该值，本轮未动，待确认是否一并按度量取宽。② `tests/test_ui_structure.py::test_mdcx_py_in_sync_with_ui` 仍红，但剩余差异只有既有的 `label_actor_db_sync_aliases_desc` 5 行（`.ui` 中该标签文案与 `MDCx.py` 不同步），与本次改动无关。
+
 - **最小化态工具页「全量更新并入」整行右移，左缘与封面补图组「覆盖已有图片」严格上下对齐（用户最新轮诉求）**（`mdcx/controllers/main_window/main_window.py`，回归 `tests/test_actor_db_sync_row_align.py`）：
   - 诉求原文：「软件工具最小化时全量更新并入按钮向右移动到与覆盖已有图片按钮严格上下对齐的位置，右侧的起始行数、单次限制及提示词同步向右移动，覆盖已有图片按钮位置保持不变，最大化时页面布局、组件、控件、提示等等保持不变」（用户截图里「全量更新并入」被组框左缘裁成「更新并入」，红框标注「向右移动」）。
   - 根因：`_sync_actor_db_tool_layout` 的最小化分支把该行**右缘钉到 552**（封面补图番号输入框右缘 `136+416`）再反推左缘，而六个控件的设计宽合计 `142+56+64+56+72+211 = 601`，故 `start_x = 552 − 601 = −49` —— 首枚复选框被推到组框左缘**之外**（组内 x 为负、绝对 x 为 70−40=… 实测组框 x=30 故绝对 x=−19），正是截图里的裁字。旧代码对「六控件零间隙顺排」的自洽性有假设，却从未校验 `总宽 ≤ 目标右缘 − 目标左缘`。
