@@ -2144,12 +2144,19 @@ class ActorSourceTestDialog(QDialog):
         # 左列：头像预览 + 获取头像（预览框按列宽等比放大，见 _fit_avatar_frame）
         left_col = QVBoxLayout()
         self.avatar_label = QLabel("头像预览")
-        self.avatar_label.setMinimumSize(190, 310)
+        # 最小值只做显示下限，不跟随显示尺寸：若用 setFixedSize
+        # 把最小锁成当前显示尺寸，QSplitter 会以该最小值钳住上窗格，导致结果框
+        # 只能向下拉、向上拉不动。此处最小恒定（宽 190 与原来一致、高降到 196），
+        # 显示尺寸只走最大上限（见 _fit_avatar_frame）。
+        self.avatar_label.setMinimumSize(190, 196)
         self.avatar_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.avatar_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.avatar_label.setStyleSheet("border: 1px solid #ccc; color: #888;")
         left_col.addStretch()
-        left_col.addWidget(self.avatar_label, alignment=Qt.AlignmentFlag.AlignHCenter)
+        # stretch=1 让富余垂直空间优先给预览框（上限仍受 _fit_avatar_frame 的
+        # maximumSize 钳制）；水平不设对齐，预览框撑满整列、与“获取头像”按钮同宽。
+        # 最小值恒定 190x196 不抬高 QSplitter 上窗格的最小高度，结果框可上下双向拖拽。
+        left_col.addWidget(self.avatar_label, 1)
         left_col.addStretch()
         self.btn_image = QPushButton("获取头像")
         self.btn_image.setObjectName("btnPrimary")
@@ -2777,8 +2784,9 @@ class ActorSourceTestDialog(QDialog):
 
     def _fit_avatar_frame(self):
         """头像预览框左右扩展到左列整个可显示宽度，宽高比保持 190:310；高度不够时按高度回缩。
-        宽度同时钳制在 1:2:1 公平份额内：头像固定尺寸会反过来撑住列宽，读当前列宽做目标
-        在多帧 resize（最大化→还原）后会卡在偏大的自洽不动点；钳到公平份额后单调收敛。"""
+        宽度同时钳制在 1:2:1 公平份额内：读当前列宽做目标，在多帧 resize
+        （最大化→还原）后单调收敛。只设最大上限、不碰最小值：最小恒为构造时的
+        120x196，QSplitter 上窗格最小高度不再被头像显示尺寸撑住，结果框才能上下双向拖拽。"""
         try:
             row = getattr(self, "_main_row", None)
             col = getattr(self, "_left_col", None)
@@ -2788,10 +2796,13 @@ class ActorSourceTestDialog(QDialog):
             if any(it is None for it in items):
                 return
             g0, g1, g2 = (it.geometry() for it in items)
-            # 用三列实际几何反推公平份额，不依赖边距/间距常量
+            # 用三列实际几何反推公平份额，不依赖边距/间距常量。
+            # 目标宽度直接取公平份额（由总宽实时算出，放大/还原双向收敛）：不能再与
+            # 当前列宽取 min——放大那帧列宽还是旧的窄值，min 会把目标钉死在旧宽度，
+            # 列宽长不大、下一帧量到的还是窄值，左列卡死、头像框比快速设置窄。
             gaps = (g1.x() - g0.right() - 1) + (g2.x() - g1.right() - 1)
             fair = (g2.right() - g0.x() + 1 - gaps) / 4.0
-            avail_w = min(g0.width(), int(fair))
+            avail_w = int(fair)
             avail_h = g0.height() - self.btn_image.height() - col.spacing() * 3 - col.contentsMargins().top() - col.contentsMargins().bottom()
             if avail_w < 10 or avail_h < 10:
                 return
@@ -2800,8 +2811,9 @@ class ActorSourceTestDialog(QDialog):
             if h > avail_h:
                 h, w = avail_h, int(round(avail_h / ratio))
             w, h = max(w, 10), max(h, 10)
-            if self.avatar_label.width() != w or self.avatar_label.height() != h:
-                self.avatar_label.setFixedSize(w, h)
+            cur_max = self.avatar_label.maximumSize()
+            if cur_max.width() != w or cur_max.height() != h:
+                self.avatar_label.setMaximumSize(w, h)
         except Exception:
             pass
 
