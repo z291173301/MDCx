@@ -1283,6 +1283,37 @@
               <string>开始</string>
             </property>
           </widget>
+          <widget class="QPushButton" name="pushButton_clear_logs">
+            <property name="geometry">
+              <rect>
+                <x>760</x>
+                <y>61</y>
+                <width>40</width>
+                <height>40</height>
+              </rect>
+            </property>
+            <property name="mouseTracking">
+              <bool>true</bool>
+            </property>
+            <property name="text">
+              <string />
+            </property>
+            <property name="iconSize">
+              <size>
+                <width>30</width>
+                <height>30</height>
+              </size>
+            </property>
+            <property name="checkable">
+              <bool>false</bool>
+            </property>
+            <property name="autoDefault">
+              <bool>false</bool>
+            </property>
+            <property name="default">
+              <bool>false</bool>
+            </property>
+          </widget>
            <widget class="QTextBrowser" name="textBrowser_log_main">
              <property name="geometry">
                <rect>
@@ -1460,6 +1491,7 @@
           <zorder>textBrowser_log_main_2</zorder>
           <zorder>textBrowser_log_main</zorder>
           <zorder>pushButton_start_cap2</zorder>
+          <zorder>pushButton_clear_logs</zorder>
           <zorder>pushButton_show_hide_logs</zorder>
           <zorder>textBrowser_log_main_3</zorder>
           <zorder>pushButton_view_failed_list</zorder>

@@ -79,12 +79,13 @@ def _donate_one_size_budget(win) -> int:
     真实实现（顶锚定版）：`one_size = 窗高 − 预留行高 − gap − 链接高 − 链接间距 − 顶间距(_DONATE_TOP_GAP) − 导航底`
     （见 `main_window.py: _DONATE_QR_SIZE` 处注释）。窗高是唯一变量，故抽成本函数后
     「某档窗高能否放满 180」就是 `窗高 >= 返回值 + 180`，测试不必写死阈值（字体度量随
-    fixture 的 `set_style` 桩而变；真实运行 100% 字号的门槛是 693）。
+    fixture 的 `set_style` 桩而变；真实运行 100% 字号的门槛是 699，顶间距已改为
+    与导航按钮间距等高的 8px）。
 
     注意 `gap` 已不含旧的 `_DONATE_LIFT`（本轮起整块改为顶锚定，富余高度落在窗底）。
     另外 `max(0, _DOCK_STATUS_H_MIN - reserve)` 是「状态区下限」护栏：二维码缩小多少就把
     状态区压矮多少，故预留带不足 72px 时（QSS 被 stub 的本环境即如此）边长还要再让出这段。
-    真实运行 `reserve` = 85 > 72，该项恒为 0，门槛仍是 693。
+    真实运行 `reserve` = 85 > 72，该项恒为 0，门槛仍是 699。
     """
     reserve = win._dock_status_text_reserve_h()
     gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve)
@@ -1163,10 +1164,11 @@ def test_donate_block_is_centered_and_keeps_text_gap_at_any_height(win, app):
     _DONATE_TEXT_GAP 17→10）换来的；后续又把 _DOCK_STATUS_BOTTOM_PAD 40→0（状态文字
     真贴窗底，见 test_left_status_badges_follow_window_bottom）使可用高度净增 40px。
 
-    **注意 693 档放不满 180 是正常且可接受的**：本文件 win fixture 把 set_style stub
+    **注意 693/699 档放不满 180 是正常且可接受的**：本文件 win fixture 把 set_style stub
     掉，QSS 的 13px 不生效，_dock_status_text_h() 得 54（真实运行 60）；叠加
     nav_top=50（隐藏标题栏）使 nav_bottom=440，本环境默认窗高下 avail 只有 147。
-    真实运行的预算是 height − 513，故 height ≥ 693 即为 180（默认窗高 700 满足）。
+    真实运行的预算是 height − 519（顶间距已改为与导航间距等高的 8px），故 height ≥ 699
+    即为 180（默认窗高 700 满足，余 1px）。
     因此断言「达到上限的档位之间留白恒定」+「未达上限的档位仍左右对称」，
     而不是要求 693 也等于 180。
     """
@@ -1803,7 +1805,7 @@ def test_donate_group_is_top_anchored_and_status_text_never_clipped(win, app):
     于是最大化时状态文字压在窗底、末行「🔍 点击检查最新版」被裁（截图可见）。
 
     四条断言（阈值全部由预算反算，不写死像素）：
-      ① 块顶 ≡ 导航底 + _DONATE_TOP_GAP（2px，使用说明→二维码的间距），且二维码/链接/文字首行三者只由块顶与**固定量**决定；
+      ① 块顶 ≡ 导航底 + _DONATE_TOP_GAP（8px，与导航按钮间距等高，即软件设置→检测网络的间距），且二维码/链接/文字首行三者只由块顶与**固定量**决定；
       ② 放得满设计边长的各档窗高下，二维码与链接的几何**逐值相同**（位置与窗高无关，
          这比第十三轮「读取/刮削不动」的承诺更强）；
       ③ 文字带底边恒在窗内（末行不被裁），且实际文字高度 ≤ 预留带；
@@ -1918,6 +1920,11 @@ def test_donate_group_is_bottom_anchored_when_maximized(win, app):
         ui.label_show_version,
     )
     alipay = ui.label_donate_alipay
+    # 预留行数与锚法有关（`_dock_status_text_reserve_h`：底锚 6 行、顶锚 5 行），
+    # 故必须先打桩最大化再算 reserve/gap/门槛；在非最大化下算出的 5 行值
+    # 会比布局实际用的 6 行值小一行（本环境约 14px），`status.height() == reserve`
+    # 将恒失败。
+    win.isMaximized = lambda: True
     reserve = win._dock_status_text_reserve_h()
     gap = max(win._DONATE_TEXT_GAP, win._DOCK_STATUS_H_MIN + win._DONATE_PAD - reserve)
     full_min_h = _donate_bottom_full_size_min_height(win)
@@ -1927,7 +1934,7 @@ def test_donate_group_is_bottom_anchored_when_maximized(win, app):
     )
 
     top_slacks: dict[int, int] = {}
-    win.isMaximized = lambda: True
+    alipay_shown: dict[int, bool] = {}
     try:
         for height in heights:
             win.resize(1032, height)
@@ -1974,6 +1981,7 @@ def test_donate_group_is_bottom_anchored_when_maximized(win, app):
             )
             # ③ 富余只能落在块**上方**（块顶 − 导航底）
             top_slacks[height] = block_top - nav_bottom
+            alipay_shown[height] = not alipay.isHidden()
             # ④ 反复重排不抖
             live = (qr.geometry().getRect(), alipay.geometry().getRect(), link.geometry().getRect())
             for _ in range(5):
@@ -1984,9 +1992,14 @@ def test_donate_group_is_bottom_anchored_when_maximized(win, app):
                 alipay.geometry().getRect(),
                 link.geometry().getRect(),
             ) == live, f"h={height}: 反复重排后几何漂移"
-        # ③ 富余随窗高单调**递增**（窗越高，块上方空出来的越多）——顶锚档那条的反向
-        ordered = [top_slacks[h] for h in heights]
-        assert ordered == sorted(ordered), f"块上方富余未随窗高单调递增：{top_slacks}"
+        # ③ 富余随窗高单调**递增**（窗越高，块上方空出来的越多）——顶锚档那条的反向。
+        # 支付宝码出现的那一档块顶会向上跳变一张码 + _DONATE_ALIPAY_GAP（块定义从微信码顶
+        # 切换为支付宝码顶），跨台阶的全局单调不成立；故按支付宝码显隐分组后分别断言单调。
+        for shown in (False, True):
+            seq = [top_slacks[h] for h in heights if alipay_shown[h] is shown]
+            if not seq:
+                continue
+            assert seq == sorted(seq), f"块上方富余未随窗高单调递增（支付宝码{'显示' if shown else '隐藏'}组）：{top_slacks}"
 
         # ⑤ 读取前后完全不动（第十三轮的不变量在底锚档同样成立）
         win.resize(1032, 1040)
@@ -2034,9 +2047,9 @@ def test_adaptive_window_sizes_matrix():
     from mdcx.controllers.main_window.init import _adaptive_window_sizes
 
     # 1080p 无缩放（可用 1920x1040）：回到设计值，主页面内容完整
-    assert _adaptive_window_sizes(1920, 1040) == (850, 650, 1030, 700)
+    assert _adaptive_window_sizes(1920, 1040) == (850, 650, 1080, 720)
     # 1080p 125% 缩放（逻辑 1536x864）：92ef2437 的原始诉求——不锁死 700，仍可缩到 648
-    assert _adaptive_window_sizes(1536, 864) == (850, 648, 1030, 700)
+    assert _adaptive_window_sizes(1536, 864) == (850, 648, 1080, 720)
     # 小屏（1024x600 可用）：宽高各自独立收窄，不占满屏幕
     assert _adaptive_window_sizes(1024, 600) == (614, 450, 921, 510)
     # 超小屏下限钳制：不得低于 400x300（此时最小尺寸兜底）
