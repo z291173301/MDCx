@@ -2087,7 +2087,13 @@ class ActorSourceTestDialog(QDialog):
         self.setMinimumSize(1080, 720)
         self.resize(1080, 720)
         # 打开时默认在屏幕可用区居中；小屏时钳制，避免标题栏移出可视区。
+        # 与主窗口一致：使用 frameGeometry 精确计算外框居中，原生窗口未创建时延后一次。
         _w, _h = 1080, 720
+        def _center_dialog(avail_rect):
+            frame = self.frameGeometry()
+            x = avail_rect.x() + max(0, (avail_rect.width() - frame.width()) // 2)
+            y = avail_rect.y() + max(0, (avail_rect.height() - frame.height()) // 2)
+            self.move(max(x, avail_rect.x()), max(y, avail_rect.y()))
         try:
             screen = QGuiApplication.primaryScreen()
             avail = screen.availableGeometry() if screen is not None else None
@@ -2095,10 +2101,10 @@ class ActorSourceTestDialog(QDialog):
                 _w = min(_w, avail.width())
                 _h = min(_h, avail.height())
                 self.resize(_w, _h)
-                self.move(
-                    avail.x() + max(0, (avail.width() - _w) // 2),
-                    avail.y() + max(0, (avail.height() - _h) // 2),
-                )
+                if self.windowHandle() is not None:
+                    _center_dialog(avail)
+                else:
+                    QTimer.singleShot(0, lambda av=avail: _center_dialog(av))
         except Exception:
             pass
         root = QVBoxLayout(self)
