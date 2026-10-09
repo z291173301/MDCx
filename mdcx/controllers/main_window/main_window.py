@@ -11317,16 +11317,17 @@ class MyMAinWindow(QMainWindow):
                 elif "ray-id" in response:
                     tips = "❌ 访问被 CloudFlare 拦截！"
                 elif "/logout" in response:  # 已登录，有登出按钮
-                    vip_info = "未开通VIP"
-                    tips = f"✅ 连接正常！（{vip_info}）"
+                    # vip_info 自带标点/括号：未开通沿用括号补注，已开通则独立成句感叹
+                    vip_info = "（未开通VIP）"
+                    tips = f"✅ 连接正常！{vip_info}"
                     if input_cookie:
                         if "icon-diamond" in response or "/v/D16Q5" in response:  # 有钻石图标或者跳到详情页表示已开通
-                            vip_info = "已开通VIP"
+                            vip_info = "已开通VIP！"
                         if manager.config.javdb != input_cookie:  # 保存cookie
-                            tips = f"✅ 连接正常！（{vip_info}）Cookie 已保存！"
+                            tips = f"✅ 连接正常！{vip_info}Cookie 已保存！"
                             self.exec_save_config.emit()
                         else:
-                            tips = f"✅ 连接正常！（{vip_info}）"
+                            tips = f"✅ 连接正常！{vip_info}"
                 else:
                     # 议题 #130：/logout 缺失只说明"未检测到登录态"，可能是维护页/拦截页，
                     # 不构成 cookie 失效的确凿证据——只告警、保留 cookie，由用户手动替换。
