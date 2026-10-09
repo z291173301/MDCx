@@ -5279,6 +5279,7 @@ class MyMAinWindow(QMainWindow):
         ui.textBrowser_log_main_3.setGeometry(0, 0, max(log_page.width() - 2, 300), max(log_page.height() - 2, 300))
         # 设计基准页面宽 822/高 692：按钮右缘锚定右侧、底部按钮锚定下缘
         ui.pushButton_start_cap2.move(max(log_page.width() - 142, 20), 13)
+        ui.pushButton_clear_logs.move(max(log_page.width() - 42, 20), 61)
         ui.pushButton_view_failed_list.move(max(log_page.width() - 257, 20), 13)
         ui.pushButton_show_hide_logs.move(0, max(log_page.height() - 42, 13))
         ui.pushButton_save_failed_list.move(0, max(log_page.height() - 42, 13))
@@ -9913,6 +9914,14 @@ class MyMAinWindow(QMainWindow):
     # endregion
 
     # region 日志页
+    # 日志页清空显示（仅清界面，不动日志文件）
+    def pushButton_clear_logs_clicked(self):
+        self.main_log_queue.clear()
+        self.logs_counts = 0
+        self.req_logs_counts = 0
+        self.Ui.textBrowser_log_main.clear()
+        self.Ui.textBrowser_log_main_2.clear()
+
     # 日志页点展开折叠日志
     def pushButton_show_hide_logs_clicked(self):
         if self.Ui.textBrowser_log_main_2.isHidden():

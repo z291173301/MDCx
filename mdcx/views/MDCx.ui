@@ -1286,10 +1286,10 @@
           <widget class="QPushButton" name="pushButton_clear_logs">
             <property name="geometry">
               <rect>
-                <x>760</x>
+                <x>780</x>
                 <y>61</y>
-                <width>40</width>
-                <height>40</height>
+                <width>20</width>
+                <height>20</height>
               </rect>
             </property>
             <property name="mouseTracking">
@@ -1300,8 +1300,8 @@
             </property>
             <property name="iconSize">
               <size>
-                <width>30</width>
-                <height>30</height>
+                <width>16</width>
+                <height>16</height>
               </size>
             </property>
             <property name="checkable">

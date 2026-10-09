@@ -472,6 +472,15 @@ class Ui_MDCx(object):
         self.pushButton_start_cap2 = QtWidgets.QPushButton(parent=self.page_log)
         self.pushButton_start_cap2.setGeometry(QtCore.QRect(680, 13, 120, 40))
         self.pushButton_start_cap2.setObjectName("pushButton_start_cap2")
+        self.pushButton_clear_logs = QtWidgets.QPushButton(parent=self.page_log)
+        self.pushButton_clear_logs.setGeometry(QtCore.QRect(780, 61, 20, 20))
+        self.pushButton_clear_logs.setMouseTracking(True)
+        self.pushButton_clear_logs.setText("")
+        self.pushButton_clear_logs.setIconSize(QtCore.QSize(16, 16))
+        self.pushButton_clear_logs.setCheckable(False)
+        self.pushButton_clear_logs.setAutoDefault(False)
+        self.pushButton_clear_logs.setDefault(False)
+        self.pushButton_clear_logs.setObjectName("pushButton_clear_logs")
         self.textBrowser_log_main = QtWidgets.QTextBrowser(parent=self.page_log)
         self.textBrowser_log_main.setGeometry(QtCore.QRect(28, 0, 790, 421))
         self.textBrowser_log_main.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
@@ -531,6 +540,7 @@ class Ui_MDCx(object):
         self.textBrowser_log_main_2.raise_()
         self.textBrowser_log_main.raise_()
         self.pushButton_start_cap2.raise_()
+        self.pushButton_clear_logs.raise_()
         self.pushButton_show_hide_logs.raise_()
         self.textBrowser_log_main_3.raise_()
         self.pushButton_view_failed_list.raise_()
@@ -874,7 +884,7 @@ class Ui_MDCx(object):
         self.label_341.setObjectName("label_341")
         self.verticalLayout_6.addWidget(self.label_341)
         self.groupBox_actor_db_maintenance = QtWidgets.QGroupBox(parent=self.scrollAreaWidgetContents_gongju)
-        self.groupBox_actor_db_maintenance.setGeometry(QtCore.QRect(30, 40, 701, 412))
+        self.groupBox_actor_db_maintenance.setGeometry(QtCore.QRect(30, 40, 701, 434))
         self.groupBox_actor_db_maintenance.setObjectName("groupBox_actor_db_maintenance")
         self.pushButton_actor_db_translate = QtWidgets.QPushButton(parent=self.groupBox_actor_db_maintenance)
         self.pushButton_actor_db_translate.setGeometry(QtCore.QRect(40, 58, 200, 32))
@@ -13036,7 +13046,8 @@ class Ui_MDCx(object):
         self.label_3.setText(_translate("MDCx", "文件路径："))
         self.label.setText(
             _translate(
-                "MDCx", "记住不要填写网站首页地址！！！要填写该番号的网页地址！！！然后选择相对应的网站，直接点击刮削即可"
+                "MDCx",
+                "记住不要填写网站首页地址！！！要填写该番号的网页地址！！！然后选择相对应的网站，直接点击刮削即可",
             )
         )
         self.pushButton_select_file_clear_info.setText(_translate("MDCx", "清空信息"))

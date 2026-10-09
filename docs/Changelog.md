@@ -2,6 +2,14 @@
 
 ## v2.2.9 (2026-10-18)
 
+### 新增
+
+- **软件日志页开始按钮下方新增刷子按钮，一键清空日志显示、不动 log 文件**（用户诉求：「开始按钮下方加一个刷子按钮使得可以清空软件日志页面，只是清空显示不修改log文件」；后续「做小一点和软件界面的刷子按钮一样大小」）：
+  - 控件：`page_log` 新增 `pushButton_clear_logs`（20×20、图标 16×16，与软件界面 `pushButton_tree_clear` 同尺寸同图标 `clear.svg`，提示「清空显示（不删除日志文件）」），位于开始按钮正下方、右缘与开始按钮对齐（设计几何 `(780, 61, 20, 20)`，`_sync_page_layouts` 里 `x = 页宽 − 42` 跟随窗口缩放）。
+  - 行为：点击仅 `textBrowser_log_main` / `textBrowser_log_main_2` 清屏 + 清空待显示队列 `main_log_queue` + `logs_counts` / `req_logs_counts` 归零；失败列表（`textBrowser_log_main_3`）不动，`Flags.log_txt` 日志文件不碰（后续新日志照常追加显示与落盘）。
+  - 落点：`MDCx.ui` 新增控件 + pyuic6 重编译 `MDCx.py`（`test_mdcx_py_in_sync_with_ui` 同步）；`init.py` 设图标/提示并接信号；`main_window.py` 新增 `pushButton_clear_logs_clicked` + 布局跟随；`style.py` 明暗两套透明图标按钮样式加入该选择器。
+  - 验证：离屏实测与 `pushButton_tree_clear` 同尺寸、与开始按钮右缘对齐、点击后两栏与队列均空；`ruff check` 通过。
+
 ### 修复
 
 - **演员库分片行提示词改为「起始行数0+单次限制5000=默认更新数据表行数」，并在最小化态整串一行显示（宽度不够就向右拓展）**（用户最新两轮诉求，回归 `tests/test_actor_db_sync_row_align.py`）：

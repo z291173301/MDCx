@@ -328,6 +328,8 @@ def Init_Ui(self: "MyMAinWindow"):
     self.Ui.textBrowser_log_main.viewport().installEventFilter(self)  # 注册事件用于识别点击控件时隐藏失败列表面板
     self.Ui.textBrowser_log_main_2.viewport().installEventFilter(self)
     self.Ui.pushButton_save_failed_list.setIcon(QIcon(resources.save_failed_list_icon))
+    self.Ui.pushButton_clear_logs.setIcon(QIcon(resources.clear_tree_icon))
+    self.Ui.pushButton_clear_logs.setToolTip("清空显示（不删除日志文件）")
     self.Ui.widget_show_success.resize(811, 511)
     self.Ui.widget_show_success.hide()
     self.Ui.widget_show_tips.resize(811, 511)
@@ -447,6 +449,7 @@ def Init_Singal(self: "MyMAinWindow"):
     self.Ui.pushButton_start_cap.clicked.connect(self.pushButton_start_scrape_clicked)
     self.Ui.pushButton_start_cap2.clicked.connect(self.pushButton_start_scrape_clicked)
     self.Ui.pushButton_show_hide_logs.clicked.connect(self.pushButton_show_hide_logs_clicked)
+    self.Ui.pushButton_clear_logs.clicked.connect(self.pushButton_clear_logs_clicked)
     self.Ui.pushButton_view_failed_list.clicked.connect(self.pushButton_show_hide_failed_list_clicked)
     self.Ui.pushButton_save_new_config.clicked.connect(self.pushButton_save_new_config_clicked)
     self.Ui.pushButton_save_new_config_tool.clicked.connect(self.pushButton_save_new_config_clicked)
