@@ -739,8 +739,8 @@ def format_summary(
             lines.append(f"失败/警告根因分组：其他异常×{cause_counts['other']}：请查看上方失败详情，或截图提交议题")
     if failed or warning:
         lines.append(
-            "优先查看失败/警告项；若网络连通失败先检查代理或系统网络；"
-            "代理/Cookie/CF Bypass等请在「软件设置 → 网络」页调整。"
+            "优先查看失败/警告项；如果网络连通失败请先检查代理或系统网络；"
+            "代理/Cookie/CF Bypass等都在「软件设置 → 网络」页调整"
         )
     lines.append("=" * 101)
     return lines
