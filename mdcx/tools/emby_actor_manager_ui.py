@@ -1884,7 +1884,23 @@ class ActorSourceTestDialog(QDialog):
             | Qt.WindowType.WindowMinimizeButtonHint
             | Qt.WindowType.WindowMaximizeButtonHint
         )
-        self.setMinimumSize(1100, 700)
+        self.setMinimumSize(1080, 720)
+        self.resize(1080, 720)
+        # 打开时默认在屏幕可用区居中；小屏时钳制，避免标题栏移出可视区。
+        _w, _h = 1080, 720
+        try:
+            screen = QGuiApplication.primaryScreen()
+            avail = screen.availableGeometry() if screen is not None else None
+            if avail is not None and avail.isValid():
+                _w = min(_w, avail.width())
+                _h = min(_h, avail.height())
+                self.resize(_w, _h)
+                self.move(
+                    avail.x() + max(0, (avail.width() - _w) // 2),
+                    avail.y() + max(0, (avail.height() - _h) // 2),
+                )
+        except Exception:
+            pass
         root = QVBoxLayout(self)
 
         # 顶部：演员名输入 + 获取头像和简介
