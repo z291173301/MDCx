@@ -1167,6 +1167,62 @@ class MyMAinWindow(QMainWindow):
         "label_actor_db_sync_aliases_desc": (40, 378, 621, 42),
     }
 
+    # 演员库维护组底部的别名分片行控件（按设计横排顺序，从左到右）。
+    # 最小化/还原态整行顺排时按此顺序取设计宽度依次摆放，且首项「全量更新并入」
+    # 的左缘由 _actor_db_sync_row_left 对齐到封面补图组的「覆盖已有图片」。
+    _ACTOR_DB_SYNC_ROW_NAMES = (
+        "checkBox_actor_db_alias_all",
+        "label_actor_db_sync_offset",
+        "spinBox_actor_db_sync_offset",
+        "label_actor_db_sync_limit",
+        "spinBox_actor_db_sync_limit",
+        "label_actor_db_sync_slice_hint",
+    )
+
+    # 「补全别名」说明标签（label_actor_db_sync_aliases_desc）最小化态的加宽封顶。
+    # 实测依据（12px 字号，整串 996px）：设计宽 621px 下首行只能排到「…缺别名的行，」
+    # （612px），第二行从「勾选「全量更新」」起；768px 下首行恰好排到「…则并入全部」
+    # （768px），第二行为「行，用「起始行数/单次限制」可分片续跑」——即用户要的折行。
+    # 再宽只会在右缘留白、不改变折行，故按可用宽自适应后封顶此值（见
+    # _actor_db_aliases_desc_width）；组框被通用逻辑压到设计宽以下时退回设计宽 621px，
+    # 窄窗行为与改动前逐像素一致。
+    _ACTOR_DB_ALIASES_DESC_MAX_W = 768
+
+    @classmethod
+    def _actor_db_aliases_desc_width(cls, box_w: int) -> int:
+        """最小化态「补全别名」说明标签宽度：随组框可用宽自适应、封顶 768px。
+
+        标签 x=40、右边距按设计对称留 40px，故可用宽 = 组框宽 - 80；下限取
+        _ACTOR_DB_TOOL_DESIGN 的设计宽（组框窄于设计宽时不再缩小，避免窄窗回归）。
+        """
+        design_w = cls._ACTOR_DB_TOOL_DESIGN["label_actor_db_sync_aliases_desc"][2]
+        return max(min(box_w - 80, cls._ACTOR_DB_ALIASES_DESC_MAX_W), design_w)
+
+    def _actor_db_sync_row_left(self, ui, box) -> int:
+        """最小化态别名分片行的左缘（组内局部 x）：与封面补图组「覆盖已有图片」严格同列。
+
+        背景：两枚复选框分属兄弟 groupBox，绝对 x 相等即视觉上下对齐。_sync_page_layouts
+        里本方法早于 _sync_cover_backfill_option_row 执行，读到的是上一遍写回的几何——
+        但「覆盖已有图片」的 x 恒为设计值（_sync_cover_backfill_option_row 只按 extra
+        平移另两枚，首框永远钉在 40），故本测量跨遍稳定、可直接依赖。
+
+        跨框 mapTo 是未定义行为（两框无祖先关系，同 _sync_guaxiaomulu_clean_tip_align 里
+        「跨分支 mapTo」的坑注），故经共同祖先（滚动内容区）中转：各自 mapTo(host)
+        后作差，得到的就是 box 的局部 x。
+
+        回退：ui 结构不符预期（缺框、缺控件、父子关系变化）时回退设计值 40，
+        即 .ui 里的设计几何，保证与最大化态不产生额外偏差。
+        """
+        fallback = self._ACTOR_DB_TOOL_DESIGN["checkBox_actor_db_alias_all"][0]
+        cover_box = getattr(ui, "groupBox_cover_backfill", None)
+        overwrite = getattr(ui, "checkBox_cover_backfill_overwrite", None)
+        if cover_box is None or overwrite is None or overwrite.parentWidget() is not cover_box:
+            return fallback
+        host = box.parentWidget()
+        if host is None or cover_box.parentWidget() is not host:
+            return fallback
+        return overwrite.mapTo(host, QPoint(0, 0)).x() - box.mapTo(host, QPoint(0, 0)).x()
+
     # 软件工具页封面补图组三选项行的常态几何（与 MDCx.ui 一致；y 中心同为 135）。
     # _sync_cover_backfill_option_row 按此落常态，最大化只把两处间隙等量拉开。
     _COVER_BACKFILL_OPTION_DESIGN = {
@@ -1444,6 +1500,9 @@ class MyMAinWindow(QMainWindow):
         （通用拉伸之后覆盖），接管组内全部 23 个控件：
         - 常态（最小化/还原）：按 _ACTOR_DB_TOOL_DESIGN 紧凑排布；
         - 最大化：宽幅控件拉宽，右列按钮（LibreDMM/停止/minnano/检查）保持在右列。
+
+        例外一处：常态下「补全别名」说明按组框可用宽加宽（封顶 768px，见
+        _ACTOR_DB_ALIASES_DESC_MAX_W 的折行实测），这是该标签唯一不钉设计宽的地方。
         """
         ui = getattr(self, "Ui", None)
         if ui is None:
@@ -1468,6 +1527,13 @@ class MyMAinWindow(QMainWindow):
         if not maxed:
             # 常态只需复位右列按钮位置，最小化布局与原来逐像素一致
             ui.pushButton_actor_db_link.setGeometry(260, 80, 200, 32)
+            # 「补全别名」说明按组框可用宽加宽（封顶见 _ACTOR_DB_ALIASES_DESC_MAX_W）：
+            # 设计宽 621px 下首行只排到「…缺别名的行，」，加宽后首行排到「…则并入全部」，
+            # 折行与用户要求一致。组框窄于设计宽时退回 621px，其余控件逐像素不动。
+            _, desc_y0, _, desc_h0 = self._ACTOR_DB_TOOL_DESIGN["label_actor_db_sync_aliases_desc"]
+            widgets["label_actor_db_sync_aliases_desc"].setGeometry(
+                40, desc_y0, self._actor_db_aliases_desc_width(box_w), desc_h0
+            )
             # 窄窗下通用逻辑会收缩单文件组输入框并左移其按钮，nfo/别名两行按钮
             # 跟随同量 extra 收缩（输入框/下拉宽度由 _sync_tool_page_input_fill
             # 按实时按钮位置统一拓宽，此处只摆按钮）
@@ -1480,28 +1546,15 @@ class MyMAinWindow(QMainWindow):
                 # 补全别名按钮与清空信息按钮同列：清空信息通用逻辑按 571+extra 左移，本按钮同公式跟随
                 _, alias_y0, alias_w0, alias_h0 = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_sync_aliases"]
                 widgets["pushButton_actor_db_sync_aliases"].setGeometry(571 + extra_nb, alias_y0, alias_w0, alias_h0)
-            # 别名同步行严格上下对齐：统一 y 坐标，右边界拓展到与封面补图番号输入框对齐
-            # 封面补图番号输入框右缘 = 136 + 416 = 552
-            target_right = 552
+            # 别名分片行：统一 y 高度，整行零间隙顺排，左缘与封面补图组的
+            # 「覆盖已有图片」严格上下对齐（用户要求）。此前把右缘钉到封面补图
+            # 番号输入框右缘 552 反推左缘，六控件设计宽合计 601 > 552-40，
+            # 左缘被推到 -49（组框左缘之外），首枚复选框被裁成「更新并入」；
+            # 改由 _actor_db_sync_row_left 直接取对齐左缘（设计值 40），
+            # 整行随之前移，右缘随之落到 641，组内缘以内不溢出。
             sync_y = 358
-            # 计算当前别名同步行控件的总宽度
-            sync_names = [
-                "checkBox_actor_db_alias_all",
-                "label_actor_db_sync_offset",
-                "spinBox_actor_db_sync_offset",
-                "label_actor_db_sync_limit",
-                "spinBox_actor_db_sync_limit",
-                "label_actor_db_sync_slice_hint",
-            ]
-            total_width = 0
-            for name in sync_names:
-                w = self._ACTOR_DB_TOOL_DESIGN[name][2]
-                total_width += w
-            # 计算起始 x 坐标，使右边界对齐到 target_right
-            start_x = target_right - total_width
-            # 依次排列控件
-            current_x = start_x
-            for name in sync_names:
+            current_x = self._actor_db_sync_row_left(ui, box)
+            for name in self._ACTOR_DB_SYNC_ROW_NAMES:
                 w = self._ACTOR_DB_TOOL_DESIGN[name][2]
                 widgets[name].setGeometry(current_x, sync_y, w, 28)
                 current_x += w

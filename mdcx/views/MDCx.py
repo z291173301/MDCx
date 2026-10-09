@@ -13163,7 +13163,7 @@ class Ui_MDCx(object):
         self.label_actor_db_sync_aliases_desc.setText(
             _translate(
                 "MDCx",
-                "来源TMDB需配置TMDB API KEY；Minnano直接抓取みんなのAV，默认仅补缺别名的行，勾选「全量更新」则并入全部行，用「起始行数/单次限制」可分片续跑",
+                "来源TMDB需配置TMDB API KEY；Minnano直接抓取みんなのAV，默认仅补全缺别名的行，勾选「全量更新」则并入全部行，用「起始行数/单次限制」可分片续跑",
             )
         )
         self.groupBox_cover_backfill.setTitle(
