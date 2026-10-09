@@ -66,6 +66,21 @@ SCRAPE_PROBE_ATTEMPT_TIMEOUTS = (30.0, 45.0)
 # 首轮首探超时（阶梯第一档），保留常量名供展示与默认值引用
 SCRAPE_PROBE_TIMEOUT = SCRAPE_PROBE_ATTEMPT_TIMEOUTS[0]
 
+# 报告内分隔线的兜底字符数（量不到面板可视宽时用）。实际宽度由调用方按检测面板
+# 文本框的真实可视宽算好后传进来（见 MyMAinWindow._net_separator_chars → handlers
+# .net_separator_width），报告里的「-」「=」才会和面板最上/最下两条横幅永远同长、
+# 同铺满右边缘，不再是各写各的硬编码数字（曾有 101 与面板自适应宽度对不上的问题）。
+DEFAULT_SEPARATOR_WIDTH = 88
+
+
+def _separator(char: str, width: int | None) -> str:
+    """按传入宽度生成分隔线；width 为空/非正数/非整数时退回兜底宽度。"""
+    try:
+        count = int(width or 0)
+    except (TypeError, ValueError):
+        count = 0
+    return char * (count if count > 0 else DEFAULT_SEPARATOR_WIDTH)
+
 
 def scrape_probe_attempt_timeout(attempt_index: int) -> float:
     """第 attempt_index 次探测（0 基）的超时上限，超出档数取最后一档。"""
@@ -611,7 +626,7 @@ async def _try_bypass_for_check(
     )
 
 
-def _format_header() -> list[str]:
+def _format_header(separator_width: int | None = None) -> list[str]:
     manager = _manager()
     use_proxy = bool(manager.config.use_proxy and manager.config.proxy)
     cf_bypass_url = manager.config.cf_bypass_url.strip()
@@ -628,22 +643,22 @@ def _format_header() -> list[str]:
     lines.append(
         f"  {_pad_right('刮削探测', 16)}单站最多{len(SCRAPE_PROBE_ATTEMPT_TIMEOUTS)}次({scrape_probe_ladder_text()})"
     )
-    lines.append("=" * 101)
+    lines.append(_separator("=", separator_width))
     lines.append(
         "  "
         + _pad_right("状态", 4)
         + "   "
         + " "
-        + _pad_right("站点", 21)
-        + "     "
+        + _pad_right("站点", 23)
+        + "      "
         + "状态码"
-        + "       耗时"
-        + "          "
+        + "        耗时"
+        + "           "
         + "路由"
-        + "     "
+        + "      "
         + "信息"
     )
-    lines.append("=" * 101)
+    lines.append(_separator("=", separator_width))
     return lines
 
 
@@ -666,6 +681,7 @@ def format_summary(
     elapsed: float,
     cancelled: bool,
     proxy_unavailable: bool = False,
+    separator_width: int | None = None,
 ) -> list[str]:
     failed = sum(1 for result in results if result.status == NetworkCheckStatus.FAILED)
     warning = sum(1 for result in results if result.status == NetworkCheckStatus.WARNING)
@@ -673,7 +689,7 @@ def format_summary(
     skipped = sum(1 for result in results if result.status == NetworkCheckStatus.SKIPPED)
     status = "已取消" if cancelled else "已完成"
     lines = [
-        "-" * 101,
+        _separator("-", separator_width),
         f"网络检测{status}：正常 {ok}，警告 {warning}，失败 {failed}，跳过 {skipped}，用时 {elapsed:.2f} 秒",
     ]
     if proxy_unavailable:
@@ -742,7 +758,7 @@ def format_summary(
             "优先查看失败/警告项；如果网络连通失败请先检查代理或系统网络；"
             "代理/Cookie/CF Bypass等都在「软件设置 → 网络」页调整"
         )
-    lines.append("=" * 101)
+    lines.append(_separator("=", separator_width))
     return lines
 
 
@@ -1295,16 +1311,18 @@ async def run_network_check(
     client: "AsyncWebClient | Any | None" = None,
     emit_header: bool = True,
     specs: list[NetworkCheckSpec] | None = None,
+    separator_width: int | None = None,
 ) -> list[NetworkCheckResult]:
     """执行网络检测。
 
     specs: 指定检测子集（用于"重试失败项"只重测失败/警告项）；None 表示全量构建检测项。
     on_item_done: 每完成一项回调 (done, total) 结构化进度（"基础环境"组不参与计数）；供 UI 显示百分比。
     单站刮削探测的超时递进（30s/45s 最多两次）在探测环节内部完成（议题 #118）。
+    separator_width: 报告内分隔线字符数，由 UI 按检测面板可视宽算好传入；None 用兜底值。
     """
     progress = progress or (lambda line: None)
     if emit_header:
-        for line in _format_header():
+        for line in _format_header(separator_width):
             progress(line)
 
     check_specs = specs if specs is not None else await build_network_check_specs()
@@ -1364,7 +1382,9 @@ async def run_network_check(
                         task.cancel()
                     await asyncio.gather(*pending, return_exceptions=True)
                     elapsed = time.perf_counter() - start_time
-                    for line in format_summary(results, elapsed, cancelled=True, proxy_unavailable=proxy_down):
+                    for line in format_summary(
+                        results, elapsed, cancelled=True, proxy_unavailable=proxy_down, separator_width=separator_width
+                    ):
                         progress(line)
                     return results
                 done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
@@ -1405,7 +1425,11 @@ async def run_network_check(
 
         elapsed = time.perf_counter() - start_time
         for line in format_summary(
-            results, elapsed, cancelled=bool(cancel_event and cancel_event.is_set()), proxy_unavailable=proxy_down
+            results,
+            elapsed,
+            cancelled=bool(cancel_event and cancel_event.is_set()),
+            proxy_unavailable=proxy_down,
+            separator_width=separator_width,
         ):
             progress(line)
         return sorted(

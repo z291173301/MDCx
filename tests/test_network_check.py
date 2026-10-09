@@ -352,6 +352,57 @@ def test_format_summary_groups_failure_causes():
     assert "30s/45s" in text
 
 
+def test_format_summary_separator_width_follows_panel():
+    """汇总区的「-」「=」两条分隔线必须同长，且跟随传入的面板可视宽。
+
+    原来两处是各自硬编码的字面量（开头「-」、结尾「=」各写各的），与面板最上/最下
+    那两条按可视宽自适应的横幅对不上，同一份报告里分隔线参差不齐。
+    """
+    from mdcx.core.network_check import (
+        DEFAULT_SEPARATOR_WIDTH,
+        NetworkCheckResult,
+        format_summary,
+    )
+
+    def r(name, status, message):
+        return NetworkCheckResult(
+            spec=NetworkCheckSpec(name=name, group="刮削站点", url="https://x.test"),
+            status=status,
+            message=message,
+        )
+
+    results = [
+        r("missav", NetworkCheckStatus.WARNING, "站点无效：刮削探测2次30s/45s均超时"),
+        r("bad", NetworkCheckStatus.FAILED, "boom"),
+    ]
+
+    # 1. 传入面板量出的宽度：首尾两条分隔线都恰好该长
+    lines = format_summary(results, elapsed=5.0, cancelled=False, separator_width=120)
+    assert lines[0] == "-" * 120
+    assert lines[-1] == "=" * 120
+
+    # 2. 与面板横幅共用同一个收敛函数，故永远同长
+    from mdcx.controllers.main_window.handlers import net_separator_width
+
+    panel_chars = 137  # MyMAinWindow._net_separator_chars() 量到的原始字符数
+    banner = net_separator_width(panel_chars)
+    lines = format_summary(results, elapsed=5.0, cancelled=False, separator_width=banner)
+    assert lines[0] == "-" * banner == lines[-1].replace("=", "-")
+
+    # 3. 不传/传非法值时退回兜底宽度，不产生空行（量不到可视宽的降级路径）
+    for bad in (None, 0, -5):
+        lines = format_summary(results, elapsed=5.0, cancelled=False, separator_width=bad)
+        assert len(lines[0]) == DEFAULT_SEPARATOR_WIDTH
+        assert len(lines[-1]) == DEFAULT_SEPARATOR_WIDTH
+
+    # 4. 头部的表格分隔线同样跟随（否则报告上半段与下半段宽度不一）
+    from mdcx.core.network_check import _format_header
+
+    header_seps = [line for line in _format_header(120) if line and set(line) == {"="}]
+    assert len(header_seps) == 2
+    assert all(len(line) == 120 for line in header_seps)
+
+
 @pytest.mark.anyio
 async def test_run_network_check_item_catches_single_item_exception():
     spec = NetworkCheckSpec(name="bad", group="刮削站点", url="https://bad.example")

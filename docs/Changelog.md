@@ -15,6 +15,14 @@
 
 ### 修复
 
+- **检测网络报告内的分隔线改为跟随面板可视宽自适应，与面板最上/最下两条横幅永远同长**（`mdcx/core/network_check.py`、`mdcx/controllers/main_window/handlers.py`、`mdcx/controllers/main_window/main_window.py`，回归 `tests/test_network_check.py`）：
+  - 诉求：用户贴出的报告里，开头「-」虚线与结尾「=」线两条长度对不上（截图实测 109 vs 105），要求两条一样长。经核对，报告内 4 条分隔线（`基础环境` 表格上下两条 `=`、汇总区开头 `-`、结尾 `=`）此前全是硬编码 `"-" * 101` / `"=" * 101`，而面板最上/最下那两条横幅走的是另一套自适应逻辑（`MyMAinWindow._net_separator_chars()` 按文本区可视宽 ÷ 等宽字宽算，只量一次并缓存），同一屏里两套宽度各算各的，必然对不齐。
+  - 改法：`handlers.py` 把原先内嵌在 `show_netstatus` 里的 `max(int(w or 0) - 8, 8)` 收敛函数提取为公开的 `net_separator_width()`（**公式逐字不变**，`show_netstatus` 行为完全不变）；`network_check.py` 新增 `DEFAULT_SEPARATOR_WIDTH = 88` 兜底常量与 `_separator(char, width)`，`_format_header()` / `format_summary()` 新增可选形参 `separator_width`，`run_network_check()` 透传该形参，四条分隔线统一走 `_separator`；`main_window.py` 新增 `_measure_net_report_sep_chars()`（在**主线程**点按钮时量一次并存进 `_net_report_sep_chars`）与只读的 `_net_report_separator_width()`，两个入口（`pushButton_check_net_clicked` / `pushButton_net_retry_clicked`）各自在线程启动前调用一次，`network_check()` / `_run_net_retry()` 把该整数传给 `run_network_check`。
+  - **为什么宽度要在主线程量**：检测跑在工作线程里，`_net_separator_chars()` 要读文本框 viewport/字体度量，直接在工作线程调会碰 Qt 控件（非线程安全）。故主线程量好、worker 只读一个普通 int（首屏 `_emit_net_startup_panel` 已经量过一次并缓存，这里直接复用缓存值，不会二次触发布局）。
+  - **为什么兜底值取 88**：`net_separator_width` 的默认形参与 `_NET_SEP_FALLBACK` 都是 88，量不到可视宽时报告与横幅仍同长。`_build_net_diagnostic_header()` 里复制到剪贴板的两条 `=`×88 **故意不改**——那份是贴进 issue 的纯文本，不是屏幕上的分隔线，跟着窗口宽度变反而会让 issue 正文里出现一条几百字符的长线。
+  - 异常分支里硬编码的 `"=" * 80` 一并改为按同一宽度生成（原为 80，与横幅和报告都不一致）。
+  - 回归：`tests/test_network_check.py::test_format_summary_separator_width_follows_panel` 新增，断言①传入宽度时首尾两条分隔线恰好该长且互等、②与 `net_separator_width()` 的横幅输出同长、③传 `None`/`0`/`-5` 时退回 88 不产生空行、④`_format_header()` 的两条表格分隔线同样跟随。`tests/test_network_check.py` 全 73 项通过。
+  - 既有 `tests/test_net_separator_width.py` 7 项在本机为红，与本次改动无关、逐条核对过是改动前既有失败：4 项 `test_separator_fills_width_without_wrapping` 断言「余量 < 单字宽」，但本机 `QFontMetricsF("=").horizontalAdvance()` 量到的是 12px（该用例按 Consolas 13px/7px 写的），属字体度量环境差异；另 3 项断言横幅长度等于 `_net_separator_chars()` 的**原始**值，而 `show_netstatus` 的 `-8` 收敛是本次改动之前就有的（`show_netstatus(111)` 旧公式同样得 103 而非 111）。
 - **非最大化侧栏「使用说明→二维码」间距由 0 调到 2px，「二维码→[赞助作者]」维持 2px（用户最新轮诉求）**：
   - 诉求原文：「最小化时软件界面的二维码图片向下移动2px，[赞助作者]向下移动4px，最终使用说明与二维码图片的间距为2px，二维码图片与[赞助作者]的间距为2px，最大化时的页面布局、控件、组件、提示词等等均保持不变」。
   - 根因/处理：顶锚路径的块顶原先是 `nav_bottom + _DONATE_PAD`（`_DONATE_PAD = 0`，紧贴「使用说明」），现新增 `_DONATE_TOP_GAP = 2`，块顶 = `nav_bottom + 2`，即二维码下移 2px、`[赞助作者]` 随链式间距（`_DONATE_LINK_GAP = 2` 不变）同步下移。最大化（底锚）路径一行未动——`_DONATE_PAD` 仍只在 `avail = qr_bottom − PAD − nav_bottom` 净高护栏与 `[赞助作者]→状态文字` 间距下限里用，底锚预算常数不变；`one_size` 预算反到 `height − 513`，与注释逐值一致，「≥693 高恒 180」的门槛恢复。

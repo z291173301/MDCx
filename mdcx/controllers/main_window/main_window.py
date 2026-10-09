@@ -71,6 +71,7 @@ from mdcx.config.resources import resources
 from mdcx.consts import GITHUB_ISSUES_URL, GITHUB_RELEASES_URL, IS_WINDOWS, LOCAL_VERSION, VERSION_NAME
 from mdcx.core.naming import NameRenderOptions, NamingTarget, render_name
 from mdcx.core.network_check import (
+    DEFAULT_SEPARATOR_WIDTH,
     NetworkCheckStatus,
     merge_site_check_cache,
     run_network_check,
@@ -117,7 +118,7 @@ from mdcx.views.MDCx import Ui_MDCx
 from mdcx.views.similar_window import SimilarDialog
 
 from ..cut_window import CutWindow
-from .handlers import show_netstatus
+from .handlers import net_separator_width, show_netstatus
 from .health_check import run_startup_health_checks
 from .init import (
     DEFAULT_WINDOW_SIZE,
@@ -162,6 +163,9 @@ class MyMAinWindow(QMainWindow):
     # 检测网络面板首屏只发一次；分隔线字符数随之只量一次并缓存（两态相同）。
     _net_startup_emitted = False
     _net_separator_chars_cache: int = 0
+    # 检测报告内分隔线的字符数：必须在**主线程**点按钮时量好存这里——检测跑在
+    # 工作线程里，不能去碰文本框（Qt 控件非线程安全）。worker 只读这个整数。
+    _net_report_sep_chars: int = 0
 
     # region 信号量
     main_logs_show = pyqtSignal(str)  # 显示刮削日志信号
@@ -1468,12 +1472,8 @@ class MyMAinWindow(QMainWindow):
                 pick_x_nb = max(571 + extra_nb, 40 + 150 + 19)
                 widgets["pushButton_actor_db_pick_nfo_dir"].setGeometry(pick_x_nb, pick_y0, 110, pick_h0)
                 # 补全别名按钮与清空信息按钮同列：清空信息通用逻辑按 571+extra 左移，本按钮同公式跟随
-                _, alias_y0, alias_w0, alias_h0 = self._ACTOR_DB_TOOL_DESIGN[
-                    "pushButton_actor_db_sync_aliases"
-                ]
-                widgets["pushButton_actor_db_sync_aliases"].setGeometry(
-                    571 + extra_nb, alias_y0, alias_w0, alias_h0
-                )
+                _, alias_y0, alias_w0, alias_h0 = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_sync_aliases"]
+                widgets["pushButton_actor_db_sync_aliases"].setGeometry(571 + extra_nb, alias_y0, alias_w0, alias_h0)
             return
         # ---- 最大化：拉宽 ----
         extra = max(box_w - 701, 0)  # 组框相对设计宽度的增量
@@ -4004,7 +4004,7 @@ class MyMAinWindow(QMainWindow):
     # 与导航区/状态区的内边距。第十五轮起其只在**底锚（最大化）**路径的净高
     # 公式（avail = qr_bottom − PAD − nav_bottom）与「[赞助作者]→状态文字」
     # 间距下限护栏里用；顶锚档的「导航底 → 块顶」间距由 _DONATE_TOP_GAP 控制
-    #（保持最大化布局逐像素不变，非最大化块顶下移 2px，用户最新轮要求）。
+    # （保持最大化布局逐像素不变，非最大化块顶下移 2px，用户最新轮要求）。
     _DONATE_PAD = 0  # 底锚档净高护栏/间距下限专用，顶锚不再用它
     # 非最大化（顶锚）时「使用说明按钮底 → 二维码顶」的间距。
     # 用户最新轮：使用说明与二维码图片间距 2px、二维码与 [赞助作者] 间距
@@ -4610,9 +4610,7 @@ class MyMAinWindow(QMainWindow):
             #   「两遍从同一起点」成为不变量，而不是靠巧合成立。）
             status_y0, status_h0 = status_y, self._DOCK_STATUS_H
             # 收款码插在导航区与状态区之间；不够就压状态区（顶对齐，文字在预留带里不动）
-            status_y, status_h, qr_deficit = self._layout_donate(
-                nav_top + self._DOCK_NAV_H, status_y0, status_h0
-            )
+            status_y, status_h, qr_deficit = self._layout_donate(nav_top + self._DOCK_NAV_H, status_y0, status_h0)
             # 收款码没满 _DONATE_QR_SIZE（唯一成因：窗口偏矮，**与状态文字几行无关**）时，
             # 把导航整体上移来把缺口补上——用户原话「如果下方实在没空间展示…就将…整体向上
             # 移动，上方还有一些空间，二维码图片高度还是要保持180px，软件界面容器上方还有
@@ -4632,9 +4630,7 @@ class MyMAinWindow(QMainWindow):
                 raise_by = min(qr_deficit, nav_top - self._DOCK_NAV_TOP_MIN)
                 if raise_by > 0:
                     nav_top -= raise_by
-                    self._layout_dock_nav(
-                        nav_top, self._DOCK_NAV_BTN_H, self._DOCK_NAV_SPACING, self._DOCK_NAV_H
-                    )
+                    self._layout_dock_nav(nav_top, self._DOCK_NAV_BTN_H, self._DOCK_NAV_SPACING, self._DOCK_NAV_H)
                     status_y, status_h, qr_deficit = self._layout_donate(
                         nav_top + self._DOCK_NAV_H, status_y0, status_h0
                     )
@@ -5087,9 +5083,20 @@ class MyMAinWindow(QMainWindow):
             # 与 page_setting 一致：三段间距相等
             _cb_r_t = ui.comboBox_change_config_tool.x() + ui.comboBox_change_config_tool.width()
             _save_l_t = ui.pushButton_save_config_tool.x()
-            _gap_t = max((_save_l_t - _cb_r_t - ui.pushButton_save_new_config_tool.width() - ui.pushButton_init_config_tool.width()) / 3, 0)
+            _gap_t = max(
+                (
+                    _save_l_t
+                    - _cb_r_t
+                    - ui.pushButton_save_new_config_tool.width()
+                    - ui.pushButton_init_config_tool.width()
+                )
+                / 3,
+                0,
+            )
             ui.pushButton_save_new_config_tool.move(int(_cb_r_t + _gap_t), t_bottom)
-            ui.pushButton_init_config_tool.move(int(_cb_r_t + _gap_t * 2 + ui.pushButton_save_new_config_tool.width()), t_bottom)
+            ui.pushButton_init_config_tool.move(
+                int(_cb_r_t + _gap_t * 2 + ui.pushButton_save_new_config_tool.width()), t_bottom
+            )
             ui.label_241_tool.move(20, max(t_bottom - 1, 100))
 
         # ============ page_net: textBrowser_net_main + 右侧按钮 ============
@@ -10977,6 +10984,23 @@ class MyMAinWindow(QMainWindow):
     # endregion
 
     # region 检测网络
+    def _measure_net_report_sep_chars(self) -> int:
+        """主线程点按钮时量一次报告分隔线宽度，存给检测 worker 线程用。
+
+        报告里的「-」「=」要和面板最上/最下两条横幅同长，故复用同一份可视宽测量
+        （`_net_separator_chars` 已缓存，启动首屏量过一次），再过同一个收敛函数
+        `net_separator_width`——两边的减 8 与下限 8 才不会各算各的。
+        """
+        self._net_report_sep_chars = net_separator_width(self._net_separator_chars())
+        return self._net_report_sep_chars
+
+    def _net_report_separator_width(self) -> int:
+        """worker 线程读用的报告分隔线宽度（纯整数运算，不碰任何 Qt 控件）。
+
+        没量过（例如直接调 `network_check()` 绕过按钮）时退回模块兜底值。
+        """
+        return self._net_report_sep_chars or DEFAULT_SEPARATOR_WIDTH
+
     def network_check(self):
         try:
             signal_qt.show_net_info("\n⛑ 开始检测网络...")
@@ -10993,7 +11017,12 @@ class MyMAinWindow(QMainWindow):
                 self.net_check_progress.emit(done, total)
 
             self.network_check_future = executor.submit(
-                run_network_check(progress=progress, on_item_done=on_item_done, cancel_event=cancel_event)
+                run_network_check(
+                    progress=progress,
+                    on_item_done=on_item_done,
+                    cancel_event=cancel_event,
+                    separator_width=self._net_report_separator_width(),
+                )
             )
             self.network_check_results = self.network_check_future.result()
             merge_site_check_cache(self.network_check_results)  # 持久化供站点选择列表回显
@@ -11001,9 +11030,7 @@ class MyMAinWindow(QMainWindow):
             # 议题 #73 实证：空消息异常（裸 TimeoutError 等）只显示「出现异常：」毫无线索。
             # 带异常类型名，并把 traceback 直接展示在检测页——用户复制结果就是完整诊断。
             signal_qt.show_net_info(f"\n⛔️ 网络检测出现异常：{type(e).__name__}: {e}")
-            signal_qt.show_net_info(
-                "================================================================================\n"
-            )
+            signal_qt.show_net_info("=" * self._net_report_separator_width() + "\n")
             signal_qt.show_net_info(traceback.format_exc().rstrip())
             signal_qt.show_traceback_log(str(e))
             signal_qt.show_traceback_log(traceback.format_exc())
@@ -11050,6 +11077,7 @@ class MyMAinWindow(QMainWindow):
                     cancel_event=cancel_event,
                     specs=failed_specs,
                     emit_header=False,
+                    separator_width=self._net_report_separator_width(),
                 )
             )
             self.network_check_results = self.network_check_future.result()
@@ -11067,6 +11095,7 @@ class MyMAinWindow(QMainWindow):
         if self.network_check_future is not None:
             signal_qt.show_net_info("⏳ 上一次检测仍在进行，请稍后再试")
             return
+        self._measure_net_report_sep_chars()
         t = threading.Thread(target=self._run_net_retry, daemon=True)
         t.start()
 
@@ -11126,6 +11155,7 @@ class MyMAinWindow(QMainWindow):
                 "QPushButton#pushButton_check_net{color: white;background-color:#3758D8;}QPushButton:hover#pushButton_check_net{color: white;background-color:#4C6EFF;}QPushButton:pressed#pushButton_check_net{color: white;background-color:#2F49B8;}"
             )
             try:
+                self._measure_net_report_sep_chars()
                 self.t_net = threading.Thread(target=self.network_check)
                 self.t_net.start()  # 启动线程,即让线程开始执行
             except Exception:
