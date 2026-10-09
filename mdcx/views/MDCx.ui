@@ -1579,7 +1579,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>494</y>
+                    <y>472</y>
                     <width>701</width>
                     <height>241</height>
                   </rect>
@@ -1673,7 +1673,7 @@
                     <string notr="true">color: rgb(8, 128, 128);</string>
                   </property>
                   <property name="text">
-                    <string>记住不要填写网站首页地址！！！要填写该番号的网页地址！！！然后选择对应的网站，直接点击刮削即可</string>
+                    <string>记住不要填写网站首页地址！！！要填写该番号的网页地址！！！然后选择相对应的网站，直接点击刮削即可</string>
                   </property>
                   <property name="alignment">
                     <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -1715,7 +1715,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>771</y>
+                    <y>749</y>
                     <width>701</width>
                     <height>141</height>
                   </rect>
@@ -1766,7 +1766,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1604</y>
+                    <y>1582</y>
                     <width>701</width>
                     <height>241</height>
                   </rect>
@@ -1942,7 +1942,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1413</y>
+                    <y>1391</y>
                     <width>701</width>
                     <height>171</height>
                   </rect>
@@ -2021,7 +2021,7 @@
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>1152</y>
+                    <y>1130</y>
                     <width>701</width>
                     <height>241</height>
                   </rect>
@@ -2283,30 +2283,11 @@
                 <property name="title">
                   <string>演员库维护（直接操作actor_database.xlsx，复用当前配置的TMDB API）</string>
                 </property>
-                <widget class="QLabel" name="label_actor_db_desc">
-                  <property name="geometry">
-                    <rect>
-                      <x>40</x>
-                      <y>30</y>
-                      <width>621</width>
-                      <height>22</height>
-                    </rect>
-                  </property>
-                  <property name="styleSheet">
-                    <string notr="true">color: rgb(8, 128, 128);font-size: 12px;</string>
-                  </property>
-                  <property name="text">
-                    <string>来源TMDB需配置TMDB API KEY；Minnano直接抓取みんなのAV，默认仅补全缺别名的行，勾选「全量更新」则并入全部行，用「起始行数/单次限制」可分片续跑</string>
-                  </property>
-                    <property name="wordWrap">
-                      <bool>true</bool>
-                    </property>
-                  </widget>
                 <widget class="QPushButton" name="pushButton_actor_db_translate">
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>80</y>
+                      <y>58</y>
                       <width>200</width>
                       <height>32</height>
                     </rect>
@@ -2319,7 +2300,7 @@
                   <property name="geometry">
                     <rect>
                       <x>260</x>
-                      <y>80</y>
+                      <y>58</y>
                       <width>200</width>
                       <height>32</height>
                     </rect>
@@ -2332,7 +2313,7 @@
                   <property name="geometry">
                     <rect>
                       <x>460</x>
-                      <y>82</y>
+                      <y>60</y>
                       <width>200</width>
                       <height>20</height>
                     </rect>
@@ -2348,7 +2329,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>112</y>
+                      <y>90</y>
                       <width>200</width>
                       <height>28</height>
                     </rect>
@@ -2361,7 +2342,7 @@
                   <property name="geometry">
                     <rect>
                       <x>260</x>
-                      <y>112</y>
+                      <y>90</y>
                       <width>200</width>
                       <height>28</height>
                     </rect>
@@ -2374,7 +2355,7 @@
                   <property name="geometry">
                     <rect>
                       <x>460</x>
-                      <y>114</y>
+                      <y>92</y>
                       <width>200</width>
                       <height>20</height>
                     </rect>
@@ -2390,7 +2371,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>52</y>
+                      <y>30</y>
                       <width>621</width>
                       <height>20</height>
                     </rect>
@@ -2409,7 +2390,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>140</y>
+                      <y>118</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2422,7 +2403,7 @@
                   <property name="geometry">
                     <rect>
                       <x>260</x>
-                      <y>140</y>
+                      <y>118</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2438,7 +2419,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>170</y>
+                      <y>148</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2454,7 +2435,7 @@
                   <property name="geometry">
                     <rect>
                       <x>260</x>
-                      <y>170</y>
+                      <y>148</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2470,7 +2451,7 @@
                   <property name="geometry">
                     <rect>
                       <x>260</x>
-                      <y>206</y>
+                      <y>184</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2486,7 +2467,7 @@
                   <property name="geometry">
                     <rect>
                       <x>460</x>
-                      <y>208</y>
+                      <y>186</y>
                       <width>200</width>
                       <height>20</height>
                     </rect>
@@ -2505,7 +2486,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>244</y>
+                      <y>222</y>
                       <width>451</width>
                       <height>30</height>
                     </rect>
@@ -2518,7 +2499,7 @@
                   <property name="geometry">
                     <rect>
                       <x>571</x>
-                      <y>239</y>
+                      <y>217</y>
                       <width>110</width>
                       <height>40</height>
                     </rect>
@@ -2531,7 +2512,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>206</y>
+                      <y>184</y>
                       <width>200</width>
                       <height>30</height>
                     </rect>
@@ -2547,7 +2528,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>282</y>
+                      <y>260</y>
                       <width>621</width>
                       <height>28</height>
                     </rect>
@@ -2566,7 +2547,7 @@
                   <property name="geometry">
                     <rect>
                       <x>571</x>
-                      <y>314</y>
+                      <y>292</y>
                       <width>110</width>
                       <height>40</height>
                     </rect>
@@ -2582,7 +2563,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>318</y>
+                      <y>296</y>
                       <width>451</width>
                       <height>32</height>
                     </rect>
@@ -2607,7 +2588,7 @@
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>358</y>
+                      <y>336</y>
                       <width>142</width>
                       <height>28</height>
                     </rect>
@@ -2623,7 +2604,7 @@
                   <property name="geometry">
                     <rect>
                       <x>186</x>
-                      <y>358</y>
+                      <y>336</y>
                       <width>56</width>
                       <height>28</height>
                     </rect>
@@ -2637,7 +2618,7 @@
                   <property name="geometry">
                     <rect>
                       <x>246</x>
-                      <y>358</y>
+                      <y>336</y>
                       <width>64</width>
                       <height>28</height>
                     </rect>
@@ -2669,7 +2650,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>314</x>
-                      <y>358</y>
+                      <y>336</y>
                       <width>56</width>
                       <height>28</height>
                     </rect>
@@ -2683,7 +2664,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>374</x>
-                      <y>358</y>
+                      <y>336</y>
                       <width>72</width>
                       <height>28</height>
                     </rect>
@@ -2721,7 +2702,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>450</x>
-                      <y>358</y>
+                      <y>336</y>
                       <width>211</width>
                       <height>28</height>
                     </rect>
@@ -2740,7 +2721,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                   <property name="geometry">
                     <rect>
                       <x>40</x>
-                      <y>378</y>
+                      <y>356</y>
                       <width>621</width>
                       <height>42</height>
                     </rect>
@@ -2760,7 +2741,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                 <property name="geometry">
                   <rect>
                     <x>30</x>
-                    <y>932</y>
+                    <y>910</y>
                     <width>701</width>
                     <height>200</height>
                   </rect>

@@ -215,7 +215,6 @@ class CustomScrollArea(QScrollArea):
             "label_actor_db_sync_aliases_desc",
             "pushButton_actor_db_fill_zh_javdb",
             "label_actor_db_fill_zh_javdb_desc",
-            "label_actor_db_desc",
             "checkBox_cover_backfill_overwrite",
             "checkBox_cover_backfill_watermark",
             "checkBox_create_link",
