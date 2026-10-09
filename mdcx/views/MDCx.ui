@@ -20721,9 +20721,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QPushButton" name="pushButton_add_actor_pic">
                       <property name="geometry">
                         <rect>
-                          <x>190</x>
+                          <x>155</x>
                           <y>440</y>
-                          <width>201</width>
+                          <width>181</width>
                           <height>40</height>
                         </rect>
                       </property>
@@ -21681,9 +21681,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QPushButton" name="pushButton_add_actor_info">
                       <property name="geometry">
                         <rect>
-                          <x>190</x>
+                          <x>155</x>
                           <y>320</y>
-                          <width>201</width>
+                          <width>181</width>
                           <height>40</height>
                         </rect>
                       </property>
@@ -21848,9 +21848,9 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QPushButton" name="pushButton_add_actor_pic_kodi">
                       <property name="geometry">
                         <rect>
-                          <x>190</x>
+                          <x>155</x>
                           <y>130</y>
-                          <width>70</width>
+                          <width>50</width>
                           <height>40</height>
                         </rect>
                       </property>
@@ -21983,7 +21983,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QCheckBox" name="checkBox_actor_photo_kodi">
                       <property name="geometry">
                         <rect>
-                          <x>300</x>
+                          <x>150</x>
                           <y>130</y>
                           <width>141</width>
                           <height>40</height>
