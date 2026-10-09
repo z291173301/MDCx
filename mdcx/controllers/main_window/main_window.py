@@ -1167,6 +1167,17 @@ class MyMAinWindow(QMainWindow):
         "label_actor_db_sync_aliases_desc": (40, 378, 621, 42),
     }
 
+    # groupBox_actor_db_maintenance 的 .ui 设计几何（30, 40, 701, 434）：窄态增高基准。
+    # 通用逻辑每遍把组框高复位到此值，本方法窄态分支在其上 +_delta，绝对设值、双向幂等。
+    _ACTOR_DB_TOOL_BOX_DESIGN = (30, 40, 701, 434)
+    # 最小化/还原态：单文件刮削组（groupBox_7）整体下移量（用户指定“一行文字高度”）。
+    # 设计几何：演员库组底边 40+434=474，单文件组顶边 494（常态增高 _delta=20 后底边
+    # 恰贴住 494，间隙为 0）；单文件组底边 494+241=735，裁剪组（groupBox_13）顶边
+    # 771，间隙 36（≈两行）。下移半个间隙 18 后两边间隙各为 18（≈一行），一次移动
+    # 同时达成“上留一行、下由两行缩到一行”。绝对设值（设计顶边 494 + 位移），双向幂等；
+    # 最大化分支不动（通用逻辑每遍把组顶边复位到设计值，宽态自然回到 494）。
+    _TOOL_SINGLE_FILE_DESIGN_Y = 494
+    _TOOL_SINGLE_FILE_SHIFT = 18
     # 演员库维护组底部的别名分片行控件（按设计横排顺序，从左到右）。
     # 最小化/还原态整行顺排时按此顺序取设计宽度依次摆放，且首项「全量更新并入」
     # 的左缘由 _actor_db_sync_row_left 对齐到封面补图组的「覆盖已有图片」。
@@ -1522,11 +1533,15 @@ class MyMAinWindow(QMainWindow):
         而内部绝对定位子项默认只有拉伸/右缘锚定两种跟随（说明被钉到最右侧、
         输入框/下拉拉伸盖住按钮）。本方法在 _sync_page_layouts 末尾执行
         （通用拉伸之后覆盖），接管组内全部 23 个控件：
-        - 常态（最小化/还原）：按 _ACTOR_DB_TOOL_DESIGN 紧凑排布；
+        - 常态（最小化/还原）：顶部说明加宽为两行、其余控件整体下移，其余
+          按 _ACTOR_DB_TOOL_DESIGN 紧凑排布；
         - 最大化：宽幅控件拉宽，右列按钮（LibreDMM/停止/minnano/检查）保持在右列。
 
-        例外两处：常态下「补全别名」说明按组框可用宽加宽（封顶 768px，见
-        _ACTOR_DB_ALIASES_DESC_MAX_W 的折行实测）；常态下末位提示标签
+        例外三处：常态下顶部说明「来源TMDB需配置TMDB API KEY；…」与底部
+        「补全别名」说明同文案（整串实测 996px），按组框可用宽加宽（封顶 768px，
+        见 _ACTOR_DB_ALIASES_DESC_MAX_W 的折行实测）、高度取两行，其余组内控件
+        整体下移（相对间距不变，避免第二行盖住提示语）；常态下「补全别名」说明
+        同样加宽；常态下末位提示标签
         「起始行数0+单次限制5000=默认更新数据表行数」按字体度量取单行整串宽
         （设计宽排不下会折行裁字，见 _actor_db_slice_hint_width）。
         """
@@ -1551,14 +1566,37 @@ class MyMAinWindow(QMainWindow):
             widgets[name].setGeometry(x, y, w, h)
         note = widgets["label_actor_db_note"]
         if not maxed:
-            # 常态只需复位右列按钮位置，最小化布局与原来逐像素一致
-            ui.pushButton_actor_db_link.setGeometry(260, 80, 200, 32)
+            # 顶部说明与底部「补全别名」说明同文案（整串实测 996px）：设计宽 621px、
+            # 高 22px 下只能排出一行，第二行盖住提示语。最小化态同样按组框可用宽加宽
+            # （封顶见 _ACTOR_DB_ALIASES_DESC_MAX_W）、高度取两行 42px，组内其余控件
+            # 整体下移 delta（相对间距不变），底部说明底边仍在组框内。
+            # 单行方案不可行：整串单行需 1004px，内容区宽仅 860 且横向滚动条常关，
+            # 右侧会被裁掉。最大化分支不动。
+            _, _, _, _desc_h1 = self._ACTOR_DB_TOOL_DESIGN["label_actor_db_desc"]
+            _, _, _, _desc_h2 = self._ACTOR_DB_TOOL_DESIGN["label_actor_db_sync_aliases_desc"]
+            _delta = _desc_h2 - _desc_h1
+            widgets["label_actor_db_desc"].setGeometry(40, 30, self._actor_db_aliases_desc_width(box_w), _desc_h2)
+            for _name, (_x, _y, _w, _h) in self._ACTOR_DB_TOOL_DESIGN.items():
+                if _name == "label_actor_db_desc":
+                    continue
+                widgets[_name].setGeometry(_x, _y + _delta, _w, _h)
+            # 组框随之增高 _delta，把下移后的底部说明收进框内（底边 440 < 454）；
+            # 常态下单文件组（groupBox_7）再整体下移 _TOOL_SINGLE_FILE_SHIFT（见下），
+            # 故此处框底不再贴住 494 而是留出一行间距。最大化分支不动。
+            # 基准取 _ACTOR_DB_TOOL_BOX_DESIGN 而非当前高：绝对设值、双向幂等。
+            _bx, _by, _bw, _ = box.geometry().getRect()
+            box.setGeometry(_bx, _by, _bw, self._ACTOR_DB_TOOL_BOX_DESIGN[3] + _delta)
+            # 常态复位顶部两枚按钮位置（translate/link 不在 _ACTOR_DB_TOOL_DESIGN 内，
+            # 最大化分支改过它们的宽度，窄态必须显式恢复 200 宽并随之下移 _delta，
+            # 否则提示语下移后会盖住左列按钮）
+            ui.pushButton_actor_db_translate.setGeometry(40, 80 + _delta, 200, 32)
+            ui.pushButton_actor_db_link.setGeometry(260, 80 + _delta, 200, 32)
             # 「补全别名」说明按组框可用宽加宽（封顶见 _ACTOR_DB_ALIASES_DESC_MAX_W）：
             # 设计宽 621px 下首行只排到「…缺别名的行，」，加宽后首行排到「…则并入全部」，
-            # 折行与用户要求一致。组框窄于设计宽时退回 621px，其余控件逐像素不动。
+            # 折行与用户要求一致。组框窄于设计宽时退回 621px，其余控件相对间距不变。
             _, desc_y0, _, desc_h0 = self._ACTOR_DB_TOOL_DESIGN["label_actor_db_sync_aliases_desc"]
             widgets["label_actor_db_sync_aliases_desc"].setGeometry(
-                40, desc_y0, self._actor_db_aliases_desc_width(box_w), desc_h0
+                40, desc_y0 + _delta, self._actor_db_aliases_desc_width(box_w), desc_h0
             )
             # 窄窗下通用逻辑会收缩单文件组输入框并左移其按钮，nfo/别名两行按钮
             # 跟随同量 extra 收缩（输入框/下拉宽度由 _sync_tool_page_input_fill
@@ -1568,10 +1606,12 @@ class MyMAinWindow(QMainWindow):
                 _, pick_y0, _, pick_h0 = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_pick_nfo_dir"]
                 # 保底 19px 间隙且输入框不窄于 150：按钮 x 不小于 40+150+19
                 pick_x_nb = max(571 + extra_nb, 40 + 150 + 19)
-                widgets["pushButton_actor_db_pick_nfo_dir"].setGeometry(pick_x_nb, pick_y0, 110, pick_h0)
+                widgets["pushButton_actor_db_pick_nfo_dir"].setGeometry(pick_x_nb, pick_y0 + _delta, 110, pick_h0)
                 # 补全别名按钮与清空信息按钮同列：清空信息通用逻辑按 571+extra 左移，本按钮同公式跟随
                 _, alias_y0, alias_w0, alias_h0 = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_sync_aliases"]
-                widgets["pushButton_actor_db_sync_aliases"].setGeometry(571 + extra_nb, alias_y0, alias_w0, alias_h0)
+                widgets["pushButton_actor_db_sync_aliases"].setGeometry(
+                    571 + extra_nb, alias_y0 + _delta, alias_w0, alias_h0
+                )
             # 别名分片行：统一 y 高度，整行零间隙顺排，左缘与封面补图组的
             # 「覆盖已有图片」严格上下对齐（用户要求）。此前把右缘钉到封面补图
             # 番号输入框右缘 552 反推左缘，六控件设计宽合计 601 > 552-40，
@@ -1580,7 +1620,8 @@ class MyMAinWindow(QMainWindow):
             # 整行随之前移，右缘随之落到 641（末位提示标签按字体度量加宽后为 726，
             # 见下方 _actor_db_slice_hint_width），窄窗下本就略越组框右缘——
             # 组框不裁剪子控件，与组宽无关。
-            sync_y = 358
+            # 分片行随顶部说明增高整体下移 _delta（最大化分支不动）。
+            sync_y = 358 + _delta
             current_x = self._actor_db_sync_row_left(ui, box)
             for name in self._ACTOR_DB_SYNC_ROW_NAMES:
                 w = self._ACTOR_DB_TOOL_DESIGN[name][2]
@@ -1593,6 +1634,16 @@ class MyMAinWindow(QMainWindow):
                     w = self._actor_db_slice_hint_width(widgets[name])
                 widgets[name].setGeometry(current_x, sync_y, w, 28)
                 current_x += w
+            # 最小化/还原态：单文件刮削组整体下移一行（用户指定）。
+            # 上隙：演员库组底边 494 → 单文件顶边 494+18=512，留 18（一行）；
+            # 下隙：单文件底边 512+241=753 → 裁剪组顶边 771，剩 18（一行，原 36 两行）。
+            # 只改组框 y（组内控件相对几何不动，随组整体平移）；宽高取当前值
+            # （通用逻辑已按视口改过宽），顶边按设计值绝对设值、双向幂等。
+            # 最大化分支不执行，宽态仍停在设计顶边 494。
+            single = getattr(ui, "groupBox_7", None)
+            if single is not None:
+                _sx, _, _sw, _sh = single.geometry().getRect()
+                single.setGeometry(_sx, self._TOOL_SINGLE_FILE_DESIGN_Y + self._TOOL_SINGLE_FILE_SHIFT, _sw, _sh)
             return
         # ---- 最大化：拉宽 ----
         extra = max(box_w - 701, 0)  # 组框相对设计宽度的增量

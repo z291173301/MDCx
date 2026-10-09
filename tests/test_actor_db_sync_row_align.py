@@ -42,7 +42,13 @@ ROW_NAMES = [
 # 设计宽/高（来自 _ACTOR_DB_TOOL_DESIGN，最大化态的提示词宽度除外，见下）
 # 末位提示标签的 211 只是宽度下限，实际宽度见 _expected_hint_width。
 DESIGN_WIDTHS = [142, 56, 64, 56, 72, 211]
+# 分片行 y：设计/最大化态 358；最小化/还原态随顶部说明增高整体下移 _DELTA=20
+# （顶部说明由 22px 单行增至 42px 两行，见 main_window._sync_actor_db_tool_layout）。
 ROW_Y = 358
+NARROW_ROW_Y = 378
+# 顶部说明两行高度（取底部「补全别名」说明的设计高）与单行设计高之差
+DESC_DELTA = 20
+DESC_H = 42
 ROW_H = 28
 # 「覆盖已有图片」的组内设计 x（_COVER_BACKFILL_OPTION_DESIGN，永不随窗宽移动）
 OVERWRITE_DESIGN_X = 40
@@ -185,7 +191,8 @@ def _assert_narrow_row(win) -> None:
     assert xs[-1] + ws[-1] == _narrow_row_right(ui), f"分片行右缘应为 {_narrow_row_right(ui)}: {xs[-1] + ws[-1]}"
 
     # 纵向位置/高度统一，且整行不越出组框左缘（事故回归点：曾被推到 -49）
-    assert all(w.y() == ROW_Y for w in row), f"分片行 y 不统一: {[w.y() for w in row]}"
+    # 最小化态整行随顶部说明增高下移 DESC_DELTA（最大化态仍为 ROW_Y，见下）
+    assert all(w.y() == NARROW_ROW_Y for w in row), f"分片行 y 不统一: {[w.y() for w in row]}"
     assert all(w.height() == ROW_H for w in row), f"分片行高度不一致: {[w.height() for w in row]}"
     assert xs[0] >= 0, f"分片行左缘越出组框: {xs[0]}"
 
@@ -234,6 +241,45 @@ def test_slice_hint_single_line_in_normal_state(win, app, width):
     assert _doc_height(hint, DESIGN_WIDTHS[-1]) > _doc_height(hint, 100000), "设计宽下已能单行，加宽逻辑失去依据"
 
 
+def test_desc_two_lines_no_overlap_in_normal_state(win, app):
+    """最小化态：顶部说明加宽为两行，第二行不得盖住提示语，下方控件整体下移。
+
+    背景：顶部说明与底部「补全别名」说明同文案（整串实测 996px），设计宽 621px、
+    高 22px 下只能排出一行，第二行盖住提示语。最小化态按组框可用宽加宽
+    （封顶 768px）、高度取两行 42px，组内其余控件整体下移 DESC_DELTA；
+    最大化态布局一律不变（见 test_maximized_state_unchanged）。
+    """
+    ui = win.Ui
+    _resize(win, app, 1080)
+    box = ui.groupBox_actor_db_maintenance
+    desc = ui.label_actor_db_desc
+    note = ui.label_actor_db_note
+    # 宽度与底部说明同公式：max(min(组框宽-80, 768), 621)，高度两行 42
+    expect_w = max(min(box.width() - 80, 768), 621)
+    assert (desc.x(), desc.y(), desc.width(), desc.height()) == (40, 30, expect_w, DESC_H), (
+        f"顶部说明几何被改动: {(desc.x(), desc.y(), desc.width(), desc.height())}"
+    )
+    # 权威判据：该宽度下确实排成两行（文档高大于单行高），且 42px 兜得住
+    assert _doc_height(desc, desc.width()) > _doc_height(desc, 100000), "顶部说明仍是单行，加宽失去依据"
+    assert _doc_height(desc, desc.width()) <= DESC_H, "顶部说明两行高度超出 42px，会被裁字"
+    # 无遮盖：说明底边 <= 提示语顶边 <= 按钮顶边；相对间距与设计一致（0 / 8px）
+    assert desc.y() + desc.height() <= note.y(), (
+        f"顶部说明第二行盖住提示语: 说明底边 {desc.y() + desc.height()} > 提示语顶边 {note.y()}"
+    )
+    assert note.y() + note.height() <= ui.pushButton_actor_db_translate.y(), (
+        f"提示语盖住维护按钮: 提示语底边 {note.y() + note.height()}"
+    )
+    assert note.y() - (desc.y() + desc.height()) == 0, "说明与提示语的相对间距被改动"
+    # 组内其余控件整体下移 DESC_DELTA（抽查）：nfo 输入行、组框增高、底部说明收进框内
+    assert ui.lineEdit_actor_db_nfo_dir.y() == 244 + DESC_DELTA
+    assert box.height() == 434 + DESC_DELTA, f"组框高度被改动: {box.height()}"
+    bottom = ui.label_actor_db_sync_aliases_desc
+    assert bottom.y() == 378 + DESC_DELTA
+    assert bottom.y() + bottom.height() <= box.height(), (
+        f"底部说明底边 {bottom.y() + bottom.height()} 越出组框高 {box.height()}"
+    )
+
+
 def test_overwrite_row_other_options_still_follow_extra(win, app):
     """覆盖已有图片不动，另两枚仍按 extra 拉开（本次改动不得波及它们）。"""
     ui = win.Ui
@@ -275,6 +321,9 @@ def test_maximized_state_unchanged(win, app, monkeypatch):
     assert hint.width() == 261, f"最大化态提示词宽度被改动: {hint.width()}"
     assert all(w.y() == ROW_Y for w in row), f"最大化态分片行 y 被改动: {[w.y() for w in row]}"
     assert ui.checkBox_cover_backfill_overwrite.x() == OVERWRITE_DESIGN_X
+    # 最大化态顶部说明仍为单行 22px、组框高仍为设计值（本次改动只针对最小化态）
+    assert ui.label_actor_db_desc.height() == 22, "最大化态顶部说明高度被改动"
+    assert ui.groupBox_actor_db_maintenance.height() == 434, "最大化态组框高度被改动"
 
     # 还原后立即回到对齐态，无残留漂移
     win.showNormal()
