@@ -2103,6 +2103,12 @@ class ActorSourceTestDialog(QDialog):
             pass
         root = QVBoxLayout(self)
 
+        # 上部内容容器：顶部输入行 + 主体三列 + 底部标题行，整体作为分割条上窗格，
+        # 与结果框之间可上下拖拽分配高度。
+        top_widget = QWidget()
+        top_layout = QVBoxLayout(top_widget)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+
         # 顶部：演员姓名输入框直达按钮左边界；实时状态红字叠在输入框内部右侧。
         name_row = QHBoxLayout()
         name_row.addWidget(QLabel("演员姓名："))
@@ -2129,7 +2135,7 @@ class ActorSourceTestDialog(QDialog):
         self.btn_update = QPushButton("更新数据")
         self.btn_update.setObjectName("btnPrimary")
         name_row.addWidget(self.btn_update)
-        root.addLayout(name_row)
+        top_layout.addLayout(name_row)
         QTimer.singleShot(0, self._layout_status_overlay)
 
         # 主体：左(头像) + 中(信息字段表) + 右(快速设置面板)，宽度 1:2:1，随窗口同步缩放
@@ -2194,7 +2200,7 @@ class ActorSourceTestDialog(QDialog):
         panel.installEventFilter(self)
         main_row.addWidget(panel, stretch=1)
 
-        root.addLayout(main_row)
+        top_layout.addLayout(main_row)
         self._main_row = main_row
 
         # 底部标题行：左“各数据源结果”，右“本地头像目录”+输入框+浏览。
@@ -2217,11 +2223,21 @@ class ActorSourceTestDialog(QDialog):
         folder_layout.addWidget(folder_browse_btn)
         bottom_header.addWidget(folder_box)
         self._folder_box = folder_box
-        root.addLayout(bottom_header)
+        top_layout.addLayout(bottom_header)
         self.result_text = QTextEdit()
         self.result_text.setReadOnly(True)
-        self.result_text.setMaximumHeight(150)
-        root.addWidget(self.result_text)
+        # 各数据源结果框可上下拖拽调高度：上部内容与结果框之间加垂直分割条；
+        # 默认高度保持 150（首帧布局后 _init_result_splitter 设置），重开窗口恢复默认。
+        self._result_splitter = QSplitter(Qt.Orientation.Vertical)
+        self._result_splitter.addWidget(top_widget)
+        self._result_splitter.addWidget(self.result_text)
+        self._result_splitter.setChildrenCollapsible(False)
+        self._result_splitter.setStretchFactor(0, 1)
+        self._result_splitter.setStretchFactor(1, 0)
+        # 用户亲手拖过分割条后不再自动纠正高度。
+        self._result_user_moved = False
+        self._result_splitter.splitterMoved.connect(self._on_result_splitter_moved)
+        root.addWidget(self._result_splitter, stretch=1)
 
         self.btn_both.clicked.connect(lambda: self._run(True, True))
         self.btn_image.clicked.connect(lambda: self._run(True, False))
@@ -2874,7 +2890,8 @@ class ActorSourceTestDialog(QDialog):
         """最大化时的专属效果，还原时全部恢复默认；按钮高度只在数值变化时设置。
 
         - 右侧头像/信息两列表 1:1 分配富余高度；
-        - “获取头像”“获取信息”两按钮高度按对话框当前高度/默认高度的比例同步拉升。
+        - 按钮与输入框高度按对话框当前高度/默认高度的比例同步拉升：
+          获取头像/获取信息/获取头像和简介/更新数据/浏览 + 演员名输入框 + 本地头像目录输入框。
         普通/最小化窗口时不做任何改动，与原来完全一致。
         """
         try:
@@ -2897,6 +2914,11 @@ class ActorSourceTestDialog(QDialog):
             for _btn_name, _base_name in (
                 ("btn_image", "_btn_image_base_h"),
                 ("btn_info", "_btn_info_base_h"),
+                ("btn_both", "_btn_both_base_h"),
+                ("btn_update", "_btn_update_base_h"),
+                ("_folder_browse_btn", "_browse_btn_base_h"),
+                ("name_edit", "_name_edit_base_h"),
+                ("folder_edit", "_folder_edit_base_h"),
             ):
                 try:
                     _btn = getattr(self, _btn_name, None)
@@ -2928,6 +2950,10 @@ class ActorSourceTestDialog(QDialog):
         """布局执行完后按最终几何重算：盒宽跟随面板、头像框适配左列、头像重绘、框内状态对齐。
         各子函数幂等且有同值保护，不会引起新的布局请求，自收敛。"""
         try:
+            self._init_result_splitter()
+        except Exception:
+            pass
+        try:
             self._sync_panel_stretch()
         except Exception:
             pass
@@ -2949,6 +2975,40 @@ class ActorSourceTestDialog(QDialog):
             pass
         try:
             self._rescale_avatar()
+        except Exception:
+            pass
+
+    def _on_result_splitter_moved(self, _pos: int, _index: int) -> None:
+        self._result_user_moved = True
+
+    def _init_result_splitter(self) -> None:
+        """结果框默认 150 高：用户未拖过且当前不是 150 时纠正，已是 150 则不碰。
+
+        布局稳定前会触发多次，值相等时 setSizes 不再进布局，自然收敛不循环；
+        对话框关闭即销毁、重开是新实例，天然恢复默认高度，不做持久化。
+        """
+        if getattr(self, "_result_user_moved", False):
+            return
+        sp = getattr(self, "_result_splitter", None)
+        if sp is None:
+            return
+        try:
+            sizes = sp.sizes()
+            if len(sizes) != 2 or sizes[1] == 150:
+                return
+            total = sp.height()
+            if total <= 0:
+                return
+            want = 150
+            sp.setSizes([max(0, total - want), want])
+        except Exception:
+            pass
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # 显示后布局几何才最终落定，下一帧把结果框定到默认 150 高。
+        try:
+            QTimer.singleShot(0, self._init_result_splitter)
         except Exception:
             pass
 
