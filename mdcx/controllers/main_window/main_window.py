@@ -1480,6 +1480,31 @@ class MyMAinWindow(QMainWindow):
                 # 补全别名按钮与清空信息按钮同列：清空信息通用逻辑按 571+extra 左移，本按钮同公式跟随
                 _, alias_y0, alias_w0, alias_h0 = self._ACTOR_DB_TOOL_DESIGN["pushButton_actor_db_sync_aliases"]
                 widgets["pushButton_actor_db_sync_aliases"].setGeometry(571 + extra_nb, alias_y0, alias_w0, alias_h0)
+            # 别名同步行严格上下对齐：统一 y 坐标，右边界拓展到与封面补图番号输入框对齐
+            # 封面补图番号输入框右缘 = 136 + 416 = 552
+            target_right = 552
+            sync_y = 358
+            # 计算当前别名同步行控件的总宽度
+            sync_names = [
+                "checkBox_actor_db_alias_all",
+                "label_actor_db_sync_offset",
+                "spinBox_actor_db_sync_offset",
+                "label_actor_db_sync_limit",
+                "spinBox_actor_db_sync_limit",
+                "label_actor_db_sync_slice_hint",
+            ]
+            total_width = 0
+            for name in sync_names:
+                w = self._ACTOR_DB_TOOL_DESIGN[name][2]
+                total_width += w
+            # 计算起始 x 坐标，使右边界对齐到 target_right
+            start_x = target_right - total_width
+            # 依次排列控件
+            current_x = start_x
+            for name in sync_names:
+                w = self._ACTOR_DB_TOOL_DESIGN[name][2]
+                widgets[name].setGeometry(current_x, sync_y, w, 28)
+                current_x += w
             return
         # ---- 最大化：拉宽 ----
         extra = max(box_w - 701, 0)  # 组框相对设计宽度的增量
@@ -1513,6 +1538,7 @@ class MyMAinWindow(QMainWindow):
         _ax, combo_y, _, _ah = self._ACTOR_DB_TOOL_DESIGN["comboBox_actor_db_alias_source"]
         widgets["pushButton_actor_db_sync_aliases"].setGeometry(pick_x, combo_y - 4, 110, 40)
         # 起始行/限量提示：紧贴 5000 调整框右侧，不随右缘锚定飞到最右边
+        # 最大化时别名同步行其余控件保持设计几何不动（原有行为）
         spin = ui.spinBox_actor_db_sync_limit
         hint = widgets["label_actor_db_sync_slice_hint"]
         hint.setGeometry(spin.x() + spin.width() + 10, spin.y(), 261, spin.height())
