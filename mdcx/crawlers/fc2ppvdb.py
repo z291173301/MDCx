@@ -474,7 +474,7 @@ async def fetch_article_info_with_warmup(
 
 class Fc2ppvdbCrawler(BaseCrawler):
     description = "FC2PPVDB 数据库（FC2）"
-    probe_number = "FC2-3259498"
+    probe_number = "FC2-4988506"
 
     @classmethod
     @override

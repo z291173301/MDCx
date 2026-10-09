@@ -11633,7 +11633,7 @@ class MyMAinWindow(QMainWindow):
                     fetch_article_info_with_warmup(
                         computed.async_client,
                         base_url=FC2CMADB_BASE_URL,
-                        number="3259498",
+                        number="4988506",
                         cookies=cookies,
                         use_proxy=manager.config.use_proxy,
                     )
