@@ -42,7 +42,11 @@ from PyQt6.QtWidgets import (
 
 from ..config.manager import manager
 from ..config.resources import resources
-from ..models.emby import clean_overview_text, normalize_premiere_date, normalize_production_year
+from ..models.emby import (
+    apply_overview_clean_rules,
+    normalize_premiere_date,
+    normalize_production_year,
+)
 from ..utils import executor
 from .emby_actor_manager import (
     ActorInfo,
@@ -88,15 +92,65 @@ def _ui_font_pt(step: int | None = None) -> str:
     return f"{pt + step:g}pt"
 
 
-def scan_actor_data_noise(actors: list[ActorInfo]) -> list[tuple[ActorInfo, str, bool]]:
+def _sanitize_clean_rules(rules: object) -> list[tuple[str, str]]:
+    """清洗规则归一化: config 存盘形态(list[list[str]])/用户输入统一成有效 (原始, 替换) 序列。
+
+    原始数值为空或非字符串的行丢弃(空行视为未填完); 替换数值非字符串时按空串处理
+    (即删除原始数值)。供对话框回读与扫描口径共用。
+    """
+    cleaned: list[tuple[str, str]] = []
+    if not rules:
+        return cleaned
+    try:
+        items = list(rules)
+    except TypeError:
+        return cleaned
+    for item in items:
+        try:
+            original, replacement = item
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(original, str) or not original.strip():
+            continue
+        if not isinstance(replacement, str):
+            replacement = ""
+        cleaned.append((original, replacement))
+    return cleaned
+
+
+def load_clean_rules() -> list[tuple[str, str]]:
+    """读出上次保存的清洗替换规则(无配置/非法时返回空列表, 调用方叠加内置清洗)。"""
+    try:
+        return _sanitize_clean_rules(manager.config.actor_clean_rules)
+    except Exception:
+        return []
+
+
+def save_clean_rules(rules: object) -> list[tuple[str, str]]:
+    """持久化用户确认的清洗替换规则, 返回归一化后的规则。失败时静默返回归一化结果。"""
+    cleaned = _sanitize_clean_rules(rules)
+    try:
+        cfg = manager.config.model_copy(deep=True)
+        cfg.actor_clean_rules = [[o, r] for o, r in cleaned]
+        manager._replace_config(cfg)
+        manager.save()
+    except Exception:
+        pass
+    return cleaned
+
+
+def scan_actor_data_noise(
+    actors: list[ActorInfo], rules: object | None = None
+) -> list[tuple[ActorInfo, str, bool]]:
     """议题 #149: 扫描需要清洗的演员——简介含历史噪声(清洗后有变化)或生日非法(0000-00-00 等)。
 
     返回 (actor, 清洗后简介, 是否重置生日) 三元组; 生日为 Emby 未设置零值 0001-01-01
-    或可被 normalize_premiere_date 正常解析时不算噪声。
+    或可被 normalize_premiere_date 正常解析时不算噪声。rules 为用户自定义
+    (原始数值, 替换数值) 序列, 为空时仅走内置清洗(旧口径, 保证测试与兼容)。
     """
     dirty: list[tuple[ActorInfo, str, bool]] = []
     for a in actors:
-        new_overview = clean_overview_text(a.existing_overview)
+        new_overview = apply_overview_clean_rules(a.existing_overview, rules)
         raw_birth = (a.existing_premiere_date or "").strip()
         fix_birth = (
             bool(raw_birth) and not raw_birth.startswith("0001-01-01") and normalize_premiere_date(raw_birth) is None
@@ -539,6 +593,164 @@ def _future_result_or(future, default):
         return future.result()
     except Exception:
         return default
+
+
+class ActorCleanRulesDialog(QDialog):
+    """数据清洗规则编辑窗: 全局 (原始数值 → 替换数值) 字面替换表, 确定后才实际清洗。
+
+    每次点击「数据清洗」都弹出本窗(含无待清洗数据时), 打开时装载上次保存的规则;
+    用户可编辑单元格、添加行、删除选中行, 窗口可拉伸缩小; 点确定则保存规则并
+    关闭, 调用方据此执行实际清洗, 点取消则不做任何改动。
+    """
+
+    def __init__(self, actors: list[ActorInfo] | None = None, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("数据清洗规则")
+        self.setMinimumSize(640, 420)
+        self.resize(720, 480)
+        self.setSizeGripEnabled(True)
+        self.setWindowFlags(
+            self.windowFlags()
+            | Qt.WindowType.Window
+            | Qt.WindowType.WindowMinimizeButtonHint
+            | Qt.WindowType.WindowMaximizeButtonHint
+        )
+        self.setStyleSheet(f"QWidget {{ font-size: {_ui_font_pt()}; }}")
+        self._actors = list(actors or [])
+        layout = QVBoxLayout(self)
+
+        hint = QLabel(
+            "每行一条替换规则: 简介中出现「原始数值」时替换为「替换数值」"
+            "(替换为空即删除该片段)。内置占位/非法生日清洗始终生效, 此处规则叠加其上。"
+        )
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+
+        self.table = QTableWidget(0, 2)
+        self.table.setHorizontalHeaderLabels(["原始数值", "替换数值"])
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(
+            QAbstractItemView.EditTrigger.DoubleClicked
+            | QAbstractItemView.EditTrigger.EditKeyPressed
+            | QAbstractItemView.EditTrigger.AnyKeyPressed
+        )
+        self.table.verticalHeader().setVisible(False)
+        layout.addWidget(self.table, 1)
+
+        self.status_label = QLabel("")
+        layout.addWidget(self.status_label)
+
+        row = QHBoxLayout()
+        add_btn = QPushButton("添加规则")
+        add_btn.clicked.connect(self._on_add_row)
+        del_btn = QPushButton("删除选中")
+        del_btn.clicked.connect(self._on_delete_selected)
+        default_btn = QPushButton("恢复默认")
+        default_btn.setToolTip("填入内置 minnano 占位文案示例规则")
+        default_btn.clicked.connect(self._on_restore_default)
+        row.addWidget(add_btn)
+        row.addWidget(del_btn)
+        row.addWidget(default_btn)
+        row.addStretch()
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("确定")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        row.addWidget(buttons)
+        layout.addLayout(row)
+
+        self.set_rules(load_clean_rules())
+        try:
+            self.table.itemChanged.disconnect(self._refresh_status)
+        except (TypeError, RuntimeError):
+            pass
+        self.table.itemChanged.connect(self._refresh_status)
+        self._refresh_status()
+
+    def _hold_refresh(self):
+        """批量改表时暂停 itemChanged → 状态刷新, 返回重连函数。"""
+        try:
+            self.table.itemChanged.disconnect(self._refresh_status)
+        except (TypeError, RuntimeError):
+            pass
+
+    def _resume_refresh(self):
+        try:
+            self.table.itemChanged.disconnect(self._refresh_status)
+        except (TypeError, RuntimeError):
+            pass
+        self.table.itemChanged.connect(self._refresh_status)
+        self._refresh_status()
+
+    def _on_add_row(self):
+        self._hold_refresh()
+        try:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            self.table.setItem(row, 0, QTableWidgetItem(""))
+            self.table.setItem(row, 1, QTableWidgetItem(""))
+            self.table.editItem(self.table.item(row, 0))
+        finally:
+            self._resume_refresh()
+
+    def _on_delete_selected(self):
+        rows = sorted({i.row() for i in self.table.selectedIndexes()}, reverse=True)
+        if not rows:
+            # 无选中时删最后一行, 避免用户面对空表无从下手
+            if self.table.rowCount():
+                rows = [self.table.rowCount() - 1]
+        self._hold_refresh()
+        try:
+            for r in rows:
+                self.table.removeRow(r)
+        finally:
+            self._resume_refresh()
+
+    def _on_restore_default(self):
+        self.set_rules(
+            [
+                ("无维基百科信息, 从 minnano-av 数据库补全女优信息", ""),
+                ("无维基百科信息，从 minnano-av 数据库补全女优信息", ""),
+            ]
+        )
+
+    def set_rules(self, rules: object):
+        cleaned = _sanitize_clean_rules(rules)
+        self._hold_refresh()
+        try:
+            self.table.setRowCount(0)
+            for original, replacement in cleaned:
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+                self.table.setItem(row, 0, QTableWidgetItem(original))
+                self.table.setItem(row, 1, QTableWidgetItem(replacement))
+        finally:
+            self._resume_refresh()
+
+    def rules(self) -> list[tuple[str, str]]:
+        """返回表格当前有效规则(跳过原始数值空白行)。"""
+        raw: list[tuple[str, str]] = []
+        for row in range(self.table.rowCount()):
+            orig_item = self.table.item(row, 0)
+            repl_item = self.table.item(row, 1)
+            raw.append(
+                (
+                    orig_item.text() if orig_item is not None else "",
+                    repl_item.text() if repl_item is not None else "",
+                )
+            )
+        return _sanitize_clean_rules(raw)
+
+    def _refresh_status(self, *_args):
+        try:
+            count = len(scan_actor_data_noise(self._actors, self.rules()))
+            self.status_label.setText(f"按当前规则将清洗 {count} 个演员(共 {len(self._actors)} 个)")
+        except Exception:
+            self.status_label.setText("")
 
 
 class EmbyActorManagerDialog(QDialog):
@@ -1492,32 +1704,20 @@ class EmbyActorManagerDialog(QDialog):
         self._start_clean()
 
     def _start_clean(self):
-        """议题 #149: 扫描存量噪声 → 弹确认(含前 5 条 before/after) → 批量清洗。"""
+        """数据清洗: 每次点击都先弹规则编辑窗(可增删改、可缩放), 确定后才实际清洗。
+
+        对话框打开时装载上次保存的规则; 点确定即保存规则并按该规则扫描执行,
+        点取消则直接返回。按当前规则无待清洗数据时仅提示, 不启动线程。
+        """
         if not self._actors:
             return
-        dirty = scan_actor_data_noise(self._actors)
-        if not dirty:
-            QMessageBox.information(self, "数据清洗", "✅ 未发现需要清洗的数据")
+        dialog = ActorCleanRulesDialog(self._actors, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        samples = []
-        for a, new_ov, fix_birth in dirty[:5]:
-            parts = []
-            if new_ov != (a.existing_overview or ""):
-                before = (a.existing_overview or "")[:40] or "(空)"
-                after = new_ov[:40] or "(空)"
-                parts.append(f"简介: {before} → {after}")
-            if fix_birth:
-                parts.append(f"生日: {(a.existing_premiere_date or '')[:10]} → (置空)")
-            samples.append(f"· {a.name}: " + "; ".join(parts))
-        reply = QMessageBox.question(
-            self,
-            "确认数据清洗",
-            f"发现 {len(dirty)} 个演员的数据需要清洗（示例前 5 条）:\n\n"
-            + "\n".join(samples)
-            + "\n\n清洗将直接改写服务器数据且不可撤销（不动头像与影片数），建议先备份。是否继续？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        rules = save_clean_rules(dialog.rules())
+        dirty = scan_actor_data_noise(self._actors, rules)
+        if not dirty:
+            QMessageBox.information(self, "数据清洗", "✅ 按当前规则未发现需要清洗的数据")
             return
         self._set_buttons_enabled(False)
         self.progress_bar.setVisible(True)

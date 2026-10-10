@@ -53,6 +53,34 @@ def normalize_production_year(value: object) -> int | None:
 _OVERVIEW_PLACEHOLDER_RE = re.compile(r"无维基百科信息\s*[,，]\s*从\s*minnano-av\s*数据库补全女优信息")
 
 
+def apply_overview_clean_rules(value: object, rules: object = None) -> str:
+    """在 clean_overview_text 内置清洗之上, 再按用户自定义替换规则逐条做字面量子串替换。
+
+    rules 为 (原始数值, 替换数值) 二元组序列(兼容 config 存盘的 list[list[str]] 形态);
+    原始数值为空/非字符串的行视为无效直接跳过, 替换数值非字符串时按空串处理。
+    无有效规则时等价于 clean_overview_text, 保证旧调用与测试口径不变。
+    """
+    text = clean_overview_text(value)
+    if not rules:
+        return text
+    try:
+        items = list(rules)
+    except TypeError:
+        return text
+    for item in items:
+        try:
+            original, replacement = item
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(original, str) or not original:
+            continue
+        if not isinstance(replacement, str):
+            replacement = ""
+        if original in text:
+            text = text.replace(original, replacement)
+    return text
+
+
 def clean_overview_text(value: object) -> str:
     """清洗演员简介历史噪声（议题 #149/#171），无噪声时原样返回；非字符串输入返回空串。
 
