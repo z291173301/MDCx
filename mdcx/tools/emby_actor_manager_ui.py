@@ -744,6 +744,17 @@ class EmbyActorManagerDialog(QDialog):
         self.btn_sync.setObjectName("btnSync")
         self.btn_sync.setEnabled(False)
         btn_layout.addWidget(self.btn_sync)
+        help_label = QLabel(
+            "使用说明：①填写地址和密钥→②连接/获取演员列表→③选择模式获取数据→④绿色行=待更新→⑤同步到服务器，双击行查看编辑详情"
+        )
+        # 不写 font-size：跟随 _load_stylesheet 里放大后的统一字号，写死 12px 会反盖回去。
+        # 位于「开始全部更新同步」按钮右侧（按钮行内），向上向右收纳以节省纵向空间；
+        # 允许折行：单行长文本不折行时会撑大对话框最小宽度，折行后最小宽度回到按钮行决定。
+        help_label.setWordWrap(True)
+        help_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        help_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        help_label.setStyleSheet("color: #888888; padding: 2px 0;")
+        btn_layout.addWidget(help_label, 1)
         btn_layout.addStretch()
         self.btn_test_source = QPushButton("数据源测试")
         btn_layout.addWidget(self.btn_test_source)
@@ -752,16 +763,6 @@ class EmbyActorManagerDialog(QDialog):
         self.btn_settings = QPushButton("设置")
         btn_layout.addWidget(self.btn_settings)
         grid.addLayout(btn_layout, 1, 0, 1, 4)
-        help_label = QLabel(
-            "使用说明：① 填写地址和密钥 → ② 连接/获取演员列表 → ③ 选择模式获取数据 → "
-            "④ 绿色行=待更新 → ⑤ 开始同步到服务器。双击行可查看当前头像/简介/出生日期/影片数等详情。"
-        )
-        # 不写 font-size：跟随 _load_stylesheet 里放大后的统一字号，写死 12px 会反盖回去。
-        # 允许折行：这行说明是单行长文本，不折行时它的 sizeHint 会成为整个对话框的最小宽度
-        # （字号放大后 1128 → 1222px，1280 宽的小屏会被撑出屏外）；折行后最小宽度回到按钮行决定。
-        help_label.setWordWrap(True)
-        help_label.setStyleSheet("color: #888888; padding: 2px 0;")
-        grid.addWidget(help_label, 2, 0, 1, 4)
         parent_layout.addWidget(group)
 
     def _build_actor_list(self, parent_layout: QVBoxLayout):
@@ -811,6 +812,27 @@ class EmbyActorManagerDialog(QDialog):
         ):
             lbl.setStyleSheet("padding: 2px 8px;")
             stats_layout.addWidget(lbl)
+        # 有背景图留出足够显示数字的空间：按 5 位数预留最小宽度，避免右侧筛选控件挤压导致数字被裁
+        self.lbl_backdrop.setMinimumWidth(
+            self.lbl_backdrop.fontMetrics().horizontalAdvance("有背景图: 99999") + 20
+        )
+        stats_layout.addSpacing(12)
+        stats_layout.addWidget(QLabel("筛选:"))
+        self.cmb_filter = QComboBox()
+        self.cmb_filter.addItems(["全部", "待同步", "缺头像", "缺背景", "缺简介", "缺头像和简介", "完整"])
+        self.cmb_filter.currentTextChanged.connect(self._on_filter_changed)
+        stats_layout.addWidget(self.cmb_filter)
+        stats_layout.addWidget(QLabel("  搜索:"))
+        self.txt_search = QLineEdit()
+        self.txt_search.setPlaceholderText("输入演员名搜索...")
+        self.txt_search.setMinimumWidth(120)
+        self.txt_search.setMaximumWidth(200)
+        self.txt_search.textChanged.connect(self._on_filter_changed)
+        stats_layout.addWidget(self.txt_search)
+        hint = QLabel("双击行可编辑")
+        # 同上：不钉死字号，跟随统一放大的字号
+        hint.setStyleSheet("color: #888888;")
+        stats_layout.addWidget(hint)
         stats_layout.addStretch()
         stats_layout.addWidget(QLabel("计数方式:"))
         self.cmb_count_mode = QComboBox()
@@ -820,24 +842,6 @@ class EmbyActorManagerDialog(QDialog):
         self.cmb_count_mode.currentIndexChanged.connect(self._on_count_mode_changed)
         stats_layout.addWidget(self.cmb_count_mode)
         parent_layout.addLayout(stats_layout)
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(QLabel("筛选:"))
-        self.cmb_filter = QComboBox()
-        self.cmb_filter.addItems(["全部", "待同步", "缺头像", "缺背景", "缺简介", "缺头像和简介", "完整"])
-        self.cmb_filter.currentTextChanged.connect(self._on_filter_changed)
-        filter_layout.addWidget(self.cmb_filter)
-        filter_layout.addWidget(QLabel("  搜索:"))
-        self.txt_search = QLineEdit()
-        self.txt_search.setPlaceholderText("输入演员名搜索...")
-        self.txt_search.setMaximumWidth(200)
-        self.txt_search.textChanged.connect(self._on_filter_changed)
-        filter_layout.addWidget(self.txt_search)
-        hint = QLabel("双击行可编辑")
-        # 同上：不钉死字号，跟随统一放大的字号
-        hint.setStyleSheet("color: #888888;")
-        filter_layout.addWidget(hint)
-        filter_layout.addStretch()
-        parent_layout.addLayout(filter_layout)
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         parent_layout.addWidget(self.progress_bar)

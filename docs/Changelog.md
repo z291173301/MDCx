@@ -3,6 +3,8 @@
 ## v2.3.3 (2026-10-10)
 ### 调整
 - **版本号**：`2.3.2` → `2.3.3`（`mdcx/consts.py` 的 `VERSION_NAME`、`pyproject.toml`、`uv.lock` 根包 `mdcx`、`docs/Changelog.md` 首个版本段；`LOCAL_VERSION` 保持 `20261010`）
+- **演员管理器筛选/搜索行上移并入统计栏**（`mdcx/tools/emby_actor_manager_ui.py` `_build_actor_list`）：`筛选:`下拉、`搜索:`输入框、`双击行可编辑`提示由独立第二行上移至与统计标签同一行、紧随`有背景图:`右侧，省出一行纵向空间；`有背景图:`按`有背景图: 99999`+边距预留最小宽度（`fontMetrics.horizontalAdvance+20`），右侧控件再挤不裁数字；搜索框保留`120~200px`宽度不被压扁；过滤/搜索信号与判定口径未动
+- **演员管理器使用说明上移至同步按钮右侧**（`mdcx/tools/emby_actor_manager_ui.py` `_build_connection_section`）：使用说明长文本由连接设置组内独立第三行并入按钮行、紧随`开始全部更新同步`右侧（`stretch=1`、`Expanding` + 左对齐垂直居中 + 允许折行），省出一行纵向空间；字号仍跟随统一放大规则（不写死 `font-size`），对话框最小宽度仍由按钮行决定；`test_actor_manager_font_size.py` 10 项全绿
 ### 修复
 - **「获取演员类型」两档数据真机联调复审（议题 #158）**（`mdcx/tools/emby_actor_manager.py`、`emby_actor_manager_ui.py`，真机 `http://192.168.0.101:8096`：24 个媒体库 / 49299 条目 / 14518 个 `/Persons` 条目，逐项对账）：
   - **逻辑错误（误删演员）**：`IncludeItemTypes=Movie,Episode` 未覆盖剧集条目级演职员表（`Series`）。`电视归档`/`动漫归档` 两个 tvshows 库共 4 个剧集条目、31 位演职人员，其中 **25 位从未出现在 Movie/Episode 的 People 里**，勾选「获取演员类型」时会被客户端交集过滤整体剔除（列表消失、影片数不计）。`Series` 实测只多扫 4 个条目（49299→49303，+0.008%），`BoxSet` 多扫 6755 个条目却 **0 条 People**（合集库不存演职员），`MusicVideo`/`Video` 为 0。新增 `_STATS_ITEM_TYPES = "Movie,Episode,Series"`，`BoxSet`/`MusicVideo`/`Video` 仍按议题 #32 的体积教训不纳入
