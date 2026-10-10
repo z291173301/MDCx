@@ -144,9 +144,7 @@ async def test_duplicate_gap_between_filter_modes_is_explained_by_removed_dupes(
     monkeypatch.setattr(mgr_mod.signal, "show_log_text", logs.append)
     # 演员A×3(出演) + 导演B×2(未出演, 且B自身重名): 勾选剔除B的2条(R=2,U=1), 重复数差1
     persons = [_person("演员A"), _person("演员A"), _person("演员A"), _person("导演B"), _person("导演B")]
-    actors_on, raw_on = await _run_fetch(
-        monkeypatch, persons, {"演员A"}, filter_actor_only=True, deduplicate=True
-    )
+    actors_on, raw_on = await _run_fetch(monkeypatch, persons, {"演员A"}, filter_actor_only=True, deduplicate=True)
     assert raw_on == 3
     assert raw_on - len({a.name for a in actors_on}) == 2
     detail_on = next((m for m in logs if "重复明细" in m), None)

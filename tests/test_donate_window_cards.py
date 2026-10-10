@@ -86,9 +86,7 @@ def test_cards_are_square_and_never_overlap(dialog):
 
 def test_missing_icon_degrades_to_placeholder_without_shifting_cards(app, monkeypatch):
     """某张码缺资源时只显示占位文字，槽位数不变、其余卡不左移。"""
-    monkeypatch.setattr(
-        dw.resources, "donate_redpacket_icon", "", raising=False
-    )
+    monkeypatch.setattr(dw.resources, "donate_redpacket_icon", "", raising=False)
     dlg = dw.DonateDialog()
     try:
         cards = _cards(dlg)

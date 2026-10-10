@@ -376,9 +376,7 @@ async def test_source_test_update_fills_has_flags_from_server_detail(monkeypatch
 
     dialog = ui.ActorSourceTestDialog.__new__(ui.ActorSourceTestDialog)
     # overview 传空 => 本次不写简介; 用 taglines 满足「有内容才写」的前置条件。
-    ok, msg = await ui.ActorSourceTestDialog._do_update_async(
-        dialog, "已有简介君", None, "", "", "", [], ["新标签"]
-    )
+    ok, msg = await ui.ActorSourceTestDialog._do_update_async(dialog, "已有简介君", None, "", "", "", [], ["新标签"])
     assert ok is True, msg
     actor = captured["actor"]
     assert actor.existing_overview == "服务器上真实存在的简介"
@@ -411,9 +409,7 @@ async def test_source_test_update_blank_server_overview_is_missing(monkeypatch):
     monkeypatch.setattr(es, "_emby_get_json", fake_ping)
 
     dialog = ui.ActorSourceTestDialog.__new__(ui.ActorSourceTestDialog)
-    ok, msg = await ui.ActorSourceTestDialog._do_update_async(
-        dialog, "空白简介君", None, "", "", "", [], ["新标签"]
-    )
+    ok, msg = await ui.ActorSourceTestDialog._do_update_async(dialog, "空白简介君", None, "", "", "", [], ["新标签"])
     assert ok is True, msg
     actor = captured["actor"]
     # has_overview 描述「服务器当前有没有简介」, 纯空白 = 没有

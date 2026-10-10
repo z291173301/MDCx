@@ -114,5 +114,4 @@ def test_probe(win, app):
     print("sizes under live style:")
     for n in ROW:
         w = getattr(ui, n)
-        print("   ", n, "sizeHint", w.sizeHint().width(), "minSizeHint", w.minimumSizeHint().width(),
-              "curW", w.width())
+        print("   ", n, "sizeHint", w.sizeHint().width(), "minSizeHint", w.minimumSizeHint().width(), "curW", w.width())

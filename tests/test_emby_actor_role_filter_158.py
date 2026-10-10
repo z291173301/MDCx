@@ -353,7 +353,10 @@ async def test_all_staff_count_reuses_unchecked_query_result(monkeypatch, reset_
     _configure(monkeypatch, "emby")
 
     async def handler(url):
-        return {"Items": [{"Name": f"人{i}", "Id": str(i), "ServerId": "s"} for i in range(3)], "TotalRecordCount": 3}, ""
+        return {
+            "Items": [{"Name": f"人{i}", "Id": str(i), "ServerId": "s"} for i in range(3)],
+            "TotalRecordCount": 3,
+        }, ""
 
     urls = _patch_persons_client(monkeypatch, handler)
 
@@ -373,7 +376,10 @@ async def test_all_staff_count_fetches_when_cache_cold(monkeypatch, reset_staff_
     _configure(monkeypatch, "emby")
 
     async def handler(url):
-        return {"Items": [{"Name": f"人{i}", "Id": str(i), "ServerId": "s"} for i in range(4)], "TotalRecordCount": 4}, ""
+        return {
+            "Items": [{"Name": f"人{i}", "Id": str(i), "ServerId": "s"} for i in range(4)],
+            "TotalRecordCount": 4,
+        }, ""
 
     urls = _patch_persons_client(monkeypatch, handler)
 
@@ -433,7 +439,10 @@ async def test_unchecked_persons_feed_total_even_when_actor_filter_on(monkeypatc
     async def handler(url):
         if "personTypes" in url:
             return {"Items": [{"Name": "演员A", "Id": "1", "ServerId": "s"}], "TotalRecordCount": 1}, ""
-        return {"Items": [{"Name": f"人{i}", "Id": str(i), "ServerId": "s"} for i in range(9)], "TotalRecordCount": 9}, ""
+        return {
+            "Items": [{"Name": f"人{i}", "Id": str(i), "ServerId": "s"} for i in range(9)],
+            "TotalRecordCount": 9,
+        }, ""
 
     _patch_persons_client(monkeypatch, handler)
 
@@ -599,7 +608,13 @@ async def test_person_stats_short_page_terminates_when_total_record_count_zero(m
         pages["n"] += 1
         return (
             {
-                "Items": [{"Name": f"影片{pages['n']}", "Type": "Movie", "People": [{"Name": f"演员{pages['n']}", "Type": "Actor"}]}],
+                "Items": [
+                    {
+                        "Name": f"影片{pages['n']}",
+                        "Type": "Movie",
+                        "People": [{"Name": f"演员{pages['n']}", "Type": "Actor"}],
+                    }
+                ],
                 "TotalRecordCount": 0,
             },
             "",
@@ -815,8 +830,6 @@ async def test_unchecked_with_library_subset_still_filters_by_library(monkeypatc
 
     monkeypatch.setattr(eam, "fetch_person_item_stats", fake_stats)
 
-    actors, _raw = await eam.fetch_all_actors(
-        filter_actor_only=False, deduplicate=True, parent_ids=["lib-1"]
-    )
+    actors, _raw = await eam.fetch_all_actors(filter_actor_only=False, deduplicate=True, parent_ids=["lib-1"])
 
     assert {a.name for a in actors} == {"演员A", "导演B"}

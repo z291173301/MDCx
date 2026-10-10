@@ -60,17 +60,30 @@ def win(app, monkeypatch, tmp_path):
 
 def _write_nfo(folder, name, **fields):
     children = [f"<num>{fields.get('num', name)}</num>"]
-    for key in ("title", "originaltitle", "director", "studio", "maker", "publisher", "label",
-                "series", "runtime", "rating", "plot", "outline", "release", "releasedate", "year"):
+    for key in (
+        "title",
+        "originaltitle",
+        "director",
+        "studio",
+        "maker",
+        "publisher",
+        "label",
+        "series",
+        "runtime",
+        "rating",
+        "plot",
+        "outline",
+        "release",
+        "releasedate",
+        "year",
+    ):
         if fields.get(key):
             children.append(f"<{key}>{fields[key]}</{key}>")
     for actor in fields.get("actors", []):
         children.append(f"<actor><name>{actor}</name></actor>")
     for tag in fields.get("tags", []):
         children.append(f"<tag>{tag}</tag>")
-    (folder / f"{name}.nfo").write_text(
-        "<movie>" + "".join(children) + "</movie>", encoding="utf-8"
-    )
+    (folder / f"{name}.nfo").write_text("<movie>" + "".join(children) + "</movie>", encoding="utf-8")
 
 
 @pytest.fixture()
@@ -78,7 +91,8 @@ def library(win, app, tmp_path):
     folder = tmp_path / "nfo_filter"
     folder.mkdir()
     _write_nfo(
-        folder, "SNOS-447",
+        folder,
+        "SNOS-447",
         title="SNOS-447 电影女演员中村美雨",
         actors=["仲村美羽"],
         director="ザック荒井",
@@ -95,7 +109,8 @@ def library(win, app, tmp_path):
         release="2026-09-03",
     )
     _write_nfo(
-        folder, "MIBD-459",
+        folder,
+        "MIBD-459",
         title="MIBD-459 手淫4小时",
         actors=["青木玲", "松嶋れいな"],
         director="",

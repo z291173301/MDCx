@@ -376,8 +376,7 @@ def test_actor_info_state_restored_after_round_trip(win, app):
     # 窄态语言行（繁→A2、日→A3）合法注入固定间隔，还原态应与初态一致
     # （初态窄态同样有这几个），而非清零。
     assert sorted(row.objectName() for row, _ in win._actor_info_spacers) == base_spacers, (
-        f"还原态间隔与初态不一致: {base_spacers} -> "
-        f"{sorted(row.objectName() for row, _ in win._actor_info_spacers)}"
+        f"还原态间隔与初态不一致: {base_spacers} -> {sorted(row.objectName() for row, _ in win._actor_info_spacers)}"
     )
     # 窄态本身也要钉位（需求⑦/⑧），故宽度锁在窄态非空是正常的；真正要保证的是
     # 「锁定的是窄态值、不是宽态值」——路径输入框不得停在宽态的钉宽。

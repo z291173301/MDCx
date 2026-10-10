@@ -70,11 +70,7 @@ def _patch_persons(monkeypatch: pytest.MonkeyPatch, persons: list[dict]) -> None
     async def _fake_list(filter_actor_only: bool = True):
         if filter_actor_only:
             # 模拟服务端 personTypes=Actor: 只回 Type 非导演/编剧的记录
-            return [
-                p
-                for p in persons
-                if p.get("Role") not in {"Director", "Writer", "Producer"}
-            ]
+            return [p for p in persons if p.get("Role") not in {"Director", "Writer", "Producer"}]
         return list(persons)
 
     monkeypatch.setattr(eam, "get_emby_actor_list", _fake_list)
@@ -184,7 +180,9 @@ class TestMergeRank:
         b = _person("B", image=True, overview="x", backdrop=True, provider_ids={"T": "1", "X": "2"})
         assert eam._person_merge_rank(b) > eam._person_merge_rank(a)
 
-    def test_完全相同则相等(self, ):
+    def test_完全相同则相等(
+        self,
+    ):
         a = _person("A", image=True, overview="x", backdrop=True, provider_ids={"T": "1"})
         b = _person("B", image=True, overview="x", backdrop=True, provider_ids={"T": "1"})
         assert eam._person_merge_rank(a) == eam._person_merge_rank(b)

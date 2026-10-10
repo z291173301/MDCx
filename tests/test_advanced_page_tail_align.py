@@ -777,6 +777,7 @@ def test_repeated_sync_is_idempotent(win, app):
             app.processEvents()
             assert _snapshot(ui) == before, f"{width} 宽下重复同步仍在改几何: {before} -> {_snapshot(ui)}"
 
+
 # ---------------------------------------------------------------------------
 # 窄态需求：「每次间隔」时长框右缘缩到与「间歇刮削」文件数框右缘严格对齐
 #   （锚点行及其余控件一律不动；最大化态一个像素都不碰）
@@ -877,8 +878,7 @@ def test_timed_interval_right_edge_matches_rest_count(win, app, width, height):
 
     # ① 自然态：右缘必须相等（未发生挤压时两边本就等宽，相等自然成立）
     assert _right(ui, target) == _right(ui, anchor), (
-        f"{width} 宽下「每次间隔」右缘 {_right(ui, target)} 未与「间歇刮削」"
-        f"文件数框右缘 {_right(ui, anchor)} 对齐"
+        f"{width} 宽下「每次间隔」右缘 {_right(ui, target)} 未与「间歇刮削」文件数框右缘 {_right(ui, anchor)} 对齐"
     )
 
     # ② 模拟 hl109 被挤压：锚点收窄 24px，时长框必须跟着缩
@@ -891,8 +891,7 @@ def test_timed_interval_right_edge_matches_rest_count(win, app, width, height):
     )
     assert anchor.width() == squeeze
     assert _right(ui, target) == _right(ui, anchor), (
-        f"{width} 宽下模拟挤压后「每次间隔」右缘 {_right(ui, target)} 未跟上"
-        f"锚点右缘 {_right(ui, anchor)}"
+        f"{width} 宽下模拟挤压后「每次间隔」右缘 {_right(ui, target)} 未跟上锚点右缘 {_right(ui, anchor)}"
     )
     assert target.width() == squeeze, "两框同为各自行的第二项、左缘同列，收窄后应等宽"
     # 钉宽而不是「恰好排成这样」：min == max 才说明真走了 setFixedWidth 那条路
@@ -968,9 +967,9 @@ def test_timed_interval_untouched_in_wide(win, app, monkeypatch, width, height):
 
     target = ui.lineEdit_timed_interval
     assert target.minimumWidth() == 0 and target.maximumWidth() == _QWIDGETSIZE_MAX
-    assert _rest_row_snapshot(ui) == _baseline_without_rest_interval_align(
-        win, app, monkeypatch, width, height
-    ), f"{width} 宽下本需求动了最大化态的控件几何"
+    assert _rest_row_snapshot(ui) == _baseline_without_rest_interval_align(win, app, monkeypatch, width, height), (
+        f"{width} 宽下本需求动了最大化态的控件几何"
+    )
 
 
 def test_rest_interval_alignment_survives_round_trip(win, app):

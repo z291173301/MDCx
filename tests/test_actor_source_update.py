@@ -132,11 +132,7 @@ def test_update_writes_only_nonempty(dlg, monkeypatch):
         "Tags": ["t"],
     }
     captured = _patch_server(monkeypatch, probe_ok=True, detail=detail)
-    ok, _msg = asyncio.run(
-        dlg._do_update_async(
-            "测试演员", None, "新简介", "0000-00-00", "0000", [], ["新标签"]
-        )
-    )
+    ok, _msg = asyncio.run(dlg._do_update_async("测试演员", None, "新简介", "0000-00-00", "0000", [], ["新标签"]))
     assert ok is True
     actor = captured["actor"]
     assert captured["sync_type"] == "info"
