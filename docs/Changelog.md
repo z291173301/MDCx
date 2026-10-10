@@ -1,6 +1,6 @@
 
 # Changelog
-## v2.3.3 (2026-10-10)
+## v2.3.3 (2026-10-20)
 ### 调整
 - **版本号**：`2.3.2` → `2.3.3`（`mdcx/consts.py` 的 `VERSION_NAME`、`pyproject.toml`、`uv.lock` 根包 `mdcx`、`docs/Changelog.md` 首个版本段；`LOCAL_VERSION` 保持 `20261010`）
 - **演员管理器筛选/搜索行上移并入统计栏**（`mdcx/tools/emby_actor_manager_ui.py` `_build_actor_list`）：`筛选:`下拉、`搜索:`输入框、`双击行可编辑`提示由独立第二行上移至与统计标签同一行、紧随`有背景图:`右侧，省出一行纵向空间；`有背景图:`按`有背景图: 99999`+边距预留最小宽度（`fontMetrics.horizontalAdvance+20`），右侧控件再挤不裁数字；搜索框保留`120~200px`宽度不被压扁；过滤/搜索信号与判定口径未动
