@@ -93,6 +93,13 @@ UI 层 (PyQt6)         → 界面展示、用户操作
 - 修复：`_sync_nfo_set_align()`（`_sync_page_layouts` 末尾、tail_align 之后调用，无新钩子）。宽态门 extra=viewport-796>200（scrollArea_13 即 NFO 设置滚动区，设计 796；不用 isMaximized，因离屏不可测；1400 中宽同样开门，属宽向无害）：关门时复位 genre/actor_set 约束并直接返回，窄态逐像素不动。开门后 3 遍有界迭代、条件左移单向（封顶前项，60 地板）：两钉必须串行——genre 钉会连带左移整块 [actor_set, set]，actor_set 钉必须用 genre 钉生效并重排后的新鲜位置计算，否则同一快照下重复扣除 genre 修正量（1900 宽实测 overshoot 116px：set 落到 publisher 左边 718 vs 834）。studio/maker/publisher 与 y 全不动；休眠页跳过，由现有切页钩子补齐。
 - 回归测试：`tests/test_window_state_matrix.py::test_nfo_set_aligns_to_maker_publisher_when_wide` 锁定「1900/1400 门内两者严格 == maker.x/publisher.x、参照 studio/maker/publisher 与 y 逐像素不变、二次同步幂等；1000/1089 门外自然漂移保留、约束零残留（genre/actor_set 最小宽 0、最大宽默认）」。
 
+**设置-NFO 窄态片商行后三项对齐标签两行**（用户需求：最小化时片商（maker）右移到与系列严格上下对齐、系列不动；发行商（publisher）右移到与分辨率严格上下对齐、分辨率不动；发行商（label）左移到与中文字幕严格上下对齐、中文字幕不动；最大化时页面布局、组件、控件、提示词等全部保持不变；只能左右移动）
+
+- 根因：h37/h91/h138 皆 4 等分左堆积无弹簧同一起点，有余量时均分天然对齐；挤压区 h138 按文本乱挤（生产字体下 maker 左、publisher 左、label 右；离屏 900 宽测试字体同向 -5/-9/+5，conftest 字体下方向翻转仅 ±1）。
+- 修复：`_sync_nfo_studio_row_align()`（`_sync_page_layouts` 末尾、set_align 之后调用，同挂 `_sync_nfo_page_align` 钩子链，无新钩子）。窄态门 extra<=200（与 set_align 同源互补：宽态本方法复位返回、窄态 set 复位返回，maker/publisher 不被两方争夺）。单快照增量、四钉原子：d1=系列.x-maker.x→studio 钉现宽+d1，d2=分辨率.x-(publisher.x+d1)→maker 钉现宽+d2，d3=中文字幕.x-(label.x+d1+d2)→publisher 钉现宽+d3，label 钉现宽-d1-d2-d3（行总宽守恒）；四钉任一 <60 即整单放弃；3 遍有界迭代，首遍即中。
+- 事故教训：初版三钉串行（label 不钉）在 conftest 字体下稳定剩 1px 且 SKIP 自锁——三钉总宽超出行宽，QBoxLayout 把溢出吃进项间隙（gap 6→5），公式算对也落不对；label 钉是反证出的必要项（钉/不钉对照：全对齐 vs 差 1px）。另挤压分配随字体混沌翻转，故增量按双向对称写（row_align 同款），不断言错位方向。
+- 回归测试：`tests/test_window_state_matrix.py::test_nfo_studio_row_aligns_to_tag_rows_when_narrow` 锁定「900 挤压态三者严格 == 锚点.x、锚点与 y 逐像素不变、二次同步幂等；1900/1400 宽态自然位置保留、四钉约束零残留」。
+
 **设置-NFO 字段说明按钮收进组框**（用户窄态截图：最小化时「字段说明」按钮伸出「写入NFO的字段」组框右缘）
 
 - 根因：按钮 Fixed 80x26、设计 x=640..720；组框设计 x=30 宽 701、右缘 731，设计余量仅 11px。宽幅同步按 width=设计宽+extra 双向拉伸组框（extra<=0 时缩回）；extra<0（视口窄于设计 796）时组右缘左移而按钮不动——测试环境 1089 窗组宽 724 尚未溢出，1000 窗组宽约 635、按钮伸出约 66px。

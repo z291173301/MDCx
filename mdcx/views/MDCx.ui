@@ -18735,7 +18735,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>公众评分（score）</string>
+                                  <string>公众评分(score)</string>
                                 </property>
                               </widget>
                             </item>
@@ -18748,7 +18748,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>影评人评分（criticrating）</string>
+                                  <string>影评人评分(criticrating)</string>
                                 </property>
                               </widget>
                             </item>
@@ -18777,7 +18777,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>演员（actor）</string>
+                                  <string>演员(actor)</string>
                                 </property>
                               </widget>
                             </item>
@@ -18790,7 +18790,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>导演（director）</string>
+                                  <string>导演(director)</string>
                                 </property>
                               </widget>
                             </item>
@@ -18845,7 +18845,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>系列（series）</string>
+                                  <string>系列(series)</string>
                                 </property>
                               </widget>
                             </item>
@@ -18864,7 +18864,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>标签（tag）</string>
+                                  <string>标签(tag)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19010,14 +19010,14 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>类标题（sorttitle）</string>
+                                  <string>类标题(sorttitle)</string>
                                 </property>
                               </widget>
                             </item>
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_originaltitle">
                                 <property name="text">
-                                  <string>原标题（originaltitle）</string>
+                                  <string>原标题(originaltitle)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19034,7 +19034,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>风格（使用标签字段）</string>
+                                  <string>风格(使用标签字段)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19047,7 +19047,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>合集（使用演员字段）</string>
+                                  <string>合集(使用演员字段)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19063,7 +19063,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   <enum>Qt::LeftToRight</enum>
                                 </property>
                                 <property name="text">
-                                  <string>合集（使用系列字段）</string>
+                                  <string>合集(使用系列字段)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19074,28 +19074,28 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_poster">
                                 <property name="text">
-                                  <string>海报（poster）</string>
+                                  <string>海报(poster)</string>
                                 </property>
                               </widget>
                             </item>
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_cover">
                                 <property name="text">
-                                  <string>缩略图（cover）</string>
+                                  <string>缩略图(cover)</string>
                                 </property>
                               </widget>
                             </item>
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_trailer">
                                 <property name="text">
-                                  <string>预告片（trailer）</string>
+                                  <string>预告片(trailer)</string>
                                 </property>
                               </widget>
                             </item>
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_website">
                                 <property name="text">
-                                  <string>网址（website）</string>
+                                  <string>网址(website)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19268,7 +19268,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>简介（outline）</string>
+                                  <string>简介(outline)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19287,14 +19287,14 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </size>
                                 </property>
                                 <property name="text">
-                                  <string>简介（plot）</string>
+                                  <string>简介(plot)</string>
                                 </property>
                               </widget>
                             </item>
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_originalplot">
                                 <property name="text">
-                                  <string>原简介（originalplot）</string>
+                                  <string>原简介(originalplot)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19486,7 +19486,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>片商（studio）</string>
+                                  <string>片商(studio)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19499,7 +19499,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>片商（maker）</string>
+                                  <string>片商(maker)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19512,7 +19512,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>发行商（publisher）</string>
+                                  <string>发行商(publisher)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19525,7 +19525,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>发行商（label）</string>
+                                  <string>发行商(label)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19756,7 +19756,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>发行日期（release）</string>
+                                  <string>发行日期(release)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19769,14 +19769,14 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>发行日期（releasedate）</string>
+                                  <string>发行日期(releasedate)</string>
                                 </property>
                               </widget>
                             </item>
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_premiered">
                                 <property name="text">
-                                  <string>发行日期（premiered）</string>
+                                  <string>发行日期(premiered)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19868,7 +19868,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>年份（year）</string>
+                                  <string>年份(year)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19881,14 +19881,14 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>时长（runtime）</string>
+                                  <string>时长(runtime)</string>
                                 </property>
                               </widget>
                             </item>
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_wanted">
                                 <property name="text">
-                                  <string>想看人数（votes）</string>
+                                  <string>想看人数(votes)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19966,7 +19966,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>国家（country）</string>
+                                  <string>国家(country)</string>
                                 </property>
                               </widget>
                             </item>
@@ -19979,14 +19979,14 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                   </sizepolicy>
                                 </property>
                                 <property name="text">
-                                  <string>分级信息（mpaa）</string>
+                                  <string>分级信息(mpaa)</string>
                                 </property>
                               </widget>
                             </item>
                             <item>
                               <widget class="QCheckBox" name="checkBox_nfo_customrating">
                                 <property name="text">
-                                  <string>自定义（customrating）</string>
+                                  <string>自定义(customrating)</string>
                                 </property>
                               </widget>
                             </item>

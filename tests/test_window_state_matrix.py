@@ -3048,6 +3048,101 @@ def test_nfo_set_aligns_to_maker_publisher_when_wide(win, app):
         assert actor_set.maximumWidth() == 16777215, f"{w}宽 actor_set 不应残留最大宽"
 
 
+def test_nfo_studio_row_aligns_to_tag_rows_when_narrow(win, app):
+    """设置-NFO：窄态下片商（maker）==系列、发行商（publisher）==分辨率、发行商（label）==中文字幕。
+
+    用户需求（最小化）：maker 向右移到与系列（`checkBox_tag_series`）严格上下对齐、
+    publisher 向右移到与分辨率（`checkBox_tag_definition`）严格上下对齐、
+    label 向左移到与中文字幕（`checkBox_tag_cnword`）严格上下对齐；三个锚点不动；
+    最大化时页面布局、组件、控件、提示词等全部保持不变；只能左右移动。
+    根因（离屏测试字体）：h37/h91/h138 皆 4 等分左堆积无弹簧同一起点，有余量时均分
+    天然对齐；900 宽挤压区 h138 按文本乱挤（maker 左 5、publisher 左 9、label 右 5），
+    h37/h91 仍均分。`_sync_nfo_studio_row_align` 窄态门（extra<=200，与 set_align 互补）
+    内三钉串行：加宽 studio 推 maker、加宽 maker 推 publisher、封顶 publisher 拉 label，
+    一律 60 地板；宽态复位返回零残留。
+    """
+    ui = win.Ui
+    studio = ui.checkBox_nfo_studio
+    maker = ui.checkBox_nfo_maker
+    publisher = ui.checkBox_nfo_publisher
+    label = ui.checkBox_nfo_label
+    series = ui.checkBox_tag_series
+    definition = ui.checkBox_tag_definition
+    cnword = ui.checkBox_tag_cnword
+
+    def goto_nfo_tab():
+        _goto(win, app, "page_setting")
+        for i in range(ui.tabWidget.count()):
+            if ui.tabWidget.widget(i).findChild(type(maker), "checkBox_nfo_maker") is not None:
+                ui.tabWidget.setCurrentIndex(i)
+                break
+        app.processEvents()
+
+    rows = (ui.horizontalLayout_37, ui.horizontalLayout_91, ui.horizontalLayout_138)
+
+    # 挤压态（900x700）：自然错位，同步后三者严格==锚点，锚点/y 不动
+    win.show()
+    win.resize(900, 700)
+    goto_nfo_tab()
+    app.processEvents()
+    for cb in (studio, maker, publisher, label):
+        cb.setMinimumWidth(0)
+        cb.setMaximumWidth(16777215)
+    for row in rows:
+        row.invalidate()
+        row.activate()
+    ui.gridLayout_40.activate()
+    app.processEvents()
+    nat = {cb: (cb.x(), cb.y()) for cb in (studio, maker, publisher, label, series, definition, cnword)}
+    # 挤压区分配随字体混沌翻转（本环境 900 宽下 maker 反超 +1），不断言错位方向、
+    # 只断言确有错位（否则同步无从验证）。
+    assert (nat[maker][0], nat[publisher][0], nat[label][0]) != (
+        nat[series][0],
+        nat[definition][0],
+        nat[cnword][0],
+    ), "900宽 门内自然应对错位"
+    win._sync_page_layouts()
+    app.processEvents()
+    assert maker.x() == series.x(), f"900宽 maker 未对齐: mk={maker.x()} se={series.x()}"
+    assert publisher.x() == definition.x(), f"900宽 publisher 未对齐: pb={publisher.x()} df={definition.x()}"
+    assert label.x() == cnword.x(), f"900宽 label 未对齐: lb={label.x()} cw={cnword.x()}"
+    for cb in (series, definition, cnword):
+        assert (cb.x(), cb.y()) == nat[cb], f"900宽 锚点移动 {cb.objectName()}"
+    for cb in (studio, maker, publisher, label):
+        assert cb.y() == nat[cb][1], f"900宽 上下移动 {cb.objectName()}"
+    # 幂等：再同步一次位置不变
+    before = {cb: (cb.x(), cb.y()) for cb in (studio, maker, publisher, label, series, definition, cnword)}
+    win._sync_page_layouts()
+    app.processEvents()
+    after = {cb: (cb.x(), cb.y()) for cb in (studio, maker, publisher, label, series, definition, cnword)}
+    assert before == after, "900宽 二次同步漂移"
+
+    # 宽态（1900/1400）：自然对齐保留、约束零残留（最大化页面保持不变）
+    for w in (1900, 1400):
+        win.resize(w, 900)
+        goto_nfo_tab()
+        app.processEvents()
+        for cb in (studio, maker, publisher, label):
+            cb.setMinimumWidth(0)
+            cb.setMaximumWidth(16777215)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        ui.gridLayout_40.activate()
+        app.processEvents()
+        nat_maker_x = maker.x()
+        nat_publisher_x = publisher.x()
+        nat_label_x = label.x()
+        win._sync_page_layouts()
+        app.processEvents()
+        assert maker.x() == nat_maker_x, f"{w}宽 maker 不应移动"
+        assert publisher.x() == nat_publisher_x, f"{w}宽 publisher 不应移动"
+        assert label.x() == nat_label_x, f"{w}宽 label 不应移动"
+        for cb in (studio, maker, publisher, label):
+            assert cb.minimumWidth() == 0, f"{w}宽 {cb.objectName()} 不应残留最小宽"
+            assert cb.maximumWidth() == 16777215, f"{w}宽 {cb.objectName()} 不应残留最大宽"
+
+
 def test_nfo_field_tips_stays_inside_group_box(win, app):
     """设置-NFO：窄态下字段说明按钮左移进组框，宽态保持 640 不动。
 

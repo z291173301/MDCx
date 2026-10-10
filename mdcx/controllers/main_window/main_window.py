@@ -5400,6 +5400,9 @@ class MyMAinWindow(QMainWindow):
         # ============ page_setting / NFO页: 宽态下合集两项左对齐到片商/发行商列 ============
         self._sync_nfo_set_align()
 
+        # ============ page_setting / NFO页: 窄态下片商行后三项对齐到标签两行 ============
+        self._sync_nfo_studio_row_align()
+
         # ============ page_setting / NFO页: 窄态下字段说明按钮左移进组框 ============
         self._sync_nfo_field_tips()
 
@@ -6572,7 +6575,7 @@ class MyMAinWindow(QMainWindow):
         return (title_colon, row_pad)
 
     def _sync_nfo_page_align(self) -> None:
-        """设置-NFO：把七个列对齐控制器整条重跑一遍（纯几何刷新入口）。
+        """设置-NFO：把八个列对齐控制器整条重跑一遍（纯几何刷新入口）。
 
         用途只有一个：挂在 NFO 滚动区拉伸之后的钩子上
         （CustomScrollArea._post_wide_sync_hook），使「拉伸」与「对齐」在同一个
@@ -6589,7 +6592,7 @@ class MyMAinWindow(QMainWindow):
         CustomScrollArea 是在主窗口 resizeEvent **之后**才把自己和内部子项拉到
         终态的，所以主窗口那一拍量到的必然是拉伸前的几何。挂上钩子后判据在拉伸
         后的几何上求值，一拍即到位，中间态没有机会被绘制。
-        七个控制器都是纯函数、双向幂等（各自 docstring 已声明），重复调用安全；
+        八个控制器都是纯函数、双向幂等（各自 docstring 已声明），重复调用安全；
         休眠页直接返回（切 tab 的 showEvent 与 beats 会补齐）。
         """
         ui = getattr(self, "Ui", None)
@@ -6601,6 +6604,7 @@ class MyMAinWindow(QMainWindow):
         self._sync_nfo_row_align()
         self._sync_nfo_tail_align()
         self._sync_nfo_set_align()
+        self._sync_nfo_studio_row_align()
         self._sync_nfo_field_tips()
         self._sync_nfo_target_column_align()
 
@@ -6990,6 +6994,111 @@ class MyMAinWindow(QMainWindow):
                         row.activate()
                     if outer is not None:
                         outer.activate()
+
+    def _sync_nfo_studio_row_align(self) -> None:
+        """设置-NFO：窄态下片商行后三项对齐到标签两行，宽态保持不动。
+
+        用户需求（最小化）：片商（maker）向右移动到与系列
+        （`checkBox_tag_series`）严格上下对齐、系列不动；发行商
+        （publisher）向右移动到与分辨率（`checkBox_tag_definition`）
+        严格上下对齐、分辨率不动；发行商（label）向左移动到与中文字幕
+        （`checkBox_tag_cnword`）严格上下对齐、中文字幕不动。最大化时
+        页面布局、组件、控件、提示词等全部保持不变；只许左右移动。
+        根因：标签两行 h37/h91 与片商行 h138 皆 4 等分左堆积无弹簧、
+        同一起点、无自定义间距（间距 6），有余量时均分天然对齐；
+        容器窄到装不下 h138 的 hint 总宽时（publisher hint 最长，离屏
+        测试字体 122），h138 按各自文本乱挤而 h37/h91 仍均分：离屏
+        900 宽实测 maker=246 vs 系列=251（左 5）、publisher=357 vs
+        分辨率=366（左 9）、label=485 vs 中文字幕=480（右 5），与用户
+        症状同向；1000/1089/1400/1900 宽均天然对齐。
+        做法（窄态门控、单快照增量、四钉原子）：宽态门 extra>200 即复位
+        studio/maker/publisher/label 约束（最小宽 0、最大宽默认）后直接返回，
+        宽态逐像素不动（门限与 _sync_nfo_set_align 同源互补：
+        scrollArea_13 设计宽 796，不用 isMaximized，因离屏不可测；
+        1089 窄态 extra≈23 关门排布，1400/1900 宽态开门复位）。
+        关门后 3 遍有界迭代，每遍从同一快照算出四个增量、原子应用：
+        d1=系列.x-maker.x（整条尾巴的位移）→ studio 钉现宽+d1；
+        d2=分辨率.x-(publisher.x+d1)（maker 矫正量）→ maker 钉现宽+d2；
+        d3=中文字幕.x-(label.x+d1+d2) → publisher 钉现宽+d3；
+        label 钉现宽-d1-d2-d3（把前三钉吐出/吃进的宽度原数吸收，行总宽
+        恒不变）。生产字体下 d1/d2 为正（加宽右移）、d3 为负（封顶左移），
+        实现按双向对称写（row_align 同款：挤压分配随字体混沌翻转，离屏曾测得
+        maker 反超 +1，单边修法顾此失彼）；四钉任一低于 60 地板即整单放弃
+        （防裁字）。label 钉只改末项自身宽度（label.x 只取决于前三钉），
+        不移动任何控件，只延长点击区。series/definition/cnword 与 y 全不动；
+        只碰列宽，高不变故无上下移动。休眠页（不可见）跳过，由切 tab/切页
+        下一拍补齐。
+        教训（离屏 900 宽实测）：初版三钉串行（钉完 studio 重排再量 maker 钉，
+        label 不钉）在 conftest 字体下稳定剩 1px（pub=340 vs 341、lbl=442 vs
+        443）且永远自愈不了——三钉总宽 405 超出行宽 403，QBoxLayout 把溢出的
+        2px 吃进项间隙（gap 6→5），公式算对也落不对；且 cap 重算恒等于现宽
+        （SKIP 自锁）。四钉原子则行总宽守恒（增量相消），无新挤压、无级联
+        失真，一遍即中（同环境 238/341/443 精确成立）；label 不钉的 V3 对照组
+        仍差 1px，反证 label 钉必要。与 set_align 相容：两门互补（窄/宽各开
+        一门），窄态 set 复位返回、宽态本方法复位返回，maker/publisher 不会被
+        两方同拍争夺。
+        """
+        ui = self.Ui
+        studio = ui.checkBox_nfo_studio
+        maker = ui.checkBox_nfo_maker
+        publisher = ui.checkBox_nfo_publisher
+        label = ui.checkBox_nfo_label
+        series = ui.checkBox_tag_series
+        definition = ui.checkBox_tag_definition
+        cnword = ui.checkBox_tag_cnword
+        if not maker.isVisibleTo(self):
+            return
+        rows = (ui.horizontalLayout_37, ui.horizontalLayout_91, ui.horizontalLayout_138)
+        outer = ui.gridLayout_40
+        studio.setMinimumWidth(0)
+        studio.setMaximumWidth(16777215)
+        maker.setMinimumWidth(0)
+        maker.setMaximumWidth(16777215)
+        publisher.setMinimumWidth(0)
+        publisher.setMaximumWidth(16777215)
+        label.setMinimumWidth(0)
+        label.setMaximumWidth(16777215)
+        for row in rows:
+            row.invalidate()
+            row.activate()
+        if outer is not None:
+            outer.activate()
+        if self._scroll_stretch_extra(ui.scrollArea_13) > 200:
+            return
+        # 四钉原子：同一快照算增量、一次全应用，行总宽守恒（增量相消），
+        # 无级联失真、无新挤压；整单地板（任一 <60 即本遍放弃）。
+        for _ in range(3):
+            if maker.x() == series.x() and publisher.x() == definition.x() and label.x() == cnword.x():
+                break
+            d1 = series.x() - maker.x()
+            d2 = definition.x() - (publisher.x() + d1)
+            d3 = cnword.x() - (label.x() + d1 + d2)
+            cap_s = studio.width() + d1
+            cap_m = maker.width() + d2
+            cap_p = publisher.width() + d3
+            cap_l = label.width() - d1 - d2 - d3
+            if min(cap_s, cap_m, cap_p, cap_l) < 60:
+                break
+            if (
+                cap_s == studio.width()
+                and cap_m == maker.width()
+                and cap_p == publisher.width()
+                and cap_l == label.width()
+            ):
+                break
+            studio.setMinimumWidth(cap_s)
+            studio.setMaximumWidth(cap_s)
+            maker.setMinimumWidth(cap_m)
+            maker.setMaximumWidth(cap_m)
+            publisher.setMinimumWidth(cap_p)
+            publisher.setMaximumWidth(cap_p)
+            label.setMinimumWidth(cap_l)
+            label.setMaximumWidth(cap_l)
+            for row in rows:
+                row.invalidate()
+                row.activate()
+            if outer is not None:
+                outer.activate()
 
     def _sync_nfo_target_column_align(self) -> None:
         """设置-NFO：宽态下目标两列左移到演员/剧集列与分级/片商列，窄态保持不动。
