@@ -745,7 +745,7 @@ class EmbyActorManagerDialog(QDialog):
         self.btn_sync.setEnabled(False)
         btn_layout.addWidget(self.btn_sync)
         help_label = QLabel(
-            "使用说明：①填写地址和密钥→②连接/获取演员列表→③选择模式获取数据→④绿色行=待更新→⑤同步到服务器，双击行查看编辑详情"
+            "使用说明：①填写地址和密钥→②连接/获取演员列表→③选择模式获取数据→④绿色行==待更新→⑤同步到服务器，双击行查看编辑详情"
         )
         # 不写 font-size：跟随 _load_stylesheet 里放大后的统一字号，写死 12px 会反盖回去。
         # 位于「开始全部更新同步」按钮右侧（按钮行内），向上向右收纳以节省纵向空间；
