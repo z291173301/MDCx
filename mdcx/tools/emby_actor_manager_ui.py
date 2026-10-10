@@ -1631,7 +1631,7 @@ class EmbyActorManagerDialog(QDialog):
             1 for a in actors if PreparePreviewThread._is_missing_image(a) and PreparePreviewThread._is_missing_info(a)
         )
         backdrop_count = sum(1 for a in actors if a.has_backdrop)
-        self.lbl_total.setText(f"总数: {total}")
+        self.lbl_total.setText(f"演员: {total}")
         self.lbl_has_both.setText(f"完整: {has_both}")
         self.lbl_missing_image.setText(f"缺头像: {has_info_only}")
         self.lbl_missing_info.setText(f"缺简介: {has_image_only}")
