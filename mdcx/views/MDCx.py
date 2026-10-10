@@ -14109,7 +14109,7 @@ class Ui_MDCx(object):
             _translate(
                 "MDCx",
                 "<p\n"
-                "                                style='line-height:20px'>水印分为字幕水印、马赛克水印、4K/8K水印几种<br>\n"
+                "                                style='line-height:20px'>水印分为字幕水印、马赛克水印、4K、8K水印几种<br>\n"
                 "                                马赛克水印有四个：有码、破解、流出、无码四种<br>\n"
                 "                                马赛克水印优先级：有码 > 破解 > 流出 > 无码<br>\n"
                 "                                举例：如果视频是流出版本<br>\n"
@@ -14133,8 +14133,8 @@ class Ui_MDCx(object):
                 "<p\n"
                 "                                style='line-height:20px'>不固定位置：将从首个水印位置开始，将会按照顺时针方向依次添加其他水印<br>\n"
                 "                                固定一个位置：水印在指定位置依次横向显示，从第一个位置开始顺时针旋转<br>\n"
-                "                                固定多个位置：可以单独设置4K/8K水印、字幕水印以及马赛克水印等的位置<br>\n"
-                "                                注意：不固定位置时，4K/8K水印会使用固定位置方式，并自动挤开其他水印</p>",
+                "                                固定多个位置：可以单独设置4K、8K水印、字幕水印以及马赛克水印等的位置<br>\n"
+                "                                注意：不固定位置时，4K、8K水印会使用固定位置方式，并自动挤开其他水印</p>",
             )
         )
         self.checkBox_poster_mark.setText(_translate("MDCx", "poster"))
@@ -14166,7 +14166,7 @@ class Ui_MDCx(object):
         self.radioButton_top_right_hd.setText(_translate("MDCx", "右上"))
         self.radioButton_bottom_right_hd.setText(_translate("MDCx", "右下"))
         self.radioButton_bottom_left_hd.setText(_translate("MDCx", "左下"))
-        self.label_216.setText(_translate("MDCx", "4K/8K水印位置："))
+        self.label_216.setText(_translate("MDCx", "4K、8K水印位置："))
         self.groupBox_39.setTitle(_translate("MDCx", "固定一个位置"))
         self.radioButton_top_left_corner.setText(_translate("MDCx", "左上"))
         self.radioButton_top_right_corner.setText(_translate("MDCx", "右上"))

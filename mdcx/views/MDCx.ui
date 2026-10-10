@@ -17580,7 +17580,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             </property>
                             <property name="text">
                               <string>&lt;p
-                                style='line-height:20px'&gt;水印分为字幕水印、马赛克水印、4K/8K水印几种&lt;br&gt;
+                                style='line-height:20px'&gt;水印分为字幕水印、马赛克水印、4K、8K水印几种&lt;br&gt;
                                 马赛克水印有四个：有码、破解、流出、无码四种&lt;br&gt;
                                 马赛克水印优先级：有码 &gt; 破解 &gt; 流出 &gt; 无码&lt;br&gt;
                                 举例：如果视频是流出版本&lt;br&gt;
@@ -17804,8 +17804,8 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <string>&lt;p
                                 style='line-height:20px'&gt;不固定位置：将从首个水印位置开始，将会按照顺时针方向依次添加其他水印&lt;br&gt;
                                 固定一个位置：水印在指定位置依次横向显示，从第一个位置开始顺时针旋转&lt;br&gt;
-                                固定多个位置：可以单独设置4K/8K水印、字幕水印以及马赛克水印等的位置&lt;br&gt;
-                                注意：不固定位置时，4K/8K水印会使用固定位置方式，并自动挤开其他水印&lt;/p&gt;</string>
+                                固定多个位置：可以单独设置4K、8K水印、字幕水印以及马赛克水印等的位置&lt;br&gt;
+                                注意：不固定位置时，4K、8K水印会使用固定位置方式，并自动挤开其他水印&lt;/p&gt;</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
@@ -18513,7 +18513,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                               <enum>Qt::RightToLeft</enum>
                             </property>
                             <property name="text">
-                              <string>4K/8K水印位置：</string>
+                              <string>4K、8K水印位置：</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
