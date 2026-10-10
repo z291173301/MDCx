@@ -15933,11 +15933,11 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                 素人和 FC2 番号的演员姓名可能是「素人」之类的假名字，勾选「使用AV-Wiki获取演员真实名字」后，可以请求AV-Wiki获取演员的真实日文名，之后可以使用演员映射表翻译为简体中文&lt;br&gt;
                                 演员名比较复杂，不能简单使用翻译引擎翻译。主要的问题：演员名翻译不准确、演员有多个名字、同一演员不同番号演员名不统一、各网站使用的演员名不统一等。不过通过演员名映射翻译表可以解决这些问题，使刮削后的演员名整齐统一。&lt;br&gt;
                                 实现逻辑：网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译表文件名为：actor_database.xlsx。&lt;br&gt;
-                                Windows：\配置文件目录\userdata\actor_database.xlsx，配置文件的目录可以在「设置」-「高级」中设置。&lt;br&gt;
-                                MAC系统：/配置文件目录/userdata/actor_database.xlsx。&lt;br&gt;
+                                Windows：\配置文件目录\userdata\actor_database.xlsx，配置在「设置」--「高级」修改&lt;br&gt;
+                                MAC系统：/配置文件目录/userdata/actor_database.xlsx，同样在「设置」--「高级」修改&lt;br&gt;
                                 你可使用文件编辑工具打开该文件后自定义修改添加，演员映射表中的字段含义如下：&lt;br&gt;
-                                1、keyword：匹配词，每个名字前后都要有逗号，网站获取演员名后，会在keyword的名字中进行匹配。&lt;br&gt;
-                                2、zh_cn/zh_tw/jp：输出词，当keyword匹配到演员名时，可以输出对应语言的名字&lt;/p&gt;</string>
+                                keyword：匹配词，每个名字前后都要有逗号，网站获取演员名后，会在keyword的名字中匹配&lt;br&gt;
+                                zh_cn/zh_tw/jp：输出词，当keyword匹配到对应的演员名称时，可以输出对应语言的演员名&lt;/p&gt;</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
