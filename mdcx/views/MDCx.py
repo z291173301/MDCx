@@ -13445,7 +13445,7 @@ class Ui_MDCx(object):
         self.label_232.setText(
             _translate(
                 "MDCx",
-                "<span>「网站偏好」-「指定网站」指定madouqu、madou_club或文件路径含有「国产」、「麻豆」时，将自动使用以上网站刮削国产番号</span>",
+                "<span>「网站偏好」-「指定网站」指定madouqu、madou_club或者文件路径里含有「国产」、「麻豆」时，将自动使用以上网站刮削国产番号</span>",
             )
         )
         self.label_156.setText(_translate("MDCx", "比如：259LUXU-1111"))
@@ -13456,13 +13456,13 @@ class Ui_MDCx(object):
         self.label_318.setText(
             _translate(
                 "MDCx",
-                "<p>「网站偏好」-「指定网站」指定getchu、dmm等站点或文件路径包含有「里番」、「动漫」时，程序将会自动使用getchu进行刮削</p>",
+                "<p>「网站偏好」-「指定网站」指定getchu、dmm 等站点或者文件路径里包含有「里番」、「动漫」时，程序将会自动使用getchu进行刮削</p>",
             )
         )
         self.label_323.setText(
             _translate(
                 "MDCx",
-                "<p>「网站偏好」-「指定网站」指定MyWife或文件路径含有MyWife时，将自动使用MyWife刮削，MyWife番号规则：MyWife No.1230</p>",
+                "<p>「网站偏好」-「指定网站」指定MyWife或文件路径里含有MyWife时，程序将自动使用MyWife刮削，MyWife番号规则：MyWife No.1230</p>",
             )
         )
         self.label_154.setText(_translate("MDCx", "比如：MIDE-111，以及不符合以下类型的番号"))

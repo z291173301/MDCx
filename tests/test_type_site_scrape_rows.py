@@ -326,15 +326,15 @@ def test_declared_geometry_is_compacted_and_followers_shifted():
 # 三段会换行的绿色说明文案（`.ui` 里以 &lt;p&gt; 富文本存储）
 _WRAPPED_DESC_TEXTS = {
     "label_232": (
-        "<span>「网站偏好」-「指定网站」指定madouqu、madou_club或文件路径含有「国产」、「麻豆」时，"
+        "<span>「网站偏好」-「指定网站」指定madouqu、madou_club或者文件路径里含有「国产」、「麻豆」时，"
         "将自动使用以上网站刮削国产番号</span>"
     ),
     "label_318": (
-        "<p>「网站偏好」-「指定网站」指定getchu、dmm等站点或文件路径包含有「里番」、「动漫」时，"
+        "<p>「网站偏好」-「指定网站」指定getchu、dmm 等站点或者文件路径里包含有「里番」、「动漫」时，"
         "程序将会自动使用getchu进行刮削</p>"
     ),
     "label_323": (
-        "<p>「网站偏好」-「指定网站」指定MyWife或文件路径含有MyWife时，将自动使用MyWife刮削，"
+        "<p>「网站偏好」-「指定网站」指定MyWife或文件路径里含有MyWife时，程序将自动使用MyWife刮削，"
         "MyWife番号规则：MyWife No.1230</p>"
     ),
 }
