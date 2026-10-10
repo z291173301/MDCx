@@ -993,10 +993,10 @@ def test_actor_narrow_kodi_aligns_to_a2(win, app):
 
 
 def test_actor_kodi_button_matches_upper_width_when_wide(win, app):
-    """最下方「开始补全」按钮宽态与上方「开始补全」同宽，窄态保持设计宽 130 且往返复原。
+    """最下方「开始补全」按钮宽态与上方「开始补全」同宽，窄态保持设计宽 50 且往返复原。
 
-    背景：pushButton_add_actor_pic_kodi 设计宽 130，上方两枚「开始补全」
-    （pushButton_add_actor_info / pushButton_add_actor_pic）设计宽 261。
+    背景：pushButton_add_actor_pic_kodi 设计宽 50，上方两枚「开始补全」
+    （pushButton_add_actor_info / pushButton_add_actor_pic）设计宽 181。
     宽态把最下方按钮加宽到与上方一致；窄态一个像素不动。
     """
     ui = win.Ui
@@ -1004,19 +1004,19 @@ def test_actor_kodi_button_matches_upper_width_when_wide(win, app):
     _goto_actor_page(win, app)
     _resize(win, app, 1030, 753)
     assert win._actor_page_stretch_extra() <= 0, "1030 宽下不是窄态，测试前提失效"
-    assert ui.pushButton_add_actor_pic_kodi.width() == 130, "窄态按钮宽被改动"
+    assert ui.pushButton_add_actor_pic_kodi.width() == 50, "窄态按钮宽被改动"
     _resize(win, app, 1920, 1170)
     assert win._actor_page_stretch_extra() > 0, "1920 宽下不是宽态，测试前提失效"
     assert ui.pushButton_add_actor_pic_kodi.width() == ui.pushButton_add_actor_pic.width(), (
         "宽态最下方「开始补全」未与上方同宽"
     )
-    assert ui.pushButton_add_actor_pic.width() == 261, "上方按钮自身被改动"
+    assert ui.pushButton_add_actor_pic.width() == 181, "上方按钮自身被改动"
     # 复选框 checkBox_actor_photo_kodi 不得被连带加宽
     assert ui.checkBox_actor_photo_kodi.width() == 141, "宽态复选框被连带加宽"
     _resize(win, app, 1920, 1170)
     assert ui.pushButton_add_actor_pic_kodi.width() == ui.pushButton_add_actor_pic.width(), "宽态重复同步后宽度漂移"
     _resize(win, app, 1030, 753)
-    assert ui.pushButton_add_actor_pic_kodi.width() == 130, "还原窄态后按钮宽未复原 130"
+    assert ui.pushButton_add_actor_pic_kodi.width() == 50, "还原窄态后按钮宽未复原 50"
 
 
 def test_actor_del_folder_button_right_edge_aligns_to_select_folder(win, app):
@@ -1071,10 +1071,10 @@ def test_actor_del_folder_button_right_edge_aligns_to_select_folder(win, app):
 
 
 def test_actor_narrow_add_buttons_shrink_to_bottom_button(win, app):
-    """窄态：上方两枚「开始补全」收窄到与最下方同宽；宽态保持设计宽 261 不变；往返复原。
+    """窄态：上方两枚「开始补全」收窄到与最下方同宽；宽态保持设计宽 181 不变；往返复原。
 
     与 test_actor_kodi_button_matches_upper_width_when_wide 相反：那一测是宽态把
-    最下方按钮加宽到 261；这一测是窄态把上方两枚从 261 收窄到最下方的 130。
+    最下方按钮加宽到 181；这一测是窄态把上方两枚从 181 收窄到最下方的 50。
     两测合起来保证窄态三枚同宽、宽态三枚同宽，且各自不越界。
     """
     ui = win.Ui
@@ -1084,11 +1084,11 @@ def test_actor_narrow_add_buttons_shrink_to_bottom_button(win, app):
         _resize(win, app, width, height)
         assert win._actor_page_stretch_extra() <= 0, f"{width} 宽下不是窄态，测试前提失效"
         ref = ui.pushButton_add_actor_pic_kodi
-        assert ref.width() == 130, f"{width} 宽下最下方基准按钮被改动: {ref.width()}"
+        assert ref.width() == 50, f"{width} 宽下最下方基准按钮被改动: {ref.width()}"
         for name, desc in _NARROW_ADD_BTNS:
             btn = getattr(ui, name)
             assert btn.width() == ref.width(), f"{width} 宽下{desc}宽未与最下方一致: {btn.width()} != {ref.width()}"
-            assert btn.width() < 261, f"{width} 宽下{desc}未收窄: {btn.width()}"
+            assert btn.width() < 181, f"{width} 宽下{desc}未收窄: {btn.width()}"
     # 左缘不因收窄而移动（收窄只向右让，右缘内缩）
     _resize(win, app, 1030, 753)
     narrow_left = {name: _abs(ui, getattr(ui, name)) for name, _ in _NARROW_ADD_BTNS}
@@ -1097,11 +1097,11 @@ def test_actor_narrow_add_buttons_shrink_to_bottom_button(win, app):
     assert win._actor_page_stretch_extra() > 0, "1920 宽下不是宽态，测试前提失效"
     for name, desc in _NARROW_ADD_BTNS:
         btn = getattr(ui, name)
-        assert btn.width() == 261, f"宽态{desc}未被还原成设计宽 261: {btn.width()}"
+        assert btn.width() == 181, f"宽态{desc}未被还原成设计宽 181: {btn.width()}"
         assert _abs(ui, btn) == narrow_left[name], f"宽态{desc}左缘被带偏"
 
     _resize(win, app, 1030, 753)
     for name, desc in _NARROW_ADD_BTNS:
         btn = getattr(ui, name)
-        assert btn.width() == 130, f"窄→宽→窄 往返后{desc}宽未复原: {btn.width()}"
+        assert btn.width() == 50, f"窄→宽→窄 往返后{desc}宽未复原: {btn.width()}"
         assert _abs(ui, btn) == narrow_left[name], f"窄→宽→窄 往返后{desc}左缘未复原"

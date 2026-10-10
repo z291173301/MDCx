@@ -21983,7 +21983,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                     <widget class="QCheckBox" name="checkBox_actor_photo_kodi">
                       <property name="geometry">
                         <rect>
-                          <x>150</x>
+                          <x>300</x>
                           <y>130</y>
                           <width>141</width>
                           <height>40</height>

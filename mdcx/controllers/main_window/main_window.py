@@ -1347,10 +1347,15 @@ class MyMAinWindow(QMainWindow):
         "radioButton_actor_photo_net",
         "horizontalLayout_97",
     )
-    # 前导项收窄下限：QRadioButton 的 sizeHint 实测仅 52px（「所有演员」），文字 +
-    # 单选指示器 ~130px 足够，与 _ACTOR_NARROW_MIN_DONOR_W / _ACTOR_PAGE_A2_MIN_LEAD_W
-    # 同口径。取 130 而非 150 是为了让更窄的窗口（如 940）也能把目标对到 A2 列。
-    _ACTOR_NARROW_MIN_LEAD_W = 130
+    # 前导项收窄下限：绝对保底 90px。「所有演员」类短文本真实渲染约 75~90px，
+    # 90 既不夹字、又让 850~940 宽的窄窗也能对齐。早期写死 130 会在窄窗下因
+    # 1px 之差整行放弃（940 宽真实字体环境下 want=129 < 130，「仅缺少头像的
+    # 演员」停在 A2 列右侧 124px，正是用户截图里的错位）。刻意不用 sizeHint：
+    # 离屏桩字体（50px）与真实 CJK 字体（~130px）对同一控件量出完全不同的值，
+    # 跟随它反而让行为随环境漂移（已实测回退）。与 _ACTOR_NARROW_MIN_DONOR_W /
+    # _ACTOR_PAGE_A2_MIN_LEAD_W 同口径。只用于窄态左移两处，宽态逻辑不引用，
+    # 最大化不受影响。
+    _ACTOR_NARROW_MIN_LEAD_W = 90
     # QSizePolicy::GrowFlag 的位值。PyQt6 的 QSizePolicy.Policy 只导出 Fixed /
     # Minimum / Maximum / Preferred / MinimumExpanding / Expanding / Ignored 七档，
     # 没有单独导出 GrowFlag，只能按位取（GrowFlag=1、ShrinkFlag=2）。
@@ -2055,13 +2060,17 @@ class MyMAinWindow(QMainWindow):
                 target_rel = anchor_x - holder.mapTo(content, holder.rect().topLeft()).x()
                 width = 2 * target_rel + row.spacing()
                 if width <= self._ACTOR_PAGE_HOLDER12_DESIGN[2]:
-                    continue  # 容器已够宽（或目标反而更左）：交给下一轮/通用逻辑
-                self._actor_wide_restores.append(("geometry", holder, holder.geometry()))
-                holder.setGeometry(dx, dy, width, dh)
-                grid = getattr(ui, "gridLayout_14", None)
-                if grid is not None:
-                    grid.invalidate()
-                    grid.activate()
+                    # 死区（外宽 ~1054~1400）：容器已够宽，不加宽、直接按下收窄
+                    # 前导项；目标已在锚点左侧时仍跳过（交给通用逻辑）。
+                    if left_x(target) <= anchor_x:
+                        continue
+                else:
+                    self._actor_wide_restores.append(("geometry", holder, holder.geometry()))
+                    holder.setGeometry(dx, dy, width, dh)
+                    grid = getattr(ui, "gridLayout_14", None)
+                    if grid is not None:
+                        grid.invalidate()
+                        grid.activate()
             row.invalidate()
             row.activate()
             # 前导项钉到「让目标的左缘正好落在锚点上」的宽度
@@ -2079,16 +2088,17 @@ class MyMAinWindow(QMainWindow):
         kodi = getattr(ui, "checkBox_actor_photo_kodi", None)
         miss = getattr(ui, "radioButton_actor_photo_miss", None)
         if kodi is not None and miss is not None and kodi.parentWidget() is not None:
-            dx = anchor_x - left_x(miss)
+            # kodi 按自己的残差一步到位（可左可右）：死区里 miss 落位后残差恒为 0，
+            # 沿用 miss 的 dx 会永远跳过；两者基线本就同 x，各自对准 A2 才是严格对齐。
+            # miss 被守卫拦下时也不再连带 kodi——kodi 只看自己的位置。
+            dxk = anchor_x - left_x(kodi)
             kg = kodi.geometry()
-            kx = kg.x() + dx
-            # 只右移不左拉（需求②说的是「向右移动」）：miss 因让位下限不够而没动时
-            # dx 为负，此时 kodi 必须原地不动，否则会被反向拖走。
-            if dx > 0 and 0 <= kx and kx + kg.width() <= kodi.parentWidget().width() and kx != kg.x():
+            kx = kg.x() + dxk
+            if dxk != 0 and 0 <= kx and kx + kg.width() <= kodi.parentWidget().width():
                 kodi.setGeometry(kx, kg.y(), kg.width(), kg.height())
         # ④ 最大化态：最下方「开始补全」按钮(pushButton_add_actor_pic_kodi)宽度与
         # 上方「开始补全」按钮(pushButton_add_actor_pic)一致，上方按钮自身不动；
-        # 最小化时本方法首步清干净即 return，按钮宽保持设计值 130。
+        # 最小化时本方法首步清干净即 return，按钮宽保持设计值 50。
         # 注意：上面的 kodi 是复选框 checkBox_actor_photo_kodi，此处是同名后缀的按钮。
         ref_btn = getattr(ui, "pushButton_add_actor_pic", None)
         kodi_btn = getattr(ui, "pushButton_add_actor_pic_kodi", None)
@@ -2408,6 +2418,26 @@ class MyMAinWindow(QMainWindow):
         pin(row, self._ACTOR_INFO_SCOPE_ROW[0], anchors["A1"])
         if wide:
             pin(row, self._ACTOR_INFO_SCOPE_ROW[1], anchors["A2"])
+            # 死区/挤压回退：pin 的固定间隔只能右推。若目标仍在 A2 右侧（gap>0，
+            # 死区里容器没被拉宽、pin 直接跳过；容器被 PAD 撑宽几个像素时 pin 也
+            # 对不上），则收窄同行前导项补足（窄态同款手法，登记进本方法的
+            # width_locks，单写入、无跨表污染；行尾 Expanding 间隔吸收腾出的宽度）。
+            # 残差为 0（1920 等已对齐）或目标已在左侧时直接跳过。
+            _lead = getattr(ui, self._ACTOR_INFO_SCOPE_ROW[0], None)
+            _tgt = getattr(ui, self._ACTOR_INFO_SCOPE_ROW[1], None)
+            if _lead is not None and _tgt is not None:
+                row.invalidate()
+                row.activate()
+                # gap>0 表示目标在 A2 右侧差 gap：前导项收窄 gap 即落到 A2。
+                _gap = _tgt.mapTo(content, _tgt.rect().topLeft()).x() - anchors["A2"]
+                _want = _lead.width() - _gap
+                if 0 < _gap and self._ACTOR_NARROW_MIN_LEAD_W <= _want < _lead.width():
+                    if not any(locked is _lead for locked, _ in self._actor_info_width_locks):
+                        self._actor_info_width_locks.append((_lead, _lead.width()))
+                    _lead.setFixedWidth(_want)
+                    _lead.updateGeometry()
+                    row.invalidate()
+                    row.activate()
 
     def _clear_actor_narrow_align(self) -> None:
         """清掉窄态右移对齐留下的间隔/钉宽/stretch（每遍同步先清后建，故幂等、往返自愈）。
@@ -2553,6 +2583,9 @@ class MyMAinWindow(QMainWindow):
         self._clear_actor_narrow_align()
         if self._actor_page_stretch_extra() > 0:
             return  # 宽态：几何全部由通用宽幅同步 + _sync_actor_info_columns 产出
+        # （注：曾尝试让三件套左移在宽态死区也跑，但窄/宽两套宽度锁会抢同一前导项，
+        # 恢复链被污染（实测 emb 被压到 52px）。死区覆盖改由宽态方法各自向小拉伸量
+        # 扩展，详见 _sync_actor_page_wide_a2_align 与 _sync_actor_info_columns。）
 
         def left_x(w):
             return w.mapTo(content, w.rect().topLeft()).x()
@@ -2588,9 +2621,9 @@ class MyMAinWindow(QMainWindow):
             set_spacing(row, value)
 
         # 窄态新增①：上方两个「开始补全」收窄到与最下方「开始补全」同宽。
-        # 设计态上方两枚是 261、最下方（pushButton_add_actor_pic_kodi）是 130；宽度实测
+        # 设计态上方两枚是 181、最下方（pushButton_add_actor_pic_kodi）是 50；宽度实测
         # 取参照按钮当前实宽，不写死数值——宽态那枚被加宽过，窄态本方法跑到这里时
-        # _sync_actor_page_wide_a2_align 已先行 _clear_actor_wide_align 把它复原成 130。
+        # _sync_actor_page_wide_a2_align 已先行 _clear_actor_wide_align 把它复原成 50。
         # 两者都是各自 groupBox 的绝对定位件、无布局驱动，故除钉 min/max 外还须连几何
         # 一起登记（还原态只解锁 min/max 不会把宽度缩回去）。宽态本方法首步即 return，
         # 最大化时这三个按钮的尺寸一个像素都不碰。
@@ -3170,11 +3203,16 @@ class MyMAinWindow(QMainWindow):
                             row.invalidate()
                             row.activate()
 
-        # ②③ 「刮削时自动清理」：宽态对到「记录刮削成功的文件列表」列，窄态对到「启用」列。
+        # ②③ 「刮削时自动清理」：窄态与“微宽死区”对到「启用」列，真宽态对到
+        # 「记录刮削成功的文件列表」列。死区（刚过拉伸门限、外宽 ~1054~1650）
+        # 里若按旧规则去记录列，用户小窗下看到它停在启用列左侧（与截图一致）；
+        # 改为：拉伸量>600（约外宽 1650+，即全屏最大化类）或窗口已最大化时才去
+        # 记录列，其余一律去启用列。最大化行为不变（1920 下 extra=866>600）。
         clean = getattr(ui, self._GUAXIAOMULU_AUTO_CLEAN, None)
         enable = getattr(ui, self._GUAXIAOMULU_ENABLE_ANCHOR, None)
         if clean is not None and enable is not None and clean.parentWidget() is box61:
-            src = anchor if self._scroll_stretch_extra(scroll) > 0 else enable
+            extra = self._scroll_stretch_extra(scroll)
+            src = anchor if (extra > 600 or self.isMaximized()) else enable
             # 跨分支 mapTo（record 在 groupBox_32、目标在 groupBox_61）是未定义行为，
             # 必须经公共祖先 content 中转再换算回 groupBox_61 的局部坐标。
             box_x = box61.mapTo(content, QPoint(0, 0)).x()

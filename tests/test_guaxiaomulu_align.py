@@ -3,8 +3,10 @@
 用户需求（三条锚点自身均保持不动）：
   ① 最大化/最小化时把「获取软链接指向的原文件的分辨率」左移到与「记录刮削成功的文件
      列表」严格上下对齐（两态都做，实测两态都是 -58px）。
-  ② 最大化时把「刮削时自动清理」左移到与「记录刮削成功的文件列表」严格上下对齐。
-  ③ 最小化时把「刮削时自动清理」右移到与「启用」严格上下对齐。
+  ② 真宽态（拉伸量>600，约外宽 1650+全屏最大化）把「刮削时自动清理」左移到与
+     「记录刮削成功的文件列表」严格上下对齐。
+  ③ 窄态与微宽死区（外宽 ~1054~1650）把「刮削时自动清理」右移到与「启用」严格
+     上下对齐——死区里若去记录列，用户小窗下看到它停在启用列左侧。
 
 根因防线（任一回归都会让本文件失败）：
   - horizontalLayout_115 是 gridLayout_19 的子布局，两项都是 Minimum 策略且总需求
@@ -189,24 +191,28 @@ def test_symlink_row_aligns_to_record_in_both_states(win, app, monkeypatch):
 
 
 def test_auto_clean_moves_by_state(win, app):
-    """需求②③：宽态对「记录刮削成功的文件列表」列，窄态对「启用」列；只动 x。"""
+    """需求②③：真宽态（拉伸量>600，约外宽 1650+全屏最大化）对「记录刮削成功的文件
+    列表」列，其余（含窄态与微宽死区）一律对「启用」列；只动 x。
+
+    死区（外宽 ~1054~1650，微宽 extra>0）里若去记录列，用户小窗下看到它停在
+    启用列左侧；故记录列只留给全屏最大化类大窗口，最大化行为不变。
+    """
     ui = win.Ui
     win.show()
     _goto_guaxiaomulu(win, app)
 
-    for width, height in _WIDE_SIZES:
+    for width, height in ((1920, 1170),):
         _resize(win, app, width, height)
-        assert _extra(win) > 0, f"{width} 宽下应处于宽态（拉伸量 > 0）"
+        assert _extra(win) > 600, f"{width} 宽下应处于真宽态（拉伸量 > 600）"
         got = _abs(ui, ui.checkBox_auto_clean)
         anchor = _abs(ui, ui.checkBox_record_success_file)
         assert got == anchor, f"宽态「刮削时自动清理」未与锚点对齐: x={got} 期望={anchor}"
 
-    for width, height in _NARROW_SIZES:
+    for width, height in _NARROW_SIZES + ((1100, 800), (1600, 1000)):
         _resize(win, app, width, height)
-        assert _extra(win) <= 0, f"{width} 宽下应处于窄态（拉伸量 <= 0）"
         got = _abs(ui, ui.checkBox_auto_clean)
         enable = _abs(ui, ui.checkBox_clean_file_ext)
-        assert got == enable, f"窄态「刮削时自动清理」未与「启用」对齐: x={got} 期望={enable}"
+        assert got == enable, f"{width} 宽下「刮削时自动清理」未与「启用」对齐: x={got} 期望={enable}"
 
     # 只改 x：宽高与 y 恒为设计值（需求只说左右移动）
     rect = ui.checkBox_auto_clean.geometry().getRect()
