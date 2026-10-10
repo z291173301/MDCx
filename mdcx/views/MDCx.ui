@@ -15931,8 +15931,8 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <property name="text">
                               <string>&lt;p style='line-height:20px'&gt;
                                 素人和FC2 番号的演员姓名很多都是素人之类的假名字，当勾选「使用AV-Wiki获取演员真实名字」后，可以请求AV-Wiki获取演员的真实日文名字，之后可以使用演员映射表翻译为简体中文&lt;br&gt;
-                                演员名比较复杂，不能简单使用翻译引擎翻译。主要的问题：演员名翻译不准确、演员有多个名字、同一演员不同番号演员名不统一、各网站使用的演员名不统一等。不过通过演员名映射翻译表可以解决这些问题，使刮削后的演员名整齐统一。&lt;br&gt;
-                                实现逻辑：网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译表文件名为：actor_database.xlsx。&lt;br&gt;
+                                演员名称的来源比较复杂，不能简单使用翻译引擎翻译，主要的问题是：演员名翻译不准确、同一个演员有多个名字、同一个演员不同番号的演员名不统一、各网站使用的演员名不统一等，不过通过演员名映射翻译表可以有效的解决以上这些问题，使刮削后的演员名称整齐统一没有错误&lt;br&gt;
+                                实现逻辑：网站获取演员名后，通过查询映射表中的匹配词来映射对应输出词，演员名映射翻译文件名是：actor_database.xlsx，文件在\配置文件目录\userdata\actor_database.xlsx&lt;br&gt;
                                 Windows：\配置文件目录\userdata\actor_database.xlsx，配置在「设置」--「高级」修改&lt;br&gt;
                                 MAC系统：/配置文件目录/userdata/actor_database.xlsx，同样在「设置」--「高级」修改&lt;br&gt;
                                 你可使用文件编辑工具打开该文件后自定义修改添加，演员映射表中的字段含义如下：&lt;br&gt;
