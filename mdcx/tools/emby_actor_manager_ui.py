@@ -56,6 +56,7 @@ from .emby_actor_manager import (
     from_local_avatar,
     from_minnano_image,
     get_gfriends_index,
+    get_emby_actor_list,
     get_media_folders,
     search_actor_info,
     sync_batch_async,
@@ -255,7 +256,7 @@ class _CancellableWorkerThread(QThread):
 
 class FetchActorsThread(_CancellableWorkerThread):
     progress = Signal(int, int, str)
-    fetch_done = Signal(list, int)
+    fetch_done = Signal(list, int, int)
     error = Signal(str)
 
     def __init__(self, parent=None):
@@ -272,7 +273,11 @@ class FetchActorsThread(_CancellableWorkerThread):
                     progress_callback=lambda c, t, m: self.progress.emit(c, t, m),
                 )
             )
-            self.fetch_done.emit(actors, raw_count)
+            # 获取全部演职人员（含导演、制片人、编剧等）的原始数量
+            all_staff_list = self._run_coro(
+                get_emby_actor_list(filter_actor_only=False)
+            )
+            self.fetch_done.emit(actors, raw_count, len(all_staff_list) if isinstance(all_staff_list, list) else 0)
         except _WorkerCancelled:
             return
         except Exception as e:
@@ -566,6 +571,7 @@ class EmbyActorManagerDialog(QDialog):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._actors: list[ActorInfo] = []
         self._raw_count: int = 0
+        self._all_staff_count: int = 0
         # 议题 #143: 计数方式为持久化配置, 重开管理器/重启后恢复
         self._show_unique: bool = manager.config.actor_count_mode == 1
         self._gfriends_index = None
@@ -756,6 +762,7 @@ class EmbyActorManagerDialog(QDialog):
 
     def _build_actor_list(self, parent_layout: QVBoxLayout):
         stats_layout = QHBoxLayout()
+        self.lbl_all_staff = QLabel("总数: ")
         self.lbl_total = QLabel("演员: ")
         # 议题 #157: 重复演员数 = 原始条目数 − 唯一名字数, 直接展示免用户两种计数方式手算
         self.lbl_duplicate = QLabel("重复: ")
@@ -769,6 +776,7 @@ class EmbyActorManagerDialog(QDialog):
         self.lbl_missing_all = QLabel("全缺: ")
         self.lbl_backdrop = QLabel("有背景图: ")
         for lbl in (
+            self.lbl_all_staff,
             self.lbl_total,
             self.lbl_duplicate,
             self.lbl_has_both,
@@ -1132,11 +1140,12 @@ class EmbyActorManagerDialog(QDialog):
             self.progress_bar.setValue(current)
         self.setWindowTitle(f"Emby/Jellyfin演员管理器 - {msg}")
 
-    def _on_fetch_finished(self, actors: list[ActorInfo], raw_count: int):
+    def _on_fetch_finished(self, actors: list[ActorInfo], raw_count: int, all_staff_count: int = 0):
         if self._is_stale_session():
             return
         self._actors = actors
         self._raw_count = raw_count
+        self._all_staff_count = all_staff_count
         self._set_status("获取完成")
         self.log(f"获取完成，共 {len(actors)} 个演员")
         self._populate_table(actors)
@@ -1631,6 +1640,7 @@ class EmbyActorManagerDialog(QDialog):
             1 for a in actors if PreparePreviewThread._is_missing_image(a) and PreparePreviewThread._is_missing_info(a)
         )
         backdrop_count = sum(1 for a in actors if a.has_backdrop)
+        self.lbl_all_staff.setText(f"总数: {self._all_staff_count}")
         self.lbl_total.setText(f"演员: {total}")
         self.lbl_has_both.setText(f"完整: {has_both}")
         self.lbl_missing_image.setText(f"缺头像: {has_info_only}")
