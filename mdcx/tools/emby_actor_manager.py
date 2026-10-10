@@ -86,13 +86,21 @@ def is_missing_overview(info: ActorInfo | dict) -> bool:
     """统一缺简介判定: 无简介, 或简介仅剩占位文案 (#147)。
 
     接受 ActorInfo 或详情 dict, 供统计栏/筛选/表格共用, 避免各处口径漂移。
+
+    ActorInfo 分支以 has_overview 为「有无简介」的权威位(抓取/清洗/同步三处都成对维护),
+    但正文「有内容却全是空白」时按缺处理: 这类简介在界面上等同于没简介, 留着会让
+    统计栏少报缺简介, 筛选也选不出该演员 (has_overview 为真而正文为空则仍信权威位,
+    因为详情抓取失败时正文确实可能还没填上)。
     """
     if isinstance(info, dict):
-        overview = info.get("Overview") or ""
-        return not bool(overview) or INFO_PLACEHOLDER in overview
+        overview = (info.get("Overview") or "").strip()
+        return not overview or INFO_PLACEHOLDER in overview
     if not getattr(info, "has_overview", False):
         return True
-    return INFO_PLACEHOLDER in (getattr(info, "existing_overview", None) or "")
+    overview = getattr(info, "existing_overview", None) or ""
+    if overview and not overview.strip():
+        return True
+    return INFO_PLACEHOLDER in overview
 
 
 @dataclass
@@ -545,7 +553,8 @@ async def fetch_all_actors(
                 detail = await fetch_actor_detail(info.name)
         if detail:
             overview = detail.get("Overview") or ""
-            info.has_overview = bool(overview)
+            # 与 is_missing_overview 同口径: 纯空白简介等价于「没有简介」, 不能算有简介。
+            info.has_overview = bool(overview.strip())
             info.existing_overview = overview
             info.existing_taglines = detail.get("Taglines") or []
             info.existing_production_year = detail.get("ProductionYear")

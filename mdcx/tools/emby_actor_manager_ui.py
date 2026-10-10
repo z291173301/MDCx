@@ -648,6 +648,10 @@ class EmbyActorManagerDialog(QDialog):
         self.status_bar.showMessage("未连接")
         main_layout.addWidget(self.status_bar)
 
+        # 首次打开就把 8 个统计标签占满数字(全部为 0), 否则标签只剩「演员: 」这类空前缀,
+        # 看起来像功能坏了; 也保证「计数方式」下拉的初始档位立即反映在标签上。
+        self._update_statistics(self._actors)
+
     def _set_status(self, message: str):
         connected = hasattr(self, "_connected") and self._connected
         prefix = "已连接" if connected else "未连接"
@@ -784,15 +788,19 @@ class EmbyActorManagerDialog(QDialog):
             "可在「设置」中勾选「重复演员去重（按名称合并）」合并同名条目。"
         )
         self.lbl_has_both = QLabel("完整: ")
-        self.lbl_has_both.setToolTip("有头像且有简介（简介仅剩「无维基百科信息」占位按缺处理）。")
+        self.lbl_has_both.setToolTip("有头像且有简介（简介仅剩「无维基百科信息」占位或纯空白按缺处理）。")
         self.lbl_missing_image = QLabel("缺头像: ")
         self.lbl_missing_image.setToolTip("仅缺头像（有简介）。全缺者计入「全缺」，不在此项。")
         self.lbl_missing_info = QLabel("缺简介: ")
-        self.lbl_missing_info.setToolTip("仅缺简介（含占位简介）。全缺者计入「全缺」，不在此项。")
+        self.lbl_missing_info.setToolTip("仅缺简介（含占位简介与纯空白简介）。全缺者计入「全缺」，不在此项。")
         self.lbl_missing_all = QLabel("全缺: ")
         self.lbl_missing_all.setToolTip("缺头像且缺简介 = 交集（对应取数模式「头像和简介都缺」）。")
         self.lbl_backdrop = QLabel("有背景图: ")
-        self.lbl_backdrop.setToolTip("有背景图的演员数（与计数方式同基数：唯一名字数模式按名字去重计数）。")
+        self.lbl_backdrop.setToolTip(
+            "有背景图的演员数，与「完整/缺头像/缺简介/全缺」四项同基数统计。\n"
+            "计数方式切到「原始条目数」时基数是当前列表的全部条目；若列表已按「重复演员去重」抓取，"
+            "列表本身已无同名重复，两种计数方式结果相同。"
+        )
         for lbl in (
             self.lbl_all_staff,
             self.lbl_total,
@@ -1313,7 +1321,9 @@ class EmbyActorManagerDialog(QDialog):
             return
         new_ov, fix_birth = item
         actor.existing_overview = new_ov
-        actor.has_overview = bool(new_ov)
+        # 与 is_missing_overview 同口径: 纯空白简介算「缺简介」, 否则清洗出一个空白简介
+        # 反而会把「缺简介」计数改小, 出现「越清洗缺得越少」的假象。
+        actor.has_overview = bool((new_ov or "").strip())
         if fix_birth:
             actor.existing_premiere_date = ""
 
@@ -1662,12 +1672,10 @@ class EmbyActorManagerDialog(QDialog):
                     seen.add(a.name)
                     base.append(a)
             unique_count = len(seen)
+            total = unique_count
         else:
             base = list(actors)
             unique_count = len({a.name for a in actors})
-        if self._show_unique:
-            total = unique_count
-        else:
             total = self._raw_count if self._raw_count > 0 else len(actors)
         # 议题 #157: 重复数 = 过滤后条目数 − 唯一名字数, 与计数方式切换无关, 恒为同名多余条目
         self.lbl_duplicate.setText(f"重复: {max(self._raw_count - unique_count, 0)}")
@@ -2613,6 +2621,10 @@ class ActorSourceTestDialog(QDialog):
             actor.existing_provider_ids = detail.get("ProviderIds") or {}
             actor.existing_genres = detail.get("Genres") or []
             actor.existing_tags = detail.get("Tags") or []
+            # has_* 必须同步推导：统计栏的「缺头像/缺简介」走 is_missing_overview/is_missing_image，
+            # 只填 existing_* 而不填 has_* 会被判成「全缺」（ActorInfo 默认值都是 False）。
+            actor.has_image = "Primary" in (detail.get("ImageTags") or {})
+            actor.has_overview = bool(actor.existing_overview.strip())
             # 只有有具体值/图像的字段才记为新值写入；空一律保留服务器原数据。
             need_info = False
             if (overview or "").strip():
