@@ -100,7 +100,7 @@ async def test_deduplicate_off_keeps_duplicates_in_raw(monkeypatch):
 # ==================== 统计栏「重复」分项 ====================
 
 
-def _fake_self(show_unique: bool, raw_count: int):
+def _fake_self(show_unique: bool, raw_count: int, all_staff_count: int = 0):
     from types import SimpleNamespace
 
     from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
@@ -108,6 +108,8 @@ def _fake_self(show_unique: bool, raw_count: int):
     ns = SimpleNamespace(
         _show_unique=show_unique,
         _raw_count=raw_count,
+        _all_staff_count=all_staff_count,
+        lbl_all_staff=QLabel(),
         lbl_total=QLabel(),
         lbl_duplicate=QLabel(),
         lbl_has_both=QLabel(),
@@ -139,12 +141,13 @@ def test_duplicate_stat_shows_raw_minus_unique():
     actors = [_make_actor("A"), _make_actor("A"), _make_actor("B"), _make_actor("C"), _make_actor("D")]
     dialog_cls._update_statistics(ns, actors)
     assert ns.lbl_duplicate.text() == "重复: 1"
-    assert ns.lbl_total.text() == "总数: 5"
+    assert ns.lbl_total.text() == "演员: 5"
+    assert ns.lbl_all_staff.text() == "总数: 0"
 
     ns2, _ = _fake_self(show_unique=True, raw_count=5)
     dialog_cls._update_statistics(ns2, actors)
     assert ns2.lbl_duplicate.text() == "重复: 1"
-    assert ns2.lbl_total.text() == "总数: 4"
+    assert ns2.lbl_total.text() == "演员: 4"
 
 
 def test_duplicate_stat_zero_when_no_duplicates():

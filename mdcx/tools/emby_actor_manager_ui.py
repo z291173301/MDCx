@@ -294,7 +294,7 @@ class PreparePreviewThread(_CancellableWorkerThread):
     @classmethod
     def _is_missing_image(cls, a: ActorInfo) -> bool:
         """是否缺头像: 服务器无 Primary 头像标签。"""
-        return not a.has_image
+        return not getattr(a, "has_image", False)
 
     @classmethod
     def _is_missing_info(cls, a: ActorInfo) -> bool:
@@ -303,7 +303,9 @@ class PreparePreviewThread(_CancellableWorkerThread):
         #147: 该判口径必须与「统计栏缺简介」保持一致——占位简介按缺处理,
         否则取数模式选中的数与统计栏分项对不上。
         """
-        return not a.has_overview or cls._INFO_PLACEHOLDER in a.existing_overview
+        if not getattr(a, "has_overview", False):
+            return True
+        return cls._INFO_PLACEHOLDER in (getattr(a, "existing_overview", None) or "")
 
     @classmethod
     def select_targets(cls, actors: list[ActorInfo], mode: str) -> list[ActorInfo]:
@@ -1366,8 +1368,9 @@ class EmbyActorManagerDialog(QDialog):
                 self._apply_sync_success(actor)
             self.log(f"✅ {name} 同步成功")
         else:
-            # 失败的演员保留 need_update 标记，可在下次同步重试
-            self._failed_names.add(name)
+            # 失败的演员保留 need_update 标记，可在下次同步重试;
+            # 按 actor_id 记录, 同名多条目(未去重)不会互相覆盖。
+            self._failed_names.add(actor_id)
             self.log(f"❌ {name} 同步失败: {msg}")
 
     def _apply_sync_success(self, a: ActorInfo):
@@ -1413,13 +1416,15 @@ class EmbyActorManagerDialog(QDialog):
         self._refresh_thread.error.connect(self._on_thread_error)
         self._refresh_thread.start()
 
-    def _on_auto_refresh_finished(self, actors: list[ActorInfo], raw_count: int):
+    def _on_auto_refresh_finished(self, actors: list[ActorInfo], raw_count: int, all_staff_count: int = 0):
+        # fetch_done 信号为 (list, int, int) 三参, 此处必须同形接收,
+        # 否则自动刷新完成时触发 TypeError, 且「总数」栏无法更新。
         if self._failed_names:
-            failed_old = {a.name: a for a in self._actors if a.name in self._failed_names}
+            failed_old = {a.actor_id: a for a in self._actors if a.actor_id in self._failed_names}
             if failed_old:
                 merged = []
                 for new in actors:
-                    old = failed_old.get(new.name)
+                    old = failed_old.get(new.actor_id)
                     if old is None:
                         merged.append(new)
                         continue
@@ -1435,6 +1440,8 @@ class EmbyActorManagerDialog(QDialog):
                 self.log(f"🔁 已保留 {len(failed_old)} 个同步失败演员的待同步状态，可直接重试")
         self._actors = actors
         self._raw_count = raw_count
+        if all_staff_count:
+            self._all_staff_count = all_staff_count
         self._populate_table(actors)
         self._update_statistics(actors)
         self.btn_preview.setEnabled(len(actors) > 0)
@@ -1523,17 +1530,25 @@ class EmbyActorManagerDialog(QDialog):
     def _get_filtered_actors(self) -> list[ActorInfo]:
         filter_mode = self.cmb_filter.currentText()
         search_text = self.txt_search.text().strip().lower()
+        # 与统计栏/取数模式共用同一缺失口径: 占位简介按缺简介处理 (#147)。
+        # 此前这里直接读 has_overview, 占位简介者会被算作"有简介",
+        # 与统计栏「缺简介」分项互相矛盾;「缺头像和简介」旧条件只剔除
+        # has_image and has_overview 者, 会把单缺者也放进来。
+        is_missing_image = PreparePreviewThread._is_missing_image
+        is_missing_info = PreparePreviewThread._is_missing_info
         filtered = []
         for a in self._actors:
-            if filter_mode == "缺头像" and a.has_image:
+            missing_image = is_missing_image(a)
+            missing_info = is_missing_info(a)
+            if filter_mode == "缺头像" and not missing_image:
                 continue
             elif filter_mode == "缺背景" and a.has_backdrop:
                 continue
-            elif filter_mode == "缺简介" and a.has_overview:
+            elif filter_mode == "缺简介" and not missing_info:
                 continue
-            elif filter_mode == "缺头像和简介" and a.has_image and a.has_overview:
+            elif filter_mode == "缺头像和简介" and (not missing_image or not missing_info):
                 continue
-            elif filter_mode == "完整" and not (a.has_image and a.has_overview):
+            elif filter_mode == "完整" and (missing_image or missing_info):
                 continue
             elif filter_mode == "待同步" and not (a.need_update_info or a.need_update_image or a.need_update_backdrop):
                 continue
@@ -1612,40 +1627,44 @@ class EmbyActorManagerDialog(QDialog):
             self.log(f"🔶 计数方式保存失败: {e}")
 
     def _update_statistics(self, actors: list[ActorInfo]):
-        unique_all = {a.name for a in actors}
+        actors = actors or []
+        # 计数基数与「计数方式」下拉对齐: 唯一模式按名字去重(首条保留),
+        # 原始模式按列表全部条目统计。分项恒以该基数划分, 保证
+        # 唯一模式: 完整+缺头像+缺简介+全缺 == 演员;
+        # 原始模式: 上式 + 重复 == 演员(去重抓取下重复条目细节已丢弃, 差额即重复数)。
         if self._show_unique:
-            total = len(unique_all)
+            seen: set[str] = set()
+            base: list[ActorInfo] = []
+            for a in actors:
+                if a.name not in seen:
+                    seen.add(a.name)
+                    base.append(a)
+            unique_count = len(seen)
+        else:
+            base = list(actors)
+            unique_count = len({a.name for a in actors})
+        if self._show_unique:
+            total = unique_count
         else:
             total = self._raw_count if self._raw_count > 0 else len(actors)
         # 议题 #157: 重复数 = 过滤后条目数 − 唯一名字数, 与计数方式切换无关, 恒为同名多余条目
-        self.lbl_duplicate.setText(f"重复: {max(self._raw_count - len(unique_all), 0)}")
+        self.lbl_duplicate.setText(f"重复: {max(self._raw_count - unique_count, 0)}")
         # 议题 #147: 分项与「获取数据」模式用同一套缺失判定 (占位简介按缺处理),
         # 保证统计栏的 缺头像/缺简介/全缺 之和与取数模式选中的候选数一致; 完整=两者皆不缺。
-        has_both = sum(
-            1
-            for a in actors
-            if not PreparePreviewThread._is_missing_image(a) and not PreparePreviewThread._is_missing_info(a)
-        )
-        has_image_only = sum(
-            1
-            for a in actors
-            if PreparePreviewThread._is_missing_info(a) and not PreparePreviewThread._is_missing_image(a)
-        )
-        has_info_only = sum(
-            1
-            for a in actors
-            if PreparePreviewThread._is_missing_image(a) and not PreparePreviewThread._is_missing_info(a)
-        )
-        has_none = sum(
-            1 for a in actors if PreparePreviewThread._is_missing_image(a) and PreparePreviewThread._is_missing_info(a)
-        )
-        backdrop_count = sum(1 for a in actors if a.has_backdrop)
+        # 变量名按"缺什么"命名, 避免 has_image_only/has_info_only 式反直觉旧名再次错位。
+        is_missing_image = PreparePreviewThread._is_missing_image
+        is_missing_info = PreparePreviewThread._is_missing_info
+        complete = sum(1 for a in base if not is_missing_image(a) and not is_missing_info(a))
+        missing_image_only = sum(1 for a in base if is_missing_image(a) and not is_missing_info(a))
+        missing_info_only = sum(1 for a in base if is_missing_info(a) and not is_missing_image(a))
+        missing_both = sum(1 for a in base if is_missing_image(a) and is_missing_info(a))
+        backdrop_count = sum(1 for a in base if a.has_backdrop)
         self.lbl_all_staff.setText(f"总数: {self._all_staff_count}")
         self.lbl_total.setText(f"演员: {total}")
-        self.lbl_has_both.setText(f"完整: {has_both}")
-        self.lbl_missing_image.setText(f"缺头像: {has_info_only}")
-        self.lbl_missing_info.setText(f"缺简介: {has_image_only}")
-        self.lbl_missing_all.setText(f"全缺: {has_none}")
+        self.lbl_has_both.setText(f"完整: {complete}")
+        self.lbl_missing_image.setText(f"缺头像: {missing_image_only}")
+        self.lbl_missing_info.setText(f"缺简介: {missing_info_only}")
+        self.lbl_missing_all.setText(f"全缺: {missing_both}")
         self.lbl_backdrop.setText(f"有背景图: {backdrop_count}")
 
     def _update_sync_button(self):
