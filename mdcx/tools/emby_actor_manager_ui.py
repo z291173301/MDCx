@@ -765,7 +765,14 @@ class EmbyActorManagerDialog(QDialog):
     def _build_actor_list(self, parent_layout: QVBoxLayout):
         stats_layout = QHBoxLayout()
         self.lbl_all_staff = QLabel("总数: ")
+        self.lbl_all_staff.setToolTip(
+            "全服演职人员总数（含导演/编剧/制片等非演出人员），不受媒体库选择与「仅演员」开关影响。"
+        )
         self.lbl_total = QLabel("演员: ")
+        self.lbl_total.setToolTip(
+            "当前列表演员数（受媒体库选择、「仅演员」开关、计数方式影响）。"
+            "原始条目数模式下 完整+缺头像+缺简介+全缺+重复=演员；唯一名字数模式下 完整+缺头像+缺简介+全缺=演员。"
+        )
         # 议题 #157: 重复演员数 = 原始条目数 − 唯一名字数, 直接展示免用户两种计数方式手算
         self.lbl_duplicate = QLabel("重复: ")
         self.lbl_duplicate.setToolTip(

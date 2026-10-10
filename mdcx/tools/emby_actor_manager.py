@@ -238,12 +238,14 @@ async def fetch_person_item_stats(
         return path
 
     # 议题 #133: 出演统计是批量/分页路径(几十页), 走轻量直连避免多次指纹握手拖慢
+    failed_libs = 0
     for lib_id in target_lib_ids:
         start_index = 0
         while True:
-            response, _ = await _emby_request("GET", _items_path(lib_id, start_index), headers=headers)
+            response, _err = await _emby_request("GET", _items_path(lib_id, start_index), headers=headers)
             if response is None:
-                # 该库失败(如超时)只跳过本库, 其余库照常统计
+                # 该库失败(如超时)只跳过本库, 其余库照常统计; 记数以便调用方提示数据不完整
+                failed_libs += 1
                 break
             try:
                 data = response.json()
@@ -280,6 +282,12 @@ async def fetch_person_item_stats(
                 len(items) < page_limit
             ):
                 break
+    if failed_libs:
+        # 部分/全部媒体库统计失败时人名集合与影片数不完整: 调用方据此过滤会误删,
+        # 此处先提示, fetch_all_actors 的防误删兜底与跳过日志再接力。
+        signal.show_log_text(
+            f"⚠️ {failed_libs} 个媒体库出演统计失败(网络/超时), 演员过滤与影片数可能不完整"
+        )
     return counts, titles, person_names
 
 
@@ -297,6 +305,13 @@ async def fetch_all_actors(
     person_counts, person_titles, lib_person_names = await fetch_person_item_stats(
         parent_ids=parent_ids, filter_actor_only=filter_actor_only
     )
+    # 出演统计为空(整库失败)时下交集过滤会误删, 按 #32 教训跳过过滤;
+    # 但此时勾选的「仅演员」/媒体库子集实际未生效, 必须明示, 否则用户拿到
+    # 含导演/库外人员的数据还以为过滤正常(勾选与否看似无区别)。
+    if (parent_ids or filter_actor_only) and not lib_person_names:
+        signal.show_log_text(
+            "⚠️ 出演统计为空, 已跳过角色/媒体库交集过滤(防误删兜底): 本次列表未按「仅演员」与所选媒体库过滤"
+        )
 
     # 第一遍: 过滤+构建 stub (不发起网络请求)
     stubs: list[tuple[int, ActorInfo, dict]] = []  # (原索引, actor_stub, person_raw)

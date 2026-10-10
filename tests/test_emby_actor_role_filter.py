@@ -97,6 +97,36 @@ async def test_deduplicate_off_keeps_duplicates_in_raw(monkeypatch):
     assert raw == 2
 
 
+async def test_filter_off_with_library_subset_keeps_all_roles_in_lib(monkeypatch):
+    """不勾选「仅演员」+ 子集库: 保留所选库内所有角色(含导演), 剔除库外人员。"""
+    persons = [_person("演员A"), _person("导演B"), _person("库外演员C")]
+    actors, raw = await _run_fetch(
+        monkeypatch,
+        persons,
+        {"演员A", "导演B"},
+        filter_actor_only=False,
+        deduplicate=True,
+        parent_ids=["lib1"],
+    )
+    assert {a.name for a in actors} == {"演员A", "导演B"}
+    assert raw == 2
+
+
+async def test_empty_stats_with_library_subset_warns_and_skips_filter(monkeypatch):
+    """出演统计为空 + 子集库: 防误删兜底保留全量, 并发出警告(此前静默导致库过滤看似无效)。"""
+    import mdcx.tools.emby_actor_manager as mgr_mod
+
+    logs: list[str] = []
+    monkeypatch.setattr(mgr_mod.signal, "show_log_text", logs.append)
+    persons = [_person("演员A"), _person("库外演员B")]
+    actors, raw = await _run_fetch(
+        monkeypatch, persons, set(), filter_actor_only=True, deduplicate=True, parent_ids=["lib1"]
+    )
+    assert {a.name for a in actors} == {"演员A", "库外演员B"}
+    assert raw == 2
+    assert any("跳过" in msg and "过滤" in msg for msg in logs), f"兜底时必须警告, 实际日志: {logs}"
+
+
 # ==================== 统计栏「重复」分项 ====================
 
 
