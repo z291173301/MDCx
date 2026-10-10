@@ -10480,7 +10480,7 @@ class Ui_MDCx(object):
         self.pushButton_del_actor_folder.setGeometry(QtCore.QRect(490, 130, 171, 40))
         self.pushButton_del_actor_folder.setObjectName("pushButton_del_actor_folder")
         self.checkBox_actor_photo_kodi = QtWidgets.QCheckBox(parent=self.groupBox_68)
-        self.checkBox_actor_photo_kodi.setGeometry(QtCore.QRect(300, 130, 141, 40))
+        self.checkBox_actor_photo_kodi.setGeometry(QtCore.QRect(300, 65, 141, 40))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Maximum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)

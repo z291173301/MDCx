@@ -1401,7 +1401,7 @@ class MyMAinWindow(QMainWindow):
     # （既非 _STRETCH 也非右缘 ≥90%），压根没进 registry，于是通用宽幅同步
     # 既不会推它、也不会在还原时把它推回来。最大化被本方法挪走后只能靠自己复位，
     # 故单独记下它的设计几何（相对 groupBox_68，与 MDCx.ui 一致）。
-    _ACTOR_PAGE_MISS_DESIGN = (300, 130, 141, 40)
+    _ACTOR_PAGE_MISS_DESIGN = (300, 65, 141, 40)
 
     # ── 演员信息组（groupBox_64）列对齐：行标签冒号 + 各行左缘对到 Graphis 列 ──
     # 锚点是 groupBox_41（头像组）horizontalLayout_93 里三个 Graphis 复选框的左缘：
