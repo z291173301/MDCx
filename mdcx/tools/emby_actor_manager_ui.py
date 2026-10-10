@@ -592,9 +592,11 @@ class EmbyActorManagerDialog(QDialog):
         self._failed_names: set[str] = set()
         self._log_file: Path | None = None
         # 获取演员列表支持未手动连接时自动连接：_connected 初始 False，_pending_auto_fetch
-        # 标记“获取按钮触发的连接成功后继续走媒体库流程”。
+        # 标记“获取按钮触发的连接成功后继续走媒体库流程”；_pending_auto_preview
+        # 标记“根据设定获取数据按钮触发的链式流程（连接→取演员列表→取数预览）”。
         self._connected: bool = False
         self._pending_auto_fetch: bool = False
+        self._pending_auto_preview: bool = False
         self._emby_url: str = str(manager.config.emby_url or "")
         self._emby_key: str = manager.config.api_key or ""
         # 输入框修改自动保存（防抖）：每击键只重启计时，停顿 800ms 后写配置，
@@ -738,7 +740,7 @@ class EmbyActorManagerDialog(QDialog):
         btn_layout.addWidget(self.cmb_fetch_mode)
         self.btn_preview = QPushButton("根据设定获取数据")
         self.btn_preview.setObjectName("btnPrimary")
-        self.btn_preview.setEnabled(False)
+        self.btn_preview.setEnabled(True)
         btn_layout.addWidget(self.btn_preview)
         # 议题 #149: 数据清洗按钮, 按需求置于「根据设定获取数据」与「开始全部更新同步」之间
         self.btn_clean = QPushButton("数据清洗")
@@ -1079,7 +1081,8 @@ class EmbyActorManagerDialog(QDialog):
         # 获取演员列表无需前置手动连接：未连接时点击会自动连接后再取数，故只看总开关。
         self.btn_fetch.setEnabled(enabled)
         actors = getattr(self, "_actors", None) or []
-        self.btn_preview.setEnabled(enabled and len(actors) > 0)
+        # 预览按钮常开：无演员列表时点击会自动走完（连接→取列表→取数预览）链路。
+        self.btn_preview.setEnabled(enabled)
         self.btn_clean.setEnabled(enabled and len(actors) > 0)
         pending = any(a.need_update_info or a.need_update_image or a.need_update_backdrop for a in actors)
         self.btn_sync.setEnabled(enabled and pending)
@@ -1142,8 +1145,9 @@ class EmbyActorManagerDialog(QDialog):
         self.btn_connect.setEnabled(True)
         # 手动用错误地址复测失败时，已有连接不应被按钮文案抹掉。
         self.btn_connect.setText("已连接" if (ok or self._connected) else "连接 Emby/Jellyfin")
-        # 获取按钮触发的自动连接：恢复可点状态由后续媒体库流程接管，失败时才在此恢复。
-        pending = self._pending_auto_fetch
+        # 获取/预览按钮触发的自动连接：恢复可点状态由后续媒体库/预览流程接管，失败时才在此恢复。
+        pending_fetch = self._pending_auto_fetch
+        pending_preview = self._pending_auto_preview
         if ok:
             self._connected = True
             self._emby_url = getattr(self, "_pending_url", self.txt_url.text().strip())
@@ -1152,14 +1156,25 @@ class EmbyActorManagerDialog(QDialog):
             self._set_status("连接成功")
             self.log(f"✅ {msg}")
             self._persist_connection()
-            if pending:
+            if pending_preview:
+                self._pending_auto_preview = False
+                # 配置已持久化，后续请求走新地址：有演员列表直接取数预览，
+                # 否则先走媒体库流程，取到列表后再自动取数预览。
+                if self._actors:
+                    self._start_preview()
+                else:
+                    self._pending_auto_preview = True
+                    self._request_media_folders()
+            elif pending_fetch:
                 self._pending_auto_fetch = False
                 # 配置已持久化，后续媒体库/演员请求走新地址，直接进入取数流程。
                 self._request_media_folders()
         else:
-            if pending:
+            if pending_fetch:
                 self._pending_auto_fetch = False
                 self.btn_fetch.setEnabled(True)
+            if pending_preview:
+                self._pending_auto_preview = False
             self._set_status("连接失败")
             self.log(f"❌ {msg}")
             QMessageBox.critical(self, "连接失败", f"服务器地址或 API 密钥错误\n{msg}")
@@ -1258,14 +1273,17 @@ class EmbyActorManagerDialog(QDialog):
         if not libraries:
             self._set_status("获取媒体库列表失败")
             self.log("❌ 无法获取媒体库列表")
+            self._pending_auto_preview = False
             return
         dlg = LibrarySelectDialog(libraries, self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             self.log("⏹ 用户取消")
+            self._pending_auto_preview = False
             return
         selected_ids = dlg.get_selected_ids()
         if not selected_ids:
             QMessageBox.warning(self, "提示", "请至少选择一个媒体库")
+            self._pending_auto_preview = False
             return
         library_ids = None if len(selected_ids) == len(libraries) else selected_ids
         self._current_library_ids = library_ids  # 供同步后自动刷新复用，避免丢媒体库过滤
@@ -1304,13 +1322,17 @@ class EmbyActorManagerDialog(QDialog):
         self.log(f"获取完成，共 {len(actors)} 个演员（原始条目 {raw_count}，唯一名字 {unique_names}，重复 {dup}，全服总数 {self._all_staff_count}）")
         self._populate_table(actors)
         self._update_statistics(actors)
-        self.btn_preview.setEnabled(len(actors) > 0)
+        self.btn_preview.setEnabled(True)
         self.progress_bar.setVisible(False)
         self._set_buttons_enabled(True)
         try:
             future = executor.submit(get_gfriends_index())
         except Exception as e:
             self.log(f"🔶 Gfriends 索引加载失败: {e}")
+            if self._pending_auto_preview:
+                self._pending_auto_preview = False
+                if actors:
+                    self._start_preview()
             return
         future.add_done_callback(lambda fut: self._gfriends_result.emit(_future_result_or(fut, None)))
 
@@ -1318,6 +1340,13 @@ class EmbyActorManagerDialog(QDialog):
         self._gfriends_index = index
         if index:
             self.log(f"✅ Gfriends 头像库加载完成，共 {len(index)} 个头像")
+        # 预览链式流程等头像索引就绪后再取数预览，避免首轮漏掉 Gfriends 源。
+        if self._pending_auto_preview:
+            self._pending_auto_preview = False
+            if self._actors:
+                self._start_preview()
+            else:
+                self.log("⚠️ 未获取到演员，无法继续获取数据")
 
     def _on_prepare_preview(self):
         if self._preview_thread and self._preview_thread.isRunning():
@@ -1331,6 +1360,26 @@ class EmbyActorManagerDialog(QDialog):
             self._set_status("已取消")
             self._set_buttons_enabled(True)
             return
+        url = self.txt_url.text().strip()
+        key = self.txt_api_key.text().strip()
+        if not url or not key:
+            QMessageBox.warning(self, "提示", "请填写服务器地址和 API 密钥")
+            return
+        if not self._is_connection_current(url, key):
+            # 未连接或输入框改过地址/密钥：先自动连接，成功后继续取数预览。
+            self._pending_auto_preview = True
+            self.log("⏳ 正在自动连接服务器...")
+            if not self._start_connect_test(url, key):
+                self._pending_auto_preview = False
+            return
+        if not self._actors:
+            # 已连接但尚无演员列表：先走媒体库流程，取到列表后自动取数预览。
+            self._pending_auto_preview = True
+            self._request_media_folders()
+            return
+        self._start_preview()
+
+    def _start_preview(self):
         mode_map = {
             "仅缺失简介": "missing_info",
             "仅缺失头像": "missing_image",
@@ -1598,7 +1647,7 @@ class EmbyActorManagerDialog(QDialog):
             self._all_staff_count = all_staff_count
         self._populate_table(actors)
         self._update_statistics(actors)
-        self.btn_preview.setEnabled(len(actors) > 0)
+        self.btn_preview.setEnabled(True)
         self._set_status("自动刷新完成")
         unique_names = len({a.name for a in actors})
         self.log(f"✅ 自动刷新完成，共 {len(actors)} 个演员（原始条目 {raw_count}，唯一名字 {unique_names}，全服总数 {self._all_staff_count}）")
@@ -1608,6 +1657,9 @@ class EmbyActorManagerDialog(QDialog):
         if self._is_stale_session():
             return
         self.progress_bar.setVisible(False)
+        # 链式流程中断：清掉待处理的自动预览/获取标记，避免后续回调误触发。
+        self._pending_auto_fetch = False
+        self._pending_auto_preview = False
         # 线程已结束，恢复按钮文本与状态，避免"停止/同步中..."残留
         self.btn_preview.setText("根据设定获取数据")
         self.btn_sync.setText("开始全部更新同步")

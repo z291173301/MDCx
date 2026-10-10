@@ -31,6 +31,13 @@
   - **日志保真**：跳过明细与重复明细改用首见的**服务端原名**（新增 `display_name` 映射）展示，不会给用户看归一化后的小写键
   - 真机复验：4 种组合下「重复」= 40→**41**（勾选）/ 41→**44**（不勾选）；三组异体拼写各合并为 1 行（关闭去重则仍为 2 行）；`May A`/`Maya`、`Buddha D`/`BuddhaD`、`Ariel A`/`Ariela` 均未被误并；`Sunshine` 落到 `actor_id=219809 / has_image=True / has_overview=False`（缺简介）；`movie_count == 0` 的人数为 0（异体拼写的人仍能取到关联影片，未被孤儿化）；不变式「归一重复 ≥ 精确重复」在 4 种组合下成立
   - 回归：新增 `tests/test_emby_actor_dedup_164.py` **35 项全绿**（去重键合并全/半角与大小写、**且不合并 `May A`/`Maya` 等真人**、保留词间空白、空名/None 安全、与 GFriends 模糊键不混用 · `_person_merge_rank` 五类排序与脏记录 · 择优保留带头像记录且保持原位置、后来更差不降级 · 4 组去重后行数/raw 计数、关闭去重保留全部、「重复」= 实际丢弃数 · 异体拼写仍能取到关联影片计数、取不到时为 0 · 交集过滤不误删异体拼写的人 · 跳过/重复明细日志打印原名 · 同一条目内异体拼写只记一次）；`test_emby_actor_role_filter.py` 与 `test_emby_actor_role_filter_158.py` 同步改为按归一化键断言（统计映射的键语义本就是去重键）；演员管理器相关 **188 项全绿**，`ruff check` 四个文件全过
+- **「获取演员列表」无需手动点连接 + 地址/密钥输入框自动保存**（`mdcx/tools/emby_actor_manager_ui.py`）：
+  - 点击「获取演员列表」先校验输入框：地址或密钥为空弹「请填写服务器地址和 API 密钥」；未连接或改过输入则经 `_start_connect_test` 自动探测，成功后（`_pending_auto_fetch`）直接进媒体库流程，失败弹「服务器地址或 API 密钥错误」；「获取演员列表」按钮改为常开，不再要求先手动连接
+  - 探测改用输入框地址拼绝对 URL（`probe_url = {url}{prefix}/System/Info`），修复此前用相对路径误测配置里旧地址的问题；待验证值先存 `_pending_url/_pending_key`，成功后才写入 `_emby_url/_emby_key` 并持久化，错误地址不污染已有连接；手动复测失败时按钮文案不再把已有「已连接」抹掉
+  - 地址/密钥输入框 `textChanged` 接防抖自动保存（`QTimer` 800ms）：密钥每次都存（含清空成空串，重开即显示空）；地址沿主窗口同款归一化（全角冒号转半角、无协议补 `http://`）后仅合法非空时保存；改动输入后已连接态即失效并提示重连，下次获取自动用新值重连。局限：配置模型 `emby_url` 为 `HttpUrl` 存不住空串，地址清空后重开会回填上次合法地址（与主窗口 `save_config.py` 的 `if emby_url:` 逻辑一致），如需持久化空地址须改模型
+- **换新 API 密钥后一直 `401 Access token is invalid or expired`**（同文件 `_start_connect_test`）：连接探测把新密钥预拼进 `headers` 传给 `_emby_get_json`，但 `_emby_request`（`emby_shared.py`）在 `token=None` 时会按全局配置重写 `Authorization`，等于一直拿旧密钥探测。改为经 `token=key` 参数透传到底层，成功后才持久化
+- **「根据设定获取数据」同款三条 + 冷启动链式取数**（同文件）：未填弹「请填写服务器地址和 API 密钥」；未连接自动连接、失败弹「服务器地址或 API 密钥错误」；已连接但无演员列表时自动走媒体库流程，列表就绪且 Gfriends 头像索引加载完后自动进预览（原预览启动逻辑抽出为 `_start_preview`，完成后头像已写入本地缓存目录、表格与统计栏刷新显示新数据）。新增 `_pending_auto_preview` 标记贯穿连接→媒体库→取列表→索引→预览全链路，选库取消/取数失败/线程错误时清除；「根据设定获取数据」按钮改为常开
+  - 回归：`test_emby_actor_manager.py` + `test_emby_actor_manager_http.py` + `test_emby_actor_role_filter.py` + `test_emby_actor_role_filter_158.py` 共 115 项全过，`ruff check` 通过
 
 ## v2.3.2 (2026-10-10)
 ### 调整
