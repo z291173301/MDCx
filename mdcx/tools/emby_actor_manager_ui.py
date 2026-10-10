@@ -756,18 +756,18 @@ class EmbyActorManagerDialog(QDialog):
 
     def _build_actor_list(self, parent_layout: QVBoxLayout):
         stats_layout = QHBoxLayout()
-        self.lbl_total = QLabel("总数: -")
+        self.lbl_total = QLabel("演员: ")
         # 议题 #157: 重复演员数 = 原始条目数 − 唯一名字数, 直接展示免用户两种计数方式手算
-        self.lbl_duplicate = QLabel("重复: -")
+        self.lbl_duplicate = QLabel("重复: ")
         self.lbl_duplicate.setToolTip(
             "重复演员数 = 同名演员产生的多余条目数（原始条目数 − 唯一名字数）。\n"
             "可在「设置」中勾选「重复演员去重（按名称合并）」合并同名条目。"
         )
-        self.lbl_has_both = QLabel("完整: -")
-        self.lbl_missing_image = QLabel("缺头像: -")
-        self.lbl_missing_info = QLabel("缺简介: -")
-        self.lbl_missing_all = QLabel("全缺: -")
-        self.lbl_backdrop = QLabel("有背景图: -")
+        self.lbl_has_both = QLabel("完整: ")
+        self.lbl_missing_image = QLabel("缺头像: ")
+        self.lbl_missing_info = QLabel("缺简介: ")
+        self.lbl_missing_all = QLabel("全缺: ")
+        self.lbl_backdrop = QLabel("有背景图: ")
         for lbl in (
             self.lbl_total,
             self.lbl_duplicate,
