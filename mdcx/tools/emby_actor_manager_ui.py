@@ -648,9 +648,7 @@ class EmbyActorManagerDialog(QDialog):
         self.status_bar.showMessage("未连接")
         main_layout.addWidget(self.status_bar)
 
-        # 首次打开就把 8 个统计标签占满数字(全部为 0), 否则标签只剩「演员: 」这类空前缀,
-        # 看起来像功能坏了; 也保证「计数方式」下拉的初始档位立即反映在标签上。
-        self._update_statistics(self._actors)
+        # 初始保持「总数: 」这类空白前缀, 有数据后再由 _update_statistics 填数字。
 
     def _set_status(self, message: str):
         connected = hasattr(self, "_connected") and self._connected

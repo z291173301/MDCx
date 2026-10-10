@@ -424,10 +424,8 @@ async def test_source_test_update_blank_server_overview_is_missing(monkeypatch):
 
 
 def test_init_ui_populates_statistics_labels():
-    """未抓取数据时 8 个标签必须已是「…: 0」, 而不是裸的「总数: 」。
+    """未抓取数据时 8 个标签必须保持空白「…: 」, 有数据后再填数字。"""
 
-    走真实构造(与 test_actor_manager_font_size 同路径), 因此顺带覆盖「打开即崩」。
-    """
     app = _ensure_app()
     from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
 
@@ -445,14 +443,14 @@ def test_init_ui_populates_statistics_labels():
             "有背景图": dialog.lbl_backdrop,
         }
         for name, label in labels.items():
-            assert label.text() == f"{name}: 0", f"{name} 标签初始文本异常: {label.text()!r}"
+            assert label.text() == f"{name}: ", f"{name} 标签初始文本异常: {label.text()!r}"
     finally:
         dialog.close()
         app.processEvents()
 
 
 def test_init_ui_populates_statistics_labels_in_unique_mode(monkeypatch):
-    """「唯一名字数」档位下首次打开也必须填好数字, 不依赖用户先点一次下拉框。"""
+    """「唯一名字数」档位下首次打开也保持空白, 不依赖用户先点一次下拉框。"""
     app = _ensure_app()
     from mdcx.config.manager import manager
     from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
@@ -462,8 +460,8 @@ def test_init_ui_populates_statistics_labels_in_unique_mode(monkeypatch):
     try:
         app.processEvents()
         assert dialog._show_unique is True
-        assert dialog.lbl_total.text() == "演员: 0"
-        assert dialog.lbl_duplicate.text() == "重复: 0"
+        assert dialog.lbl_total.text() == "演员: "
+        assert dialog.lbl_duplicate.text() == "重复: "
     finally:
         dialog.close()
         app.processEvents()
