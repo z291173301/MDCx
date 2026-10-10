@@ -13964,8 +13964,8 @@ class Ui_MDCx(object):
                 "                                Windows：\\配置文件目录\\userdata\\actor_database.xlsx，配置在「设置」--「高级」修改<br>\n"
                 "                                MAC系统：/配置文件目录/userdata/actor_database.xlsx，同样在「设置」--「高级」修改<br>\n"
                 "                                你可使用文件编辑工具打开该文件后自定义修改添加，演员映射表中的字段含义如下：<br>\n"
-                "                                keyword：匹配词，每个名字前后都要有逗号，网站获取演员名后，会在keyword的名字中匹配<br>\n"
-                "                                zh_cn/zh_tw/jp：输出词，当keyword匹配到对应的演员名称时，可以输出对应语言的演员名</p>",
+                "                                Keyword：匹配词，每个名字前后都要有逗号，网站获取演员名后，会在Keyword的名字中匹配<br>\n"
+                "                                zh_cn/zh_tw/jp ：输出词，当keyword匹配到对应的演员名称时，可以输出对应语言的演员名</p>",
             )
         )
         self.checkBox_actor_realname.setText(_translate("MDCx", "AV-Wiki获取演员真名"))

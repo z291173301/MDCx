@@ -15936,8 +15936,8 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                                 Windows：\配置文件目录\userdata\actor_database.xlsx，配置在「设置」--「高级」修改&lt;br&gt;
                                 MAC系统：/配置文件目录/userdata/actor_database.xlsx，同样在「设置」--「高级」修改&lt;br&gt;
                                 你可使用文件编辑工具打开该文件后自定义修改添加，演员映射表中的字段含义如下：&lt;br&gt;
-                                keyword：匹配词，每个名字前后都要有逗号，网站获取演员名后，会在keyword的名字中匹配&lt;br&gt;
-                                zh_cn/zh_tw/jp：输出词，当keyword匹配到对应的演员名称时，可以输出对应语言的演员名&lt;/p&gt;</string>
+                                Keyword：匹配词，每个名字前后都要有逗号，网站获取演员名后，会在Keyword的名字中匹配&lt;br&gt;
+                                zh_cn/zh_tw/jp ：输出词，当keyword匹配到对应的演员名称时，可以输出对应语言的演员名&lt;/p&gt;</string>
                             </property>
                             <property name="alignment">
                               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
