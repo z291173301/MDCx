@@ -838,7 +838,7 @@ class EmbyActorManagerDialog(QDialog):
         # 控件自身样式表里若再写死 font-size 会盖掉本规则（故提示文字只留颜色）。
         return f"""
         QWidget {{ font-size: {_ui_font_pt()}; }}
-        QGroupBox {{ font-weight: bold; border: 1px solid #cccccc; border-radius: 4px; margin-top: 8px; padding-top: 14px; }}
+        QGroupBox {{ font-weight: bold; border: 1px solid #cccccc; border-radius: 4px; margin-top: 4px; padding-top: 8px; }}
         QGroupBox::title {{ subcontrol-origin: margin; left: 10px; padding: 0 4px; }}
         QTableWidget {{ gridline-color: #e0e0e0; selection-background-color: #bbdefb; }}
         QTableWidget::item:selected {{ background-color: #42a5f5; color: #ffffff; }}
@@ -852,8 +852,9 @@ class EmbyActorManagerDialog(QDialog):
 
     def _init_ui(self):
         main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(8)
-        main_layout.setContentsMargins(12, 12, 12, 12)
+        # 顶部收紧：连接设置组上移，腾出纵向空间给演员表格（目标 20 行完整显示）。
+        main_layout.setSpacing(4)
+        main_layout.setContentsMargins(12, 4, 12, 6)
         self._build_connection_section(main_layout)
         splitter = QSplitter(Qt.Orientation.Vertical)
         list_widget = QWidget()
@@ -866,7 +867,7 @@ class EmbyActorManagerDialog(QDialog):
         log_layout.setContentsMargins(0, 0, 0, 0)
         self._build_log_section(log_layout)
         splitter.addWidget(log_widget)
-        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(0, 4)
         splitter.setStretchFactor(1, 1)
         main_layout.addWidget(splitter, 1)
 
@@ -885,6 +886,10 @@ class EmbyActorManagerDialog(QDialog):
     def _build_connection_section(self, parent_layout: QVBoxLayout):
         group = QGroupBox("Emby/Jellyfin 连接设置")
         grid = QGridLayout(group)
+        # 收紧连接组内边距/行距：整体上移，纵向少占约一行高度。
+        grid.setContentsMargins(6, 4, 6, 4)
+        grid.setVerticalSpacing(4)
+        grid.setHorizontalSpacing(6)
         grid.addWidget(QLabel("服务器地址:"), 0, 0)
         self.txt_url = QLineEdit(str(manager.config.emby_url or ""))
         self.txt_url.setPlaceholderText("http://192.168.1.100:8096")
@@ -895,6 +900,8 @@ class EmbyActorManagerDialog(QDialog):
         self.txt_api_key.setEchoMode(QLineEdit.EchoMode.Password)
         grid.addWidget(self.txt_api_key, 0, 3)
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(4)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
         self.btn_connect = QPushButton("连接 Emby/Jellyfin")
         self.btn_connect.setObjectName("btnPrimary")
         btn_layout.addWidget(self.btn_connect)
@@ -982,7 +989,7 @@ class EmbyActorManagerDialog(QDialog):
         help_label.setWordWrap(True)
         help_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         help_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        help_label.setStyleSheet("color: #888888; padding: 2px 0;")
+        help_label.setStyleSheet("color: #888888; padding: 0;")
         btn_layout.addWidget(help_label, 1)
         btn_layout.addStretch()
         self.btn_test_source = QPushButton("数据源测试")
@@ -998,7 +1005,12 @@ class EmbyActorManagerDialog(QDialog):
         parent_layout.addWidget(group)
 
     def _build_actor_list(self, parent_layout: QVBoxLayout):
+        parent_layout.setSpacing(2)
+        parent_layout.setContentsMargins(0, 0, 0, 0)
         stats_layout = QHBoxLayout()
+        # 收紧统计栏上下边距：腾出的纵向空间让演员表格正好显示 20 行。
+        stats_layout.setSpacing(2)
+        stats_layout.setContentsMargins(0, 0, 0, 0)
         self.lbl_all_staff = QLabel("总数: ")
         self.lbl_all_staff.setToolTip(
             "全服演职人员总数（含导演/编剧/制片等非演出人员），不受媒体库选择、「仅演员」开关、"
@@ -1042,13 +1054,13 @@ class EmbyActorManagerDialog(QDialog):
             self.lbl_missing_all,
             self.lbl_backdrop,
         ):
-            lbl.setStyleSheet("padding: 2px 8px;")
+            lbl.setStyleSheet("padding: 0px 6px;")
             stats_layout.addWidget(lbl)
         # 有背景图留出足够显示数字的空间：按 5 位数预留最小宽度，避免右侧筛选控件挤压导致数字被裁
         self.lbl_backdrop.setMinimumWidth(
             self.lbl_backdrop.fontMetrics().horizontalAdvance("有背景图: 99999") + 20
         )
-        stats_layout.addSpacing(12)
+        stats_layout.addSpacing(6)
         stats_layout.addWidget(QLabel("筛选:"))
         self.cmb_filter = QComboBox()
         self.cmb_filter.addItems(["全部", "待同步", "缺头像", "缺背景", "缺简介", "缺头像和简介", "完整"])
@@ -1174,7 +1186,7 @@ class EmbyActorManagerDialog(QDialog):
     def _build_log_section(self, parent_layout: QVBoxLayout):
         group = QGroupBox("运行日志")
         layout = QVBoxLayout(group)
-        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setContentsMargins(4, 2, 4, 2)
         self.log_text = QPlainTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setMaximumBlockCount(500)
