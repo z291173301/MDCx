@@ -558,7 +558,10 @@ async def test_fetch_person_item_stats_slim_query_params(monkeypatch: pytest.Mon
     await emby_actor_manager.fetch_person_item_stats(parent_ids=["lib-1"])
 
     query = parse_qs(urlparse(paths[0]).query)
-    assert query["IncludeItemTypes"] == ["Movie,Episode"]
+    # 议题 #158: 加入 Series——原先只有 Movie,Episode，只挂剧集级卡司、没写进任何一集的
+    # 人员不在统计集合里，被「仅演员」交集过滤误删（真机：Series 的 31 个唯一人名中 25 个
+    # 不在 Movie/Episode 扫描结果内）。Series 相对 Episode 数量极小，开销可忽略。
+    assert query["IncludeItemTypes"] == ["Movie,Episode,Series"]
     assert query["EnableImages"] == ["false"]
     assert query["EnableUserData"] == ["false"]
 

@@ -127,7 +127,140 @@ async def test_empty_stats_with_library_subset_warns_and_skips_filter(monkeypatc
     assert any("跳过" in msg and "过滤" in msg for msg in logs), f"兜底时必须警告, 实际日志: {logs}"
 
 
+async def test_duplicate_gap_between_filter_modes_is_explained_by_removed_dupes(monkeypatch):
+    """复现「不勾选重复41、勾选重复40」机理: 被角色过滤剔除的条目里含1条重复,
+    则两档重复数差=剔除条目数−剔除唯一名数=1, 差值可逐项对账, 不是 bug。"""
+    import mdcx.tools.emby_actor_manager as mgr_mod
+
+    logs: list[str] = []
+    monkeypatch.setattr(mgr_mod.signal, "show_log_text", logs.append)
+    # 演员A×3(出演) + 导演B×2(未出演, 且B自身重名): 勾选剔除B的2条(R=2,U=1), 重复数差1
+    persons = [_person("演员A"), _person("演员A"), _person("演员A"), _person("导演B"), _person("导演B")]
+    actors_on, raw_on = await _run_fetch(
+        monkeypatch, persons, {"演员A"}, filter_actor_only=True, deduplicate=True
+    )
+    assert raw_on == 3
+    assert raw_on - len({a.name for a in actors_on}) == 2
+    detail_on = next((m for m in logs if "重复明细" in m), None)
+    assert detail_on is not None and "演员A(×3)" in detail_on and "重复条目=2" in detail_on
+    skip = next((m for m in logs if "跳过" in m and "导演B" in m), None)
+    assert skip is not None and "重复条目1条" in skip, f"剔除日志须点出被剔重名, 实际: {logs}"
+
+    logs.clear()
+    actors_off, raw_off = await _run_fetch(
+        monkeypatch, persons, {"演员A", "导演B"}, filter_actor_only=False, deduplicate=True
+    )
+    assert raw_off == 5
+    assert raw_off - len({a.name for a in actors_off}) == 3
+    detail_off = next((m for m in logs if "重复明细" in m), None)
+    assert detail_off is not None and "重复条目=3" in detail_off
+    # 两档差 = 3 − 2 = 1 = 剔除2条 − 剔除1个名, 对账成立
+
+
 # ==================== 统计栏「重复」分项 ====================
+
+
+# ==================== 出演统计 Type 过滤门 + 脏数据容错 ====================
+
+
+def _fake_items_response(items: list) -> object:
+    from types import SimpleNamespace
+
+    return SimpleNamespace(json=lambda: {"Items": items, "TotalRecordCount": len(items)})
+
+
+async def _run_stats(monkeypatch, items_pages: list[list], *, filter_actor_only, parent_ids=None):
+    """直测 fetch_person_item_stats 的 Type 过滤门（_run_fetch 把它整个 mock 掉，盖不住这里）。"""
+    import mdcx.tools.emby_actor_manager as mgr_mod
+
+    pages = [_fake_items_response(p) for p in items_pages]
+    calls = {"n": 0}
+
+    async def fake_request(method, url, headers=None, **kwargs):
+        idx = calls["n"]
+        calls["n"] += 1
+        if idx < len(pages):
+            return pages[idx], ""
+        return _fake_items_response([]), ""
+
+    monkeypatch.setattr(mgr_mod, "_emby_request", fake_request)
+    return await mgr_mod.fetch_person_item_stats(parent_ids=parent_ids, filter_actor_only=filter_actor_only)
+
+
+def _people_item(name: str, people: list) -> dict:
+    return {"Name": name, "Type": "Movie", "People": people}
+
+
+async def test_actor_filter_keeps_guest_star_and_unknown_type(monkeypatch):
+    """客串(GuestStar)是表演者必须保留；Type 缺失按 fail-open 保留；导演/编剧/制片剔除。"""
+    items = [
+        _people_item(
+            "剧集S",
+            [
+                {"Name": "主演A", "Type": "Actor"},
+                {"Name": "客串G", "Type": "GuestStar"},
+                {"Name": "无类型N"},
+                {"Name": "导演D", "Type": "Director"},
+                {"Name": "编剧W", "Type": "Writer"},
+                {"Name": "制片P", "Type": "Producer"},
+            ],
+        )
+    ]
+    counts, _titles, names = await _run_stats(monkeypatch, [items], filter_actor_only=True)
+    assert names == {"主演A", "客串G", "无类型N"}
+    assert set(counts) == {"主演A", "客串G", "无类型N"}
+
+
+async def test_actor_filter_off_keeps_all_roles(monkeypatch):
+    """不勾选时全部角色都进集合（含导演），供所选库交集使用。"""
+    items = [
+        _people_item(
+            "电影M",
+            [
+                {"Name": "主演A", "Type": "Actor"},
+                {"Name": "导演D", "Type": "Director"},
+            ],
+        )
+    ]
+    _counts, _titles, names = await _run_stats(monkeypatch, [items], filter_actor_only=False)
+    assert names == {"主演A", "导演D"}
+
+
+async def test_malformed_entries_do_not_abort_stats(monkeypatch):
+    """People 里的 null/非字典/空名脏条目只跳过，不能抛错中止整库统计。"""
+    items = [
+        _people_item(
+            "电影M",
+            [
+                None,
+                "junk",
+                {"Type": "Actor"},
+                {"Name": "", "Type": "Actor"},
+                {"Name": "主演A", "Type": "Actor"},
+            ],
+        ),
+        None,
+        "junk-item",
+        {"Name": "无People键"},
+    ]
+    counts, _titles, names = await _run_stats(monkeypatch, [items], filter_actor_only=True)
+    assert names == {"主演A"}
+    assert counts == {"主演A": 1}
+
+
+async def test_non_dict_json_body_treated_as_empty_page(monkeypatch):
+    """服务端返回 JSON null/数组等非对象时当空页收尾，不抛 AttributeError。"""
+    import mdcx.tools.emby_actor_manager as mgr_mod
+
+    from types import SimpleNamespace
+
+    async def fake_request(method, url, headers=None, **kwargs):
+        return SimpleNamespace(json=lambda: None), ""
+
+    monkeypatch.setattr(mgr_mod, "_emby_request", fake_request)
+    counts, _titles, names = await mgr_mod.fetch_person_item_stats(filter_actor_only=True)
+    assert names == set()
+    assert counts == {}
 
 
 def _fake_self(show_unique: bool, raw_count: int, all_staff_count: int = 0):

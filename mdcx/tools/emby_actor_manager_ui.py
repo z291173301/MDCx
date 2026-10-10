@@ -48,16 +48,16 @@ from .emby_actor_manager import (
     ActorInfo,
     build_local_avatar_index,
     clean_actor_data_batch_async,
-    fetch_actor_detail,
     fetch_actor_info_from_source,
     fetch_all_actors,
     from_gfriends,
     from_graphis,
     from_local_avatar,
     from_minnano_image,
+    get_all_staff_count,
     get_gfriends_index,
-    get_emby_actor_list,
     get_media_folders,
+    is_missing_overview,
     search_actor_info,
     sync_batch_async,
 )
@@ -273,11 +273,12 @@ class FetchActorsThread(_CancellableWorkerThread):
                     progress_callback=lambda c, t, m: self.progress.emit(c, t, m),
                 )
             )
-            # 获取全部演职人员（含导演、制片人、编剧等）的原始数量
-            all_staff_list = self._run_coro(
-                get_emby_actor_list(filter_actor_only=False)
-            )
-            self.fetch_done.emit(actors, raw_count, len(all_staff_list) if isinstance(all_staff_list, list) else 0)
+            # 总数(含导演/制片/编剧等)。议题 #158: 这里原先无条件再拉一次全量
+            # /Persons(真机 1.4W 人、单次 1.6s 的重端点)；未勾选「获取演员类型」时
+            # 主查询拿到的就是全量名单, 再拉一次纯属重复重查询。改用带 60s 短缓存的
+            # get_all_staff_count, 复用主查询结果。
+            all_staff_count = self._run_coro(get_all_staff_count())
+            self.fetch_done.emit(actors, raw_count, all_staff_count)
         except _WorkerCancelled:
             return
         except Exception as e:
@@ -301,11 +302,10 @@ class PreparePreviewThread(_CancellableWorkerThread):
         """是否缺简介: 无简介, 或简介仅剩「无维基百科信息」占位文案。
 
         #147: 该判口径必须与「统计栏缺简介」保持一致——占位简介按缺处理,
-        否则取数模式选中的数与统计栏分项对不上。
+        否则取数模式选中的数与统计栏分项对不上。实现委托模型层
+        is_missing_overview, 避免两处各写一遍造成漂移。
         """
-        if not getattr(a, "has_overview", False):
-            return True
-        return cls._INFO_PLACEHOLDER in (getattr(a, "existing_overview", None) or "")
+        return is_missing_overview(a)
 
     @classmethod
     def select_targets(cls, actors: list[ActorInfo], mode: str) -> list[ActorInfo]:
@@ -766,24 +766,33 @@ class EmbyActorManagerDialog(QDialog):
         stats_layout = QHBoxLayout()
         self.lbl_all_staff = QLabel("总数: ")
         self.lbl_all_staff.setToolTip(
-            "全服演职人员总数（含导演/编剧/制片等非演出人员），不受媒体库选择与「仅演员」开关影响。"
+            "全服演职人员总数（含导演/编剧/制片等非演出人员），不受媒体库选择、「仅演员」开关、"
+            "计数方式、筛选与搜索影响。恒为全库原始条目数。"
         )
         self.lbl_total = QLabel("演员: ")
         self.lbl_total.setToolTip(
-            "当前列表演员数（受媒体库选择、「仅演员」开关、计数方式影响）。"
-            "原始条目数模式下 完整+缺头像+缺简介+全缺+重复=演员；唯一名字数模式下 完整+缺头像+缺简介+全缺=演员。"
+            "当前列表演员数（受媒体库选择、「仅演员」开关、计数方式影响；不受筛选与搜索影响）。"
+            "唯一名字数模式下 完整+缺头像+缺简介+全缺=演员；"
+            "原始条目数模式 + 去重抓取下 上式+重复=演员（重复条目细节已丢弃，差额即重复数）；"
+            "原始条目数模式 + 未去重抓取下 四项之和=演员，重复为信息性展示（不另加）。"
         )
         # 议题 #157: 重复演员数 = 原始条目数 − 唯一名字数, 直接展示免用户两种计数方式手算
         self.lbl_duplicate = QLabel("重复: ")
         self.lbl_duplicate.setToolTip(
-            "重复演员数 = 同名演员产生的多余条目数（原始条目数 − 唯一名字数）。\n"
+            "重复演员数 = 同名演员产生的多余条目数（原始条目数 − 唯一名字数，与计数方式无关）。\n"
+            "「原始条目数」恒为过滤后、去重前的条目数；「唯一名字数」按名字去重。\n"
             "可在「设置」中勾选「重复演员去重（按名称合并）」合并同名条目。"
         )
         self.lbl_has_both = QLabel("完整: ")
+        self.lbl_has_both.setToolTip("有头像且有简介（简介仅剩「无维基百科信息」占位按缺处理）。")
         self.lbl_missing_image = QLabel("缺头像: ")
+        self.lbl_missing_image.setToolTip("仅缺头像（有简介）。全缺者计入「全缺」，不在此项。")
         self.lbl_missing_info = QLabel("缺简介: ")
+        self.lbl_missing_info.setToolTip("仅缺简介（含占位简介）。全缺者计入「全缺」，不在此项。")
         self.lbl_missing_all = QLabel("全缺: ")
+        self.lbl_missing_all.setToolTip("缺头像且缺简介 = 交集（对应取数模式「头像和简介都缺」）。")
         self.lbl_backdrop = QLabel("有背景图: ")
+        self.lbl_backdrop.setToolTip("有背景图的演员数（与计数方式同基数：唯一名字数模式按名字去重计数）。")
         for lbl in (
             self.lbl_all_staff,
             self.lbl_total,
@@ -1154,9 +1163,13 @@ class EmbyActorManagerDialog(QDialog):
             return
         self._actors = actors
         self._raw_count = raw_count
-        self._all_staff_count = all_staff_count
+        # 议题 #158: 全量统计查询可能单独失败(0), 别把已知的总数抹成 0 显示「总数: 0」
+        if all_staff_count > 0:
+            self._all_staff_count = all_staff_count
         self._set_status("获取完成")
-        self.log(f"获取完成，共 {len(actors)} 个演员")
+        unique_names = len({a.name for a in actors})
+        dup = max(raw_count - unique_names, 0)
+        self.log(f"获取完成，共 {len(actors)} 个演员（原始条目 {raw_count}，唯一名字 {unique_names}，重复 {dup}，全服总数 {self._all_staff_count}）")
         self._populate_table(actors)
         self._update_statistics(actors)
         self.btn_preview.setEnabled(len(actors) > 0)
@@ -1453,7 +1466,8 @@ class EmbyActorManagerDialog(QDialog):
         self._update_statistics(actors)
         self.btn_preview.setEnabled(len(actors) > 0)
         self._set_status("自动刷新完成")
-        self.log(f"✅ 自动刷新完成，共 {len(actors)} 个演员")
+        unique_names = len({a.name for a in actors})
+        self.log(f"✅ 自动刷新完成，共 {len(actors)} 个演员（原始条目 {raw_count}，唯一名字 {unique_names}，全服总数 {self._all_staff_count}）")
         self._set_buttons_enabled(True)
 
     def _on_thread_error(self, msg: str):
@@ -1583,7 +1597,7 @@ class EmbyActorManagerDialog(QDialog):
                 f"头像: {'有' if actor.has_image else '无'} | 背景图: {'有' if actor.has_backdrop else '无'}"
             )
             self.table.setItem(row, 2, img_item)
-            info_item = QTableWidgetItem("✅" if actor.has_overview else "❌")
+            info_item = QTableWidgetItem("✅" if not is_missing_overview(actor) else "❌")
             info_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if actor.need_update_info:
                 info_item.setText("🔄")
@@ -1613,7 +1627,7 @@ class EmbyActorManagerDialog(QDialog):
             if actor.movie_titles:
                 mc_item.setToolTip("\n".join(actor.movie_titles[:20]))
             self.table.setItem(row, 8, mc_item)
-            if actor.need_update_info or actor.need_update_image:
+            if actor.need_update_info or actor.need_update_image or actor.need_update_backdrop:
                 for col in range(self.table.columnCount()):
                     item = self.table.item(row, col)
                     if item:
@@ -1638,7 +1652,8 @@ class EmbyActorManagerDialog(QDialog):
         # 计数基数与「计数方式」下拉对齐: 唯一模式按名字去重(首条保留),
         # 原始模式按列表全部条目统计。分项恒以该基数划分, 保证
         # 唯一模式: 完整+缺头像+缺简介+全缺 == 演员;
-        # 原始模式: 上式 + 重复 == 演员(去重抓取下重复条目细节已丢弃, 差额即重复数)。
+        # 原始模式 + 去重抓取: 上式 + 重复 == 演员(去重抓取下重复条目细节已丢弃, 差额即重复数);
+        # 原始模式 + 未去重抓取: 四项之和 == 演员, 重复为信息性展示(不另加, 否则 double-count)。
         if self._show_unique:
             seen: set[str] = set()
             base: list[ActorInfo] = []
@@ -1828,8 +1843,12 @@ class EmbyActorSettingsDialog(QDialog):
 
         filter_group = QGroupBox("Emby/Jellyfin 演员获取过滤")
         filter_layout = QVBoxLayout(filter_group)
-        self.filter_only_check = QCheckBox("获取演员类型（不包含导演/编剧/制片人）")
+        self.filter_only_check = QCheckBox("获取演员类型（不包含导演/编剧/制片人，含客串）")
         self.filter_only_check.setChecked(manager.config.actor_filter_only)
+        self.filter_only_check.setToolTip(
+            "勾选：只保留在所选库影片演职表中担任演员/客串(GuestStar)的人员；\n"
+            "不勾选：所选库内所有角色（导演/编剧/制片等）全部保留。"
+        )
         filter_layout.addWidget(self.filter_only_check)
         self.deduplicate_check = QCheckBox("重复演员去重（按照服务器演员姓名合并）")
         self.deduplicate_check.setChecked(manager.config.actor_deduplicate)

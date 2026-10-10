@@ -6,6 +6,7 @@ import os
 import re
 import time
 import unicodedata
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -75,6 +76,25 @@ def _raise_if_stop_requested() -> None:
         raise ActorTaskStopped("手动停止")
 
 
+# 简介占位文案: 服务器/旧版写入的「无简介」标记, 统计/筛选/取数统一按缺简介处理 (#147)。
+# 与 UI 侧 PreparePreviewThread._INFO_PLACEHOLDER 同值, 此处定义供模型层直接使用,
+# 避免 emby_actor_manager 反向导入 UI 模块形成循环依赖。
+INFO_PLACEHOLDER = "无维基百科信息"
+
+
+def is_missing_overview(info: ActorInfo | dict) -> bool:
+    """统一缺简介判定: 无简介, 或简介仅剩占位文案 (#147)。
+
+    接受 ActorInfo 或详情 dict, 供统计栏/筛选/表格共用, 避免各处口径漂移。
+    """
+    if isinstance(info, dict):
+        overview = info.get("Overview") or ""
+        return not bool(overview) or INFO_PLACEHOLDER in overview
+    if not getattr(info, "has_overview", False):
+        return True
+    return INFO_PLACEHOLDER in (getattr(info, "existing_overview", None) or "")
+
+
 @dataclass
 class ActorInfo:
     name: str
@@ -109,17 +129,80 @@ class ActorInfo:
     def status_text(self) -> str:
         parts = []
         parts.append("有头像" if self.has_image else "缺头像")
-        parts.append("有简介" if self.has_overview else "缺简介")
+        # 占位简介按缺处理 (#147), 与统计栏/筛选口径一致
+        parts.append("缺简介" if is_missing_overview(self) else "有简介")
         parts.append(f"{self.movie_count}部关联影片")
         return " | ".join(parts)
 
     @property
     def status_icon(self) -> str:
-        if self.has_image and self.has_overview:
+        missing_info = is_missing_overview(self)
+        if self.has_image and not missing_info:
             return "✅"
-        if not self.has_image and not self.has_overview:
+        if not self.has_image and missing_info:
             return "❌"
         return "⚠️"
+
+
+def _safe_int(value: object) -> int | None:
+    """把服务端返回的计数字段安全转成 int。
+
+    TotalRecordCount/StartIndex 这类字段理论上是整数，但脏数据(空串/"N/A"/None/列表)
+    会让裸 int() 抛 ValueError/TypeError 冒泡到协程外，整个抓取流程被一条异常打断。
+    解析不了就返回 None，让调用方退化为「短页终止」这一安全判据。
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except (ValueError, TypeError):
+            return None
+    return None
+
+
+# /Persons 分页大小：议题 #158。与议题 #32(Items 单次大响应把服务端组装拖到超时)是
+# 同一类隐患——演员上万人时 /Persons 单次全量响应同样会让服务端长时间组装，且中途
+# 无法响应「停止」。真机(Emby 14518 人)实测：单次 1.65s，StartIndex+Limit=1000 分 14 页
+# 每页 0.27s，取回的 Id/Name 集合与单次请求完全一致；5000/页则为 3 次请求、每次更轻。
+_PERSONS_PAGE_LIMIT = 5000
+
+
+# 统计栏「总数」(含导演/编剧/制片等) 的短缓存：FetchActorsThread 每次抓取都要这个数，
+# 而 /Persons 是重端点。不勾选「获取演员类型」时该查询与主查询同参，直接复用主查询
+# 结果即可，没必要再发第二次全量请求。
+_ALL_STAFF_COUNT_TTL = 60.0
+_all_staff_count_cache: tuple[float, int] | None = None
+
+
+def _remember_all_staff_count(count: int) -> None:
+    global _all_staff_count_cache
+    try:
+        count = int(count)
+    except (TypeError, ValueError):
+        return
+    if count > 0:
+        _all_staff_count_cache = (time.monotonic(), count)
+
+
+async def get_all_staff_count(refresh: bool = False) -> int:
+    """全服演职人员总数(含导演/编剧/制片人等)，用于统计栏「总数」。
+
+    优先复用 60s 内 `get_emby_actor_list(filter_actor_only=False)` 的结果：未勾选
+    「获取演员类型」时主查询拿到的就是全量名单，再拉一次纯属重复重查询。
+    """
+    if not refresh and _all_staff_count_cache is not None:
+        cached_at, cached_count = _all_staff_count_cache
+        if cached_count > 0 and time.monotonic() - cached_at < _ALL_STAFF_COUNT_TTL:
+            return cached_count
+    persons = await get_emby_actor_list(filter_actor_only=False)
+    count = len(persons) if isinstance(persons, list) else 0
+    _remember_all_staff_count(count)
+    return count
 
 
 async def get_emby_actor_list(filter_actor_only: bool = True) -> list[dict]:
@@ -135,7 +218,7 @@ async def get_emby_actor_list(filter_actor_only: bool = True) -> list[dict]:
         }
         if filter_actor_only:
             params["personTypes"] = "Actor"
-        url = _append_query(base_url + "/emby/Persons", params)
+        persons_path = "/emby/Persons"
     else:
         server_name = "Jellyfin"
         params = {
@@ -145,18 +228,45 @@ async def get_emby_actor_list(filter_actor_only: bool = True) -> list[dict]:
         }
         if filter_actor_only:
             params["personTypes"] = "Actor"
-        url = _append_query(base_url + "/Persons", params)
+        persons_path = "/Persons"
+
     signal.show_log_text(f"⏳ 连接 {server_name} 服务器...")
     if not manager.config.api_key:
         signal.show_log_text(f"🔴 {server_name} API 密钥未填写！")
         return []
-    async with manager.acquire_computed() as computed:
-        response, error = await computed.async_client.get_json(url, headers=headers, use_proxy=False)
-    _raise_if_stop_requested()
-    if response is None:
-        signal.show_log_text(f"🔴 {server_name} 连接失败！{error}")
-        return []
-    actor_list = response.get("Items", [])
+
+    # 议题 #158: /Persons 走 StartIndex 分页(Emby/Jellyfin 均支持, 实测集合一致)。
+    # 单次全量响应在万人级服务器上会让服务端组装很久甚至超时(#32 同类教训),
+    # 分页后每页之间还能响应「停止」, 中途失败也能保住已取回的部分。
+    actor_list: list[dict] = []
+    start_index = 0
+    while True:
+        _raise_if_stop_requested()
+        page_params = dict(params)
+        page_params["StartIndex"] = str(start_index)
+        page_params["Limit"] = str(_PERSONS_PAGE_LIMIT)
+        url = _append_query(base_url + persons_path, page_params)
+        async with manager.acquire_computed() as computed:
+            response, error = await computed.async_client.get_json(url, headers=headers, use_proxy=False)
+        if not isinstance(response, dict):
+            if not actor_list:
+                signal.show_log_text(f"🔴 {server_name} 连接失败！{error}")
+                return []
+            signal.show_log_text(f"🔴 {server_name} 人员分页中断(已取回 {len(actor_list)} 人)：{error}")
+            break
+        items = response.get("Items", [])
+        if not isinstance(items, list):
+            items = []
+        actor_list.extend(it for it in items if isinstance(it, dict))
+        total_count = _safe_int(response.get("TotalRecordCount"))
+        start_index += _PERSONS_PAGE_LIMIT
+        if not items or len(items) < _PERSONS_PAGE_LIMIT:
+            break
+        if total_count is not None and total_count > 0 and start_index >= total_count:
+            break
+
+    if not filter_actor_only:
+        _remember_all_staff_count(len(actor_list))
     signal.show_log_text(f"✅ {server_name} 连接成功！共 {len(actor_list)} 个演员")
     return actor_list
 
@@ -203,6 +313,21 @@ async def fetch_actor_detail(actor_name: str) -> dict | None:
     return response
 
 
+# 勾选「获取演员类型」时视为演出人员的 People Type 白名单。
+# Emby 剧集客串在 People 里记为 GuestStar, 同属表演者(与设置项
+# 「不包含导演/编剧/制片人」的文案一致); Type 缺失(None)视为未知,
+# 按 fail-open 保留——缺字段就丢人会误删, 不如留给名字交集去核。
+ACTOR_PERSON_TYPES = frozenset({"Actor", "GuestStar", None})
+
+# 出演统计要扫的条目类型。
+# 议题 #158：原先只有 Movie,Episode，导致「只挂剧集级卡司、没写进任何一集」的人员
+# 不在 lib_person_names 里，被交集过滤当成库外人员误删。真机(Emby)实测 Series 的
+# People 里 31 个唯一人名中有 25 个不在 Movie/Episode 扫描结果内，且服务端把这 21~25 人
+# 仍算作 personTypes=Actor，即「勾选演员类型」会漏掉他们。Series 相对 Episode 数量很小
+# (真机 49299 → 49303)，扫描开销可忽略。BoxSet/MusicVideo 的 People 为空，不纳入。
+_STATS_ITEM_TYPES = "Movie,Episode,Series"
+
+
 async def fetch_person_item_stats(
     parent_ids: list[str] | None = None,
     filter_actor_only: bool = True,
@@ -229,7 +354,7 @@ async def fetch_person_item_stats(
         path = (
             f"{prefix}/Items?"
             "Recursive=true&Fields=People"
-            "&IncludeItemTypes=Movie,Episode"
+            f"&IncludeItemTypes={_STATS_ITEM_TYPES}"
             "&EnableImages=false&EnableUserData=false"
             f"&StartIndex={start_index}&Limit={page_limit}"
         )
@@ -242,6 +367,9 @@ async def fetch_person_item_stats(
     for lib_id in target_lib_ids:
         start_index = 0
         while True:
+            # 议题 #158: 分页循环此前完全没有停止检查。真机 24 库近 5 万条目 = 99 页、
+            # 约 65s，这段时间「停止」完全无响应；逐页检查后最长只阻塞单页请求。
+            _raise_if_stop_requested()
             response, _err = await _emby_request("GET", _items_path(lib_id, start_index), headers=headers)
             if response is None:
                 # 该库失败(如超时)只跳过本库, 其余库照常统计; 记数以便调用方提示数据不完整
@@ -251,20 +379,30 @@ async def fetch_person_item_stats(
                 data = response.json()
             except Exception:
                 break
+            if not isinstance(data, dict):
+                # 服务端返回非对象(如 JSON null/数组): 当空页处理, 避免 .get 抛错中止整库
+                break
             items = data.get("Items", [])
-            if not items:
+            if not isinstance(items, list) or not items:
                 break
             for item in items:
+                if not isinstance(item, dict):
+                    continue
                 people = item.get("People") or []
+                if not isinstance(people, list):
+                    continue
                 item_name = item.get("Name", "")
                 item_type = item.get("Type", "")
                 seen_in_item = set()
                 for person in people:
-                    # filter_actor_only: 只统计 Type=Actor 的角色（Emby 默认返回导演/编剧等）
-                    if filter_actor_only and person.get("Type") not in ("Actor", None):
+                    if not isinstance(person, dict):
+                        # 脏条目(服务端偶发 null)直接跳过, 不能让整库统计 abort
+                        continue
+                    # filter_actor_only: 只统计演出人员(Actor/GuestStar/未知)——Emby 默认返回导演/编剧等
+                    if filter_actor_only and person.get("Type") not in ACTOR_PERSON_TYPES:
                         continue
                     name = person.get("Name", "")
-                    if not name:
+                    if not isinstance(name, str) or not name:
                         continue
                     seen_in_item.add(name)
                     person_names.add(name)
@@ -276,9 +414,11 @@ async def fetch_person_item_stats(
             # TotalRecordCount 缺失/为 0 时不能短路退出：start_index(500) >= 0
             # 恒真会让循环只拉第一页，出演统计大面积缺失——此时退化为
             # 仅靠短页信号（len(items) < page_limit）判定终止（全库审查 M7）
-            total_count = data.get("TotalRecordCount")
+            # 议题 #158: 裸 int() 遇到脏值(""/"N/A"/[]) 会抛 ValueError/TypeError
+            # 直接冒泡出协程把整次抓取打断，改用 _safe_int 解析不了就退化为短页终止。
+            total_count = _safe_int(data.get("TotalRecordCount"))
             start_index += page_limit
-            if (total_count is not None and int(total_count) > 0 and start_index >= int(total_count)) or (
+            if (total_count is not None and total_count > 0 and start_index >= total_count) or (
                 len(items) < page_limit
             ):
                 break
@@ -319,20 +459,29 @@ async def fetch_all_actors(
     # 议题 #157: raw_count 语义 =「过滤后(库+角色)、去重前」条目数——统计栏「原始条目数」
     # 与「重复 = raw − 唯一名字」都以过滤后的演员集合为基准, 不能含被剔除的非演出角色。
     filtered_raw = 0
+    name_counter: Counter[str] = Counter()
     for i, p in enumerate(persons):
         _raise_if_stop_requested()
-        name = p.get("Name", "")
-        if not name:
+        if not isinstance(p, dict):
             continue
-        # 议题 #157: Emby 的 /Persons 端点不支持按角色过滤——personTypes 仅在配合 Person
-        # 参数时生效（官方 API 参考），服务端把导演/编剧/制片等非演出角色一并返回，
-        # 此前"只看演员"开关对 Emby 从未真正生效（Jellyfin 端 personTypes 有效）。
-        # 统一改为与「所选库(缺省全库)影片 People 中角色=Actor 的人名集合」交集过滤；
-        # 出演统计整体失败导致集合为空时不过滤（兜底防误删，与 #32 教训一致）。
+        name = p.get("Name", "")
+        if not isinstance(name, str) or not name:
+            continue
+        # 议题 #157/#158: 服务端 /Persons 的 personTypes=Actor 是**生效**的
+        # (真机 Emby 实测: 全量 14518 人 vs personTypes=Actor 13568 人), 此前注释
+        # 写的「Emby 的 /Persons 端点不支持按角色过滤」与实际不符, 已更正。
+        # 但 /Persons 返回的 Person 对象 Type 恒为 "Person"(不带角色), 且不返回
+        # personTypes 过滤的完整口径(客串等), 因此仍需与「所选库(缺省全库)
+        # 条目 People 中演出人员(Actor/客串GuestStar)的人名集合」取交集:
+        #   - 兜住 personTypes=Actor 未覆盖的 GuestStar;
+        #   - 兜住 parent_ids 指定的媒体库子集过滤;
+        #   - 兜住未被条目 People 引用的孤立条目。
+        # 出演统计整体失败导致集合为空时不过滤(兜底防误删, 与 #32 教训一致)。
         if (parent_ids or filter_actor_only) and lib_person_names and name not in lib_person_names:
             skipped_not_in_lib.append(name)
             continue
         filtered_raw += 1
+        name_counter[name] += 1
         if deduplicate:
             if name in seen_names:
                 continue
@@ -356,9 +505,28 @@ async def fetch_all_actors(
     if skipped_not_in_lib:
         preview = ", ".join(skipped_not_in_lib[:5])
         more = f" 等共 {len(skipped_not_in_lib)} 人" if len(skipped_not_in_lib) > 5 else ""
+        # 被剔除条目里若含重名, 勾选/不勾选「仅演员」两档的重复数自然相差
+        # R−U(R=剔除条目数,U=剔除唯一名数), 把它点出来以便对账(如 41 vs 40)。
+        removed_counter = Counter(skipped_not_in_lib)
+        removed_dup = sum(c - 1 for c in removed_counter.values() if c > 1)
+        dup_note = f", 其中重复条目{removed_dup}条" if removed_dup else ""
+        where = "所选媒体库" if parent_ids else "全库影片"
         signal.show_log_text(
-            f"⚠️ 跳过 {len(skipped_not_in_lib)} 个不在所选媒体库影片中出演(Actor)的人员: {preview}{more}"
+            f"⚠️ 跳过 {len(skipped_not_in_lib)} 个不在{where}中出演(Actor)的人员{dup_note}: {preview}{more}"
         )
+
+    # 重复明细透明化: 「重复 = raw − 唯一名」的可验证对照。统计栏只显示总数,
+    # 两档(勾选/不勾选)差值靠这条日志逐项对账, 避免误报 bug。
+    dup_names = {n: c for n, c in name_counter.items() if c > 1}
+    if dup_names:
+        scope = "仅演员" if filter_actor_only else "全部人员"
+        if parent_ids:
+            scope += f"({len(parent_ids)}个库)"
+        top = sorted(dup_names.items(), key=lambda kv: (-kv[1], kv[0]))[:10]
+        preview = "、".join(f"{n}(×{c})" for n, c in top)
+        more = f"等, 共{len(dup_names)}个重名" if len(dup_names) > 10 else f", 共{len(dup_names)}个重名"
+        dup_entries = sum(c - 1 for c in dup_names.values())
+        signal.show_log_text(f"ℹ️ 重复明细[{scope}]: {preview}{more}; 重复条目={dup_entries}")
 
     # 第二遍: 并发抓详情 (注意限流——Emby/Jellyfin 一般无速率压力, 8 并发保守)
     # 列表请求已带 fields 时可直接复用 Item 中的详情字段, 避免逐人二次请求

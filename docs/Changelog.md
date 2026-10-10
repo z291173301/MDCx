@@ -1,5 +1,30 @@
 
 # Changelog
+## v2.3.2 (2026-10-10)
+### 调整
+- **版本号**：`2.3.1` → `2.3.2`（`mdcx/consts.py` 的 `VERSION_NAME`、`pyproject.toml`、`uv.lock` 根包 `mdcx`、`docs/Changelog.md` 首个版本段；`LOCAL_VERSION` 保持 `20261010`。另：`uv.lock` 根包版本此前停留在 `2.3.0`（v2.3.1 升级时漏同步），本次一并补齐，否则 CI 的 `uv sync --locked` 必败）
+### 修复
+- **演员管理器 8 计数器全量审计与口径统一**（`mdcx/tools/emby_actor_manager.py`、`emby_actor_manager_ui.py`，真机不可达、纯静态审计 + 对账日志）：
+  - 表格与统计口径不一致：占位简介（「无维基百科信息」）在统计/筛选/取数里算"缺简介"，但表格简介列与 `status_icon`/`status_text` 按 `has_overview` 显示 ✅/有简介。模型层新增 `INFO_PLACEHOLDER` + `is_missing_overview()`，`status_text`/`status_icon`、`PreparePreviewThread._is_missing_info`、表格简介列统一委托该判定，避免三处各写一遍漂移
+  - 待同步高亮漏背景：绿色待同步行条件只有 `need_update_info`/`need_update_image`，仅待同步背景的行不变绿但同步按钮会计入。已加上 `need_update_backdrop`
+  - 数字可对账：获取完成/自动刷新完成日志由"共 N 个演员"改为"原始条目 X，唯一名字 Y，重复 Z，全服总数 W"，与统计栏逐项核对；`演员:`/`重复:` tooltip 修正——原始条目数模式 + 未去重抓取时四项之和 = 演员（重复为信息性展示，不另加，否则 double-count），统计不受筛选/搜索影响；`有背景图:` 补 tooltip
+  - 回归：`tests/test_emby_actor_role_filter.py` + `test_emby_actor_manager.py` 53 项全过
+- **「获取演员类型」勾选/不勾选两档数据审计与修复**（同上两文件 + `docs/Configuration.md`）：
+  - 逻辑错误：出演统计 Type 白名单为 `("Actor", None)`，剧集客串（People 里 `Type=GuestStar`）勾选后被误删（列表消失、影片数不计），与设置项"不包含导演/编剧/制片人"文案矛盾。新增 `ACTOR_PERSON_TYPES = {"Actor", "GuestStar", None}`（Type 缺失 fail-open 保留），设置项文案改为"含客串"并加 tooltip 说明两档语义，`Configuration.md`「只获取演员类型」行同步更新（原"只拉 personTypes=Actor 条目"已过时：Emby 该参数无实际过滤作用，真过滤靠客户端 People 交集）
+  - 运行时隐患：`People` 含 null/非字典条目、`Items` 非列表、`People` 非列表、JSON 返回非对象（null/数组）均会抛 `AttributeError` 中止整库抓取。`fetch_person_item_stats` 与 `fetch_all_actors` 的条目循环全部加 `isinstance` 设防（脏条目跳过、非对象 JSON 当空页收尾）
+  - `IncludeItemTypes=Movie,Episode` 未覆盖 MusicVideo 等小众类型为 deliberate（议题 #32 体积教训），不改；头像补全路径（`emby_actor_image.py`）恒传 `personTypes=Actor` 且无客户端过滤、Emby 上会连导演一起补，与本开关无关，未动
+  - 回归：新增 4 项（客串保留/导演剔除、关闭保留全角色、脏条目不 abort、非对象 JSON 当空页），本文件 15 项全过；`actor_manager`/`jellyfin`/`count_mode`/`clean_failures` 62 项全过
+- **「获取演员类型」两档数据真机联调复审（议题 #158）**（`mdcx/tools/emby_actor_manager.py`、`emby_actor_manager_ui.py`，真机 `http://192.168.0.101:8096`：24 个媒体库 / 49299 条目 / 14518 个 `/Persons` 条目，逐项对账）：
+  - **逻辑错误（误删演员）**：`IncludeItemTypes=Movie,Episode` 未覆盖剧集条目级演职员表（`Series`）。`电视归档`/`动漫归档` 两个 tvshows 库共 4 个剧集条目、31 位演职人员，其中 **25 位从未出现在 Movie/Episode 的 People 里**，勾选「获取演员类型」时会被客户端交集过滤整体剔除（列表消失、影片数不计）。`Series` 实测只多扫 4 个条目（49299→49303，+0.008%），`BoxSet` 多扫 6755 个条目却 **0 条 People**（合集库不存演职员），`MusicVideo`/`Video` 为 0。新增 `_STATS_ITEM_TYPES = "Movie,Episode,Series"`，`BoxSet`/`MusicVideo`/`Video` 仍按议题 #32 的体积教训不纳入
+  - **注释事实错误**：`fetch_all_actors` 原注释称「Emby 的 `/Persons` 端点不支持按角色过滤」。真机实测 `personTypes=Actor` **有效**：14518 → 13568（少 950 位非演员），且 `Person.Type` 恒为字面量 `"Person"` 不含角色信息，故服务端过滤只是预筛、真正定角色仍必须靠客户端 `People[]` 交集。注释已按实测数据改正，避免后人误删交集
+  - **性能：`/Persons` 无分页**：万人级服务器上单次全量响应要服务端组装 1.65s+，`/Persons?SearchTerm=test` 这类轻查询实测直接超时。已改为 `StartIndex`+`Limit=5000` 分页（真机验证分页后 Id 集合、名字集合与单次全量**完全一致**，`TotalRecordCount` 受信），每页之间可响应「停止」，中途失败保留已取回部分并单独告警，不再整批丢弃
+  - **重复重查询**：统计栏「总数」每次抓取都额外发一次全量 `/Persons`（14518 条 ≈ 2s），未勾选「获取演员类型」时该查询与主查询**同参**，纯属重复。新增 `_ALL_STAFF_COUNT_TTL = 60.0` 短缓存 + `get_all_staff_count()`，主查询顺手记账、统计栏复用（实测热读 0.00s vs 冷读 1.7s）；`_on_fetch_finished` 改为 `if all_staff_count > 0` 才覆盖，避免一次失败把已知总数抹成 0
+  - **运行时错误**：`fetch_person_item_stats` 翻页循环内无 `_raise_if_stop_requested()`，扫描 49299 条目（真机 64.7s / 99 页）期间「停止」按钮完全无响应，已在循环顶部补上；`int(data.get("TotalRecordCount"))` 无防护，服务端返回 `"N/A"`/`null`/数组即 `ValueError`/`TypeError` 中止整库统计，已换新增的 `_safe_int()`（非数字一律视作未知，退化为按短页终止）
+  - **崩溃**：本轮未提交改动里 `EmbyActorManagerDialog.__init__` 的三处 `setToolTip()` 引用了已被删除的 `lbl_missing_image`/`lbl_missing_info`/`lbl_missing_all`，构造即 `AttributeError`、整个演员管理器窗口打不开。已补回三个 `QLabel`，顺带消掉 `test_actor_manager_font_size.py` 9 ERROR + `test_main_window_startup.py` 5 FAILED 共 14 项既有红
+  - **未改（已证伪/刻意保留）**：① `/emby/Persons/{Id}` 真机返回 **HTTP 500**，按名字查 `/emby/Persons/{Name}` 正常（22 键、0.01s），故 `fetch_actor_detail` 必须继续用名字，不能换 Id；② `fields=...` 请求了 `Genres`/`Tags` 但真机 3000 条抽样 `present_in_list` 均为 0，`/Persons/{Name}` 详情同样没有 —— Emby Person 实体就没有这两项，`existing_genres`/`existing_tags` 恒为 `[]`，而写入侧必须发数组（#148 的 `ArgumentNullException` 400），保持原样安全；③ `personTypes` 对未知取值（如 `BogusType`）返回全量 14518，属服务端 fail-open，与 `ACTOR_PERSON_TYPES` 里 `None` 的 fail-open 意图一致
+  - 回归：新增 `tests/test_emby_actor_role_filter_158.py` **37 项全绿**（`_safe_int` 10 组参数化 / `/Persons` 分页合并、`personTypes` 两种状态、后页失败保部分结果、脏 `TotalRecordCount`、非对象 JSON、页间停止、无 API Key 短路、Jellyfin 路径不带 `/emby` / `get_all_staff_count` 复用·过期·失败不记账·不污染勾选查询 / `Series` 独占演员保住且 `Series` 仍守角色白名单 / 统计翻页停止·脏总数·短页收尾 / UI 失败不抹零 / 线程走 `get_all_staff_count` 且不再直调 `get_emby_actor_list` / 4 项两档端到端语义）；`test_emby_actor_role_filter.py`、`test_emby_actor_manager.py` 同步更新（`IncludeItemTypes` 断言含 `Series`）后全绿；`ruff check` 两文件全过（改动前 6 处 F401/F811）
+  - ⚠️ 遗留：`tests/test_main_window_startup.py` 全部用例 100% 通过后，解释器退出阶段仍触发一次 Windows 访问冲突；把本轮改动 `git stash` 回 HEAD 复跑现象一致，属既有 Qt 拆库抖动，与本次改动无关
+
 ## v2.3.1 (2026-10-10)
 ### 调整
 - **版本号**：`2.3.0` → `2.3.1`（`pyproject.toml`、`mdcx/consts.py`；`VERSION_NAME` `v2.3.0` → `v2.3.1`，`LOCAL_VERSION` `20261020` → `20261010`）
