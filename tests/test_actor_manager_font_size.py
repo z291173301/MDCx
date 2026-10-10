@@ -68,7 +68,7 @@ def test_manager_widgets_all_use_bumped_font(dlg, app):
     widgets = {
         "连接按钮": dlg.btn_connect,
         "数据源测试按钮": dlg.btn_test_source,
-        "清空缓存文件夹按钮": dlg.btn_clear_cache,
+        "清空缓存目录按钮": dlg.btn_clear_cache,
         "设置按钮": dlg.btn_settings,
         "开始全部更新同步按钮": dlg.btn_sync,
         "获取模式下拉": dlg.cmb_fetch_mode,
