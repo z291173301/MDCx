@@ -18810,7 +18810,7 @@ QSpinBox::down-button { margin-right: 5px; }</string>
                             <item row="3" column="1">
                               <widget class="QCheckBox" name="checkBox_nfo_actor_tmdbid">
                                 <property name="text">
-                                  <string>演员写入TMDB ID</string>
+                                  <string>演员写TMDB ID需TMDB KEY</string>
                                 </property>
                               </widget>
                             </item>
