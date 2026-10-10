@@ -14180,7 +14180,7 @@ class Ui_MDCx(object):
         self.checkBox_nfo_actor.setText(_translate("MDCx", "演员（actor）"))
         self.checkBox_nfo_director.setText(_translate("MDCx", "导演（director）"))
         self.checkBox_nfo_all_actor.setText(_translate("MDCx", "写入男女演员，不勾选仅女演员"))
-        self.checkBox_nfo_actor_tmdbid.setText(_translate("MDCx", "演员写入TMDB ID需配置TMDB API"))
+        self.checkBox_nfo_actor_tmdbid.setText(_translate("MDCx", "演员写入TMDB ID"))
         self.checkBox_nfo_series.setText(_translate("MDCx", "系列（series）"))
         self.checkBox_nfo_tag.setText(_translate("MDCx", "标签（tag）"))
         self.label_391.setText(_translate("MDCx", "年份/时长/想看："))

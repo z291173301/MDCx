@@ -6605,9 +6605,9 @@ class MyMAinWindow(QMainWindow):
         self._sync_nfo_target_column_align()
 
     def _sync_nfo_right_column_align(self) -> None:
-        """设置-NFO：宽视口下右列（影评/导演/TMDB/标签）左对齐到自定义分级/想看人数。
+        """设置-NFO：宽视口下右列左对齐到 thirds；窄视口下右列右移到首播日期列。
 
-        用户截图：最大化后影评人评分（criticrating）/导演（director）/演员写入
+        用户截图（最大化）：影评人评分（criticrating）/导演（director）/演员写入
         TMDB ID/标签（tag）被推到自定义分级（customrating）/想看人数（votes）
         右侧两百多 px，要求四者左移与 thirds 严格上下对齐、其余不动、窄态不变。
         根因：gridLayout_66 的 columnstretch=(1,0) 让 C0 吃掉全部横向 surplus，
@@ -6615,23 +6615,67 @@ class MyMAinWindow(QMainWindow):
         两行 HBox 无弹簧、三项均分 surplus，thirds.x 以斜率 2/3 右移。两者只在
         默认宽度附近相交（约 787px），窗口加宽后 C1 持续超越 thirds；纯拉伸配比
         定不住常数项（hints 差约 48px），故用列最小宽做自适应钳制。
-        做法（纯函数、双向幂等）：先清 C1 列最小宽→重排→量自然位置；仅当
-        critic.x > custom.x（发散态）时设 C1 列最小宽 = 列宽 - custom.x + score.x，
-        把 C1 左缘精确钉到 thirds（导演/TMDB/标签同属 C1，一并归位）；窄态自然
-        critic.x <= custom.x，保持清零、布局原样不动。各控件同属 layoutWidget_10，
-        .x() 同一坐标系直接可比；只碰列宽，不碰 y 与其它行。
+        做法（纯函数、双向幂等）：先把 C0/C1 四格钉宽与 C0/C1 列最小宽全部复位
+        （C0 的 series 与 C1 的 tag 设计最小宽 150，其余设计最小宽 0，最大宽默认）
+        →重排→量自然位置；宽态仅当 critic.x > custom.x（发散态）时设 C1 列最小宽
+        = 列宽 - custom.x + score.x，把 C1 左缘精确钉到 thirds（导演/TMDB/标签同属
+        C1，一并归位）；窄态仅当 critic.x < pr.x（偏左态）时把 C0 四格（score/
+        actor/all_actor/series）min=max 钉到 pr.x-score.x-间距、把 C1 四格
+        （critic/director/tmdb/tag）min=max 钉到列宽-钉宽-间距，在总宽不变下把
+        C1 左缘精确钉到首播日期（premiered）列（导演/TMDB/标签同属 C1 一并归位；
+        原简介（originalplot）经标题控制器已在首播列时即同时对齐）。任一钉宽低于
+        60 地板即整单放弃（防裁字，小宽态 defer）；已对齐时零残留（自然位不动）。
+        各控件同属 layoutWidget_10，.x() 同一坐标系直接可比；只碰列宽，不碰 y
+        与其它行（高不变→行高不变→无上下移动）。premiered（premiered）与原简介
+        只读不动；宽态（目标列对齐生效中）直接返回，最大化行为逐像素不变。
         """
         ui = self.Ui
         grid = ui.gridLayout_66
         score = ui.checkBox_nfo_score
         critic = ui.checkBox_nfo_criticrating
         custom = ui.checkBox_nfo_customrating
+        pr = ui.checkBox_nfo_premiered
         if self._nfo_target_col_active:
             # 目标列对齐生效中：C1 列最小宽归它所有，直接返回。它生效时
             # critic 与 custom 同在锚 B 列、判据恒为假，本来也是 no-op；
             # 不返回的话本方法开头的清零会把它的钉宽洗掉（_sync_page_layouts
             # 第 4014 行每遍都调本方法，且跑在钩子链之后、专抢最后一写）。
+            # 窄态残留的 C0/C1 四格钉宽仍需清掉（宽态改由列最小宽接管），
+            # 列最小宽一律不动。
+            for cb in (score, ui.checkBox_nfo_actor, ui.checkBox_nfo_all_actor):
+                cb.setMinimumWidth(0)
+                cb.setMaximumWidth(16777215)
+            ui.checkBox_nfo_series.setMinimumWidth(150)
+            ui.checkBox_nfo_series.setMaximumWidth(16777215)
+            for cb in (critic, ui.checkBox_nfo_director, ui.checkBox_nfo_actor_tmdbid):
+                cb.setMinimumWidth(0)
+                cb.setMaximumWidth(16777215)
+            ui.checkBox_nfo_tag.setMinimumWidth(150)
+            ui.checkBox_nfo_tag.setMaximumWidth(16777215)
             return
+        c0_cells = (
+            score,
+            ui.checkBox_nfo_actor,
+            ui.checkBox_nfo_all_actor,
+            ui.checkBox_nfo_series,
+        )
+        c1_cells = (
+            critic,
+            ui.checkBox_nfo_director,
+            ui.checkBox_nfo_actor_tmdbid,
+            ui.checkBox_nfo_tag,
+        )
+        for cb in (score, ui.checkBox_nfo_actor, ui.checkBox_nfo_all_actor):
+            cb.setMinimumWidth(0)
+            cb.setMaximumWidth(16777215)
+        ui.checkBox_nfo_series.setMinimumWidth(150)
+        ui.checkBox_nfo_series.setMaximumWidth(16777215)
+        for cb in (critic, ui.checkBox_nfo_director, ui.checkBox_nfo_actor_tmdbid):
+            cb.setMinimumWidth(0)
+            cb.setMaximumWidth(16777215)
+        ui.checkBox_nfo_tag.setMinimumWidth(150)
+        ui.checkBox_nfo_tag.setMaximumWidth(16777215)
+        grid.setColumnMinimumWidth(0, 0)
         grid.setColumnMinimumWidth(1, 0)
         # 防御性刷新：直接调用时若外层有 pending 布局请求，先落定再测量
         # （内层激活只排布 cell 内部，不管 cell 本身在哪）。钩子时序问题另由
@@ -6646,6 +6690,30 @@ class MyMAinWindow(QMainWindow):
             grid.setColumnMinimumWidth(1, max(col_w - custom.x() + score.x(), 0))
             grid.invalidate()
             grid.activate()
+            return
+        if critic.x() < pr.x():
+            spacing = grid.spacing()
+            need_c0 = pr.x() - score.x() - spacing
+            need_c1 = grid.geometry().width() - need_c0 - spacing
+            if need_c0 >= 60 and need_c1 >= 60:
+                for _ in range(3):
+                    for cb in c0_cells:
+                        cb.setMinimumWidth(need_c0)
+                        cb.setMaximumWidth(need_c0)
+                    for cb in c1_cells:
+                        cb.setMinimumWidth(need_c1)
+                        cb.setMaximumWidth(need_c1)
+                    grid.invalidate()
+                    grid.activate()
+                    if outer is not None:
+                        outer.activate()
+                    if critic.x() == pr.x():
+                        break
+                    # 父宽后续生长时重算（同 row_align 有界迭代到不动点）
+                    need_c0 = pr.x() - score.x() - spacing
+                    need_c1 = grid.geometry().width() - need_c0 - spacing
+                    if need_c0 < 60 or need_c1 < 60:
+                        break
 
     def _sync_nfo_title_plot_align(self) -> None:
         """设置-NFO：原标题/简介/原简介左对齐到发行日期列，窄态宽态一致。
