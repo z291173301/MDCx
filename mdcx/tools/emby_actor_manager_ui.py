@@ -597,6 +597,12 @@ class EmbyActorManagerDialog(QDialog):
         self._pending_auto_fetch: bool = False
         self._emby_url: str = str(manager.config.emby_url or "")
         self._emby_key: str = manager.config.api_key or ""
+        # 输入框修改自动保存（防抖）：每击键只重启计时，停顿 800ms 后写配置，
+        # 避免逐字存盘刷爆 IO。
+        self._conn_save_timer = QTimer(self)
+        self._conn_save_timer.setSingleShot(True)
+        self._conn_save_timer.setInterval(800)
+        self._conn_save_timer.timeout.connect(self._auto_save_connection_fields)
         self._init_ui()
         self._connect_signals()
         self._open_log_file()
@@ -972,6 +978,8 @@ class EmbyActorManagerDialog(QDialog):
         self._connect_result.connect(self._on_connect_result)
         self._media_folders_result.connect(self._on_media_folders_result)
         self._gfriends_result.connect(self._on_gfriends_result)
+        self.txt_url.textChanged.connect(self._on_connection_text_changed)
+        self.txt_api_key.textChanged.connect(self._on_connection_text_changed)
 
     def _on_open_settings(self):
         self._show_child_window("_settings_dialog", EmbyActorSettingsDialog)
@@ -1155,6 +1163,53 @@ class EmbyActorManagerDialog(QDialog):
             self._set_status("连接失败")
             self.log(f"❌ {msg}")
             QMessageBox.critical(self, "连接失败", f"服务器地址或 API 密钥错误\n{msg}")
+
+    def _on_connection_text_changed(self):
+        """地址/密钥输入框变化：已连接会话即失效（下次获取自动重连），并防抖自动保存。"""
+        if self._connected and not self._is_connection_current(
+            self.txt_url.text().strip(), self.txt_api_key.text().strip()
+        ):
+            self._connected = False
+            self.btn_connect.setText("连接 Emby/Jellyfin")
+            self._set_status("连接信息已修改，请重新连接或获取")
+        self._conn_save_timer.start()
+
+    def _auto_save_connection_fields(self):
+        """防抖到期后把输入框最新值写回全局配置并存盘。
+
+        密钥（含清空成空串）直接保存，重开对话框即显示最新值/空；
+        地址沿用主窗口同款归一化后仅在合法非空时保存——配置模型
+        emby_url 为 HttpUrl 存不住空串，清空时输入框维持空显示，
+        下次打开会回填上次合法地址（与主窗口行为一致）。
+        """
+        url_text = self.txt_url.text().strip()
+        key_text = self.txt_api_key.text().strip()
+        try:
+            cfg = manager.config.model_copy(deep=True)
+        except Exception:
+            return
+        changed = False
+        if key_text != (cfg.api_key or ""):
+            cfg.api_key = key_text
+            changed = True
+        norm = url_text.replace("：", ":").strip("/ ")
+        if norm and "://" not in norm:
+            norm = "http://" + norm
+        if norm:
+            try:
+                new_url = HttpUrl(norm)
+            except Exception:
+                new_url = None
+            if new_url is not None and str(cfg.emby_url) != str(new_url):
+                cfg.emby_url = new_url
+                changed = True
+        if not changed:
+            return
+        try:
+            manager._replace_config(cfg)
+        except Exception:
+            return
+        threading.Thread(target=manager.save, daemon=True).start()
 
     def _persist_connection(self):
         """把 UI 填写的地址/密钥写回全局配置，保证后续请求与界面一致。"""
