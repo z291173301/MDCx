@@ -58,7 +58,7 @@ def test_plan_row_fit_falls_back_on_tiny_screen():
 
 
 def test_maximized_fit_gives_full_rows_only(app):
-    """集成：最大化下表格视口是行高的整数倍（无半行），日志不少于 10 行高度。"""
+    """集成：表格不多不少 20 整行，日志 10 整行且底部无空白垫。"""
     from mdcx.tools.emby_actor_manager import ActorInfo
     from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
 
@@ -69,13 +69,13 @@ def test_maximized_fit_gives_full_rows_only(app):
         a.has_overview = True
         a.has_image = True
     dlg._actors = actors
+    dlg._fitting_rows = True  # 冻结自动对齐，手动控制测量点
     dlg.show()
     app.processEvents()
     dlg._populate_table(actors)
     app.processEvents()
     try:
-        # 离屏伪装最大化：先算出刚好装下 20 行 + 10 行的对话框高度，验证主路径精确性
-        dlg.isMaximized = lambda: True  # type: ignore[method-assign]
+        # 先算出刚好装下 20 行 + 10 行的对话框高度，验证主路径精确性
         dlg.resize(1600, 1100)
         app.processEvents()
         t = dlg.table
@@ -86,37 +86,110 @@ def test_maximized_fit_gives_full_rows_only(app):
         )
         log_fixed = (dlg._log_widget.height() - log.height()) + (log.height() - log.viewport().height())
         line_h = log.fontMetrics().lineSpacing()
+        doc_top = int(log.document().documentMargin())
         base_r = t.verticalHeader().defaultSectionSize()
-        need_splitter = table_fixed + 20 * base_r + log_fixed + 10 * line_h + dlg._splitter.handleWidth()
+        need_splitter = (
+            table_fixed + 20 * base_r + log_fixed + doc_top + 10 * line_h + dlg._splitter.handleWidth()
+        )
         dlg.resize(1600, 1100 + (need_splitter - dlg._splitter.height()))
         app.processEvents()
+        dlg._fitting_rows = False
         dlg._fit_visible_rows()
         app.processEvents()
         row_h = t.rowHeight(0)
         assert row_h > 0
         assert t.viewport().height() == 20 * row_h  # 不多不少 20 整行，无半行
-        assert log.viewport().height() == 10 * line_h  # 不多不少 10 整行
+        assert log.viewport().height() == 10 * line_h + doc_top  # 10 整行，末行不被盖
+        assert log.viewportMargins().bottom() == 0  # 无空白垫
+        assert dlg._conn_grid.contentsMargins().top() == 4  # 无富余，连接组保持基准
         assert log.minimumHeight() >= 10 * line_h
+        # 长日志行随后冒出横向滚动条：Show 事件重对后 10 行不被盖、表格仍是 20 整行
+        for i in range(12):
+            log.appendPlainText(f"[{i:02d}] " + "长日志行_" * 120)
+        for _ in range(4):
+            app.processEvents()
+        dlg._fit_visible_rows()  # 事件级联后直接再对一次，结果确定
+        app.processEvents()
+        assert t.viewport().height() == 20 * t.rowHeight(0)
+        assert log.viewport().height() == 10 * line_h + int(log.document().documentMargin())
+    finally:
+        dlg.close()
+        app.processEvents()
+
+
+def test_surplus_goes_to_rows_and_connection(app):
+    """富余按整数瓜分：表格行长高 + 连接组边距，日志不定空白垫。"""
+    from mdcx.tools.emby_actor_manager import ActorInfo
+    from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
+
+    dlg = EmbyActorManagerDialog()
+    actors = [ActorInfo(name=f"演员{i:02d}", actor_id=str(i), server_id="s") for i in range(30)]
+    for a in actors:
+        a.existing_overview = "简介"
+        a.has_overview = True
+        a.has_image = True
+    dlg._actors = actors
+    dlg._fitting_rows = True  # 冻结自动对齐，手动控制测量点
+    dlg.show()
+    app.processEvents()
+    dlg._populate_table(actors)
+    app.processEvents()
+    try:
+        dlg.resize(1600, 1100)
+        app.processEvents()
+        t = dlg.table
+        log = dlg.log_text
+        header_h = t.horizontalHeader().height()
+        table_fixed = (dlg._list_widget.height() - t.height()) + header_h + (
+            t.height() - header_h - t.viewport().height()
+        )
+        log_fixed = (dlg._log_widget.height() - log.height()) + (log.height() - log.viewport().height())
+        line_h = log.fontMetrics().lineSpacing()
+        doc_top = int(log.document().documentMargin())
+        base_r = t.verticalHeader().defaultSectionSize()
+        need_splitter = (
+            table_fixed + 20 * base_r + log_fixed + doc_top + 10 * line_h + dlg._splitter.handleWidth()
+        )
+        # 多给 85px：行高 +4（80px），连接组 +5（上 2 下 3），日志垫 0
+        dlg.resize(1600, 1100 + (need_splitter - dlg._splitter.height()) + 85)
+        app.processEvents()
+        dlg._fitting_rows = False
+        dlg._fit_visible_rows()
+        app.processEvents()
+        assert t.rowHeight(0) == base_r + 4
+        assert t.viewport().height() == 20 * (base_r + 4)
+        margins = dlg._conn_grid.contentsMargins()
+        assert margins.top() == 4 + 2
+        assert margins.bottom() == 4 + 3
+        assert log.viewport().height() == 10 * line_h + doc_top
+        assert log.viewportMargins().bottom() == 0
     finally:
         dlg.close()
         app.processEvents()
 
 
 def test_short_window_fit_is_noop(app):
-    """小窗实在塞不下 20 行 + 10 行时不干预（行高/分隔条都不动）。"""
+    """小窗实在塞不下 20 行 + 10 行时不干预（行高/分隔条不动，连接组恢复基准）。"""
     from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
 
     dlg = EmbyActorManagerDialog()
-    dlg.resize(1200, 700)
+    actors = []
+    dlg._fitting_rows = True  # 冻结自动对齐，手动控制测量点
     dlg.show()
     app.processEvents()
     try:
-        before = dlg.table.verticalHeader().defaultSectionSize()
+        dlg.resize(1200, 700)
+        app.processEvents()
+        dlg._fitting_rows = False
+        t = dlg.table
+        before = t.verticalHeader().defaultSectionSize()
         sizes_before = dlg._splitter.sizes()
         dlg._fit_visible_rows()
         app.processEvents()
-        assert dlg.table.verticalHeader().defaultSectionSize() == before
+        assert t.verticalHeader().defaultSectionSize() == before
         assert dlg._splitter.sizes() == sizes_before
+        m = dlg._conn_grid.contentsMargins()
+        assert (m.left(), m.top(), m.right(), m.bottom()) == (6, 4, 6, 4)
     finally:
         dlg.close()
         app.processEvents()
