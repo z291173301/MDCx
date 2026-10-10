@@ -13456,7 +13456,7 @@ class Ui_MDCx(object):
         self.label_318.setText(
             _translate(
                 "MDCx",
-                "<p>「网站偏好」-「指定网站」指定getchu、dmm 等站点或者文件路径里包含有「里番」、「动漫」时，程序将会自动使用getchu进行刮削</p>",
+                "<p>「网站偏好」-「指定网站」指定getchu、dmm等站点或者文件路径里包含有「里番」、「动漫」时，程序将会自动使用getchu进行刮削</p>",
             )
         )
         self.label_323.setText(
