@@ -753,34 +753,6 @@ class ActorCleanRulesDialog(QDialog):
             self.status_label.setText("")
 
 
-def _plan_row_fit(
-    avail: int,
-    table_fixed: int,
-    log_fixed: int,
-    base_row_h: int,
-    line_h: int,
-    min_row_h: int,
-    rows: int = 20,
-    log_lines: int = 10,
-    cap_up: int = 8,
-) -> tuple[int, int, int, int]:
-    """整行对齐方案（纯函数，便于测试）：返回 (行高, 表格侧高度, 日志侧高度, 日志底边距)。
-
-    表格视口 == rows * 行高（无半行），表格侧 + 日志侧 == avail；富余优先由行高
-    消化（封顶 base+cap_up），pad 只是封顶后实在放不下的兜底（通常为 0）；
-    行高越界（极小屏）则保持 base_row_h，表格仍取整行、日志拿剩余。
-    """
-    row_h = int((avail - table_fixed - log_fixed - log_lines * line_h) // rows) if rows > 0 else base_row_h
-    if row_h <= 0 or row_h < min_row_h or row_h > base_row_h + cap_up:
-        row_h = base_row_h
-    list_target = table_fixed + rows * row_h
-    log_target = avail - list_target
-    pad = log_target - log_fixed - log_lines * line_h
-    if pad < 0:
-        pad = 0
-    return row_h, list_target, log_target, pad
-
-
 class EmbyActorManagerDialog(QDialog):
     _connect_result = Signal(object)
     _media_folders_result = Signal(object)
@@ -788,10 +760,11 @@ class EmbyActorManagerDialog(QDialog):
     # 最大化时固定可视行数：演员表格不多不少 20 整行，运行日志不多不少 10 整行。
     TABLE_VISIBLE_ROWS = 20
     LOG_VISIBLE_LINES = 10
-    # 富余分配封顶：表格行高最多长高 8px/行，连接组上下边距最多加 24px；
-    # 超出部分（仅超大屏）才垫回日志底部。
-    ROW_GROW_CAP = 8
-    CONN_EXTRA_CAP = 40
+    # 富余分配封顶：表格行高最多长高 40px/行，连接组上下边距最多加 60px；
+    # 超封顶（仅超大屏）才垫回日志底部。行高优先于连接组——用户要的是
+    # "加大每行高度"而非空白。
+    ROW_GROW_CAP = 40
+    CONN_EXTRA_CAP = 60
     CONN_BASE_MARGINS = (6, 4, 6, 4)
 
     def __init__(self, parent=None):
@@ -914,6 +887,10 @@ class EmbyActorManagerDialog(QDialog):
         self._splitter = splitter
         self._list_widget = list_widget
         self._log_widget = log_widget
+        try:
+            splitter.splitterMoved.connect(self._on_splitter_moved)
+        except (TypeError, RuntimeError, AttributeError):
+            pass
         # 运行日志默认保证 10 行高度：小窗不被压扁；最大化时再由 _fit_visible_rows 精确对齐。
         try:
             _lh = self.log_text.fontMetrics().lineSpacing()
@@ -1245,13 +1222,47 @@ class EmbyActorManagerDialog(QDialog):
         QTimer.singleShot(0, self._update_help_line_break)
         QTimer.singleShot(0, self._fit_visible_rows)
 
+    def _collapsed_sizes(self):
+        """解除上次冻结：让用户能手动拖拽分隔条（固定高度只是 fit 期间的锁定手段）。"""
+        for w in (getattr(self, "_list_widget", None), getattr(self, "_log_widget", None)):
+            if w is None:
+                continue
+            try:
+                w.setMinimumHeight(0)
+                w.setMaximumHeight(16777215)
+            except (RuntimeError, AttributeError):
+                pass
+
+    def _on_splitter_moved(self, *_args) -> None:
+        """用户手动拖动分隔条：释放冻结，让拖拽立即生效（不再被固定高度顶回）。"""
+        try:
+            self._splitter.splitterMoved.disconnect(self._on_splitter_moved)
+        except (TypeError, RuntimeError, AttributeError):
+            pass
+        self._collapsed_sizes()
+        QTimer.singleShot(0, self._reconnect_splitter_moved)
+
+    def _reconnect_splitter_moved(self) -> None:
+        try:
+            self._splitter.splitterMoved.disconnect(self._on_splitter_moved)
+        except (TypeError, RuntimeError, AttributeError):
+            pass
+        try:
+            self._splitter.splitterMoved.connect(self._on_splitter_moved)
+        except (TypeError, RuntimeError, AttributeError):
+            pass
+
     def _fit_visible_rows(self) -> None:
         """精确对齐：演员表视口 = 20 整行（含末行下横线），运行日志 = 10 整行，无空白垫。
 
-        富余按整数精确瓜分：表格行长高（封顶 ROW_GROW_CAP/行）+ 连接组上下边距
-        （封顶 CONN_EXTRA_CAP），超封顶（仅超大屏）才垫回日志底部；缺口由行高
-        收紧消化。两处都不出现半行。高度实在塞不下 20+10 时恢复基准、不干预；
-        分隔条手动拖拽不触发对话框 resize，不会被抢回。
+        求解顺序（每一步都按实测而非估算）：
+        1) 按可用高度定行高 → 富余先给行高（封顶 ROW_GROW_CAP/行）；
+        2) 剩余富余给连接组上下边距（封顶 CONN_EXTRA_CAP，绝对赋值），
+           改完等布局落定再重测 splitter 高度；
+        3) 两个窗格用固定高度锁死，按实测残差迭代修正，直到表格视口
+           恰好 == 20×行高 —— 即便 QSplitter 因最小高度钳制也无法把它顶成 21 行；
+        4) 日志视口多于「10 行 + 文档顶边距」的部分折进连接组边距，
+           不在日志里留空白垫（封顶后实在放不下才垫底）。
         """
         if getattr(self, "_fitting_rows", False):
             return
@@ -1264,18 +1275,22 @@ class EmbyActorManagerDialog(QDialog):
             return
         try:
             self._fitting_rows = True
+            self._collapsed_sizes()
             try:
                 log.setViewportMargins(0, 0, 0, 0)
             except Exception:
                 pass
             self._apply_column_widths()
             vhead = table.verticalHeader()
-            if table.rowCount() > 0:
-                base_r = table.rowHeight(0)
-            else:
-                base_r = vhead.defaultSectionSize()
-            if base_r <= 0:
-                base_r = table.fontMetrics().height() + 10
+            # 基准行高取「未被我们动过的自然行高」并缓存：否则每次 fit 都把上轮
+            # 长高后的行高当基准再长一次，棘轮式越涨越高，表格就被顶出 21 行。
+            natural = getattr(self, "_natural_row_h", None)
+            if not natural or natural <= 0:
+                natural = table.rowHeight(0) if table.rowCount() > 0 else vhead.defaultSectionSize()
+            if natural <= 0:
+                natural = table.fontMetrics().height() + 10
+            self._natural_row_h = natural
+            base_r = natural
             line_h = log.fontMetrics().lineSpacing()
             if line_h <= 0:
                 return
@@ -1283,113 +1298,154 @@ class EmbyActorManagerDialog(QDialog):
                 doc_top = int(log.document().documentMargin())
             except Exception:
                 doc_top = 0
-            header_h = table.horizontalHeader().height()
-            table_frame = table.height() - header_h - table.viewport().height()
-            table_fixed = (list_widget.height() - table.height()) + header_h + table_frame
-            log_fixed = (log_widget.height() - log.height()) + (log.height() - log.viewport().height())
-            # 文档顶部边距：QPlainTextEdit 内容整体下沉该值，只给 10*行高会盖住末行几像素。
-            log_fixed += doc_top
-            avail = splitter.height()
-            try:
-                handles = max(0, splitter.count() - 1) * splitter.handleWidth()
-                avail -= handles
-            except Exception:
-                pass
-            if avail <= 0:
-                return
-            # 行高硬下限：字高本身（再低会压字）。优先保证表格 20 整行，
-            # 最大化下无条件执行，不再因“差十几像素”而跳过。
-            hard_min = max(table.fontMetrics().height(), 12)
-            rows, log_lines = self.TABLE_VISIBLE_ROWS, self.LOG_VISIBLE_LINES
             conn_grid = getattr(self, "_conn_grid", None)
-            base_need = table_fixed + rows * base_r + log_fixed + log_lines * line_h
-            if avail < table_fixed + rows * hard_min + log_fixed + log_lines * line_h:
-                # 实在塞不下：连接组恢复基准边距，不干预
+            conn_grid = getattr(self, "_conn_grid", None)
+            # 行高下限：自然行高允许略收（差 1~2px 时收紧几像素即可，仍比字高大，
+            # 不压字），保证"差几像素"的场景也能精确落在 20 整行上。
+            rows, log_lines = self.TABLE_VISIBLE_ROWS, self.LOG_VISIBLE_LINES
+            hard_min = max(natural - 2, table.fontMetrics().height() + 2)
+
+            def _table_fixed() -> int:
+                header_h = table.horizontalHeader().height()
+                frame = table.height() - header_h - table.viewport().height()
+                return max(0, (list_widget.height() - table.height()) + header_h + frame)
+
+            def _log_chrome() -> int:
+                return max(0, (log_widget.height() - log.height()) + (log.height() - log.viewport().height()))
+
+            def _avail() -> int:
                 try:
-                    if conn_grid is not None:
-                        conn_grid.setContentsMargins(*self.CONN_BASE_MARGINS)
+                    return splitter.height() - max(0, splitter.count() - 1) * splitter.handleWidth()
+                except Exception:
+                    return splitter.height()
+
+            def _set_conn_extra(extra: int) -> None:
+                if conn_grid is None:
+                    return
+                try:
+                    _l, _t, _r, _b = self.CONN_BASE_MARGINS
+                    _top = extra // 2
+                    conn_grid.setContentsMargins(_l, _t + _top, _r, _b + extra - _top)
                 except Exception:
                     pass
+
+            def _solve(avail: int, conn_extra: int) -> tuple[int, int, int]:
+                """按可用高度定 (行高, 表格侧高, 日志侧高)。"""
+                rows, log_lines = self.TABLE_VISIBLE_ROWS, self.LOG_VISIBLE_LINES
+                tf, lc = _table_fixed(), _log_chrome()
+                log_need = lc + log_lines * line_h + doc_top
+                if avail - conn_extra - tf - log_need < rows * hard_min:
+                    return 0, 0, 0  # 塞不下
+                slack = avail - conn_extra - tf - log_need - rows * base_r
+                # slack 可为负（缺几像素）：向下用 hard_min 收缩行高；向上长到 cap
+                # 后钳制（不拒绝），整数除法保证 20 行正好铺满。
+                row_h = base_r + slack // rows
+                if row_h < hard_min:
+                    return 0, 0, 0  # 实在塞不下
+                row_h = min(row_h, base_r + self.ROW_GROW_CAP)
+                list_target = tf + rows * row_h
+                log_target = max(log_need, avail - conn_extra - list_target)
+                return row_h, list_target, log_target
+
+            def _freeze(list_target: int, log_target: int) -> None:
+                try:
+                    splitter.setSizes([int(list_target), int(log_target)])
+                except Exception:
+                    pass
+                for w, h in ((list_widget, list_target), (log_widget, log_target)):
+                    try:
+                        w.setFixedHeight(int(h))
+                    except (RuntimeError, AttributeError):
+                        pass
+                QApplication.processEvents()
+
+            conn_extra = 0
+            row_h, list_target, log_target = _solve(_avail(), 0)
+            if not row_h:
+                # 实在塞不下：恢复基准边距、解除冻结，不干预
+                _set_conn_extra(0)
+                self._collapsed_sizes()
                 return
-            slack = avail - base_need
-            if slack >= 0:
-                # 富余整数瓜分：行长高 + 连接组边距，日志不定空白垫
-                grow = min(slack // rows, self.ROW_GROW_CAP)
-                conn_extra = min(slack - grow * rows, self.CONN_EXTRA_CAP)
-            else:
-                grow, conn_extra = 0, 0
-            # 连接组边距绝对赋值（非累加）；落定后再重测 splitter 高度，
-            # 否则按过期高度分配会差几像素、正好裁掉末行下横线。
-            try:
-                if conn_grid is not None:
-                    _l, _t, _r, _b = self.CONN_BASE_MARGINS
-                    _top_add = conn_extra // 2
-                    conn_grid.setContentsMargins(_l, _t + _top_add, _r, _b + conn_extra - _top_add)
-            except Exception:
-                pass
-            QApplication.processEvents()
-            try:
-                avail = splitter.height() - max(0, splitter.count() - 1) * splitter.handleWidth()
-            except Exception:
-                pass
-            if avail <= 0:
-                return
-            row_h, list_target, log_target, pad = _plan_row_fit(
-                avail,
-                table_fixed,
-                log_fixed,
-                base_r + grow,
-                line_h,
-                hard_min,
-                rows,
-                log_lines,
-                cap_up=self.ROW_GROW_CAP,
-            )
+
+            # 富余瓜分：行高（封顶 ROW_GROW_CAP）→ 连接组边距（封顶 CONN_EXTRA_CAP）
+            # → 剩余给日志侧（此时才出现底部空白）。每改一步都等布局落定再重测。
+            conn_extra = 0
+            for _ in range(4):
+                r_new, l_new, g_new = _solve(_avail(), conn_extra)
+                if not r_new:
+                    _set_conn_extra(0)
+                    self._collapsed_sizes()
+                    return
+                row_h, list_target, log_target = r_new, l_new, g_new
+                _set_conn_extra(conn_extra)
+                # 连接组变高会挤占 splitter：让布局落定后再确认行高仍成立
+                QApplication.processEvents()
+                r2, l2, g2 = _solve(_avail(), conn_extra)
+                if not r2 or (r2, l2, g2) == (row_h, list_target, log_target):
+                    break
+                # 富余仍在：尝试把连接组边距往上加一档，再看能否吸收
+                spare = _avail() - conn_extra - (l2 + g2)
+                if spare <= 0 or conn_extra >= self.CONN_EXTRA_CAP:
+                    break
+                conn_extra = min(self.CONN_EXTRA_CAP, conn_extra + spare)
+
             if row_h != base_r and row_h >= vhead.minimumSectionSize():
                 vhead.setDefaultSectionSize(int(row_h))
-            splitter.setSizes([int(list_target), int(log_target)])
-            # 闭环校验：setSizes 可能被最小尺寸钳制/按比例缩放，按实测残差再推
-            # splitter（最多 6 轮），直到表格视口不多不少 20 整行（含末行下横线）。
-            for _ in range(6):
-                QApplication.processEvents()
-                try:
-                    real_r = table.rowHeight(0) if table.rowCount() > 0 else row_h
-                except Exception:
-                    break
+
+            def _refit() -> None:
+                nonlocal list_target, log_target
+                _freeze(list_target, log_target)
+                real_r = table.rowHeight(0) if table.rowCount() > 0 else row_h
                 if real_r <= 0:
-                    break
+                    return
                 vp_now = table.viewport().height()
                 if vp_now == rows * real_r:
+                    return
+                list_target += rows * real_r - vp_now
+                log_target -= rows * real_r - vp_now
+                if list_target < _table_fixed() + rows * hard_min:
+                    return
+                if log_target < _log_chrome() + log_lines * line_h + doc_top:
+                    return
+
+            # 锁死高度后按实测视口迭代修正，直至表格恰好 20 整行（含末行下横线）
+            for _ in range(6):
+                before = (list_target, log_target)
+                _refit()
+                if (list_target, log_target) == before:
                     break
-                try:
-                    cur = splitter.sizes()
-                    if len(cur) < 2:
-                        break
-                    splitter.setSizes([cur[0] + (rows * real_r - vp_now), cur[1] - (rows * real_r - vp_now)])
-                except Exception:
-                    break
-            # 日志按实测收尾：视口 = 10 整行 + 文档顶边距，多出部分垫成底部空白，
-            # 不足则滚动（视口边距不影响表格）。
+
+            # 日志视口超出「10 行 + 文档顶边距」的部分折进连接组，不留空白垫
+            _freeze(list_target, log_target)
             try:
-                QApplication.processEvents()
-                log_vp = log.viewport().height()
-                try:
-                    doc_top = int(log.document().documentMargin())
-                except Exception:
-                    doc_top = 0
-                tail_pad = log_vp - log_lines * line_h - doc_top
-                log.setViewportMargins(0, 0, 0, int(max(0, tail_pad)))
+                extra = max(0, log.viewport().height() - (log_lines * line_h + doc_top))
+                take = min(extra, max(0, self.CONN_EXTRA_CAP - conn_extra))
+                if take > 0:
+                    conn_extra += take
+                    _set_conn_extra(conn_extra)
+                    QApplication.processEvents()
+                    r3, l3, g3 = _solve(_avail(), conn_extra)
+                    if r3:
+                        row_h, list_target, log_target = r3, l3, g3
+                        if row_h != base_r and row_h >= vhead.minimumSectionSize():
+                            vhead.setDefaultSectionSize(int(row_h))
+                        for _ in range(6):
+                            before = (list_target, log_target)
+                            _refit()
+                            if (list_target, log_target) == before:
+                                break
+                log.setViewportMargins(0, 0, 0, 0)
             except Exception:
-                try:
-                    log.setViewportMargins(0, 0, 0, int(pad))
-                except Exception:
-                    pass
+                pass
             try:
                 self._fitted_row_h = table.rowHeight(0) if table.rowCount() > 0 else int(row_h)
             except Exception:
                 pass
+            # 注意：此处不能解除冻结——解除后 QSplitter 会按 4:1 重算尺寸，
+            # 把精确对齐的表格高度冲掉（实测退回 664/238，表格重新多出一行）。
+            # 冻结交给 _on_splitter_moved 在用户手动拖拽时释放。
         except (RuntimeError, AttributeError):
-            # C++ 对象已销毁等竞态：对齐是纯外观调整，直接放弃不等崩溃
+            # C++ 对象已销毁等竞态：对齐是纯外观调整，静默放弃
             pass
         finally:
             self._fitting_rows = False

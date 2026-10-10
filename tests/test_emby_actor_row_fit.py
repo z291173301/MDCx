@@ -23,38 +23,25 @@ def app():
     return existing or QApplication(sys.argv)
 
 
-def test_row_fit_constants_are_20_and_10():
+def test_fit_constants_are_20_and_10():
     from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
 
     assert EmbyActorManagerDialog.TABLE_VISIBLE_ROWS == 20
     assert EmbyActorManagerDialog.LOG_VISIBLE_LINES == 10
 
 
-def test_plan_row_fit_is_pixel_exact():
-    """方案自洽：表格视口 == 20*行高，日志视口+垫底 == 10*行高+垫底，两侧之和 == 可用高。"""
-    from mdcx.tools.emby_actor_manager_ui import _plan_row_fit
+def test_fit_caps_absorb_surplus_not_pad():
+    """富余必须被行高/连接组吸收，而不是留成空白——日志侧高不低于 10 行 + 顶边距。
 
-    # 模拟 1080p 最大化：可用 850，表格固定开销 60，日志固定开销 50，基准行高 30，日志行高 21
-    row_h, list_h, log_h, pad = _plan_row_fit(
-        avail=850, table_fixed=60, log_fixed=50, base_row_h=30, line_h=21, min_row_h=20
-    )
-    assert list_h + log_h == 850
-    assert list_h - 60 == 20 * row_h  # 表格无半行
-    assert log_h - 50 - pad == 10 * 21  # 日志 10 整行
-    assert 0 <= pad < 20  # 余数只垫在日志底部
-    assert abs(row_h - 30) <= 6  # 行高微调不影响阅读
+    行高封顶与连接组封顶之和要足够大：1080p/9pt 富余约 140px、
+    1440p/12pt 富余约 500px，两者都应能全吸收（不出现日志底部空白）。
+    """
+    from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
 
-
-def test_plan_row_fit_falls_back_on_tiny_screen():
-    """极小屏行高越界时保持基准行高、不断言崩溃，表格仍取整行。"""
-    from mdcx.tools.emby_actor_manager_ui import _plan_row_fit
-
-    row_h, list_h, log_h, pad = _plan_row_fit(
-        avail=200, table_fixed=60, log_fixed=50, base_row_h=30, line_h=21, min_row_h=20
-    )
-    assert row_h == 30
-    assert list_h + log_h == 200
-    assert pad == 0
+    cap = EmbyActorManagerDialog.ROW_GROW_CAP * EmbyActorManagerDialog.TABLE_VISIBLE_ROWS
+    cap += EmbyActorManagerDialog.CONN_EXTRA_CAP
+    assert cap >= 500, f"富余吸收能力不足（{cap}px），超大屏日志底部会留空白"
+    assert EmbyActorManagerDialog.LOG_VISIBLE_LINES * 15 < cap  # 10 行日志高远小于吸收能力
 
 
 def test_maximized_fit_gives_full_rows_only(app):
@@ -168,12 +155,53 @@ def test_surplus_goes_to_rows_and_connection(app):
         app.processEvents()
 
 
+def test_fit_is_idempotent(app):
+    """幂等：连续对齐多次不得棘轮式抬行高（行高只从"自然行高"基准长一次）。
+
+    背景：早前每轮 fit 都把上轮长高后的行高当基准再长，重复触发
+    （show/resize/取数/滚动条显隐）会把表格顶出 21 行。
+    """
+    from mdcx.tools.emby_actor_manager import ActorInfo
+    from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
+
+    dlg = EmbyActorManagerDialog()
+    actors = [ActorInfo(name=f"演员{i:02d}", actor_id=str(i), server_id="s") for i in range(30)]
+    for a in actors:
+        a.existing_overview = "简介"
+        a.has_overview = True
+        a.has_image = True
+    dlg._actors = actors
+    dlg._fitting_rows = True  # 冻结自动对齐，手动控制测量点
+    dlg.show()
+    app.processEvents()
+    dlg._populate_table(actors)
+    app.processEvents()
+    try:
+        dlg.resize(1920, 1080)
+        app.processEvents()
+        dlg._fitting_rows = False
+        heights = []
+        for _ in range(4):
+            dlg._fit_visible_rows()
+            app.processEvents()
+            heights.append(dlg.table.rowHeight(0))
+        assert len(set(heights)) == 1, f"行高被反复抬高（棘轮）: {heights}"
+        row_h = heights[0]
+        assert dlg.table.viewport().height() == 20 * row_h
+        # 富余全部落在行高上，日志不因此多出空白
+        assert dlg.log_text.viewport().height() == 10 * dlg.log_text.fontMetrics().lineSpacing() + int(
+            dlg.log_text.document().documentMargin()
+        )
+    finally:
+        dlg.close()
+        app.processEvents()
+
+
 def test_short_window_fit_is_noop(app):
     """小窗实在塞不下 20 行 + 10 行时不干预（行高/分隔条不动，连接组恢复基准）。"""
     from mdcx.tools.emby_actor_manager_ui import EmbyActorManagerDialog
 
     dlg = EmbyActorManagerDialog()
-    actors = []
     dlg._fitting_rows = True  # 冻结自动对齐，手动控制测量点
     dlg.show()
     app.processEvents()
