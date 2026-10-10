@@ -1,19 +1,9 @@
 
 # Changelog
-## v2.3.2 (2026-10-10)
+## v2.3.3 (2026-10-10)
 ### 调整
-- **版本号**：`2.3.1` → `2.3.2`（`mdcx/consts.py` 的 `VERSION_NAME`、`pyproject.toml`、`uv.lock` 根包 `mdcx`、`docs/Changelog.md` 首个版本段；`LOCAL_VERSION` 保持 `20261010`。另：`uv.lock` 根包版本此前停留在 `2.3.0`（v2.3.1 升级时漏同步），本次一并补齐，否则 CI 的 `uv sync --locked` 必败）
+- **版本号**：`2.3.2` → `2.3.3`（`mdcx/consts.py` 的 `VERSION_NAME`、`pyproject.toml`、`uv.lock` 根包 `mdcx`、`docs/Changelog.md` 首个版本段；`LOCAL_VERSION` 保持 `20261010`）
 ### 修复
-- **演员管理器 8 计数器全量审计与口径统一**（`mdcx/tools/emby_actor_manager.py`、`emby_actor_manager_ui.py`，真机不可达、纯静态审计 + 对账日志）：
-  - 表格与统计口径不一致：占位简介（「无维基百科信息」）在统计/筛选/取数里算"缺简介"，但表格简介列与 `status_icon`/`status_text` 按 `has_overview` 显示 ✅/有简介。模型层新增 `INFO_PLACEHOLDER` + `is_missing_overview()`，`status_text`/`status_icon`、`PreparePreviewThread._is_missing_info`、表格简介列统一委托该判定，避免三处各写一遍漂移
-  - 待同步高亮漏背景：绿色待同步行条件只有 `need_update_info`/`need_update_image`，仅待同步背景的行不变绿但同步按钮会计入。已加上 `need_update_backdrop`
-  - 数字可对账：获取完成/自动刷新完成日志由"共 N 个演员"改为"原始条目 X，唯一名字 Y，重复 Z，全服总数 W"，与统计栏逐项核对；`演员:`/`重复:` tooltip 修正——原始条目数模式 + 未去重抓取时四项之和 = 演员（重复为信息性展示，不另加，否则 double-count），统计不受筛选/搜索影响；`有背景图:` 补 tooltip
-  - 回归：`tests/test_emby_actor_role_filter.py` + `test_emby_actor_manager.py` 53 项全过
-- **「获取演员类型」勾选/不勾选两档数据审计与修复**（同上两文件 + `docs/Configuration.md`）：
-  - 逻辑错误：出演统计 Type 白名单为 `("Actor", None)`，剧集客串（People 里 `Type=GuestStar`）勾选后被误删（列表消失、影片数不计），与设置项"不包含导演/编剧/制片人"文案矛盾。新增 `ACTOR_PERSON_TYPES = {"Actor", "GuestStar", None}`（Type 缺失 fail-open 保留），设置项文案改为"含客串"并加 tooltip 说明两档语义，`Configuration.md`「只获取演员类型」行同步更新（原"只拉 personTypes=Actor 条目"已过时：Emby 该参数无实际过滤作用，真过滤靠客户端 People 交集）
-  - 运行时隐患：`People` 含 null/非字典条目、`Items` 非列表、`People` 非列表、JSON 返回非对象（null/数组）均会抛 `AttributeError` 中止整库抓取。`fetch_person_item_stats` 与 `fetch_all_actors` 的条目循环全部加 `isinstance` 设防（脏条目跳过、非对象 JSON 当空页收尾）
-  - `IncludeItemTypes=Movie,Episode` 未覆盖 MusicVideo 等小众类型为 deliberate（议题 #32 体积教训），不改；头像补全路径（`emby_actor_image.py`）恒传 `personTypes=Actor` 且无客户端过滤、Emby 上会连导演一起补，与本开关无关，未动
-  - 回归：新增 4 项（客串保留/导演剔除、关闭保留全角色、脏条目不 abort、非对象 JSON 当空页），本文件 15 项全过；`actor_manager`/`jellyfin`/`count_mode`/`clean_failures` 62 项全过
 - **「获取演员类型」两档数据真机联调复审（议题 #158）**（`mdcx/tools/emby_actor_manager.py`、`emby_actor_manager_ui.py`，真机 `http://192.168.0.101:8096`：24 个媒体库 / 49299 条目 / 14518 个 `/Persons` 条目，逐项对账）：
   - **逻辑错误（误删演员）**：`IncludeItemTypes=Movie,Episode` 未覆盖剧集条目级演职员表（`Series`）。`电视归档`/`动漫归档` 两个 tvshows 库共 4 个剧集条目、31 位演职人员，其中 **25 位从未出现在 Movie/Episode 的 People 里**，勾选「获取演员类型」时会被客户端交集过滤整体剔除（列表消失、影片数不计）。`Series` 实测只多扫 4 个条目（49299→49303，+0.008%），`BoxSet` 多扫 6755 个条目却 **0 条 People**（合集库不存演职员），`MusicVideo`/`Video` 为 0。新增 `_STATS_ITEM_TYPES = "Movie,Episode,Series"`，`BoxSet`/`MusicVideo`/`Video` 仍按议题 #32 的体积教训不纳入
   - **注释事实错误**：`fetch_all_actors` 原注释称「Emby 的 `/Persons` 端点不支持按角色过滤」。真机实测 `personTypes=Actor` **有效**：14518 → 13568（少 950 位非演员），且 `Person.Type` 恒为字面量 `"Person"` 不含角色信息，故服务端过滤只是预筛、真正定角色仍必须靠客户端 `People[]` 交集。注释已按实测数据改正，避免后人误删交集
@@ -32,6 +22,28 @@
   - **提示文案与实际不符**：「有背景图」原提示称「与计数方式同基数：唯一名字数模式按名字去重计数」。真机实测去重抓取下两种计数方式结果完全相同（`fetch_all_actors` 产出的列表本身已无同名重复，`base` 无差别），已按实际改写；「完整」「缺简介」两条提示同步补上「纯空白按缺处理」
   - **已证伪（不是 bug，逐项实测过）**：① 「演员/重复/完整/缺头像/缺简介/全缺/有背景图」的算术在「勾选/不勾选仅演员」×「去重/不去重」×「原始条目数/唯一名字数」共 8 种组合下全部与服务器 ground-truth **完全一致**（勾选+去重+唯一：完整 7040 / 缺头像 387 / 缺简介 3910 / 全缺 2191 / 有背景图 1245，四项之和 = 13528 = 演员；原始模式下 `四项之和 + 重复 = 演员` = 13568）；② 「重复 = 原始条目数 − 唯一名字数」在全部组合下成立，且与标签提示写明的恒等式一致；③ 统计栏按设计**不受筛选/搜索/媒体库选择影响**，「总数」恒为全服 14518；④ `_fill()` 复用列表里的 `Overview` 字段是安全的 —— 真机 13568 条中 7446 条带 `Overview` 键（无空/空白）、6122 条**不带该键**，抽样 60/80 条不带键的演员再查 `/emby/Persons/{Name}` 详情，`Overview` 命中 **0/60、0/80**，即服务端确实没有；⑤ 原始条目数 + 去重抓取下 `四项之和 ≠ 演员` 是文档写明的设计（差额即重复数），不是算错
   - 回归：新增 `tests/test_emby_actor_stats_163.py` **19 项全绿**（空白/占位/真实/权威位四类简介判定 · UI 与模型层判定口径一致 · `_fill` 不把空白标成有简介 · 四项分拆是完备划分且有背景图 ≤ 基数 · 空列表与 `None` 输入 · 提示里的恒等式 · 空白简介进「缺简介」而不进「完整」 · 清洗空白/真实简介两种走向 · 数据源测试弹窗两条路径的 `has_*` 回填 · 两种计数方式首次打开标签已填好 · 单分支结构与提示文案钉死）；连同 #158 的 37 项在内，演员管理器相关 **153 项全绿**，`ruff check` 三文件全过
+- **演员管理器统计栏「重复」41 vs 40 真机溯源（议题 #164）**（`mdcx/tools/emby_actor_manager.py`，真机 `http://192.168.0.101:8096`，14518 / 13568 两条 `/emby/Persons` 全量对账）：
+  - **结论：41 与 40 之差不是 bug，是正确结果**。两档差额来自服务端 `personTypes=Actor` 的过滤：真机 `张磊` 是**两个不同的人**（Emby Id 74547 / 115591，Bangumi 40272 / 73024），其中只有 Id 74547 有 Actor 演出记录，勾选档下服务端只留下这一条，于是 `张磊` 在不勾选档是重名组（为 41 贡献 1）、在勾选档只剩一条（贡献 0）。已实测「被 `personTypes=Actor` 剔除的重名条目数 = 0」，即服务端从未把某个重名组的两条同时剔掉，故 `重复 = 原始条目数 − 唯一名字数`（`14518−14477=41`、`13568−13528=40`）在两档都严格成立，勾选/不勾选 × 去重/不去重共 4 种组合下「重复」恒等于去重实际丢弃的条目数
+  - **真 bug ①：同名去重键只认原始字符串，全角/半角写法的同一个人漏合并**。真机三组：`小松（17）`(Id 677134) vs `小松(17)`(Id 677624)、`［Jo］Style`(Id 45747) vs `[Jo]Style`(Id 160563)、`ﾘﾅ･ﾃﾞｨｿﾝ`(Id 597129) vs `リナ・ディソン`(Id 600007) —— 同一人被存成两条，因拼写不同从未合并，「重复」因此少报（不勾选档 41→应为 44，勾选档 40→41）。新增 `_actor_dedup_key()`（NFKC 全角/半角归一 + `casefold` 大小写归一 + **空白折叠但保留词间空格**），`fetch_person_item_stats` 的 `counts`/`titles`/`person_names` 三个映射与 `fetch_all_actors` 的去重键、交集过滤、统计栏取值同步改用该键。**特意不复用既有的 `_normalize_actor_name()`**：它会 `re.sub(r"\s+","")` 删光空白，真机上会把 `May A`(Id 218961) 与 `Maya`(Id 793179)、`Buddha D` 与 `BuddhaD`、`Ariel A` 与 `Ariela` 误并成同一人 —— 误合并会把一个演员的 TMDB 元数据写到另一个人的 Emby 记录上，属于**服务器数据损坏**，而漏合并只是多一行重复条目，代价不对等
+  - **真 bug ②：同名去重是「先到先得」，会留下资料最差的那条并连带污染统计栏**。真机 `Sunshine` 有三条（Id 217087/219491/219809），第一条**没有头像**而第三条有；先到先得保留第一条，使 ta 被 #163 的统计栏误判成「全缺」（应为「缺简介」）。改为择优保留：新增 `_person_merge_rank()` 按「有头像 > 有非空白简介 > 有背景图 > 外部 ID 更多」排序，同名多条时保留资料最全的一条（原地替换，不打乱列表顺序），并抽出 `_build_person_stub()` 供替换路径复用。「重复」计的是**被丢弃条目数**，择优只改变保留哪条、不改变丢弃几条，故计数不受影响
+  - **日志保真**：跳过明细与重复明细改用首见的**服务端原名**（新增 `display_name` 映射）展示，不会给用户看归一化后的小写键
+  - 真机复验：4 种组合下「重复」= 40→**41**（勾选）/ 41→**44**（不勾选）；三组异体拼写各合并为 1 行（关闭去重则仍为 2 行）；`May A`/`Maya`、`Buddha D`/`BuddhaD`、`Ariel A`/`Ariela` 均未被误并；`Sunshine` 落到 `actor_id=219809 / has_image=True / has_overview=False`（缺简介）；`movie_count == 0` 的人数为 0（异体拼写的人仍能取到关联影片，未被孤儿化）；不变式「归一重复 ≥ 精确重复」在 4 种组合下成立
+  - 回归：新增 `tests/test_emby_actor_dedup_164.py` **35 项全绿**（去重键合并全/半角与大小写、**且不合并 `May A`/`Maya` 等真人**、保留词间空白、空名/None 安全、与 GFriends 模糊键不混用 · `_person_merge_rank` 五类排序与脏记录 · 择优保留带头像记录且保持原位置、后来更差不降级 · 4 组去重后行数/raw 计数、关闭去重保留全部、「重复」= 实际丢弃数 · 异体拼写仍能取到关联影片计数、取不到时为 0 · 交集过滤不误删异体拼写的人 · 跳过/重复明细日志打印原名 · 同一条目内异体拼写只记一次）；`test_emby_actor_role_filter.py` 与 `test_emby_actor_role_filter_158.py` 同步改为按归一化键断言（统计映射的键语义本就是去重键）；演员管理器相关 **188 项全绿**，`ruff check` 四个文件全过
+
+## v2.3.2 (2026-10-10)
+### 调整
+- **版本号**：`2.3.1` → `2.3.2`（`mdcx/consts.py` 的 `VERSION_NAME`、`pyproject.toml`、`uv.lock` 根包 `mdcx`、`docs/Changelog.md` 首个版本段；`LOCAL_VERSION` 保持 `20261010`。另：`uv.lock` 根包版本此前停留在 `2.3.0`（v2.3.1 升级时漏同步），本次一并补齐，否则 CI 的 `uv sync --locked` 必败）
+### 修复
+- **演员管理器 8 计数器全量审计与口径统一**（`mdcx/tools/emby_actor_manager.py`、`emby_actor_manager_ui.py`，真机不可达、纯静态审计 + 对账日志）：
+  - 表格与统计口径不一致：占位简介（「无维基百科信息」）在统计/筛选/取数里算"缺简介"，但表格简介列与 `status_icon`/`status_text` 按 `has_overview` 显示 ✅/有简介。模型层新增 `INFO_PLACEHOLDER` + `is_missing_overview()`，`status_text`/`status_icon`、`PreparePreviewThread._is_missing_info`、表格简介列统一委托该判定，避免三处各写一遍漂移
+  - 待同步高亮漏背景：绿色待同步行条件只有 `need_update_info`/`need_update_image`，仅待同步背景的行不变绿但同步按钮会计入。已加上 `need_update_backdrop`
+  - 数字可对账：获取完成/自动刷新完成日志由"共 N 个演员"改为"原始条目 X，唯一名字 Y，重复 Z，全服总数 W"，与统计栏逐项核对；`演员:`/`重复:` tooltip 修正——原始条目数模式 + 未去重抓取时四项之和 = 演员（重复为信息性展示，不另加，否则 double-count），统计不受筛选/搜索影响；`有背景图:` 补 tooltip
+  - 回归：`tests/test_emby_actor_role_filter.py` + `test_emby_actor_manager.py` 53 项全过
+- **「获取演员类型」勾选/不勾选两档数据审计与修复**（同上两文件 + `docs/Configuration.md`）：
+  - 逻辑错误：出演统计 Type 白名单为 `("Actor", None)`，剧集客串（People 里 `Type=GuestStar`）勾选后被误删（列表消失、影片数不计），与设置项"不包含导演/编剧/制片人"文案矛盾。新增 `ACTOR_PERSON_TYPES = {"Actor", "GuestStar", None}`（Type 缺失 fail-open 保留），设置项文案改为"含客串"并加 tooltip 说明两档语义，`Configuration.md`「只获取演员类型」行同步更新（原"只拉 personTypes=Actor 条目"已过时：Emby 该参数无实际过滤作用，真过滤靠客户端 People 交集）
+  - 运行时隐患：`People` 含 null/非字典条目、`Items` 非列表、`People` 非列表、JSON 返回非对象（null/数组）均会抛 `AttributeError` 中止整库抓取。`fetch_person_item_stats` 与 `fetch_all_actors` 的条目循环全部加 `isinstance` 设防（脏条目跳过、非对象 JSON 当空页收尾）
+  - `IncludeItemTypes=Movie,Episode` 未覆盖 MusicVideo 等小众类型为 deliberate（议题 #32 体积教训），不改；头像补全路径（`emby_actor_image.py`）恒传 `personTypes=Actor` 且无客户端过滤、Emby 上会连导演一起补，与本开关无关，未动
+  - 回归：新增 4 项（客串保留/导演剔除、关闭保留全角色、脏条目不 abort、非对象 JSON 当空页），本文件 15 项全过；`actor_manager`/`jellyfin`/`count_mode`/`clean_failures` 62 项全过
 
 ## v2.3.1 (2026-10-10)
 ### 调整

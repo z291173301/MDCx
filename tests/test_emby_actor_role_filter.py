@@ -36,6 +36,13 @@ def _person(name: str) -> dict:
     return {"Name": name, "Id": f"id-{name}", "ServerId": "srv", "Overview": "简介"}
 
 
+def _key(name: str) -> str:
+    """fetch_person_item_stats 返回的三个映射现在以去重键为键(议题 #164)。"""
+    from mdcx.tools.emby_actor_manager import _actor_dedup_key
+
+    return _actor_dedup_key(name)
+
+
 async def _run_fetch(
     monkeypatch, persons: list[dict], lib_actor_names: set[str], *, filter_actor_only, deduplicate, parent_ids=None
 ):
@@ -45,8 +52,9 @@ async def _run_fetch(
         return persons
 
     async def fake_stats(parent_ids=None, filter_actor_only=True, page_limit=500):
-        counts = dict.fromkeys(lib_actor_names, 1)
-        return counts, {n: ["[Movie] x"] for n in lib_actor_names}, lib_actor_names
+        keys = {_key(n) for n in lib_actor_names}
+        counts = dict.fromkeys(keys, 1)
+        return counts, {n: ["[Movie] x"] for n in keys}, keys
 
     monkeypatch.setattr(mgr_mod, "get_emby_actor_list", fake_list)
     monkeypatch.setattr(mgr_mod, "fetch_person_item_stats", fake_stats)
@@ -207,8 +215,8 @@ async def test_actor_filter_keeps_guest_star_and_unknown_type(monkeypatch):
         )
     ]
     counts, _titles, names = await _run_stats(monkeypatch, [items], filter_actor_only=True)
-    assert names == {"主演A", "客串G", "无类型N"}
-    assert set(counts) == {"主演A", "客串G", "无类型N"}
+    assert names == {_key("主演A"), _key("客串G"), _key("无类型N")}
+    assert set(counts) == {_key("主演A"), _key("客串G"), _key("无类型N")}
 
 
 async def test_actor_filter_off_keeps_all_roles(monkeypatch):
@@ -223,7 +231,7 @@ async def test_actor_filter_off_keeps_all_roles(monkeypatch):
         )
     ]
     _counts, _titles, names = await _run_stats(monkeypatch, [items], filter_actor_only=False)
-    assert names == {"主演A", "导演D"}
+    assert names == {_key("主演A"), _key("导演D")}
 
 
 async def test_malformed_entries_do_not_abort_stats(monkeypatch):
@@ -244,15 +252,15 @@ async def test_malformed_entries_do_not_abort_stats(monkeypatch):
         {"Name": "无People键"},
     ]
     counts, _titles, names = await _run_stats(monkeypatch, [items], filter_actor_only=True)
-    assert names == {"主演A"}
-    assert counts == {"主演A": 1}
+    assert names == {_key("主演A")}
+    assert counts == {_key("主演A"): 1}
 
 
 async def test_non_dict_json_body_treated_as_empty_page(monkeypatch):
     """服务端返回 JSON null/数组等非对象时当空页收尾，不抛 AttributeError。"""
-    import mdcx.tools.emby_actor_manager as mgr_mod
-
     from types import SimpleNamespace
+
+    import mdcx.tools.emby_actor_manager as mgr_mod
 
     async def fake_request(method, url, headers=None, **kwargs):
         return SimpleNamespace(json=lambda: None), ""

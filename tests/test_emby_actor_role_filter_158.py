@@ -505,7 +505,7 @@ async def test_series_still_respects_role_whitelist(monkeypatch):
 
     _counts, _titles, names = await eam.fetch_person_item_stats(filter_actor_only=True)
 
-    assert names == {"演员A", "客串B"}
+    assert names == {eam._actor_dedup_key("演员A"), eam._actor_dedup_key("客串B")}
 
 
 @pytest.mark.asyncio
@@ -584,7 +584,7 @@ async def test_person_stats_survives_garbage_total_record_count(monkeypatch):
     with contextlib.suppress(eam.ActorTaskStopped):
         counts, _titles, names = await eam.fetch_person_item_stats(filter_actor_only=True)
 
-    assert names == {"演员A"}
+    assert names == {eam._actor_dedup_key("演员A")}
 
 
 @pytest.mark.asyncio
@@ -610,7 +610,7 @@ async def test_person_stats_short_page_terminates_when_total_record_count_zero(m
     _counts, _titles, names = await eam.fetch_person_item_stats(filter_actor_only=True)
 
     assert pages["n"] == 1, "单页(< page_limit)必须立刻终止"
-    assert names == {"演员1"}
+    assert names == {eam._actor_dedup_key("演员1")}
 
 
 # --------------------------------------------------------------------------------------
@@ -726,7 +726,9 @@ async def test_checked_keeps_actors_drops_director(monkeypatch, reset_staff_coun
 
     async def fake_stats(parent_ids=None, filter_actor_only=True, page_limit=500):
         # 服务端把客串也归到 personTypes=Actor, 但本地扫描额外核到了 GuestStar
-        return {"演员A": 1, "客串B": 1}, {}, {"演员A", "客串B"}
+        # 统计映射以去重键为键(议题 #164)
+        ka, kb = eam._actor_dedup_key("演员A"), eam._actor_dedup_key("客串B")
+        return {ka: 1, kb: 1}, {}, {ka, kb}
 
     monkeypatch.setattr(eam, "fetch_person_item_stats", fake_stats)
 
@@ -754,7 +756,8 @@ async def test_checked_drops_non_performer_present_in_person_list(monkeypatch, r
     _patch_persons_client(monkeypatch, handler)
 
     async def fake_stats(parent_ids=None, filter_actor_only=True, page_limit=500):
-        return {"演员A": 2}, {}, {"演员A"}
+        ka = eam._actor_dedup_key("演员A")
+        return {ka: 2}, {}, {ka}
 
     monkeypatch.setattr(eam, "fetch_person_item_stats", fake_stats)
 
@@ -807,7 +810,8 @@ async def test_unchecked_with_library_subset_still_filters_by_library(monkeypatc
 
     async def fake_stats(parent_ids=None, filter_actor_only=True, page_limit=500):
         # 不勾选时统计集合含全部角色
-        return {"演员A": 1, "导演B": 1}, {}, {"演员A", "导演B"}
+        ka, kb = eam._actor_dedup_key("演员A"), eam._actor_dedup_key("导演B")
+        return {ka: 1, kb: 1}, {}, {ka, kb}
 
     monkeypatch.setattr(eam, "fetch_person_item_stats", fake_stats)
 

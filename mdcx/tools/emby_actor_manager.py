@@ -350,6 +350,7 @@ async def fetch_person_item_stats(
     counts: dict = {}
     titles: dict = {}
     person_names: set = set()
+    # 三个映射一律以 _actor_dedup_key(name) 为键(见下方说明), 调用方需同口径取值
     headers = _build_jellyfin_headers()
     if parent_ids:
         # 每个媒体库独立分页；不带 ParentId 时统一走单循环（lib_id=None 不拼参数）
@@ -412,13 +413,20 @@ async def fetch_person_item_stats(
                     name = person.get("Name", "")
                     if not isinstance(name, str) or not name:
                         continue
-                    seen_in_item.add(name)
-                    person_names.add(name)
-                for name in seen_in_item:
-                    counts[name] = counts.get(name, 0) + 1
-                    if name not in titles:
-                        titles[name] = []
-                    titles[name].append(f"[{item_type}] {item_name}")
+                    # 议题 #164: 同一个人的多条 Person 记录可能只有全角/半角或大小写差异
+                    # (真机: '小松（17）'/'小松(17)'、'ﾘﾅ･ﾃﾞｨｿﾝ'/'リナ・ディソン')。统计键必须与
+                    # fetch_all_actors 的去重键同口径, 否则同一人会被拆成两份计数,
+                    # 交集过滤也会按拼写漏掉他。
+                    key = _actor_dedup_key(name)
+                    if not key:
+                        continue
+                    seen_in_item.add(key)
+                    person_names.add(key)
+                for key in seen_in_item:
+                    counts[key] = counts.get(key, 0) + 1
+                    if key not in titles:
+                        titles[key] = []
+                    titles[key].append(f"[{item_type}] {item_name}")
             # TotalRecordCount 缺失/为 0 时不能短路退出：start_index(500) >= 0
             # 恒真会让循环只拉第一页，出演统计大面积缺失——此时退化为
             # 仅靠短页信号（len(items) < page_limit）判定终止（全库审查 M7）
@@ -437,6 +445,62 @@ async def fetch_person_item_stats(
             f"⚠️ {failed_libs} 个媒体库出演统计失败(网络/超时), 演员过滤与影片数可能不完整"
         )
     return counts, titles, person_names
+
+
+def _actor_dedup_key(name: str) -> str:
+    """同名去重键: NFKC 全角/半角归一 + 大小写归一 + 空白折叠。
+
+    只统一「写法差异」, **不删空白**。刻意比 _normalize_actor_name 保守: 真机
+    /Persons 里 'May A'(Id 218961) 与 'Maya'(Id 793179) 是两个**不同**的演员,
+    同样还有 'Buddha D'/'BuddhaD'、'Ariel A'/'Ariela'。若把空白整个去掉,
+    'May A' 会和 'Maya' 撞键, 合并后可能把一个人的 TMDB 资料写到另一个人的
+    Emby 记录上。误合并会污染服务器数据, 漏合并只是多一行重复条目, 代价不对等,
+    因此宁可漏合并。
+
+    真正能合并的是纯写法差异, 真机实例: '［Jo］Style'/'[Jo]Style'、
+    '小松（17）'/'小松(17)'、'ﾘﾅ･ﾃﾞｨｿﾝ'/'リナ・ディソン'(半角片假名)。
+    """
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", name or "")).strip().casefold()
+
+
+def _person_merge_rank(person: dict) -> tuple:
+    """同名多条 Person 记录的「资料完整度」排序键, 越大越值得保留。
+
+    议题 #164: 去重原先是「先到先得」, 保留服务端返回顺序里的第一条。真机
+    『Sunshine』有 3 条记录(Id 217087/219491/219809), 第一条没有头像而第三条有,
+    先到先得会让合并结果凭空缺头像——统计栏于是把ta 误判成「全缺」。
+    改为择优保留: 有头像 > 有简介 > 有背景图 > 外部 ID 更多。
+    """
+    return (
+        1 if "Primary" in (person.get("ImageTags") or {}) else 0,
+        1 if (person.get("Overview") or "").strip() else 0,
+        1 if (person.get("BackdropImageTags") or []) else 0,
+        len(person.get("ProviderIds") or {}),
+    )
+
+
+def _build_person_stub(
+    name: str,
+    key: str,
+    person: dict,
+    person_counts: dict,
+    person_titles: dict,
+) -> ActorInfo:
+    """由 /Persons 的一条记录构造 ActorInfo 骨架(不发起网络请求)。"""
+    image_tags = person.get("ImageTags") or {}
+    backdrop_tags = person.get("BackdropImageTags") or []
+    info = ActorInfo(
+        name=name,
+        actor_id=person.get("Id", ""),
+        server_id=person.get("ServerId", ""),
+        has_image="Primary" in image_tags,
+        has_backdrop=len(backdrop_tags) > 0,
+    )
+    # 统计映射以归一化键存放(#164), 必须同口径取值, 否则全角/半角异体的演员
+    # 会显示「0 部关联影片」——他的关联条目其实记在另一种拼写下。
+    info.movie_count = person_counts.get(key, 0)
+    info.movie_titles = person_titles.get(key, [])
+    return info
 
 
 async def fetch_all_actors(
@@ -463,17 +527,25 @@ async def fetch_all_actors(
 
     # 第一遍: 过滤+构建 stub (不发起网络请求)
     stubs: list[tuple[int, ActorInfo, dict]] = []  # (原索引, actor_stub, person_raw)
-    skipped_not_in_lib: list[str] = []  # 指定媒体库过滤但不在影片 People 里
+    skipped_not_in_lib: list[tuple[str, str]] = []  # (归一化键, 服务端原名) 不在影片 People 里
     # 议题 #157: raw_count 语义 =「过滤后(库+角色)、去重前」条目数——统计栏「原始条目数」
     # 与「重复 = raw − 唯一名字」都以过滤后的演员集合为基准, 不能含被剔除的非演出角色。
     filtered_raw = 0
     name_counter: Counter[str] = Counter()
+    # 议题 #164: seen_names[去重键] = (stubs 下标, 该名字当前最优记录的排序键)。
+    # 同名多条不再「先到先得」, 而是保留资料最全的那条, 其余条目合并进来。
+    seen_names: dict[str, tuple[int, tuple]] = {}
+    # 归一化键 -> 用户可见的名字(首见)。日志要显示服务端原名, 不能显示归一化后的小写键。
+    display_name: dict[str, str] = {}
     for i, p in enumerate(persons):
         _raise_if_stop_requested()
         if not isinstance(p, dict):
             continue
         name = p.get("Name", "")
         if not isinstance(name, str) or not name:
+            continue
+        key = _actor_dedup_key(name)
+        if not key:
             continue
         # 议题 #157/#158: 服务端 /Persons 的 personTypes=Actor 是**生效**的
         # (真机 Emby 实测: 全量 14518 人 vs personTypes=Actor 13568 人), 此前注释
@@ -485,37 +557,36 @@ async def fetch_all_actors(
         #   - 兜住 parent_ids 指定的媒体库子集过滤;
         #   - 兜住未被条目 People 引用的孤立条目。
         # 出演统计整体失败导致集合为空时不过滤(兜底防误删, 与 #32 教训一致)。
-        if (parent_ids or filter_actor_only) and lib_person_names and name not in lib_person_names:
-            skipped_not_in_lib.append(name)
+        if (parent_ids or filter_actor_only) and lib_person_names and key not in lib_person_names:
+            skipped_not_in_lib.append((key, name))
             continue
         filtered_raw += 1
-        name_counter[name] += 1
+        name_counter[key] += 1
+        display_name.setdefault(key, name)
         if deduplicate:
-            if name in seen_names:
+            prev = seen_names.get(key)
+            if prev is not None:
+                # 议题 #164: 同名重复条目保留「资料最全」的一条。统计栏的「重复」
+                # = 被丢弃条目数, 与这里的丢弃逻辑严格一致, 因此计数不受择优影响。
+                if _person_merge_rank(p) > prev[1]:
+                    stub_i = prev[0]
+                    stubs[stub_i] = (
+                        stub_i,
+                        _build_person_stub(name, key, p, person_counts, person_titles),
+                        p,
+                    )
+                    seen_names[key] = (stub_i, _person_merge_rank(p))
                 continue
-            seen_names.add(name)
-        actor_id = p.get("Id", "")
-        server_id = p.get("ServerId", "")
-        image_tags = p.get("ImageTags") or {}
-        backdrop_tags = p.get("BackdropImageTags") or []
-        info = ActorInfo(
-            name=name,
-            actor_id=actor_id,
-            server_id=server_id,
-            has_image="Primary" in image_tags,
-            has_backdrop=len(backdrop_tags) > 0,
-        )
-        info.movie_count = person_counts.get(name, 0)
-        info.movie_titles = person_titles.get(name, [])
-        stubs.append((i, info, p))
+            seen_names[key] = (len(stubs), _person_merge_rank(p))
+        stubs.append((i, _build_person_stub(name, key, p, person_counts, person_titles), p))
 
     # 透明化跳过原因——小白至少看得见"为什么 XX 没在列表里"
     if skipped_not_in_lib:
-        preview = ", ".join(skipped_not_in_lib[:5])
+        preview = ", ".join(n for _k, n in skipped_not_in_lib[:5])
         more = f" 等共 {len(skipped_not_in_lib)} 人" if len(skipped_not_in_lib) > 5 else ""
         # 被剔除条目里若含重名, 勾选/不勾选「仅演员」两档的重复数自然相差
-        # R−U(R=剔除条目数,U=剔除唯一名数), 把它点出来以便对账(如 41 vs 40)。
-        removed_counter = Counter(skipped_not_in_lib)
+        # R−U(R=剔除条目数,U=剔除唯一名数), 把它点出来以便对账。
+        removed_counter = Counter(k for k, _n in skipped_not_in_lib)
         removed_dup = sum(c - 1 for c in removed_counter.values() if c > 1)
         dup_note = f", 其中重复条目{removed_dup}条" if removed_dup else ""
         where = "所选媒体库" if parent_ids else "全库影片"
@@ -530,8 +601,8 @@ async def fetch_all_actors(
         scope = "仅演员" if filter_actor_only else "全部人员"
         if parent_ids:
             scope += f"({len(parent_ids)}个库)"
-        top = sorted(dup_names.items(), key=lambda kv: (-kv[1], kv[0]))[:10]
-        preview = "、".join(f"{n}(×{c})" for n, c in top)
+        top = sorted(dup_names.items(), key=lambda kv: (-kv[1], display_name.get(kv[0], kv[0])))[:10]
+        preview = "、".join(f"{display_name.get(n, n)}(×{c})" for n, c in top)
         more = f"等, 共{len(dup_names)}个重名" if len(dup_names) > 10 else f", 共{len(dup_names)}个重名"
         dup_entries = sum(c - 1 for c in dup_names.values())
         signal.show_log_text(f"ℹ️ 重复明细[{scope}]: {preview}{more}; 重复条目={dup_entries}")
