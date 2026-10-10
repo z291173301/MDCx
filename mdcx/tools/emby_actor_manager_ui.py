@@ -591,6 +591,12 @@ class EmbyActorManagerDialog(QDialog):
         self._session_gen = 0
         self._failed_names: set[str] = set()
         self._log_file: Path | None = None
+        # 获取演员列表支持未手动连接时自动连接：_connected 初始 False，_pending_auto_fetch
+        # 标记“获取按钮触发的连接成功后继续走媒体库流程”。
+        self._connected: bool = False
+        self._pending_auto_fetch: bool = False
+        self._emby_url: str = str(manager.config.emby_url or "")
+        self._emby_key: str = manager.config.api_key or ""
         self._init_ui()
         self._connect_signals()
         self._open_log_file()
@@ -673,7 +679,7 @@ class EmbyActorManagerDialog(QDialog):
         btn_layout.addWidget(self.btn_connect)
         self.btn_fetch = QPushButton("获取演员列表")
         self.btn_fetch.setObjectName("btnPrimary")
-        self.btn_fetch.setEnabled(False)
+        self.btn_fetch.setEnabled(True)
         btn_layout.addWidget(self.btn_fetch)
         self.cmb_fetch_mode = QComboBox()
         # 议题 #164: 按「单缺字段 → 双缺 → 并集 → 重新获取组」范围递增排序;
@@ -1062,32 +1068,35 @@ class EmbyActorManagerDialog(QDialog):
 
     def _set_buttons_enabled(self, enabled: bool):
         self.btn_connect.setEnabled(enabled)
-        self.btn_fetch.setEnabled(enabled and hasattr(self, "_connected") and self._connected)
+        # 获取演员列表无需前置手动连接：未连接时点击会自动连接后再取数，故只看总开关。
+        self.btn_fetch.setEnabled(enabled)
         actors = getattr(self, "_actors", None) or []
         self.btn_preview.setEnabled(enabled and len(actors) > 0)
         self.btn_clean.setEnabled(enabled and len(actors) > 0)
         pending = any(a.need_update_info or a.need_update_image or a.need_update_backdrop for a in actors)
         self.btn_sync.setEnabled(enabled and pending)
 
-    def _on_connect(self):
-        url = self.txt_url.text().strip()
-        key = self.txt_api_key.text().strip()
-        if not url or not key:
-            QMessageBox.warning(self, "提示", "请输入服务器地址和 API 密钥")
-            return
-        from .emby_shared import _build_jellyfin_headers, _emby_api_prefix, _emby_get_json
+    def _is_connection_current(self, url: str, key: str) -> bool:
+        """输入框地址/密钥与已连接会话一致时才视为可直接取数。"""
+        return bool(self._connected) and url == (self._emby_url or "") and key == (self._emby_key or "")
 
-        self._emby_url = url
-        self._emby_key = key
+    def _start_connect_test(self, url: str, key: str) -> bool:
+        """提交连接探测；返回 False 表示提交失败（调用方自行恢复按钮）。"""
+        from .emby_shared import _emby_api_prefix, _emby_get_json
+
+        # 先暂存待验证值，成功后才写入 _emby_url/_emby_key 并持久化，避免错误地址污染已有连接。
+        self._pending_url = url
+        self._pending_key = key
 
         async def test():
             # 议题 #133: 连接探测改用轻量直连 httpx(无指纹/无池/无限流)。
             # Emby/Jellyfin 都用 Authorization 头携带 token, 统一走 header 校验,
-            # 不再为 Emby 单独拼 ?api_key=。传入用户刚输入的 token, 校验后才持久化。
-            resp, err = await _emby_get_json(
-                f"{_emby_api_prefix()}/System/Info",
-                headers=_build_jellyfin_headers(token=key),
-            )
+            # 不再为 Emby 单独拼 ?api_key=。token 必须经 token= 参数透传给
+            # _emby_request, 仅预拼 headers 会被其按全局配置重写回旧密钥,
+            # 导致换新密钥后仍用旧密钥探测而一直 401。
+            # 用输入框地址拼绝对 URL 探测，避免新地址尚未持久化时误测旧地址。
+            probe_url = f"{url.rstrip('/')}{_emby_api_prefix()}/System/Info"
+            resp, err = await _emby_get_json(probe_url, token=key)
             if resp:
                 name = resp.get("ServerName", "Emby")
                 version = resp.get("Version", "")
@@ -1102,26 +1111,50 @@ class EmbyActorManagerDialog(QDialog):
         except Exception as e:
             future = None
             self.btn_connect.setEnabled(True)
-            self.btn_connect.setText("连接 Emby/Jellyfin")
+            self.btn_connect.setText("已连接" if self._connected else "连接 Emby/Jellyfin")
+            self.btn_fetch.setEnabled(True)
+            self._pending_auto_fetch = False
             self._set_status("连接失败")
             self.log(f"❌ 连接失败: {e}")
-            return
+            return False
         future.add_done_callback(lambda fut: self._connect_result.emit(_future_result_or(fut, (False, "连接失败"))))
+        return True
+
+    def _on_connect(self):
+        url = self.txt_url.text().strip()
+        key = self.txt_api_key.text().strip()
+        if not url or not key:
+            QMessageBox.warning(self, "提示", "请输入服务器地址和 API 密钥")
+            return
+        self._pending_auto_fetch = False
+        self._start_connect_test(url, key)
 
     def _on_connect_result(self, result: tuple[bool, str]):
         ok, msg = result
         self.btn_connect.setEnabled(True)
-        self.btn_connect.setText("已连接" if ok else "连接 Emby/Jellyfin")
+        # 手动用错误地址复测失败时，已有连接不应被按钮文案抹掉。
+        self.btn_connect.setText("已连接" if (ok or self._connected) else "连接 Emby/Jellyfin")
+        # 获取按钮触发的自动连接：恢复可点状态由后续媒体库流程接管，失败时才在此恢复。
+        pending = self._pending_auto_fetch
         if ok:
             self._connected = True
+            self._emby_url = getattr(self, "_pending_url", self.txt_url.text().strip())
+            self._emby_key = getattr(self, "_pending_key", self.txt_api_key.text().strip())
             self.btn_fetch.setEnabled(True)
             self._set_status("连接成功")
             self.log(f"✅ {msg}")
             self._persist_connection()
+            if pending:
+                self._pending_auto_fetch = False
+                # 配置已持久化，后续媒体库/演员请求走新地址，直接进入取数流程。
+                self._request_media_folders()
         else:
+            if pending:
+                self._pending_auto_fetch = False
+                self.btn_fetch.setEnabled(True)
             self._set_status("连接失败")
             self.log(f"❌ {msg}")
-            QMessageBox.critical(self, "连接失败", msg)
+            QMessageBox.critical(self, "连接失败", f"服务器地址或 API 密钥错误\n{msg}")
 
     def _persist_connection(self):
         """把 UI 填写的地址/密钥写回全局配置，保证后续请求与界面一致。"""
@@ -1137,9 +1170,23 @@ class EmbyActorManagerDialog(QDialog):
             self.log(f"🔶 连接设置保存失败，继续使用当前配置: {e}")
 
     def _on_fetch(self):
-        if not hasattr(self, "_connected") or not self._connected:
-            QMessageBox.warning(self, "提示", "请先连接 Emby/Jellyfin 服务器")
+        url = self.txt_url.text().strip()
+        key = self.txt_api_key.text().strip()
+        if not url or not key:
+            QMessageBox.warning(self, "提示", "请填写服务器地址和 API 密钥")
             return
+        if not self._is_connection_current(url, key):
+            # 未连接或输入框改过地址/密钥：先自动连接，成功后继续取数。
+            self._pending_auto_fetch = True
+            self.btn_fetch.setEnabled(False)
+            self.log("⏳ 正在自动连接服务器...")
+            if not self._start_connect_test(url, key):
+                self._pending_auto_fetch = False
+                self.btn_fetch.setEnabled(True)
+            return
+        self._request_media_folders()
+
+    def _request_media_folders(self):
         self.btn_fetch.setEnabled(False)
         self._set_status("获取媒体库列表...")
         try:
