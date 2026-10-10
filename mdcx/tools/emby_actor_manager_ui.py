@@ -744,12 +744,14 @@ class EmbyActorManagerDialog(QDialog):
         self.btn_sync.setObjectName("btnSync")
         self.btn_sync.setEnabled(False)
         btn_layout.addWidget(self.btn_sync)
-        help_label = QLabel(
-            "使用说明：①填写地址和密钥→②连接/获取演员列表→③选择模式获取数据→④绿色行==待更新→⑤同步到服务器，双击行查看编辑详情"
-        )
+        self._help_single = "使用说明：①填写地址和密钥→②连接/获取演员列表→③选择模式获取数据→④绿色行==待更新→⑤同步到服务器，双击行查看编辑详情"
+        self._help_double = "使用说明：①填写地址和密钥→②连接/获取演员列表→③选择模式获\n取数据→④绿色行==待更新→⑤同步到服务器，双击行查看编辑详情"
+        help_label = QLabel(self._help_single)
+        self.help_label = help_label
         # 不写 font-size：跟随 _load_stylesheet 里放大后的统一字号，写死 12px 会反盖回去。
         # 位于「开始全部更新同步」按钮右侧（按钮行内），向上向右收纳以节省纵向空间；
         # 允许折行：单行长文本不折行时会撑大对话框最小宽度，折行后最小宽度回到按钮行决定。
+        # 窄窗两行（断在「获|取」处）、宽窗一行：见 _update_help_line_break（resize/show 时按实宽切换）。
         help_label.setWordWrap(True)
         help_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         help_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -922,10 +924,25 @@ class EmbyActorManagerDialog(QDialog):
     def resizeEvent(self, a0):
         super().resizeEvent(a0)
         self._apply_column_widths()
+        self._update_help_line_break()
 
     def showEvent(self, a0):
         super().showEvent(a0)
         self._apply_column_widths()
+        QTimer.singleShot(0, self._update_help_line_break)
+
+    def _update_help_line_break(self) -> None:
+        """窄窗两行（断在「获|取」处）、宽窗一行：按 help_label 实宽切换。"""
+        label = getattr(self, "help_label", None)
+        single = getattr(self, "_help_single", None)
+        double = getattr(self, "_help_double", None)
+        if label is None or single is None or double is None:
+            return
+        avail = label.width()
+        if avail <= 0:
+            return
+        need = label.fontMetrics().horizontalAdvance(single) + 4
+        label.setText(double if need > avail else single)
 
     def _build_log_section(self, parent_layout: QVBoxLayout):
         group = QGroupBox("运行日志")
