@@ -1568,12 +1568,61 @@ class AsyncWebClient:
         host_prefix = f"{host} " if host else ""
         self._log(f"🛡️ [CF] {host_prefix}{message}")
 
+    async def _peek_response_body(self, response: Response, limit: int = 8192) -> bytes:
+        """Inspect a stream prefix without consuming bytes needed by its caller."""
+        if response.content:
+            return response.content[:limit]
+        # Non-streaming curl responses, including empty HEAD responses, have no queue.
+        if hasattr(response, "queue") and response.queue is None:
+            return b""
+        if not hasattr(response, "aiter_content"):
+            # Compatibility with response adapters that only expose acontent().
+            response.content = await asyncio.wait_for(response.acontent(), timeout=5)
+            return response.content[:limit]
+
+        source = response.aiter_content()
+        chunks: list[bytes] = []
+        exhausted = False
+
+        async def read_prefix() -> None:
+            nonlocal exhausted
+            size = 0
+            while size < limit:
+                try:
+                    chunk = await anext(source)
+                except StopAsyncIteration:
+                    exhausted = True
+                    return
+                chunks.append(chunk)
+                size += len(chunk)
+
+        try:
+            await asyncio.wait_for(read_prefix(), timeout=5)
+        except BaseException:
+            # A cancelled/failed read cannot safely be resumed. Abort the transfer
+            # and let request() retry, rather than returning a truncated response.
+            await self._close_response(response)
+            raise
+
+        async def replay_content(chunk_size=None, decode_unicode=False):
+            if decode_unicode:
+                raise NotImplementedError()
+            for chunk in chunks:
+                yield chunk
+            if not exhausted:
+                async for chunk in source:
+                    yield chunk
+
+        # acontent() also delegates to aiter_content(), so both APIs retain the body.
+        response.aiter_content = replay_content  # type: ignore[method-assign]
+        return b"".join(chunks)[:limit]
+
     async def _is_cf_challenge_response(self, response: Response) -> bool:
         """判定 Cloudflare 挑战页。
 
         流式响应 content 初始为 b""（header 阶段即返回），直接读 content 会漏检
-        ——改用 acontent() 读前 8192 字节；读取结果缓存在响应对象上避免
-        同一响应多次判定重复读流（全库审查 B1）。
+        ——只预读前 8192 字节并向后续消费者回放；判定结果缓存在响应对象上，
+        避免同一响应多次判定重复读流。
         """
         status = response.status_code
         headers = {str(k): v for k, v in response.headers.items()}
@@ -1588,20 +1637,15 @@ class AsyncWebClient:
             body_text = ""
             if "text/html" in content_type or not content_type:
                 try:
-                    if response.content:
-                        # 非流式（content 已就位）直接读
-                        body_bytes = response.content[:8192]
-                    else:
-                        # 流式：content 初始为 b""，acontent() 拉取响应体
-                        # （挑战页本身很小，读全量代价可忽略）
-                        body_bytes = await asyncio.wait_for(response.acontent(), timeout=5)
-                        body_bytes = body_bytes[:8192]
+                    body_bytes = await self._peek_response_body(response)
                     body_text = body_bytes.decode("utf-8", errors="ignore").lower()
+                except (TimeoutError, RequestException):
+                    raise
                 except Exception:
                     body_text = ""
             # 同一响应只读一次：request 循环里最多被 2 处判定调用。
-            # 流式响应二次 acontent() 会因 queue 已消费而 assert 失败，
-            # 故必须缓存；curl_cffi Response 未声明该属性，属性赋值需同时
+            # 原始流的结束标记只能消费一次，重复检测应复用已缓存的文本。
+            # curl_cffi Response 未声明该属性，属性赋值需同时
             # 压制 mypy attr-defined 与 ruff SLF001
             try:
                 response._mdcx_cf_body_text = body_text  # type: ignore[attr-defined] # noqa: SLF001
