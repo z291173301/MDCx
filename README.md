@@ -12,11 +12,11 @@
 
 <table align="center">  
   <tr>  
-    <td align="center"><img src="resources/Img/donate-wechat.jpg" width="180" alt="微信">   <sub>微信</sub></td>  
+    <td align="center"><img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-wechat.jpg" width="180" alt="微信">   <sub>微信</sub></td>  
     <td width="40"></td>  
-    <td align="center"><img src="resources/Img/donate-alipay.jpg" width="180" alt="支付宝">   <sub>支付宝</sub></td>  
+    <td align="center"><img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay.jpg" width="180" alt="支付宝">   <sub>支付宝</sub></td>  
     <td width="40"></td>  
-    <td align="center"><img src="resources/Img/donate-alipay-redpacket.jpg" width="180" alt="支付宝红包">   <sub>支付宝红包</sub></td>  
+    <td align="center"><img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay-redpacket.jpg" width="180" alt="支付宝红包">   <sub>支付宝红包</sub></td>  
   </tr>  
 </table>
 
