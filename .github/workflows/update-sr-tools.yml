@@ -1,0 +1,100 @@
+# 定期刷新「海报超分」工具缓存，供打包工作流复用。
+#
+# 工具二进制不入库：打包时由 scripts/fetch_sr_tools.py 从官方 GitHub Release 拉取，
+# 校验 sha256 后解压到 build/sr_tools。这里按月预热 actions/cache，
+# 让 build-py315.yml / package-trawl.yml 打包时免下载、提速构建。
+#
+# 刷新失败（上游重新打包导致 sha256 不匹配）会让作业变红并保留旧缓存，
+# 避免坏包扩散到发布产物。
+
+name: Update SR tools cache
+
+on:
+  schedule:
+    # 每周一 03:00 UTC（北京时间 11:00）。周频的另一个理由：
+    # GitHub Actions 缓存 7 天无人访问会被回收，周更能保证打包时缓存常热。
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # 锁定 3.15：与 build-py315.yml / ci.yaml 同口径（python-version + UV_PYTHON 双保险）。
+  # 依赖已全部换成有 cp315 wheel 的版本，只剩 PyYAML 没有 cp315 wheel（见安装步骤）。
+  UV_PYTHON: "3.15"
+  # PyYAML 至今没有 cp315 wheel：置 0 让它跳过 `yaml._yaml` C 扩展，从 sdist 直接
+  # 产出纯 Python wheel，不需要编译器链。
+  PYYAML_FORCE_LIBYAML: "0"
+  # 关掉 uv run 的隐式 sync：依赖统一在安装步骤显式 sync 一次（隐式 sync 每次
+  # uv run 都会重新解析，可能重建 pyyaml，拖慢构建）。
+  UV_NO_SYNC: "1"
+
+jobs:
+  refresh:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - build: windows
+            os: windows-2025
+          - build: linux
+            os: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.15
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.15"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.1.0
+        with:
+          activate-environment: true
+
+      # 防 uv 悄悄挑到别的解释器（与 build-py315.yml 同款断言）。
+      - name: Verify Python 3.15 in use
+        shell: bash
+        run: |
+          python -c 'import sys; print(sys.version); assert sys.version_info[:2] == (3, 15), f"expected 3.15, got {sys.version_info[:2]}"'
+
+      # Linux 上 import 链（scripts.fetch_sr_tools → mdcx.core.super_resolution →
+      # mdcx.signals/resources → PyQt6）需要 Qt 系统库；av 包（pyav/pyav）源码编译
+      # 需要 FFmpeg 开发库（libavformat-dev/libavcodec-dev 等）与 pkg-config。
+      - name: Install Linux system dependencies
+        if: matrix.build == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y \
+            libglib2.0-0 libegl1 libgl1 libfontconfig1 \
+            pkg-config libavformat-dev libavcodec-dev libavdevice-dev \
+            libavutil-dev libavfilter-dev libswscale-dev libswresample-dev \
+            libxml2-dev libxslt1-dev libxslt-dev python3-dev zlib1g-dev gcc
+
+      # PyYAML 至今没有 cp315 wheel（6.0.3 只发到 cp314），3.15 下只能源码编译
+      # （Windows runner 要 MSVC、Linux 要 gcc + Cython）。工作流级
+      # `PYYAML_FORCE_LIBYAML=0` 让它跳过 `yaml._yaml` C 扩展，直接产出纯 Python
+      # wheel（py3-none-any），不需要编译器；`_yaml` 只是可选的 C 加速，缺它时
+      # PyYAML 自动退回纯 Python 实现，功能一致。
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          uv sync --all-extras --dev
+          VENV_PY="$PWD/.venv/bin/python"
+          [ -x "$VENV_PY" ] || VENV_PY="$PWD/.venv/Scripts/python.exe"
+          "$VENV_PY" -c "import yaml; print('pyyaml', yaml.__version__, 'libyaml', yaml.__with_libyaml__)"
+
+      - name: Cache SR tools
+        uses: actions/cache@v6
+        with:
+          path: build/sr_tools
+          key: sr-tools-${{ matrix.build }}
+
+      - name: Refresh SR tools
+        shell: bash
+        env:
+          PYTHONIOENCODING: utf-8
+        run: uv run python -m scripts.fetch_sr_tools --platform ${{ matrix.build }}

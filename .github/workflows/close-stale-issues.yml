@@ -1,0 +1,19 @@
+name: Close Stale Issues
+
+# 原来带 schedule（每天 20:00 UTC 自动跑），会把 90 天未活跃的 issue 自动关闭；
+# 按要求停掉自动运行，只保留手动触发（Actions 页面 → Close Stale Issues → Run workflow）。
+on:
+  workflow_dispatch:
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close Stale Issues
+        uses: actions/stale@v11
+        with:
+          stale-issue-message: "此 issue 长时间未活跃，将被关闭。如需继续讨论请重新打开。"
+          days-before-stale: 90
+          days-before-close: 7
+          exempt-issue-labels: "pinned,security"
+          exempt-pr-labels: "pinned,security"
