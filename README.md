@@ -5,7 +5,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 ![Crawlers](https://img.shields.io/badge/Sites-52-brightgreen.svg)
 
-<p align="center"><b>如果你觉得不错赞助500元获取授权，谢谢！ 😊</b></p>
+<p align="center"><b>如果你觉得不错请赞助500元获取授权，授权绑定机器，谢谢！ 😊</b></p>
 
 <table align="center">
   <tr>
