@@ -10,17 +10,15 @@
 
 <p align="center"><b>如果你觉得不错赞助500元获取授权，谢谢！ 😊</b></p>
 
-<p align="center"><b>如果你觉得不错赞助500元获取授权，谢谢！ 😊</b></p>
-
-<p align="center">
-<img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-wechat.jpg" width="180" alt="微信">  
-<img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay.jpg" width="180" alt="支付宝">  
-<img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay-redpacket.jpg" width="180" alt="支付宝红包">
-</p>
-
-<p align="center">
-微信 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 支付宝 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 支付宝红包
-</p>
+<table align="center">  
+  <tr>  
+    <td align="center"><img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-wechat.jpg" width="180" alt="微信">   <sub>微信</sub></td>  
+    <td width="40"></td>  
+    <td align="center"><img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay.jpg" width="180" alt="支付宝">   <sub>支付宝</sub></td>  
+    <td width="40"></td>  
+    <td align="center"><img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay-redpacket.jpg" width="180" alt="支付宝红包">   <sub>支付宝红包</sub></td>  
+  </tr>  
+</table>
 
 Token烧了太多入不敷出了，连续高强度更新两个月时间烧了几百亿Token精力投入太多没有赞助没有回报，软件转收费授权模式了，至今为止只收到一笔共100元捐款，软件转收费模式了，500元一个授权绑定机器，转授权模式后功能将继续更新，如果有谁闲的蛋疼举报则软件随时下架，反正我自己有源码随便改无限使用
 
@@ -28,7 +26,7 @@ Token烧了太多入不敷出了，连续高强度更新两个月时间烧了几
 
 ## MDCx 是什么
 
-MDCx 是一个桌面工具，自动从 53 个网站抓取视频文件的元数据（标题、演员、封面、简介等），生成标准的 .nfo 文件和整理好的文件夹，给 Emby、Jellyfin、Kodi 这类媒体服务器直接用。
+MDCx 是一个桌面工具，自动从47个网站抓取视频文件的元数据（标题、演员、封面、简介等），生成标准的 .nfo 文件和整理好的文件夹，给 Emby、Jellyfin、Kodi 这类媒体服务器直接用。
 
 一句话：把一堆乱七八糟的视频文件，变成媒体服务器能认的整齐资料库。
 
@@ -40,7 +38,7 @@ MDCx 是一个桌面工具，自动从 53 个网站抓取视频文件的元数�
 
 ## 第一次使用
 
-看这篇 5 分钟上手指南：[docs/QuickStart.md](docs/QuickStart.md)
+看这篇5分钟上手指南：[docs/QuickStart.md](docs/QuickStart.md)
 
 ## 文档导航
 
@@ -59,16 +57,16 @@ MDCx 是一个桌面工具，自动从 53 个网站抓取视频文件的元数�
 
 ## 核心特色
 
-- **53 个网站爬虫** — 有码、无码、FC2、国产、欧美全覆盖，部分站点免 CF 直连
+- **53个网站爬虫** — 有码、无码、FC2、国产、欧美全覆盖，部分站点免 CF 直连
 - **智能番号识别** — 自动判断番号类型（有码/无码/个摄/国产传媒/欧美视频）
-- **标准 NFO 生成** — 30+ 元数据字段，Emby/Jellyfin/Kodi 通用
+- **标准NFO生成** — 30+ 元数据字段，Emby/Jellyfin/Kodi 通用
 - **多引擎翻译** — Google、Bing、Baidu、DeepL、DeepLX、LLM 共 6 种
 - **图片处理** — 人脸裁剪、水印、Amazon 高清封面、官方图源兜底（DMM 高清封面自动学习厂牌前缀 + MGStage 素人高清海报）、JavDB 系图源无水印原图（App CDN 加密流自动解密）、海报超分（Real-ESRGAN 4x，低清封面自动放大补清）
 - **演员数据库** — Excel 数据库 + TMDB/Wikidata/Gfriends 多源补全
-- **Emby/Jellyfin 集成** — 自动同步演员信息和头像（Emby 演员管理工具支持最大化/拖拽缩放，默认适配屏幕）
+- **Emby/Jellyfin集成** — 自动同步演员信息和头像（Emby 演员管理工具支持最大化/拖拽缩放，默认适配屏幕）
 - **网络自检与标注** — 检测网络页结果着色 + 按状态复制诊断报告；设置页站点下拉框回显最近一次自己网络的实测状态（✅可连通/⚠️需关注/❌连不通，悬停看检测时间与路由）；代理分流可选「全部走代理」交给 Clash 类软件裁决
 - **异步并发** — 同时刮多个文件，不卡界面
-- **Cloudflare 绕过** — 支持 TRAWL / FlareSolverr 外部CF服务自动绕过防护页；JavLibrary 专属 Selenium+Edge headless fallback；部分站点免 CF 通道（JavDB_API、JavDB_APP、Missav_API、R18.dev、TheJavDB）
+- **Cloudflare绕过** — 支持 TRAWL / FlareSolverr 外部CF服务自动绕过防护页；JavLibrary 专属 Selenium+Edge headless fallback；部分站点免 CF 通道（JavDB_API、JavDB_APP、Missav_API、R18.dev、TheJavDB）
 
 ## 开发者
 
@@ -91,20 +89,3 @@ uv run check --skip-hook-install --with-tests # 追加全量 pytest，想在推�
 
 - 提 Bug / 功能请求请使用 [Issue 模板](../../issues/new/choose)，一个议题说一件事，附现象、影响与复现步骤。
 - 使用 AI 工具辅助撰写 Issue 或 PR 的，请阅读并按 [.github/AI\_POLICY.md](.github/AI_POLICY.md) 披露使用程度；是否采纳以代码与复现证据为准。
-
-## 上游项目
-
-- [sqzw-x/mdcx](https://github.com/sqzw-x/mdcx) — Hazard804/mdcx项目前身，当前暂时停止维护
-- [Hazard804/mdcx](https://github.com/Hazard804/mdcx) — 基于 sqzw-x/mdcx, 继续进行维护及优化
-- [ZiPenOk/mdcx](https://github.com/ZiPenOk/mdcx) — 基于 Hazard804/mdcx, 进行优化改进
-
-向相关开发者表示敬意！
-
-## 授权许可
-
-GPLv3。使用本项目代表你接受：
-
-- 仅供学习和技术交流
-- 使用本软件时请遵守当地法律法规
-- 法律及使用后果由使用者自己承担
-- 禁止用于商业用途
