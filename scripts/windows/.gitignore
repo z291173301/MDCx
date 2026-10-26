@@ -1,0 +1,16 @@
+# 运行时生成
+src/
+dist/
+node_modules/
+.bun/
+data/
+*.log
+
+# Bun
+bun.lockb
+
+# 不要提交源码和依赖
+!start-trawl.bat
+!download-bun.bat
+!README.md
+!.env.example
