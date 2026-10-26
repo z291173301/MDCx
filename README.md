@@ -1,26 +1,29 @@
 # MDCx
 
-![python](https://img.shields.io/badge/Python-3.15+-3776AB.svg?style=flat&logo=python&logoColor=white)
+![python](https://img.shields.io/badge/Python-3.15+-3776AB.svg?style=flat\&logo=python\&logoColor=white)
+
 ![License](https://img.shields.io/badge/License-GPLv3-blue.svg)
+
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+
 ![Crawlers](https://img.shields.io/badge/Sites-52-brightgreen.svg)
 
-<p align="center"><b>如果你觉得不错请赞助500元获取授权，授权绑定机器，谢谢！ 😊</b></p>
+<p align="center"><b>如果你觉得不错赞助500元获取授权，谢谢！ 😊</b></p>
 
-<table align="center">
-  <tr>
-    <td align="center"><img src="resources/Img/donate-wechat.jpg" width="180" alt="微信"><br><sub>微信</sub></td>
-    <td width="40"></td>
-    <td align="center"><img src="resources/Img/donate-alipay.jpg" width="180" alt="支付宝"><br><sub>支付宝</sub></td>
-    <td width="40"></td>
-    <td align="center"><img src="resources/Img/donate-alipay-redpacket.jpg" width="180" alt="支付宝红包"><br><sub>支付宝红包</sub></td>
-  </tr>
+<table align="center">  
+  <tr>  
+    <td align="center"><img src="resources/Img/donate-wechat.jpg" width="180" alt="微信">   <sub>微信</sub></td>  
+    <td width="40"></td>  
+    <td align="center"><img src="resources/Img/donate-alipay.jpg" width="180" alt="支付宝">   <sub>支付宝</sub></td>  
+    <td width="40"></td>  
+    <td align="center"><img src="resources/Img/donate-alipay-redpacket.jpg" width="180" alt="支付宝红包">   <sub>支付宝红包</sub></td>  
+  </tr>  
 </table>
 
-烧了几百亿Tokens投入太多入不敷出了，两个月连续高强度更新时间精力投入太多却没有赞助没有回报，转收费授权模式了，至今为止只收到一笔共100元捐款，500元一个授权绑定机器，授权模式后功能将继续更新，如果谁闲的蛋疼举报则软件随时下架，反正我自己有源码随便改无限用
-</table>
-<img width="1280" height="680" alt="image" src="https://github.com/user-attachments/assets/6e4a9ab3-8c28-4714-af0e-be41d5e71e67" />
+Token烧了太多入不敷出了，连续高强度更新两个月时间烧了几百亿Token精力投入太多没有赞助没有回报，软件转收费授权模式了  
+至今为止只收到一笔共100元捐款，Token烧了太多入不敷出了，连续高强度更新两个月Token烧了几百亿时间精力投入太多没有赞助没有回报，软件转收费模式了，500元一个授权绑定机器，转授权模式后功能将继续更新，如果有谁闲的蛋疼举报则软件随时下架，反正我自己有源码随便改无限使用
 
+![image](https://github.com/user-attachments/assets/6e4a9ab3-8c28-4714-af0e-be41d5e71e67)
 
 ## MDCx 是什么
 
@@ -40,18 +43,18 @@ MDCx 是一个桌面工具，自动从 53 个网站抓取视频文件的元数�
 
 ## 文档导航
 
-| 文档 | 适合谁看 | 内容 |
-|------|---------|------|
-| **[使用 Wiki](https://github.com/cdlongbow/MDCx/wiki)** | **新用户先看这里** | 三分钟上手、常见问题 FAQ（90% 问题有答案） |
-| [QuickStart.md](docs/QuickStart.md) | 所有人 | 5 分钟上手，完成第一次刮削 |
-| [Install.md](docs/Install.md) | 需要安装的人 | 系统要求、Release/源码两种安装方式 |
-| [Features.md](docs/Features.md) | 想了解能做什么的人 | 全部功能、53 个网站列表、六种刮削模式 |
-| [User_Guide.md](docs/User_Guide.md) | 日常使用的人 | 完整使用手册、常见问题、实际场景 |
-| [Configuration.md](docs/Configuration.md) | 想调设置的人 | 每个配置项是干什么的 |
-| [Changelog.md](docs/Changelog.md) | 关注版本更新的人 | 每个版本改了啥 |
-| [Development.md](docs/Development.md) | 想改代码的人 | 项目架构、爬虫开发、测试、代码规范 |
-| [Javdb_App_Signature.md](docs/Javdb_App_Signature.md) | 想改 JavDB App 爬虫的人 | JavDB App API 签名机制与逆向域知识 |
-| [Male_Actor_List.md](docs/Male_Actor_List.md) | 想维护男演员名单的人 | 男演员名单格式与维护说明 |
+| 文档                                                      | 适合谁看              | 内容                        |
+| ------------------------------------------------------- | ----------------- | ------------------------- |
+| **[使用 Wiki](https://github.com/cdlongbow/MDCx/wiki)**   | **新用户先看这里**       | 三分钟上手、常见问题 FAQ（90% 问题有答案） |
+| [QuickStart.md](docs/QuickStart.md)                     | 所有人               | 5 分钟上手，完成第一次刮削            |
+| [Install.md](docs/Install.md)                           | 需要安装的人            | 系统要求、Release/源码两种安装方式     |
+| [Features.md](docs/Features.md)                         | 想了解能做什么的人         | 全部功能、53 个网站列表、六种刮削模式      |
+| [User\_Guide.md](docs/User_Guide.md)                    | 日常使用的人            | 完整使用手册、常见问题、实际场景          |
+| [Configuration.md](docs/Configuration.md)               | 想调设置的人            | 每个配置项是干什么的                |
+| [Changelog.md](docs/Changelog.md)                       | 关注版本更新的人          | 每个版本改了啥                   |
+| [Development.md](docs/Development.md)                   | 想改代码的人            | 项目架构、爬虫开发、测试、代码规范         |
+| [Javdb\_App\_Signature.md](docs/Javdb_App_Signature.md) | 想改 JavDB App 爬虫的人 | JavDB App API 签名机制与逆向域知识  |
+| [Male\_Actor\_List.md](docs/Male_Actor_List.md)         | 想维护男演员名单的人        | 男演员名单格式与维护说明              |
 
 ## 核心特色
 
@@ -76,6 +79,7 @@ uv run python main.py
 ```
 
 推送前自检：
+
 ```bash
 git config core.hooksPath .githooks   # 一次性：启用 pre-push 自动快速自检
 uv run check --skip-hook-install              # 快速门禁，同 pre-push（ruff + mypy + 线程安全）
@@ -85,20 +89,21 @@ uv run check --skip-hook-install --with-tests # 追加全量 pytest，想在推�
 ## 贡献与提报
 
 - 提 Bug / 功能请求请使用 [Issue 模板](../../issues/new/choose)，一个议题说一件事，附现象、影响与复现步骤。
-- 使用 AI 工具辅助撰写 Issue 或 PR 的，请阅读并按 [.github/AI_POLICY.md](.github/AI_POLICY.md) 披露使用程度；是否采纳以代码与复现证据为准。
+- 使用 AI 工具辅助撰写 Issue 或 PR 的，请阅读并按 [.github/AI\_POLICY.md](.github/AI_POLICY.md) 披露使用程度；是否采纳以代码与复现证据为准。
 
 ## 上游项目
 
-* [sqzw-x/mdcx](https://github.com/sqzw-x/mdcx) — Hazard804/mdcx项目前身，当前暂时停止维护
-* [Hazard804/mdcx](https://github.com/Hazard804/mdcx) — 基于 sqzw-x/mdcx, 继续进行维护及优化
-* [ZiPenOk/mdcx](https://github.com/ZiPenOk/mdcx) — 基于 Hazard804/mdcx, 进行优化改进
+- [sqzw-x/mdcx](https://github.com/sqzw-x/mdcx) — Hazard804/mdcx项目前身，当前暂时停止维护
+- [Hazard804/mdcx](https://github.com/Hazard804/mdcx) — 基于 sqzw-x/mdcx, 继续进行维护及优化
+- [ZiPenOk/mdcx](https://github.com/ZiPenOk/mdcx) — 基于 Hazard804/mdcx, 进行优化改进
 
 向相关开发者表示敬意！
 
 ## 授权许可
 
 GPLv3。使用本项目代表你接受：
-* 仅供学习和技术交流
-* 使用本软件时请遵守当地法律法规
-* 法律及使用后果由使用者自己承担
-* 禁止用于商业用途
+
+- 仅供学习和技术交流
+- 使用本软件时请遵守当地法律法规
+- 法律及使用后果由使用者自己承担
+- 禁止用于商业用途
