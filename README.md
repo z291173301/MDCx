@@ -10,18 +10,19 @@
 
 <p align="center"><b>如果你觉得不错赞助500元获取授权，谢谢！ 😊</b></p>
 
-<table align="center">  
-  <tr>  
-    <td align="center"><img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-wechat.jpg" width="180" alt="微信">   <sub>微信</sub></td>  
-    <td width="40"></td>  
-    <td align="center"><img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay.jpg" width="180" alt="支付宝">   <sub>支付宝</sub></td>  
-    <td width="40"></td>  
-    <td align="center"><img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay-redpacket.jpg" width="180" alt="支付宝红包">   <sub>支付宝红包</sub></td>  
-  </tr>  
-</table>
+<p align="center"><b>如果你觉得不错赞助500元获取授权，谢谢！ 😊</b></p>
 
-Token烧了太多入不敷出了，连续高强度更新两个月时间烧了几百亿Token精力投入太多没有赞助没有回报，软件转收费授权模式了  
-至今为止只收到一笔共100元捐款，Token烧了太多入不敷出了，连续高强度更新两个月Token烧了几百亿时间精力投入太多没有赞助没有回报，软件转收费模式了，500元一个授权绑定机器，转授权模式后功能将继续更新，如果有谁闲的蛋疼举报则软件随时下架，反正我自己有源码随便改无限使用
+<p align="center">
+<img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-wechat.jpg" width="180" alt="微信">  
+<img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay.jpg" width="180" alt="支付宝">  
+<img src="https://github.com/z291173301/MDCx/raw/main/resources/Img/donate-alipay-redpacket.jpg" width="180" alt="支付宝红包">
+</p>
+
+<p align="center">
+微信 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 支付宝 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 支付宝红包
+</p>
+
+Token烧了太多入不敷出了，连续高强度更新两个月时间烧了几百亿Token精力投入太多没有赞助没有回报，软件转收费授权模式了，至今为止只收到一笔共100元捐款，软件转收费模式了，500元一个授权绑定机器，转授权模式后功能将继续更新，如果有谁闲的蛋疼举报则软件随时下架，反正我自己有源码随便改无限使用
 
 ![image](https://github.com/user-attachments/assets/6e4a9ab3-8c28-4714-af0e-be41d5e71e67)
 
