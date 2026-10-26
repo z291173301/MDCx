@@ -5,7 +5,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 ![Crawlers](https://img.shields.io/badge/Sites-52-brightgreen.svg)
 
-<p align="center"><b>如果你觉得不错可否赏我杯奶茶费，谢谢！ 😊</b></p>
+<p align="center"><b>如果你觉得不错赞助500元获取授权，谢谢！ 😊</b></p>
 
 <table align="center">
   <tr>
@@ -17,7 +17,8 @@
   </tr>
 </table>
 
-一个功能都没改完就提示token烧完了，没办法了，停止更新了，没钱没token没赞助，一分钱赞助没收到过更新不起了
+Token烧太多入不敷出了，连续高强度更新两个月时间烧了几百亿Token精力投入太多没有赞助没有回报，软件转收费授权模式了
+至今为止只收到一笔共100元捐款，Token烧太多入不敷出了，连续高强度更新两个月Token烧了几百亿时间精力投入太多没有赞助没有回报，软件转收费模式了，500元一个授权绑定机器，转授权模式后功能将继续更新，如果有谁闲的蛋疼举报则软件随时下架，反正我自己有源码随便改无限用。
 
 <img width="1280" height="680" alt="image" src="https://github.com/user-attachments/assets/6e4a9ab3-8c28-4714-af0e-be41d5e71e67" />
 
