@@ -1,1144 +1,299 @@
 # Changelog
 
-按日期分段记录（`## YYYY-MM-DD`，新 → 旧）。每条只写「做了什么 / 改了什么 / 修了什么」，原因与排查过程见 `docs/Development.md` 与 `DADA/MEMORY.md`。
+按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `DADA/MEMORY.md`。
 
 ## 2026-10-27
 
-### 授权状态日志行去掉「已授权（…）」外壳
+### 未授权也能打开演员管理：连接 Emby 读取、统计演员信息
 
-- 主日志首行改为「🔐 授权状态：授权文件，永久有效」；有期限的显示「🔐 授权状态：授权文件，有效期至 YYYY-MM-DD」；未授权仍为「未授权（原因）」。
-- 改动在 `mdcx/utils/licensing/guard.py` 的 `describe()`，`log_status` 与 `license_ui._emit_license_status` 自动跟随。
-- 测试：`tests/test_license_system.py::test_describe_wording_without_licensed_shell`。
+- 入口不再拦：未授权点左侧「演员管理」直接开窗（原先是弹「请获取授权」后什么都不开）。
+- 只读段照常：连接 Emby/Jellyfin、获取演员列表、统计栏计数与筛选、表格浏览/复制/行内编辑、设置窗（只改本地配置）。
+- 写段逐处拦：数据获取 / 数据清洗 / 数据导出 / 「开始全部更新同步」/ 数据源测试 / 清空缓存目录，以及演员详情窗的「获取头像·获取信息·同步」，点时才弹「请获取授权」并写一行日志；界面不置灰（沿用「点了才提示」口径）。
+- 开窗时日志首行写明「未授权：可连接 Emby、读取并统计演员信息；取数 / 清洗 / 同步 / 导出需获取授权」，免得点到最后才被告知。
+- 新增 `license_ui.premium_denied()`：给不继承主窗 Mixin 的独立窗口（演员管理器）复用同一份弹窗文案。
+- 测试：`tests/test_actor_manager_license_gate.py`（10 例）、`tests/test_license_buttons.py::test_unlicensed_actor_manager_opens_readonly`。
+
+### 授权提示文案统一
+
+- `license_ui._premium_message()` 固定三段：`<功能名>功能需要获取授权后才能使用`（句末不带句号） / 读取模式能做什么、不能做什么 / 获取授权四步（设置→高级→高级功能→「设备编号」导出编号 → 发作者 → `license.json` 放配置目录 → 重启）。
+- 功能名按按钮语义拼接（刮削、保存NFO、演员管理…），句式统一，不再逐处手写。
+- 「授权状态」日志行未授权时只显示原因：`guard.describe()` 去掉「未授权（…）」外壳，输出「🔐 授权状态：未找到授权文件」；已授权文案不变。
+- 测试：`tests/test_license_system.py::test_describe_wording_without_licensed_shell`、`tests/test_license_buttons.py`。
 
 ## 2026-10-26
 
-### 高级页「隐藏图标」行右侧新增「设备编号」按钮（导出设备 ID 的 txt）
+### 高级页新增「设备编号」按钮（导出设备 ID 的 txt）
 
-- 设置 → 高级 的「隐藏图标：」行末（「隐藏菜单图标」右侧）新增「设备编号」按钮：样式与宽度同「导入账单」（共用 `ui_theme.build_setting_button_style`，同一套自然宽 92~128 与窄窗收窄公式），纵向与「隐藏菜单图标」同行同高、间隔 10px。按钮同样是 `gridLayoutWidget_20` 的绝对定位游离子项，几何由 `_sync_advanced_page_device_id_button` 每遍按「隐藏菜单图标」的实测右缘钉死，不进 `horizontalLayout_dock`、不改任何既有控件坐标。
-- 点击后取本机设备编号（`mdcx/utils/device_id.py`）并弹保存对话框让用户选 txt 存放位置，默认文件名 `设备编号_<计算机名>.txt`、默认落在桌面；正文四行「设备编号 / 系统 / 计算机名 / 生成时间」，UTF-8 写出。
-- 取号口径与系统「关于」页一致：Windows 11 取 `HKLM\SOFTWARE\Microsoft\SQMClient` 的 `MachineId`（即「设置 → 系统 → 关于 → 设备 ID」，带花括号），读不到退回 `Cryptography\MachineGuid` 与 DMI 整机 UUID；macOS 取 `ioreg` 的 `IOPlatformUUID`（硬件 UUID），退回 `system_profiler`；Linux / Ubuntu 取 `/etc/machine-id`，退回 `dbus` 的 machine-id 与 `/sys/class/dmi/id/product_uuid`。全本地读取、不联网，结果进程内缓存。
-- 与「导入账单」不同：本按钮**不绑定机器**——它就是给用户导出编号、发给作者申请授权用的，人人都该点得到。
-- 测试：`tests/test_device_id_button.py`（按钮在「隐藏菜单图标」右侧不重叠且同行同高、宽度与「导入账单」一致、未绑定机器仍显示、显隐前后既有控件坐标不变、导出写 txt / 用户取消 / 取不到编号三条路径、Windows 取号与注册表值一致）。
+- 位置：设置→高级「隐藏图标：」行末、「隐藏菜单图标」右侧；样式与宽度同「导入账单」，绝对定位钉在锚点右缘，不进布局。
+- 点击导出 txt（设备编号 / 系统 / 计算机名 / 生成时间，UTF-8），默认 `设备编号_<计算机名>.txt` 落桌面。
+- 取号口径同系统「关于」：Win11 `SQMClient\MachineId` → `MachineGuid` → DMI UUID；macOS `IOPlatformUUID`；Linux `/etc/machine-id`。全本地读取、不联网、进程内缓存。
+- 不绑定机器——它就是给用户导出编号申请授权用的，人人可见。
+- 测试：`tests/test_device_id_button.py`。
 
-### 赞助窗口接入微信 / 支付宝账单：新增「导入账单」入口（绑定本机 CPU）
+### 赞助窗口接入微信 / 支付宝账单：新增「导入账单」（绑定本机 CPU）
 
-- 设置 → 高级 → 高级功能 的「隐藏信息管理」右侧新增「导入账单」按钮：左缘与「显示字段内容信息」严格上下对齐（两者 x 相等）、纵向与「隐藏信息管理」同行同高，「显示字段内容信息」位置保持不变。按钮是 `gridLayoutWidget_20` 的绝对定位游离子项、不进任何布局（与 `comboBox_actor_type` 同一套路子），几何由 `_sync_advanced_page_bill_button` 每遍按两个锚点的实测坐标钉死，因此不会把整页列宽连同锚点一起推走。
-- 入口绑定本机 CPU 编号：`mdcx/utils/machine_binding.py` 取 `Win32_Processor.ProcessorId`（先 wmic，Win11 上退回 PowerShell 的 `Get-CimInstance`）算 SHA-256 与内置名单比对，仓库里只存哈希。探测在后台线程跑（PowerShell 冷启动约 1 秒，不能卡首屏），结果由 QTimer 轮询；**未绑定的机器按钮从头到尾不显示**，点击入口也会再校验一次。
-- 点击后选 xlsx 账单，`mdcx/tools/bill_import.py` 按列名（不按列序号）识别三类账单：微信支付账单明细（`收/支` + `金额(元)`）、微信经营账户明细（`收支类型` + `明细名称` + `金额`）、支付宝交易记录明细（`收/支` + `金额`）。只统计收入——支出、退款、不计收支全部跳过；捐助者名优先取「明细名称」里「来自 xxx」的尾巴（经营账户账单的写法）。
-- 记录落盘 `resources/donate_records.json`（随包分发，**所有用户**都能在赞助窗口看到）与 `userdata/donate_records.json`（打包运行时 `_MEIPASS` 只读，用户数据目录那份负责本机即时生效）；读取时两份取并集并按「姓名+时间+金额」去重。
-- 赞助窗口榜单填数：新人榜 = 最新 10 个捐助者（时间倒序）、土豪榜 = 金额最大的 10 个人（金额倒序），两个榜都按捐助者去重（同一人只占一行，新人榜留最近一笔、土豪榜留最大一笔）。日期列只有 94px，故今年的记录显示成 `10-25 20:23`、跨年的显示 `2026-10-25`，完整时间进单元格 tooltip。
-- 已导入 `经营账户明细20261001-20261026.xlsx`（1 笔收入：z*n / ¥100.00 / 2026-10-25 20:23:18）。
-- 测试：`tests/test_bill_import_parse.py`（三类账单解析、收入过滤、榜单排序去重、落盘并集）、`tests/test_donate_window_ranks.py`（榜单填数与异常降级）、`tests/test_bill_import_button_align.py`（按钮对齐、未绑定不显示、显隐前后既有控件坐标不变）、`tests/test_bill_import_flow.py`（点按钮 → 选文件 → 落盘 → 赞助窗口出榜的端到端）。
+- 位置：设置→高级→高级功能「隐藏信息管理」右侧，与「显示字段内容信息」上下对齐；绝对定位游离子项，几何由 `_sync_advanced_page_bill_button` 按锚点钉死。
+- 绑定：`machine_binding.py` 取 `ProcessorId` 算 SHA-256 与内置名单比对，仓库只存哈希；后台线程探测，未绑定机器按钮不显示。
+- 解析：`tools/bill_import.py` 按列名识别微信支付 / 微信经营账户 / 支付宝三类账单，只统计收入，捐助者名取「来自 xxx」尾巴。
+- 落盘：`resources/donate_records.json`（随包）+ `userdata/donate_records.json`（本机生效），读取取并集去重。
+- 榜单：新人榜 = 最近 10 位、土豪榜 = 金额前 10，均按人去重；今年显示 `10-25 20:23`、跨年显示 `2026-10-25`。
+- 测试：`test_bill_import_parse.py`、`test_donate_window_ranks.py`、`test_bill_import_button_align.py`、`test_bill_import_flow.py`。
 
 ## 2026-10-25
 
-### 工具页加「只获取单演员」选项；缺失表演员列对齐随人数变化
+### 「检查演员缺失番号」改为多站点汇总 + 归一化对比 + Excel 输出
 
-- 「演员名查缺」下方新增一行：`演员名选项：` + 复选框 `只获取单演员` + 原来的绿色提示（「本地资源库和演员名都可以填写多个，以中英文逗号分开」由单独一行移到该行右侧）。勾上后 `check_missing_number(..., single_actor_only=True)` 只保留演员表里恰好一个演员的番号（`split_single_actor()`），多演员的整条排除并在日志报数；站点没给演员表的按单演员放行，日志同时说明有多少条是这么计入的。
-- 缺失表「演员」列：只有一个演员（或空）居中，两个及以上演员靠左。
-- 自动判断的有码站点链末尾加入 IQQTV（`…→JavBus→IQQTV`）。
-- IQQTV 标题抽番号改为只认标准「字母-数字」写法（`extract_numbers(..., require_separator=True)`）：`马赛克破坏版 … JN4286` 这类自造编号不再入表，`TEK-067` 照取。
-
-### 工具页「检查演员缺失番号」加「类型」下拉框
-
-- 「演员名查缺」输入框右侧（「选择目录」按钮正下方）新增 `comboBox_actor_type`，七项：自动判断 / 有码番号 / 无码番号 / 个摄番号 / 欧美视频 / 国产传媒 / 动漫里番。文案与顺序复用「软件设置 → 锁定类型」（`FixedScrapingType.names()`）去掉「国产短剧」——国产短剧多为 AI 生成、没有演员，按演员名查不到东西。
-- 几何：左缘与「选择目录」按钮严格上下对齐、宽度同按钮（110）、高度同「演员名查缺」输入框（30）。该下拉框是 groupBox_19 的绝对定位直接子项，QComboBox 会被 `CustomScrollArea` 通用宽幅同步判为 `_STRETCH`（只向右长），而按钮判为 `_DOCK_RIGHT`（右缘锚定右移），宽态下两者左缘会错开——故把 `comboBox_actor_type` 登记进 `_MANUAL_WIDGET_NAMES`，几何交给 `_sync_tool_page_input_fill` 按按钮/输入框实时几何钉死，1050/1170/1600 三档窗宽逐像素对齐（`tests/test_tool_page_right_align.py::test_actor_type_combo_aligns_under_select_dir_button`）。
-- 「自动判断」末字只显示一半：宽度被对齐要求钉死在 110px，而通用 `QComboBox` 的 `padding: 3px 30px 3px 8px` 与 26px 的 drop-down 箭头**重复占位**，文本区只剩 44px，四个 13px 汉字要 52px。明暗两套样式各加一条 `QComboBox#comboBox_actor_type { padding: 3px 0px 3px 8px; }`（与 `comboBox_ui_scale` 同一修法），文本区 44→74px，外框宽度与箭头位置不动；`tests/test_actor_type_combo_text_fit.py` 在真实主窗口上量 `SC_ComboBoxEditField` 宽度，明暗两套主题各测一次。
-- 选具体类型后，`check_missing_number(actor_flag, forced_type)` 用 `apply_forced_type()` 把所有演员的类型统一成该类型，直接调该类型的网站列表查缺失番号；选「自动判断」仍按演员名后的 `(无码)(欧美)(国产)(动漫)(FC2)` 标注走，未标注按有码。个摄番号对应内部的 FC2 类型。
-- 下拉框文案由 `tests/test_actor_missing_numbers.py::test_tool_actor_type_combo_reuses_fixed_type_options` 钉在 `FixedScrapingType.names()` 上，设置页改了选项这里会一起失败提醒。
-
-### 缺失番号表加演员/日期/时长/类型四列，文件名带时间戳；站点清单分「自动判断 / 指定类型」两条路
-
-- 导出文件名改为「演员名 + 时间戳」：`三上悠亚2026-10-25 12-26-05.xlsx`（`%Y-%m-%d %H-%M-%S`），仍落在本地资源库目录。
-- 表格由三列扩到七列：番号 / 演员 / 日期 / 时长 / 类型 / 网站 / 链接地址。前六列列宽 13、链接 100；表头整行居中，数据行只有链接列靠左；日期写成 Excel 日期型（`[$-409]yyyy\-mm\-dd;@`，可排序），时长写成整数分钟，类型按内部类型名映射（国产 → 传媒）。
-- 元数据来源：DMM_API 的 `iteminfo.actress` / `date` / `volume`、JavDB 网页列表的 `.meta` 发行日、JavDB 移动端的 `release_date` / `duration`、JavBus 演员页第二个 `<date>`、AVSOX/AVheat 的 `releaseDate` / `length`、ThepornDB 的 `date` / `duration`。同番号跨站时元数据按字段补齐（先到的站没给、后到的站给了就补上）；站点没给演员时用查询用的演员名兜底，动漫查的是关键字故不兜底。
-- 站点清单两条路：**自动判断**走固定站点链（有码 DMM→DMM_API→LibreDMM→JavDB→JavDB_API→JavDB_APP→Javlibrary·镜像→JavLibrary→JavBus，无码/FC2/欧美/国产/动漫各按用户定稿的链）；**指定类型**走「软件设置 → 类型刮削网站 → 编辑网站」里对应那一组，组内顺序即优先级，**组内被禁用的站点照样参与查缺**。无码组的 JavBus 走 `/uncensored/searchstar` 通道，FC2 组的 JavDB 三站只留 `FC2-` 番号。
-- 配置组里没有演员页的站点（厂牌官网、聚合站等）跳过并在日志里列名，不会静默当成「查过、没番号」。
-- 标题抽番号收紧：字母段与数字段之间**有分隔符**或**无分隔符但数字 ≥3 位**才算番号。IQQTV 的「SKE48的三上悠亚大玩3P … TEK-067」此前被抽成假番号 `SKE-048`（SKE48 是团体名），现在只取 `TEK-067`；`JN4286` 这类 4 位无分隔符的仍能识别，`AKB48` / `乃木坂46` 不再误判。
-- 日志「需要查询的演员」由两行改成一行：`🔍 需要查询的演员：三上悠亚`。
-
-### 「检查演员缺失番号」改成多站点汇总 + 归一化对比 + Excel 输出
-
-- 数据源按类型重排（顺序即优先级，同番号记在最靠前的站）：有码 `DMM → DMM_API → LibreDMM → JavDB → JavDB_API → JavDB_APP → Javlibrary·镜像 → JavLibrary → JavBus`；无码 `AVSOX → JavDB → JavDB_API → JavDB_APP`；FC2 `AVSOX → FC2 → FC2PPVDB → JavDB → JavDB_API → JavDB_APP`；欧美 `AVheat → ThepornDB → JavDB → JavDB_API → JavDB_APP`；国产 `IQQTV → Madou.club → Madouqu → JavDay`；动漫 `JavDB_APP（签名 API）→ Getchu`。
-- `tools/actor_sources.py` 重写为「站点注册表 + 统一归一化」：各站返回的 `ssis00006` / `SSIS-006` / `FC2-PPV-1234567` 先经 `normalize_key()` 折叠成比较键再与本地 `number_list` 比对，`display_number()` 负责还原成 `SSIS-006` / `FC2-1234567` 的展示形态。
-- 每个站点最多请求两次（首次 + 一次重试）；超时不重试。不同域名的站点组并发、同域名组（JavDB 三站、JavLibrary 两站）串行，实测三上悠亚（有码）9 站合计 487 个番号、用时约 125 秒（其中 JavLibrary 两站在被 Cloudflare 拦住时各占 60 秒超时）。
-- 演员名先解析再查询：`resolve_actor_names()` 用 JavDB 演员库拿到日文原名/繁中/别名（三上悠亚 → 三上悠亜），解决日文站只认原名、填简体时全站查不到的问题。
-- 日志不再打印番号清单，只留每站命中数与缺失统计；缺失番号写入本地资源库目录下 `演员名.xlsx`（三列：番号 / 网站 / 链接地址，番号 A-Z 排列，番号与网站居中、链接靠左，列宽 8.8 / 11 / 100）。
-
-### JavBus 12 个内置镜像实测审查：删掉 4 个失效的
-
-- 实测（2026-10-25，应用自身代理）：`busjav.bond`、`seejav.cyou`、`javbus.bond` 返回 5568 字节的 JS 跳转壳（`Redirecting...`，不是站点内容，`javbus.bond` 还伴随 HTTP/2 RST），`buscdn.bond` 直接 404。四个已从 `tools/actor_sources.py::_JAVBUS_DOMAINS` 删除。
-- 保留并逐个验过标题为「JavBus - AV磁力連結分享」的 8 个：`www.javbus.com`、`www.dmmsee.casa`、`www.cdnbus.bond`、`www.javsee.cyou`、`www.fanbus.bond`、`www.busdmm.bond`、`www.cdnbus.cyou`、`www.dmmbus.bond`。
+- 站点链按类型固定（有码 DMM→DMM_API→LibreDMM→JavDB→JavDB_API→JavDB_APP→Javlibrary·镜像→JavLibrary→JavBus，无码 / FC2 / 欧美 / 国产 / 动漫各有定稿链），顺序即优先级。
+- `tools/actor_sources.py` 重写为「站点注册表 + 归一化」：`ssis00006` / `SSIS-006` 先 `normalize_key()` 折叠再比对，`display_number()` 还原展示。
+- 同域名组串行、跨域名并发，每站最多 2 次请求；演员名先经 JavDB 演员库解析日文原名再查。
+- 输出 `演员名.xlsx`（番号 / 网站 / 链接地址），日志只留命中与缺失统计。
+- 表由 3 列扩到 7 列：番号 / 演员 / 日期 / 时长 / 类型 / 网站 / 链接；文件名带时间戳；日期写 Excel 日期型、时长写分钟。
+- 站点清单两条路：**自动判断**走固定链；**指定类型**走「类型刮削网站」对应组（组内顺序即优先级，禁用站点仍参与查缺）。
+- 工具页新增「类型」下拉（自动判断 + 六类），几何由 `_sync_tool_page_input_fill` 钉死；`comboBox_actor_type` 加 QSS 限定规则解决「自动判断」末字被裁。
+- 新增「只获取单演员」复选框：只保留演员表恰好一个演员的番号。
+- 标题抽番号收紧：字母段与数字段有分隔符、或无分隔符但数字 ≥3 位才算番号（`SKE48` 不再误判，`TEK-067` 照取）。
+- JavBus 12 个内置镜像实测删 4 个（`busjav.bond` / `seejav.cyou` / `javbus.bond` 返回跳转壳、`buscdn.bond` 404）。
 
 ### 信息管理切换番号时封面/缩略图不跟着换
 
-- 现象：信息管理页选中目录后上下切换 NFO，部分番号（如 `FC2-1385526`、`FC2-1387324`）右侧封面与缩略图仍显示前一个番号（`FC2-1379316`）的图，但表单字段与封面 URL 都是当前番号的。
-- 根因：`nfo_lib_layout.py::_sync_nfo_lib_preview_pixmaps()` 只在「缩放后的预览图尺寸变化」时才 `setPixmap`。FC2 归档的封面多为 1:1（如 `poster.jpg`），不同番号的图缩放到同一个预览框后尺寸完全一致，于是被误判为「图没变」，一直保留上一张。
-- 修复：预览同步新增 `force` 参数；`nfo_library.py::on_nfo_lib_data_loaded()` 与 `_refresh_nfo_lib_previews()` 在换图后传 `force=True` 强制重设。预览图读取统一收进 `_load_nfo_lib_pixmap()`，路径缺失或图片损坏时返回 `None` 并显示「无海报 / 无缩略图」，同样不会残留旧图。
-- 测试：`tests/test_nfo_library_maximize_preview.py::test_switch_nfo_refreshes_same_size_preview_images` 用同尺寸红/蓝图钉住「切番号必须换图」，并覆盖无图番号的占位清理。
+- 根因：预览同步只在「缩放后尺寸变化」时 `setPixmap`，同尺寸（如 FC2 的 1:1 封面）被判为「图没变」。
+- 修复：`_sync_nfo_lib_preview_pixmaps()` 新增 `force` 参数，换图后强制重设；无图番号显示占位并清理旧图。
+- 测试：`tests/test_nfo_library_maximize_preview.py::test_switch_nfo_refreshes_same_size_preview_images`。
 
 ## 2026-10-24
 
-### JavBus 四条线路一律改用 www 入口：网络检测不再误报「Cookie 可能无效」
+### 站点地址：默认一律不带 `www.`（唯一例外 MGStage）
 
-- 实测（2026-10-24，真实 Cookie + 代理）：`javbus.com`、`dmmsee.casa`、`javsee.cyou`、`cdnbus.bond` 四个裸域**全部 301 到各自的 www**，而跨主机跳转时请求头里的 Cookie 会被丢掉——网络检测打裸域时服务端看到的是匿名用户，头像恒为 `avatar.php?uid=0`，于是「设置 → 网络」里 Cookie 检测明明是 `✅ 连接正常`，网络检测却报 `⚠️ 访问正常，但Javbus网站Cookie可能无效`。
-- `crawlers/javbus.py::_JAVBUS_DOMAINS` 与 `core/file_crawler.py::_MULTI_ADDRESS_SITE_TARGETS` 的四个地址统一改成 www 变体（`www.javbus.com` / `www.dmmsee.casa` / `www.javsee.cyou` / `www.cdnbus.bond`），Cookie 一次到位；刮削侧同样受益（此前带 Cookie 的请求跳转后等于白带）。这是「默认地址一律不带 www」的功能性例外，与 MGStage（裸域打不开）同属「按站点实测定的例外」。
-- `controllers/main_window/cookie_checks.py::_JAVBUS_COOKIE_CHECK_BASES` 补全四条线路，并把写错的 `www.dmmbus.casa` 改回 `www.dmmsee.casa`（与 `javbus.py` 声明的镜像一致）。
-- 网络检测加「跳转丢 Cookie」保护：`core/network_check.py::_classify_http_result` 在判未登录时比对落地 host，发现请求被跳到别的主机（如用户自定义网址仍写裸域）就提示「请求被跳转到 xxx，Cookie 未随跨主机跳转保留；请把 JavBus 网址改成 https://xxx」，不再把锅算到 Cookie 头上。
+- 所有 `base_url_()` 默认值去掉 `www.`；`MGStage` 按用户要求保留 `https://www.mgstage.com`。自定义网址也不再自动补 www（`normalize_custom_url()`）。
+- 四个站点换址：JavLibrary → `javlibrary.com/cn`、IQQTV → `iqqr1.org/cn`、JavFree → `javfree.me`、Madouqu → `madouqu.shop`；Missav 系列改 `missav.live/dm247/cn`（必须带语言段，否则 302 到英文页）。
+- JavDB 默认 `javdb580.com`（`javdb.com` 降为镜像）；JavBus 四条并列线路、每条只打一次（`_MULTI_ADDRESS_SITE_TARGETS`），爬虫内部不再自建轮换。
+- 删失效域名：`c97k.com`、`7tv022.com`、`missav.ai`、`freejavbt22.cc`、IQQTV 三个旧域名（连带镜像轮换一起删）。
+- 新增 `base/web.py::site_root()`：带语言段的入口地址先收敛成 `scheme://host` 再拼路径。
 
-### JavDB / JavDB_API 换到 javdb580.com 后的检测失败与刮削探测超时
+### JavBus 四条线路改用 www 入口：网络检测不再误报「Cookie 可能无效」
 
-- 根因：用户自定义网址里残留早前版本自动补的 `https://www.javdb580.com/`，而 `www.javdb580.com` 是个**只回 1 字节换行的空壳域名**（主站是 `javdb580.com`）。JavDB_API 的搜索页解析不出任何结果，回退真实刮削后 `_try_mirrors` 又只轮 `javdb573/574/575`、且硬编码 `use_proxy=False`（开了「全部流量走代理」也照样直连），一次探测要把三个旧镜像全打一遍，于是稳定卡到 30s/45s 双超时。
-- 新增 `mdcx/utils/site_url.py`：`without_www()`（去 host 的 www 前缀）与 `strip_redundant_www()`（自定义网址只比默认地址多个 `www.` 时按默认地址走），纯字符串处理、不触网、不改用户配置。
-- `core/network_check.py`：`_configured_or_default_url()` 先做 www 归一化；新增 `_retry_without_www()`——站点检测项拿到空壳 200（正文 < 64 字符）时自动改打去掉 www 的地址，拿到真页面就把检测项地址换过去（后续刮削探测也跟着用新地址）；空壳 200 不再判「连接正常」，改为「站点返回空白页（常见于网址里的 www 变体）」。
-- `crawlers/javdb_api.py`：`base_url_()` 做 www 归一化；`_try_mirrors()` 的候选地址改为「配置地址 → 去 www 变体 → 默认 `javdb580.com` → 573/574/575」，从上次成功的地址起步；请求改走全局代理路由（`use_proxy=True`），空响应按失败处理。`crawlers/javdb.py::base_url_()` 同步做 www 归一化。
-- 实测效果：同一台机器、同一代理，JavDB_API 检测从 `66.7s / 站点无效：刮削探测2次30s/45s均超时` 变为 `4.2s / ✅ 连接正常，刮削正常`；直接构造 `https://www.javdb580.com` 的检测项也能在 1.5s 内自动落到 `https://javdb580.com/`。
+- 四个裸域全部 301 到 www，跨主机跳转丢 Cookie → 检测看到匿名用户。地址统一改 www 变体，`cookie_checks.py` 补全四线路。
+- `network_check._classify_http_result` 加「跳转丢 Cookie」保护：落地 host 变了就提示改网址，不再算 Cookie 的锅。
+
+### JavDB / JavDB_API 换域名后的检测失败与探测超时
+
+- 新增 `utils/site_url.py`（`without_www` / `strip_redundant_www`）；`network_check` 遇空壳 200（正文 < 64 字符）自动改打去 www 地址，不再判「连接正常」。
+- `javdb_api._try_mirrors()` 候选改为「配置地址 → 去 www → `javdb580.com` → 旧镜像」，改走全局代理。实测检测 66.7s 超时 → 4.2s 正常。
 
 ### JavDB Cookie 检测：多节点投票 + 详情页登录态判定
 
-- 旧实现只打「配置网址 + `/v/D16Q5?locale=zh`」一个地址、且只认页面里的 `/logout`：官方换到 `javdb580.com` 后用户配置里的 www 空壳页既没有 `/logout` 也没有任何内容，于是有效 Cookie 也一直报「❌ 未检测到登录态，Cookie可能无效」。
-- 新增 `cookie_checks.classify_javdb_login_state()`：详情页标记（`current-title` / `video-cover` / `copy-to-clipboard`）或 `/logout` / `登出` → 已登录；登录表单（`action="/user_sessions"`）或页头 `href="/login"` / `href="/users/new"` / `登入` → 未登录；CF 挑战页 → 拦截；空壳页（< 64 字符）→ 判不了。实测：未登录访问 `/v/{id}` 一律 302 到 `/login`，登录后才返回详情页。
-- 新增 `javdb_cookie_verdict()` / `javdb_cookie_check_urls()` / `javdb_cookie_verdict_sync()`：候选地址为「配置网址 → 去 www 变体 → `javdb580.com` → `javdb.com`」，逐节点实测取可信度最高的一票，任一节点判有效立即收工；IP 被封、版权区域限制、CF 拦截各有独立文案。沿用议题 #130 口径：只有 `valid` 才写盘，其余只告警并保留用户填的 Cookie。
-- `controllers/main_window/net_check.py::_check_javdb_cookie()` 改用上述多节点判定，保留 VIP 图标展示与「Cookie 有变化才保存」；`core/network_check.py` 的 JavDB 站点检测也改用同一套登录态判定（不再只认 `/logout`）。
+- 新增 `classify_javdb_login_state()`：详情页标记 / `/logout` → 已登录；登录表单 / `href="/login"` → 未登录；CF 挑战页 → 拦截；空壳页 → 判不了。
+- 候选地址逐节点实测取最高可信票，任一有效即收工；只有 `valid` 才写盘，其余只告警并保留用户 Cookie。
 
-### 禁用站点照样参与网络检测
+### 其他
 
-- 用户 2026-10-24：网络不是天天测、只是偶尔测一次，被禁用的站现在通不通同样需要知道，没必要把禁用站从检测页关掉。
-- `core/network_check.py::_build_site_specs()` 删除按 `website_disabled` 跳过站点检测项的整段逻辑；`_build_static_specs()` 的 ThePornDB Token 检测同样不再因站点被禁用而跳过；`run_network_check()` 的「重试失败项」也不再按当前禁用名单过滤。刮削侧的「禁用即不请求」不变，两边互不影响。
-
-### 测试
-
-- `tests/test_network_check.py`：三条「禁用站点不生成检测项 / 重试时过滤」的用例改写为「禁用站点照样检测」；镜像项与探测重试用例的假响应改成真实长度的 HTML（空壳 200 现在会先被「空白页」判定拦下）。
-- `tests/test_javbus_cookie_check.py`：检测节点期望值补全为四条 www 线路，节点打桩 key 由 `dmmbus.casa` 改为 `dmmsee.casa`。
-- `tests/test_field_crawler_retry.py`、`tests/test_custom_site_url.py`：JavBus 地址与默认网址断言同步为 www 变体。
-
-### 站点默认地址一律不带 `www.`（唯一例外 MGStage），四个站点换地址，失效域名清理
-
-- 用户 2026-10-24 定规：**所有站点的内置默认地址都不加 `www.`**——「加了 www 有些网站反而有问题」。全部站点的 `base_url_()` 默认值（即设置页「当前网站」右侧显示的网址与刮削实际用的地址）逐个去掉 `www.`；唯一例外是 `MGStage`（用户 2026-10-24 指定保留 `https://www.mgstage.com`）。
-- 四个站点按用户指定换默认地址：`JavLibrary` → `https://javlibrary.com/cn`（直接进中文页）、`IQQTV` → `https://iqqr1.org/cn`（新域名，带 www 会被站内 302 到 `?fromsite=www`，反而多一跳）、`JavFree` → `https://javfree.me`、`Madouqu` → `https://madouqu.shop`。
-- `Missav` / `Missav_API` 默认地址改为 `https://missav.live/dm247/cn`：`missav.live` 没有 CF 墙、更容易过 CF；地址末尾固定带 `/dm247/cn`——站点会把不带语言段的请求 302 到 `/dm265/en`（英文页），显式写中文语言段才拿得到中文页（同族还有 `/dm265/en` 英文、`/dm285/ja` 日文）。备用域名 `missav.ws` 同样带该语言段。
-- 删除已失效域名：`c97k.com`（JavLibrary 动态解析与镜像兜底列表，代码内全部移除）、`7tv022.com`（7mmtv 唯一镜像，连带删掉该站的镜像轮换机制）、`missav.ai`（missav 镜像与指纹池）、`freejavbt22.cc`（HTTP 429，改为只用 `https://freejavbt.com`，不再轮换）。代理名单默认值里的 `7tv022.com` / `missav.ai` 同步清掉。
-- `JavDB_API` 默认地址仍是 `https://javdb580.com`（原 `javdb573.com` 已换）。
-- `JavDB` 默认地址改为 `https://javdb580.com`（原 `javdb.com` 降为镜像）：刮削仍是 4 次，第 1/3 次打 `javdb580.com`、第 2/4 次打 `javdb.com`。
-- `JavBus` 改成四条并列线路、每条只打一次（用户 2026-10-24）：第 1 次 `javbus.com`、第 2 次 `dmmsee.casa`、第 3 次 `javsee.cyou`、第 4 次 `cdnbus.bond`。**同日修正**：四个裸域都会 301 到各自的 www、跨主机跳转丢 Cookie，四个地址已统一改为 www 变体（见上方「JavBus 四条线路一律改用 www 入口」）。新增 `core/file_crawler.py::_MULTI_ADDRESS_SITE_TARGETS` 承载这套「一个地址一次」；`JavBusCrawler` 不再自建域名轮换（否则一次尝试会被内部轮换放大成多次请求）。
-- `IQQTV` 删除 `iqqq3.quest` / `iqq5.xyz` / `iqqk4.quest`（三个旧域名都会自动跳到 `iqqr1.org`），站点只剩 `iqqr1.org` 一个地址，镜像轮换一并移除。
-- AVMOO / AVSOX / AVheat 默认地址保持中文首页 `/cn`（`crawlers/*.py` 的 `fallback_domain` 与 `base/web.py::_AIO_SITE_KEYS` 同步）。`AioSiteCrawler._api_base()`：JSON API 固定在站点根（语言由 body 里的 `lang` 指定），拼 `{base}/{namespace}/data/api/search|getMovie` 前先去掉 `/cn` 语言段，避免搜索请求打到 `/cn/jav/...` 404。
-- 入口地址带语言段/首页路径时不再直接当前缀拼：新增 `base/web.py::site_root()`，`JavLibrary`、`JavLibrary·镜像`、`IQQTV` 拼搜索/详情地址前先收敛成 `scheme://host`，避免拼出 `/cn/cn/vl_searchbyid.php`、`/cn/main.php/cn/xxx`。
-- 自定义网址不再自动补 `www.`：`models.normalize_custom_url()` 的 host 按用户填的来，只把误写的 `www.www.` 收成一个——自动补 www 会把本来能开的站补成打不开（`www.madouqu.shop` 是 NXDOMAIN、`www.javfree.me` 证书不匹配）。
-- 同步 `core/network_check.py::DEFAULT_SITE_URLS`、`controllers/main_window/net_check.py` 的 JavDB 探测地址、`core/file_crawler.py` 的 JavLibrary 镜像目标（`https://f101w.com/cn`）、`network_fingerprint.py` 的 missav 域名池。
-- `tests/test_site_default_urls.py` 改为「默认地址一律不带 www（MGStage 例外）+ 四个点名地址 + `site_root()` 去语言段 + 语言段不重复」；`tests/test_custom_site_url.py`、`tests/crawlers/*`、`tests/test_review_regressions.py` 相关断言同步。
-
-### 「当前网站」下拉：网址列一律不显示 www，并记住上次实际使用的站点
-
-- 下拉右侧网址列显示时去掉 host 的 `www.`（`init._display_site_url()`，只作用于绘制与列宽测算）：`MGStage` 显示 `https://mgstage.com/`，实际访问与点击跳转仍用 `https://www.mgstage.com/`（裸域浏览器打不开）。
-- 新增配置项 `last_custom_website`：下拉切换站点、点击网址跳转、修改自定义网址都算「实际使用」并记下来；下次打开软件默认选中该项（不再每次回到第一项 7mmtv），展开下拉前也会先归位到该行，Qt 连弹窗滚动位置一起对到那一行。
-- 落盘时机：交互中只置脏标记，`exit_app`（或「保存设置」）时统一写配置——避免每次切换都整份重写配置。
-- 测试：`test_site_url_column_hides_www`、`test_remember_and_restore_custom_website`、`test_switch_custom_website_remembers_selection`。
-
-### 自定义网址：保存后回显、没改过的站点留空，刮削全程只打自定义地址
-
-- 设置页「自定义网址」不再回填站点默认地址：只有用户真正改过并保存过的站点才显示网址，格式统一为 `https://javdb580.com/`（结尾带斜杠）；没改过的站点输入框保持空白，并新增占位提示「显示修改后的网址如 https://javdb580.com/，没修改的不显示」。
-- 新增 `Config.get_site_url_display()`（展示用，补尾斜杠）与 `models.normalize_custom_url()`（保存用）：省略协议时自动补 `https://`；**不自动补 `www.`**（用户 2026-10-24 定规，host 按填的来），只把误写的 `www.www.` 收成一个；已是子域名（`api.example.com`）、IP、带端口的地址原样保留。
-- 输入格式校验：必须是 http/https 网址，域名要有合法标签与字母后缀（支持 punycode）、端口在 1–65535、不能带账号密码与空格；不通过时保存前就弹窗提示并留在设置页，配置不落盘，不再静默丢弃或覆盖用户输入。
-- **与默认地址相同按「没自定义」处理**：`models.resolve_custom_url()` 把输入与站点内置默认地址（`models.site_default_url()`，临时忽略自定义网址后取爬虫的 `base_url_()`）比对，相同就返回空串——不写配置、自定义网址输入框也不显示，避免默认地址被当成自定义网址、把 JavDB/JavBus/JavLibrary 的源/镜像轮换挡掉；只差一个 `www.` 也认作同一个站（JavDB 默认地址是 `javdb.com`，用户补成 `www.javdb.com` 时不落配置，免得补出一个可能不存在的地址）。
-- 保存、切换配置、恢复默认之后调用 `init.refresh_site_combo_urls()`，把「当前网站」「自定义网址」「使用代理」三个下拉框右侧的网址列同步成最新地址（检测图标与缓存不动）。
-- 刮削侧（`core/file_crawler.py`）：`_attempt_target()` 先看该站点有没有自定义网址——有就每次重试都打自定义地址，不再按「源 → 镜像 → 源 → 镜像」切到内置镜像（JavDB 的 `javdb580.com`、JavBus 的 `dmmsee.casa`、JavLibrary 的 `f101w.com` 一律不碰）；镜像站（JavLibrary·镜像）自己配了自定义网址时同样优先用它。`crawlers/base` 的域名轮询器本来就把自定义网址放在首位、命中自定义时不再轮换，两边口径一致。
-- 测试：新增 `tests/test_custom_site_url.py`（补 www / 去重 / 非法输入拒绝、默认地址去重、默认地址取值不被自定义网址污染、只显示改过的站点、配置读写往返、下拉切换回显、下拉网址列解析）；`tests/crawlers/test_crawler.py` 增加「CrawlerProvider 用自定义网址初始化爬虫」；`tests/test_field_crawler_retry.py` 增加「自定义网址下重试全部打自定义地址」「镜像站自定义网址优先于内置镜像」两条用例。
-
-### 刮削请求：普通站点一个番号最多 3 次，JavDB / JavBus / JavLibrary 源镜像交替最多 4 次
-
-- `core/file_crawler.py` 用「番号 × 站点」的请求次数封顶取代原来的逐字段重试：`_MAX_SITE_REQUESTS = 3`（首次 1 次 + 重试 2 次），用尽后本番号不再请求该站（连超时都不用再等），只记一行「已请求 3 次仍失败，本番号后续字段不再请求该站」。
-- 有「源地址 + 镜像地址」的三个站点改用 `_MIRROR_SITE_TARGETS` + `_MAX_MIRROR_SITE_REQUESTS = 4`：**第一次源地址、第二次镜像地址、第三次源地址、第四次镜像地址**，4 次都没数据就放过该站。镜像地址先写死（用户 2026-10-24：短期不会换，不要每次刮削都去官方首页解析）：JavDB → `https://javdb580.com`，JavBus → `https://www.dmmsee.casa`，JavLibrary → `https://f101w.com/cn`。
-- JavLibrary 的镜像走独立爬虫 `JavLibraryMirror`（页面结构相同、单独站点可选），其余两个只是同一爬虫换域名。
-- `crawlers/base/base.py` 新增 `use_base_url()`：把本次请求钉在指定地址，同时关掉爬虫内部的镜像轮换与动态域名解析——否则「一次尝试」会被内部轮换放大成多次请求，用户看到的次数就不再是上限；退出时完整还原（爬虫实例在整个批次内复用）。聚合层每打一次镜像都会在字段日志里记一行「第 N 次请求改用镜像地址」。
-- 用户单独禁用 `Javlibrary·镜像` 站点时不走镜像（「禁用即不请求」不能被绕路）。
-- 此前 `REDUCED_FIELDS` 19 个字段各重试一次，一个连不上的站点会被重试十几次、每次都陪跑到超时，整批刮削被拖成分钟级。
-- `crawlers/javdb.py` 声明 `_domains = ["https://javdb.com", "https://javdb580.com"]`：镜像域名一并进 `known_hosts`（代理按站点路由）与网络检测的探测地址，`base_url_()` 不变，正常请求仍走源地址。
-- 测试：`tests/test_field_crawler_retry.py` 新增「源 → 镜像 → 源 → 镜像」交替（JavDB）与「偶数次走 JavLibraryMirror」两条用例，普通站点封顶 3 次的用例改用非镜像站点；`tests/crawlers/test_javbus_new.py` 新增 `use_base_url()` 钉地址/还原用例。
-
-### JavBus 默认站点改回主站，防屏蔽地址换成 dmmsee.casa
-
-- `crawlers/javbus.py::_JAVBUS_DOMAINS` 首选改为 `https://www.javbus.com`（原来首选 `https://www.dmmsee.cyou`），镜像里的 `dmmsee.cyou` 换成 `https://www.dmmsee.casa`。
-- `resources/config/default_config.json` 里 JavBus 的 `custom_url` 默认值清空：防屏蔽地址会变来变去，预填在默认配置里等于逼用户天天改配置；清空后走爬虫自带的域名列表（主站优先，主站不可达时自动轮换镜像）。
-- `tools/actor_sources.py` 的 javbus 镜像表、`docs/Scraper.md` 的站点地址表、`scripts/series_collect.py` 与 `scripts/studio_label_collect.py` 的采集域名同步。
-
-### 补全模式：nfo 关键字段齐全时直接进成功列表
-
-- 新增 `scraper.missing_complete_fields()`：校验 番号、演员、标题、封面图、缩略图、简介、标签、日期、时长、导演、系列、制作、发行 13 项是否都有具体值；纯空白、`null`/`None`/`nan` 之类占位文本、空列表一律算缺失，封面图/缩略图额外认「本地图片文件已存在」。
-- 13 项全都有值时，补全模式不再联网刮削（一次请求都不发），直接沿用本地 nfo 走完流程并计入成功列表；只有字段不齐才按原逻辑联网合并补全。字段齐全的文件不会再被一个慢站点的重试拖住。
-
-### 简介/原简介占位值：发行日期与「看更多」一律视为没有简介
-
-- 新增 `core/outline_guard.py`：把「发行日期/發行日期/販売日/発売日/配信日/Release date + 日期」这类文本剥掉标签与日期后若无实质内容，即判定为占位（兼容 `2025-11-13`、`2025/11/13`、`2025.11.13`、`2025年11月13日`、全角数字等变体）；`看更多/查看更多/もっとみる/続きを読む/See more/Read more` 等展开链接文本判定为原简介占位。
-- 字段优先级循环里对简介、原简介做占位判定：命中即舍弃并继续尝试下一来源（去其他站点取真简介）；所有来源都拿不到就保持为空，绝不回填发行日期或「看更多」。
-- `core/nfo.py::get_nfo_data()` 读 nfo 时清空占位简介并记一行日志；补全模式据此把清空后的空值写回 nfo（`CrawlersResult.cleared_placeholder_fields`），避免磁盘上的「发行日期 2025-11-13」一直留着。
-- 新增 `tests/test_outline_placeholder.py`（占位判定、清空逻辑、跨站回退、无来源时保持为空）；`tests/test_complete_mode.py` 增加字段齐全跳过联网、占位简介触发联网、无来源时清空写回三条用例。
+- 禁用站点照样参与网络检测（刮削侧「禁用即不请求」不变）。
+- 「当前网站」下拉网址列一律不显示 www（只影响显示，实际访问仍用真实地址）；新增 `last_custom_website` 记住上次使用的站点，`exit_app` 时落盘。
+- 「自定义网址」只回显真正改过的站点，与默认地址相同按「没自定义」处理；刮削时全程只打自定义地址，不切内置镜像。
+- 请求次数封顶：普通站点一个番号最多 3 次，JavDB / JavBus / JavLibrary 源镜像交替最多 4 次（`use_base_url()` 钉住地址、关掉内部轮换）。
+- 补全模式：13 项关键字段齐全时直接进成功列表，一次请求都不发。
+- 新增 `core/outline_guard.py`：简介/原简介里的「发行日期」「看更多」判为占位，不用来回填。
+- JavBus 默认站点改回主站，防屏蔽地址换 `dmmsee.casa`；默认配置里 JavBus 的 `custom_url` 清空。
 
 ## 2026-10-23
 
-### 分离模式 / 更新模式：伴生文件搬移也改为「番号关联 + 事务 + 回滚」
+### 伴生文件搬移全面改为「番号关联 + 事务 + 回滚」
 
-- `deal_old_files(index=...)` 与 `organize_companion_files` 的适用范围从「正常模式」扩到「正常 / 分离 / 更新」三种模式（`scraper.COMPANION_INDEX_MODES`）：三种模式在勾选「刮削成功后移动文件」时都会先建一次归属索引，搬伴生文件时逐文件判定归属、只搬属于当前视频/STRM 的，任一失败整体回滚。
-- 字幕、种子、bif、json、`-mediainfo.json` 及其他同前缀伴生文件的搬移，在分离/更新模式下同样改由 `organize_companion_files` 统一处理，替换 `move_sub` / `move_torrent` / `move_bif` / `move_other_file` 四段按文件名子串匹配的搬移；`move_other_file` 的误搬风险在三种搬文件模式里全部消除。
-- 新增 `_build_plan(asset_root=...)` / `organize_companion_files(asset_root=...)`：分离模式下剧照、剧照副本、主题视频、附加视频等伴生目录落**数据目录**（`meta_folder`），主图与 nfo 落数据目录，字幕/种子/bif/json 仍跟视频目录，与旧行为一致；其它模式两者相同。
-- 软链接/硬链接模式仍不搬伴生文件（原目录视频还在，搬走会把源目录掏空）。
+- 正常 / 分离 / 更新三模式勾选「刮削成功后移动文件」时，先建整库归属索引（`_prepare_organize_index`），逐文件判定归属，任一失败整体回滚（`OrganizeTransaction`）。
+- 字幕 / 种子 / bif / json 改由 `organize_companion_files` 统一搬运，替换 `move_sub` / `move_torrent` / `move_bif` / `move_other_file`。
+- 分离模式用 `asset_root=meta_folder` 让剧照目录落数据目录；软链接/硬链接模式不搬伴生文件。
+- 视频模式删掉两个互斥选项（`Switch.SORT_DEL` / `SORT_MOVE`），固定「搬视频 + 删属于该视频的伴生文件 + 删空目录」。
+- 索引排除系统目录（`@eaDir` / `#recycle` / `$RECYCLE.BIN` / `Thumbs.db` 等），排除目录比较改归一化路径（大小写不敏感）。
 
-### 版本号：改代码即把日期同步成当天
+### 新增补全模式（`main_mode == 7`），读取模式收敛为只读展示
 
-- `docs/Development.md` 第 13 章新增铁律：**只要改了软件代码，`mdcx/consts.py::LOCAL_VERSION` 必须同步成当天日期 `YYYYMMDD`**（代码里 20261022、当天 2026-10-23 → 改成 20261023），改完再按 13.2 复核四个同步点。该规则取代 2026-10-19「`LOCAL_VERSION` 领先当天是既定口径、不许顺手改」的旧口径，并同步写进 `DADA/MEMORY.md`。
-- 本次代码日期已是 `20261023`（当天），无需再改值。
+- 补全模式：本地有值一律保留、只补空字段；无 nfo 回退正常模式；图片缺哪张补哪张；字幕按番号复制；伴生文件事务式搬运；已在成功输出目录内的走 `complete_inplace_locked`（只补内容不移动）。
+- 读取模式：只读 nfo 字段与本地封面/缩略图/背景图，不联网、不下载、不写 nfo、不移动文件；原有 5 个选项迁到补全模式。
+- 补全模式选项精简：删「允许更新 NFO 文件」「无 NFO 按正常模式重新刮削」（连同两个枚举值）；NFO 合并策略 5 档 → 3 档，默认「仅填补空字段」；旧配置由 `_migrate_read_mode_options` / `_migrate_nfo_merge_strategy` 清理。
+- 新增高级功能「任务模式」：本地存储文件（整理不设间隔）/ 网盘存储文件（按自动休息间隔），旧整理模式的两个 bool 键自动迁移。
 
-### 视频模式：删除两个互斥选项，固定「只留视频本体」
+### 其他
 
-- 删除刮削模式页视频模式行的「删除本地已下载的图片和信息文件」「移动已下载图片和文件到新目录」两个复选框（连同 `Switch.SORT_DEL` / `Switch.SORT_MOVE` 两个枚举值、界面互斥处理器、加载/保存配置的读写与互斥归一、`is_video_move_companions_enabled()`），老配置里残留的 `sort_del` / `sort_move` 在加载时自动清掉（幂等）。
-- 视频模式现在固定：视频按番号重命名、搬到新目录 → 删除原目录里**属于这个视频/STRM** 的伴生文件（图片、剧照、剧照副本、预告片、主题视频、NFO、JSON 含 `-mediainfo.json`、字幕、种子、bif 等）→ 收尾删除被搬空的源目录。这才符合「视频模式只整理视频」的字面意思。
-- 删除范围改由「番号 ↔ 伴生文件」归属索引决定（`organize.delete_companion_files`）：只删归属当前媒体的文件，同目录其它番号的文件与归属不明的共用文件一律不动；索引不可用时退回按固定路径清理。
-- 软链接/硬链接模式不删伴生文件：原目录里的视频本体还在，删掉会把源目录掏空。
-- 视频模式运行前会建立一次归属索引（`_prepare_organize_index(mode_label="视频模式")`），归属必须在任何文件被搬走之前确定。
-
-### 正常模式：伴生文件搬移改为「番号关联 + 事务 + 回滚」
-
-- `deal_old_files()` 新增 `index` 参数：传索引后每个待搬文件先做归属判定（`OrganizeIndex.resolve_owner`），只搬属于当前视频/STRM 的文件；同目录混放多个番号时，不再把整份 `extrafanart` / `backdrops` / `trailers` / 剧照副本目录端给第一个处理的番号。索引没覆盖到的文件按旧行为放行，避免漏搬。
-- 正常模式（`main_mode == 1`）勾选「刮削成功后移动文件」时，在开始搬任何文件之前建立整库归属索引；不搬文件则不建，避免白付一次全库扫描。
-- 剧照/剧照副本/主题视频/附加视频目录改为「按归属逐个搬移 + 清空后删空目录」，不再整目录 `move`/`rmtree`；目标已存在同名目录时也只删属于当前视频的那份。
-- 上述搬移全部走 `OrganizeTransaction`：任一文件搬移失败 → 整体回滚到原目录，本次刮削中止并记录失败原因（不再留下搬一半的目录）。
-- 字幕、种子、bif、JSON（含 `-mediainfo.json`）及其他同前缀伴生文件改由 `organize_companion_files` 统一搬运（与整理模式同一套计划/事务/校验/回滚），替换原来的 `move_sub` / `move_torrent` / `move_bif` / `move_other_file` 四段按文件名子串匹配的搬移；`move_other_file` 原来「文件名里含番号就搬」的误搬风险随之消除。
-- 软链接/硬链接模式下不搬伴生文件（与 `deal_old_files` 原有的软链接早退口径一致）。
-
-### 关联索引（`core/file_association.py`）修复
-
-- 系统目录不再被当成剧照目录：`@eaDir`（群晖缩略图）、`#recycle`、`.@__thumb`（QNAP）、`$RECYCLE.BIN`、`System Volume Information`、`Thumbs.db`、`.DS_Store` 等以 `@ # . ~ $` 开头或名单内的条目一律不进索引，不参与搬移与删除。
-- 排除目录比较改为归一化路径（大小写不敏感），修正 Windows / 网络盘上大小写不一致导致排除目录没被排除的问题。
-- 剧照副本目录归一化容忍 `-copy` / 空格 `copy` 等非标准分隔符，避免 `extrafanart-copy` 被误归一成 `extrafanart` 而与剧照目录混在一起。
-- `delete_companion_files()` 清空剧照目录后自底向上删除空子目录。
-
-### 新增 / 改变
-
-- 高级功能新增「任务模式」：两枚互斥选项「本地存储文件」（默认，整理模式不设置时间间隔整理文件）/「网盘存储文件」（整理模式按「自动休息」间隔整理文件，上一次整理完成到下一次整理开始之间至少间隔自动休息设定时间，防止网盘目录缓存未刷新导致整理失败）；配置保存在 `switch_on` 开关组（`task_store_local` / `task_store_netdisk`），旧整理模式的独立 bool 键（`organize_local_no_interval` / `organize_netdisk_rest_interval`）已废弃并自动升级迁移。
-- 刮削模式整理模式：删除下方两枚互斥的间隔复选框（功能已迁移到高级功能任务模式），运行时整理间隔逻辑由任务模式决定（本地不限制 / 网盘按自动休息间隔）。
-- 运行环境改为 Python 3.15：`requires-python` 由 `>=3.14` 提到 `>=3.15`，`uv.lock`、`requirements.txt` 头注、`README.md` 徽章、`docs/Development.md` 依赖章节同步，测试里的版本守卫一并升到 3.15；除 pyyaml（至今无 cp315 wheel，靠 `PYYAML_FORCE_LIBYAML=0` 出纯 Python wheel）外，其余依赖均已提供 3.15 可用版本。
-- 刮削模式新增「补全模式」（`main_mode == 7`）：本地已有优先，只补缺失。读取视频/STRM 关联的 nfo 字段，本地有值的一律保留，空着的字段联网刮削补齐；没有 nfo 的文件自动按正常模式全量刮削；封面图/缩略图/背景图本地已存在的直接保留，缺哪张补哪张（不重复下载、不重复打水印）；字幕从「设置→字幕→添加外挂字幕→字幕存放目录」按同番号/同名复制到刮削后文件夹；`-mediainfo.json`、种子、bif、剧照目录随视频一起事务式搬运。
-- 读取模式收敛为「只读取并展示」：只读 nfo 字段与本地封面/缩略图/背景图，不联网、不下载、不写 nfo、不移动文件；原先挂在读取模式下方的 5 个选项（按更新模式重新整理分类、重新下载封面图片等文件、允许更新 NFO 文件、无 NFO 按正常模式规则刮削、本地NFO合并及策略）整体迁到补全模式下方，功能同步迁移。
-- 「番号 ↔ 伴生文件」关联逻辑抽到 `mdcx/core/file_association.py`（`OrganizeIndex` / `build_organize_index` / 新增 `collect_media_assets`），整理、视频、补全三种模式共用；`core/organize.py` 只保留「移动计划 + 事务 + 回滚」，并继续导出原 API 保持兼容。
-- 补全模式复用整理模式的事务与回滚：不在成功输出目录内的文件先按设置把视频/STRM、nfo、图片、字幕、种子、mediainfo、剧照目录事务式搬到目标位置（任一文件失败整体回滚），再在最终目录补字段与缺失图片；已在成功输出目录内的文件只补内容、不移动不重命名；结束后同正常模式删除空目录。
-- 补全模式写 NFO 的合并策略：未勾选「本地NFO合并及策略」时固定「本地信息优先」（只填本地空字段），勾选后按所选策略执行；只有真的补到空字段或勾选「允许更新NFO文件」时才写回 nfo，本地已有值不会被覆盖。
-- 补全模式勾选「按更新模式重新整理分类」时走更新模式的 A/B/C/D 目录与 C 文件命名规则（`is_update_rules_active()` 统一判定），其余情况按正常模式的命名规则整理。
-- 补全模式的扫描包含「成功输出目录」与 `.strm`，且不参与断点续刮缓存：每次全量处理，方便反复运行把缺失项补齐。
-- 设置页刮削模式组新增「补全模式」单选项与说明/提示（红字标注，位于读取模式下方），5 个选项整体下移一行；组框高 532→569，其下各组同步下移 37px，滚动内容高 2069→2106。
-- 软件内「使用说明」同步改写读取模式、新增补全模式与合并策略条目；`docs/Features.md` 第 6 节改写为读取模式只读，新增第 7 节补全模式。
-- 测试：新增 `tests/test_complete_mode.py`（模式常量与判定、合并策略、空字段统计、关联清单、原地补全不移动、无 nfo 回退正常模式、事务搬运、读取模式只读、更新规则开关、扫描包含成功输出目录）；`tests/test_guaxiaomoshi_align.py` 的几何断言随新增行更新。
-
-- 补全模式下方选项精简：删除「允许更新NFO文件」「本地没有NFO的文件，按正常模式规则重新刮削」两项（连同 `ReadMode.NO_NFO_SCRAPE` / `READ_UPDATE_NFO` 两个枚举值）——前者由「补到空字段即写回」取代，后者补全模式本来就无条件执行（全仓无消费点的死选项）。
-- NFO 合并策略由 5 档精简为 3 档：删除「本地信息优先」「保留已有字段」（与「仅填补空字段」语义重合），默认改为「仅填补空字段」；该档含义同步修正为「本地已有值一律保留，只把本地空着的字段用刮削值补上」（原实现是「新数据为主」，与名称不符）。
-- 旧配置自动升级：`read_mode` 里残留的两个已删除值在加载时清理（兼容逗号分隔字符串形态）；`nfo_merge_strategy` 的 `prefer_nfo` / `preserve_existing` 自动映射到 `fill_missing_only`；出厂 `default_config.json` 同步为 `read_mode: []`、`nfo_merge_strategy: fill_missing_only`。
-- 读侧行为随选项删除调整：nfo 标题/简介改为按「设置→翻译」的字段语言决定取原文还是译文（原先还要求勾选「允许更新NFO文件」）；自动 tag 的剥离改为「非读取模式一律剥离」，读取模式只展示、保留原样。
-- 设置页补全模式区删掉两行选项，组框高 569→523，其下各组与滚动内容同步上收 46px；合并策略下拉由 5 项变 3 项，默认选中「仅填补空字段」。
-
-### 修复
-
-- 设置页「补全模式」单选项改为与其他模式一致的黑色字体（原为红字标注），右侧提示词改为与其他提示词一致的绿色（`rgb(8, 128, 128)`），整组视觉统一。
-- 补全模式 `update_nfo` 的判定时机：原先把「本次是否补到空字段」放在联网合并之前求值，永远读到空列表（被默认勾选的「允许更新NFO文件」掩盖成恒 True）；现改为在合并结果处定稿，只有真的补到字段（或新的演员 tmdbid）才写回 nfo。
-- 「重新下载封面图片等文件」复核结论：**不存在「重下不打水印」缺陷，且重下的图完全按「设置→水印」执行**——下载函数每成功写出一张新图都会把对应 `*_marked` 复位为 False，`_download_images` 末尾的 `add_mark()` 再按「给缩略图/封面/背景图打水印」三枚开关 + 标记类型（有码/无码/字幕/4K 等）处理；未重下、被「保留目标文件」挡住的本地图标记保持 True，不会重复打水印。补三条回归（勾选后 `keep_local_image` 返回 False；标记复位后 `add_mark` 确实打水印；`_download_images` 端到端链路：保留时不打、重下时三张图都打），并用 AST 哨兵锁住三个下载函数的标记复位语句。
-- 配置升级：旧配置两开 / 全关时归一到默认「本地存储文件」或更安全的「网盘存储文件」；保存时校验互斥并写入 `switch_on`。
-- 运行时整理间隔等待：`organize_netdisk_rest_enabled()` 改为读取 `Switch.TASK_STORE_NETDISK` 开关状态，与整理模式运行时判断保持一致。
-- 高级页「任务模式」行对齐：「本地存储文件」「网盘存储文件」两枚复选框上移，与「任务模式：」标签严格水平居中（标签行高补到 30，行内 spacer 全部去掉，改由两枚复选框均分整行）；「网盘存储文件」与下方「使用暗黑模式」严格上下对齐（任务模式行改成与「界面外观」行同构的 `y=-10`、`550×51` 内嵌 widget，窗口宽度变化也不会错位）。
-- 高级页「任务模式」行两态对齐：「网盘存储文件」在还原态向左、最大化态向右，都落在「使用暗黑模式」那条竖线上，「使用暗黑模式」位置保持不变（新增 `_sync_advanced_page_task_mode_align`：容器取「界面外观」行同宽、前导项「本地存储文件」钉成「隐藏边框（美观样式）」等宽，末位自动落线）。
-- 高级页「隐藏窗口」行不再压字：原来「点击关闭按钮 / 点最小化按钮 / 无」三枚单选与「隐藏Dock图标（Mac）/ 隐藏菜单栏图标（Mac）/ 保存后重启生效」挤在同一个网格格里互相重叠，现在单选独占一行、复选框行独占下一行；「隐藏图标：」改为给复选框行做标签，「界面外观：」上移一行接管「隐藏边框（美观样式）/ 使用暗黑模式」，原先空着的「界面外观」行取消，下方各行同步上移，行距统一 36px。
-- 信息管理页「批量保存」按钮补上跨列（colspan=2），重新铺满「批量操作」分组框；此前它只占左侧一列、宽 80px，与上下控件参差。
-- 高级页四条提示词右移到锚点竖线（两枚锚点位置保持不变）：隐藏图标行的「保存后重启生效」与隐藏入口行的提示词右移到「显示字段内容信息」，改对话框行的「目录中的文件较多时，可以勾选此项提高文件打开速度」与分屏缩放行的「保存后重启生效，可能会有点模糊」右移到「显示字段来源信息」；隐藏入口行提示词同时缩为「仅隐藏入口，保存后立即生效」（原长文案落到该竖线右侧会裁字）。新增 `_sync_advanced_page_hint_align`，在末位提示词前插 Fixed 间隔并按列宽夹取，放不下就保持自然位（还原态「保存后重启生效」就是这一档：窄态「隐藏菜单图标」自己已钉在 data 竖线上，提示词只能排在它右侧）。
-- 高级页删除两枚提示词：隐藏图标行的「保存后重启生效」与隐藏入口行的「仅隐藏入口，保存后立即生效」从 `MDCx.ui` 移除（`label_42` / `label_nav_hide_hint` 不再存在）。两行末尾各补一枚 `QSizePolicy::Expanding` 的 0×0 间隔——整行全 Fixed 时 QGridLayout 会用「各行最大宽的最小值」当列上限，col1 被压回 sizeHint 后居中、整页右移（离屏实测 col1 左缘 101 → 805），补上末尾伸展项后恢复。
-- 高级页「分屏缩放」下拉框右缘缩到「隐藏边框样式」右缘（后者位置保持不变）：基准取复选框 `sizeHint().width()`（用户红线画在文字末尾，不是被 layoutWidget5 均分后的控件宽），两行左缘天然相等，故等价于把下拉框钉成同一宽度；下限取其 `minimumSizeHint()`，基准更窄时放弃对齐，绝不裁掉「跟随系统 / 300%」。新增 `_sync_advanced_page_scale_combo_align`。
-- 高级页「分屏缩放」下拉框改锚「隐藏演员管理」右缘，并**撤掉**上一条那条 `minimumSizeHint()` 下限：真机 80% 界面缩放下它比锚点宽约 20px，`max()` 会把下拉框停在最小可用宽、比锚点右出 20px（用户截图红框「向左缩进到这里」）。位置类需求一律以锚点 `sizeHint()` 为准，宽度可能小于下拉框自身最小可用宽——这是用户明确要的取舍。
-- 高级页「分屏缩放」下拉框里的「跟随系统」不再截成「跟随系」（下拉框宽度一个像素没动）：宽度被「隐藏演员管理」的 `sizeHint()` 钉死后（真机 102px），通用 QSS 的 `padding-right: 30px` 在 QSS 样式下与 26px 箭头**重复占位**（Qt 已从内容区扣过箭头宽），文本区只剩 35px，而四个汉字要 52px。给这一枚下拉框加限定 objectName 的 `QComboBox#comboBox_ui_scale { padding: 3px 0px 3px 8px }`（亮 / 暗两套），文本区 35→65px，外框宽度、箭头位置、所在行提示词间隔都不变。
-- 设置页补全模式「本地NFO内有链接，重新下载封面图片等文件」左移到与视频模式「删除本地已下载的图片和信息文件」同一条竖线上（左缘逐像素对齐）：该行行首原有一枚 10px 空标签（`label_252`），连同行间距把整行右推 16px，删掉这枚空标签后整行左移，删除框与补全模式其余选项位置保持不变（窄↔宽往返冻结）。新增 `test_again_download_checkbox_aligns_with_delpic` 与静态哨兵 `test_no_indent_label_before_again_checkbox`。
-- 测试：清掉长期红线的 12 条用例——任务模式/移动文件相关用例按新结构更新行号与断言；整理间隔两枚复选框已迁到高级页，对应两条用例删除；`aventertainments` 真实联网用例（站点在本机网络不可达、CI 本就按 `network` marker 跳过）删除；批量保存 3:4:3 宽度用例随跨列修复恢复通过。新增 `tests/test_advanced_task_mode_align.py`，把「网盘存储文件」两态对齐「使用暗黑模式」与「隐藏窗口」三行互不重叠钉成回归锁。新增 `tests/test_advanced_page_hint_align.py`（提示词落点/锚点不动/往返幂等）与 `tests/test_advanced_scale_combo_width.py`（下拉框右缘对齐、基准不动、不裁字）。
+- `core/file_association.py` 承载全部「番号 ↔ 伴生文件」关联，`core/organize.py` 只留「移动计划 + 事务 + 回滚」。
+- 版本号纪律：改代码即把 `consts.py::LOCAL_VERSION` 同步成当天日期，`docs/Development.md` 第 13 章与 `DADA/MEMORY.md` 同步。
+- 运行环境升到 Python 3.15（`requires-python`、`uv.lock`、`requirements.txt`、README 徽章、Development.md 同步）。
+- 界面：补全模式单选项改黑色字体、提示词改绿色；高级页「任务模式」「隐藏窗口」「分屏缩放」「提示词右移」等一批对齐修复。
 
 ## 2026-10-22
 
 ### 新增
 
-- 软件主页缩略图、封面图支持 gif 动图：自动播放，随窗口缩放同步放大
-- 界面缩略图、封面图支持的图片格式扩充到 bmp / jpg / jpeg / jfif / png / gif / webp / tif / tiff / tga / ico / pcx / avif 等（Qt 无插件的格式由 Pillow 兜底解码）
-- GitHub Release 标题改为 `MDCx <日期版本号>`，资产文件名去掉展示版本号段
-- 视频模式新增「移动已下载图片和文件到新目录」：按番号把已下载的图片、信息文件、json、字幕事务式搬到新目录
-- 高级页新增「移动文件」策略：覆盖旧文件 / 保留旧文件，整理模式与视频模式共用
+- 主页缩略图、封面图支持 gif 动图（自动播放、随窗口缩放）。
+- 界面图片格式扩充到 bmp / jpg / jpeg / jfif / png / gif / webp / tif / tiff / tga / ico / pcx / avif（Qt 无插件的由 Pillow 兜底）。
+- Release 标题改为 `MDCx <日期版本号>`，资产名去掉展示版本号段。
+- 高级页新增「移动文件」策略（覆盖 / 保留旧文件），整理与视频模式共用。
 
 ### 改进
 
-- 编辑 NFO 窗口的标题、原标题等文本字段改为从最左侧开始展示，不再只看到结尾
-- poster / thumb / fanart 三张主图支持其它图片格式，搬走时保留原扩展名
-- 整理模式搬运补齐 gif 动图；非标准写法剧照目录（extarfanart）整体搬迁并归一为 extrafanart
-- 整理模式按「成功输出目录」自动分模式：已在目录内的文件按读取模式处理，不移动、不复制后删源
-- 高级页「最小化时」改用窗口管理器给的真实最大化状态判态
-- 高级页多处控件严格上下对齐：「保存后重启生效」「隐藏菜单栏图标」「不限次数刮削」「显示字段来源信息」
-- 托盘图标右键菜单「隐藏到托盘」去掉快捷键后缀
-- 演员管理器可编辑列右键改为弹出菜单：复制内容 / 编辑内容 / 查看详情
-- 演员管理器可编辑列选中态改为「原底色 + 四周蓝边」，单击选中、再次单击编辑、快速双击看详情
-- 演员管理器可编辑列进入编辑态后不再铺整块蓝底
-- 软件日志每一行严格左对齐
-- 「保留任务」复选框文案精简为「重启续刮任务」
-- 旧配置启动时自动升级到当前结构：缺失的顶层键按出厂默认补齐并落盘
-- 「指定网站」下拉补上 Official 旗下 5 个无码官网
-- JavBus Cookie 检查真正校验登录态，不再「填什么都正常」
-- Official 六行的网络检测各自独立探测，不再一起亮红
-- 锁定类型下拉八项全链路审查：修掉「锁定国产传媒却把 NFO 写成有码」与「字段优先级顺序每次启动都不同」两处 bug
-- 网络页代理说明文字与输入框左边缘对齐，措辞收紧
-- 网络页多处空白收紧
-- 版本号固定为 v3.0；变更日志改按日期分段记录
-- 文档补齐「更新模式 vs 整理模式」对比说明
+- 编辑 NFO 窗口文本字段改为从左展示。
+- poster / thumb / fanart 支持其它格式，搬走时保留原扩展名。
+- 整理模式按「成功输出目录」自动分模式（已在目录内 → 按读取模式处理）。
+- 托盘右键「隐藏到托盘」去掉快捷键后缀；演员管理器可编辑列右键菜单化（复制 / 编辑 / 查看详情）。
+- 旧配置启动时自动补齐缺失顶层键并落盘。
+- 「指定网站」下拉补上 Official 旗下 5 个无码官网；JavBus Cookie 检查真正校验登录态；Official 六行检测各自独立。
 
 ### 修复
 
-- 读取模式下目录里的 gif / webp 等非 jpg 主图能正常显示：查找本地 poster / thumb / fanart 时不再只认 .jpg（修复前 thumb.gif 一直显示不出来）
-- 编辑 NFO 窗口标题改为所见即所得：保存时原样写入标题栏内容，不再把命名模板的 release / number 重复叠加（修复前 "2024-09-25 FC2-4541879 【挑逗】" 会变成 "2024-09-25 FC2-4541879 2024-09-25 FC2-4541879 【挑逗】"，且每保存一次长一截）
-- 发版流水线遇到超长变更日志段不再崩在半路
-- 变更日志首个日期段归位到 2026-10-22，同日两段合并为一段
+- 读取模式能显示 gif / webp 等非 jpg 主图（此前只认 .jpg）。
+- 编辑 NFO 标题不再重复叠加命名模板的 release / number。
+- 发版流水线遇超长变更日志段不再崩。
 
 ## 2026-10-21
 
-### 新增
-
-- 整理模式新增「间隔时间」选项：本地不设置间隔 / 网盘按自动休息间隔，自动休息最小 40 秒
-- 依赖全量升到 PyPI 最新版，requirements.txt / pyproject.toml / uv.lock 三处同步
-- openai 3.x 的传输层换成 httpx2
-
-### 改进
-
-- 程序从 Python 3.14 迁移到 Python 3.15：新增 3.15 构建工作流、CI 切到 3.15、类型检查目标版本改 3.15
-- 发版流程切到 Python 3.15，删除 build-py314.yml，由 build-py315.yml 接管建包与发版
-- 带原生扩展的传递依赖钉到「首个有 cp315 wheel」的版本，杜绝重新 lock 时回退到源码编译
-- 七组「类型刮削网站」默认名单逐项复核，出厂默认配置模板补上唯一漏掉的一组
-- 短剧、动漫两档补上「封面不裁剪，直接复制缩略图」复选框并出厂即勾选
-- 演员管理器「数据清洗规则」改为空白区单击新增、编辑完成自动保存、右键删除，移除两条 minnano 默认规则
-- 整理模式在移动前先建立全目录番号关联索引
-
-### 修复
-
-- 整理模式下「文件已经在成功输出目录内」时左下角状态行不自动切为「读取模式」（网盘路径归属判定失效）
-- 整理模式「文件已整理进输出目录后再点开始报『共 0 个文件』、必须重启软件才能恢复」
-- 「刮削模式」页读取模式下的两行选项被裁切重叠
-- ThePornDB 刮削 URL 编码、搜索关键词与响应解析错误
-- 站点禁用状态全链路复查与「拖拽后被右键刷新还原」
-- 只改 UI 文案却显示 _failed.json 的配置误判
-- 本机 pip install -r requirements.txt 因 PyYAML 编译失败中断
-- requirements 统一为可升级的 `>=`
+- 新增整理模式「间隔时间」（本地不设间隔 / 网盘按自动休息间隔，最小 40 秒）。
+- 迁移到 Python 3.15：新增 `build-py315.yml`、删除 `build-py314.yml`、CI 与类型检查目标同步；带原生扩展的传递依赖钉到首个有 cp315 wheel 的版本。
+- 依赖全量升到 PyPI 最新；openai 3.x 传输层换 httpx2。
+- 演员管理器「数据清洗规则」改为空白区单击新增、编辑完成自动保存、右键删除。
+- 修复：整理模式下文件已在成功输出目录时左下角不切「读取模式」；整理后再点开始报「共 0 个文件」；读取模式两行选项被裁切重叠；ThePornDB 刮削 URL 编码与解析错误；只改 UI 文案却显示 `_failed.json`。
 
 ## 2026-10-20
 
-### 新增
-
-- 新增「整理模式」：先直接移动，失败番号最后统一管理员重试
-- 整理模式支持分批整理与全有或全无事务
-- 站点可禁用：右键菜单「启用站点：X / 禁用站点：X」，七个类型组共享一份禁用名单
-- Official 旗下五个无码官网拆成独立站点，字段优先级窗口同步灰显
-- 「当前配置」下拉框列出配置目录里的每一个 .json
-- 裁剪窗口支持最大化 / 最小化，支持 ESC 关闭
-
-### 改进
-
-- 整理模式图片只移动不打水印
-- 「指定网站」不再受站点禁用名单影响
-- 网络检测改为「查完一站、更新一站」
-- 检测报告里的链接一律解码转义
-- 页面指纹标题里的空白去掉
-- 镜像检测项也走刮削探测，通过时显示「连接正常，刮削正常」
-- Official 五站的检测徽标跟着检测结果变
-- 「重置配置」前自动备份原配置
-- 七个类型组标签改名换序：FC2→个摄、国产→传媒、短剧移到传媒之后、动漫里番独立成类
-- 七组类型名与「锁定刮削类型」下拉文案统一改名并重排
-- 「素人番号」改名「国产短剧」，该组默认名单收缩到只剩 JavDay
-- 候选区改为按类型分组展示并支持右键复制，分组标题改由双击整组加入
-- 候选区站点悬停提示压成一行、名单现算、分隔符统一 `/`
-- 站点下拉与候选区悬停提示复用同一句话，显示层把 `+` 归一为 `/`
-- 站点枚举值统一品牌写法：MissAV→Missav、FALENO→Faleno、MADOU_CLUB→Madou.club
-- 站点 `TheJavDB_API` 改名 `TheJavDB`，改走网页版免 CF 接口
-- 新增独立站点 `Javlibrary·镜像`，与 `JavLibrary` 组成联动组
-- `AVEntertainments` 只保留在无码组
-- `Dahlia`、`Faleno` 加进国产短剧组默认名单
-- `JavDay` 移出四组默认名单、`JavFree` 再移出国产与欧美两组
-- 六组默认名单移除 `AVSEX` 与 `Getchu`
-- 「编辑网站」弹窗的启用列表可自定义顺序，拖完站点不再凭空消失
-- 「字段优先级」窗口里鼠标滚轮只滚所在的那一行
-- 演员库 actor_database.xlsx 并发写安全：写者收敛到进程级锁 + 原子写
-- 演员库损坏时降级为只读继续刮削
-- 刮削失败站点不再被后续字段永久跳过，改为逐字段重试
-- 失败日志按次如实记录，不再按站点去重封顶
-- 海报默认排除有水印的四个站点，其他字段默认一律保留
-- 数据清洗新增四条默认替换规则，把 wiki 源的英文身份文案译成中文
-- 数据清洗规则窗口新增「保存默认」按钮，两条 minnano 占位规则固定置顶
-- 演员管理器数据栏支持行内编辑
-- 导出演员数据表列宽重排
-- 全部输入框内容优先从左展示
-- 检测网络除「网络连通」两项外按 A-Z 顺序依次检测
-- 发版流水线放弃 macOS x86_64，矩阵四平台收敛为三平台
-- ruff 锁版 0.15.22 升 0.17.1
-- 界面 / 功能 / 提示词 / 组件 / 控件全项目解耦
-- 配置版本号 config_version 永久固定为 2
-- 停用「自动关闭陈旧 issue」的定时任务
-
-### 修复
-
-- Lulubar 搜索页解析导致「站点无效」误报
-- MissAV_API 搜不到番号却照样返回一条「成功」结果
-- ThePornDB 把同名的别的作品当成目标番号
-- JavBus Cookie 检测把「有效 Cookie」误报成「Cookie 无效或已过期」
-- 没填 LLM 密钥就整个软件起不来的崩溃
-- 「配置的代理端口没监听」完全无从诊断
-- 检测行把整页响应体塞进报告
-- 刮削探测终局说明把整段英文 curl 报错原样塞进报告
-- Windows 一体包上「首次使用，下载超分工具」无从诊断
-- 图片响应不带 Content-Type 时整轮刮削一直挂着不动
-- IBW 系列的电影在 AVBase 上搜不出来
-- 「指定网站」下拉框右侧不显示网址、显示长说明
-- 站点下拉悬停提示框高度忽高忽低、提示文字不在中间、鼠标移过去不显示
-- 裁剪窗口最小化之后无法还原、最大化后再也回不到正常尺寸、横图右侧大片灰色空白
-- 赞助、相似片推荐、站点顺序、字段优先级四个对话框打开时不居中
-- 演员管理器打开时偏左、窄态初始宽度按屏幕 80% 取值导致大片空白
-- 演员管理器可编辑列的选中底色与鼠标手势
-- 演员管理器组标题与「服务器地址:」未与按钮内文字左对齐
-- 演员管理器最大化后再还原，窗口底部超出屏幕边界
-- 演员库维护组框高度漂移 434，与下一组重叠 2px
-- 演员设置页「刮削结束后自动创建」复选框压在容器上
-- 信息管理页批量操作提示词未随 .ui 重编译
-- 软件界面最大化时「成功/失败」结果列表不向界面底部延伸
-- 封面图、缩略图显示框内的图片始终保持原始宽高比
-- 「封面替换缩略图」判据修正：封面宽高都严格大于目标才替换
-- HTTP 4xx 错误信息丢失响应体预览
-- CF Bypass mirror 拿到终态 4xx/5xx 后仍继续回退
-- Qt 收尾原生崩溃（Windows fatal exception: access violation）根除
-- 站点下拉框提示弹窗无限递归爆栈
-- 窗口隐藏/关闭时未停掉四个轮询定时器
-- 全仓 92 处 deleteLater() 实际未生效导致的对象泄漏
-
-### 已知未修
-
-- `python main.py` 启动即崩（配置加载互调递归导致的 RecursionError）：诊断已完成，修复尚未落地
+- 新增「整理模式」：先直接移动，失败番号最后统一重试；支持分批与全有或全无事务。
+- 站点可禁用（右键「启用 / 禁用站点」），七个类型组共享一份禁用名单；「指定网站」不受禁用名单影响。
+- Official 旗下五个无码官网拆成独立站点；新增独立站点 `Javlibrary·镜像`。
+- 七组类型改名换序：FC2→个摄、国产→传媒、短剧移到传媒之后、动漫里番独立；「素人番号」改名「国产短剧」，默认名单收缩到只剩 JavDay。
+- 演员库并发写安全（进程级锁 + 原子写）、损坏时降级只读；刮削失败站点改为逐字段重试。
+- 修复：Lulubar 解析误报「站点无效」、MissAV_API 假成功、ThePornDB 同名作品误匹配、JavBus Cookie 误报、没填 LLM 密钥整个软件起不来、Qt 收尾原生崩溃（access violation）根除等。
 
 ## 2026-10-18
 
-### 新增
-
-- 软件日志页开始按钮下方新增刷子按钮，一键清空日志显示、不动 log 文件
-
-### 改进
-
-- 演员库分片行提示词改为「起始行数0+单次限制5000=默认更新数据表行数」
-- 最小化态工具页「全量更新并入」整行右移，与「覆盖已有图片」严格上下对齐
+- 日志页新增刷子按钮，一键清空显示、不动 log 文件。
+- 演员库分片行提示词改写；最小化态「全量更新并入」整行右移对齐「覆盖已有图片」。
 
 ## 2026-10-13
 
-### 修复
-
-- 网站设置站点下拉右键点网址后网址消失
-- 网站设置站点下拉选中行网址白底白字看不见
-- 网站设置下拉提示去重、定位说明直接展示、框体过宽收窄、隐藏 official 本行
-- 超分黑图 / 近黑图漏检
-- 超分产物全黑检查与重试
-- AIO 系站点（avsox/avmoo/avheat）字段错位与搜索兜底
-- AIO 系站点搜索 403 导致无码刮削卡住
-- javdb 样图抽取器把 CDN 根占位当图片并发请求导致刮削空转
-- GitHub Actions Linux 工作流系统依赖缺失
-- GitHub Actions 工作流 Python 版本漂移导致 jiter 编译失败
-- 全仓稳定性加固
-- 架构级 6 项硬骨头
+- 修复：站点下拉右键点网址后网址消失、选中行白底白字、提示去重与收窄；超分黑图漏检与重试；AIO 系站点（avsox / avmoo / avheat）字段错位与 403 卡住；javdb 样图抽取器把 CDN 占位当图片。
+- CI：Linux 依赖缺失、Python 版本漂移导致 jiter 编译失败。
 
 ## 2026-10-12
 
-### 新增
-
-- 超分工具及其并发控制
-
-### 改进
-
-- 超分产物全黑检查与重试
-- HTTP 404 日志膨胀
-- 刮削进度与字段来源分隔线加长
-- 主页状态行文案
-- 运行时防御性加固
+- 新增超分工具及并发控制；超分产物全黑检查与重试。
+- 改进：HTTP 404 日志膨胀、进度分隔线、主页状态行文案、运行时防御性加固。
 
 ## 2026-10-11
 
-### 改进
-
-- 演员详情与演员管理器改为互不干扰的独立窗口
-- 演员详情窗口加原生最大化 / 最小化，三栏 1:2:1，默认 1080x720
-- 演员管理器最大化 / 最小化 / 还原重写为系统原生行为
-- 演员管理器普通窗默认 15 行演员 + 8 行运行日志，最大化 20 行 + 10 行日志
-- 演员管理器列宽按窗口状态切换
-- 演员管理器最小尺寸 1080x720、启动居中
-- 演员管理器分隔条用户拖动后不再被抢回
-
-### 修复
-
-- 演员管理器最大化获取演员时中间只有 19 行
+- 演员详情与演员管理器改为互不干扰的独立窗口；演员详情三栏 1:2:1、默认 1080x720。
+- 演员管理器最大化 / 最小化 / 还原改为系统原生行为，列宽按窗口状态切换，最小尺寸 1080x720 且启动居中。
 
 ## 2026-10-10
 
-### 改进
-
-- 演员管理器统计栏文案统一并新增「总数」
-
-### 修复
-
-- 演员管理器 8 个计数器口径统一
-- 「获取演员类型」勾选 / 不勾选两档数据审计与修复
+- 演员管理器统计栏文案统一并新增「总数」，8 个计数器口径统一。
+- 「获取演员类型」勾选 / 不勾选两档数据审计与修复。
 
 ## 2026-10-08
 
-### 新增
-
-- 软件设置-刮削网站新增「锁定类型」下拉框
-- 网络检测报告内的分隔线改为跟随面板可视宽自适应
-- 命名模板 UI 示例修正为标准 Jinja2
-- 软件设置-高级新增「不限次数刮削」复选框
-
-### 改进
-
-- 网络检测不再打印逐档重试进度行
-- 刮削探测未通过时的检测行由几百字压到一行
-- 评分抓取增强，非零评分追加来源站点后缀
-- 年份 / 年评分缺失留空，不再写哨兵 0
-- 检测网络报告文案调整，网络检测分组重命名
-- 刮削网站页宽窄分档：1400 宽列入宽态
-- 使用说明页去掉全部中文句号
-- 默认代理站域名列表首字母改小写
-- 外部 CF 服务后端下拉统一大写 TRAWL
-- 请求错误串累积各轮重试的失败原因
-- 信息管理页三栏宽度比由 1:1:1 改为 3:4:3
-- 信息管理页底部动作行改为提示在上、批量保存在下
-
-### 修复
-
-- 最大化时收款码块上移过多
-- 读取模式下「刮削完成 N/N」首行被收款码块盖住上半截
-- 收款二维码任何情况下保持 180px，空间不够时把左侧导航整体上移
-- 左侧栏状态文字真贴窗底
-- `MDCx.py` 与 `MDCx.ui` 长期漂移
-- 软件工具页选项写入配置
-- 「检查演员缺失番号」的演员名支持 (动漫) 与 (FC2)
-- 软链接助手「一键创建软链接」按钮右缘与「开始移动」齐平
-- 演员库维护 .ui 设计几何整体同步到运行期紧凑排布
-- 刮削缓存组「刷新统计」与「清空全部缓存」严格上下对齐
-- NFO 库批量编辑区用法提示 3 处措辞补全
-- 检测新版本「一会儿能检测到、一会儿检测不到」
-- 分离模式「覆盖本地已存在的STRM链接文本」必须以「为本地视频文件生成STRM」为前提
-- STRM 内容可能写入视频的旧路径
-- 同步 write_text 阻塞事件循环
-- .strm 未被归入数据存放目录
-- 「复用 / 覆盖元数据」在数据存放目录无效时仍生效
-- 代理回退链与超时判定抽成 `_github_request()`
-- 软件设置-翻译页 DeepL / DeepLX 调用逻辑 5 处修复
-- 翻译页「翻译引擎」组空白消除、「演员」组内容整体上移
-- 「检查演员缺失番号」组 3 条提示词改字
-- 演员页最大化时「选择文件」右移与「选择目录」对齐
-- 演员页「网络头像库」输入框与另两行路径框对齐
-- 高级页「每次间隔」时长输入框右缘对齐
-- 刮削网站页「类型刮削网站」组行距收紧、最大化时「动漫里番」整块上移
-- 刮削目录页软链接显示输入框补「链接存放目录：」提示词
-- 刮削网站页「个摄番号」提示词改名为「FC2 番号」
+- 新增：刮削网站页「锁定类型」下拉、高级页「不限次数刮削」复选框。
+- 改进：刮削探测未通过时检测行压到一行；评分抓取追加来源后缀；年份 / 年评分缺失留空不再写哨兵 0；信息管理页三栏 3:4:3。
+- 修复：最大化时收款码块上移过多、读取模式首行被盖；`MDCx.py` 与 `MDCx.ui` 漂移；软链接助手按钮右缘对齐；检测新版本时有时无；STRM 写入旧路径；DeepL / DeepLX 调用 5 处修复。
 
 ## 2026-10-07
 
-### 新增
-
-- 左侧导航栏「使用说明」下方新增微信收款二维码与「赞助作者」链接
-- 新增独立赞助窗口
-- 赞助弹窗新增第三张收款码「支付宝红包」
-- 赞助窗口按参考截图复刻版式、字体与配色
-- 榜单改为纯白无边框方块，标题框线在字体两侧截断
-- 软件界面左侧导航栏背景色统一
-- 演员管理器字体整体放大一号
-
-### 改进
-
-- 「下载」页两行复选框严格上下对齐
-- 最小化状态下「点击下载字幕包」左移与「视频文件名」对齐
-- 收款码与「赞助作者」改为底部锚定
-- 二维码边长恒定 180、两侧固定留 15px
-- 最大化时微信码上方新增一张支付宝收款码
-- 赞助窗口放大到 657x677
+- 左侧导航「使用说明」下方新增微信收款二维码与「赞助作者」入口，新增独立赞助窗口（含支付宝红包码），按参考截图复刻版式。
+- 收款码底部锚定、边长恒 180、两侧留 15px；赞助窗口放大到 657x677；演员管理器字体放大一号。
 
 ## 2026-10-06
 
-### 新增
-
-- 分离模式下方新增「为本地视频文件生成STRM链接文本」复选框
-- 分离模式新增「复用数据存放目录中的元数据文件」「覆盖本地保存的视频元数据文件」复选框
-- 分离模式右侧四个开 / 关开关正式生效
-- 刮削模式页四个组框标题右侧各加一条「分离模式…」提示
-- 四个组框右侧各加一对开 / 关按钮
-
-### 改进
-
-- 三处绿色说明文案精简
-- 读取模式与刮削网站页文案统一
-- 左下角新版本提示改为「🍉 有新版本了！（日期tag）」样式
+- 分离模式新增「为本地视频文件生成 STRM 链接文本」「复用 / 覆盖数据存放目录元数据」等复选框，右侧四个开关正式生效。
+- 四个组框标题右侧加提示与开 / 关按钮；左下角新版本提示改为「🍉 有新版本了！（日期 tag）」。
 
 ## 2026-10-04
 
-### 修复
-
-- 信息管理顶栏目录显示框与筛选框改为恒等宽
-- 信息管理页裁剪封面完成后不再跳主页、自动刷新本页图片
-- 信息管理目录框支持手动输入、回车确认
-- 右键菜单「删除nfo文件」改名为「删除NFO文件」
-- 大图预览还原按钮有时不能正常缩小到主页面大小
-
-### 改进
-
-- 信息管理筛选框匹配规则统一（规则见 `docs/Development.md`）
+- 信息管理顶栏目录框与筛选框恒等宽，目录框支持手输回车；裁剪封面后不再跳主页。
+- 右键菜单「删除nfo文件」改名「删除NFO文件」；大图预览还原按钮修复。
 
 ## 2026-10-03
 
-### 新增
-
-- 信息管理页点击右侧图片弹出大图预览窗口
-- 大图预览窗口任务栏独立图标
-
-### 修复
-
-- 底部提示行整行居中
-- 任务栏还原后预览与主窗口叠偏
-- 关闭预览连带关主窗口
-- 预览最大化 / 最小化 / 还原按钮失灵与还原尺寸过小
+- 信息管理页点右侧图片弹出大图预览（任务栏独立图标）。
+- 修复：底部提示行居中、还原后预览与主窗叠偏、关闭预览连带关主窗、预览按钮失灵。
 
 ## 2026-10-02
 
-### 新增
-
-- 信息管理页最大化时「筛选番号 / 演员 / 标题」输入框等比例加宽
-- 信息管理页选择目录确定后自动展示目录内第一个番号的信息
-- 大图预览窗口的按键提示改用图标键帽
-
-### 改进
-
-- 信息管理页顶栏顺序改为「目录显示框 → 选择目录 → 共 N 个 → 筛选 → 刷新」
-- 信息管理页顶栏「选择目录」「刷新」改用统一按钮样式
-- 信息管理页「批量保存」「保存当前nfo文件」改用蓝底主按钮样式
-- 各个设置页最大化 / 最小化两态下的控件对齐（演员 / NFO / 高级 / 翻译 / 水印等）
-
-### 修复
-
-- 更新检测改取 tag 最大的 release，不再取 /releases 列表第一条
-- 更新检测同时对比版本号与日期
-- 软件设置各页签的竖向滚动条启动时忽宽忽窄
-- 信息管理页最大化时表单 16 行之间凭空多出约一行宽的空白
-- 信息管理页选中 NFO 后点「裁剪封面」毫无反应
-- QSS 逗号选择器列表丢前缀会让 hover 样式退化成常态生效
+- 信息管理页最大化时筛选输入框等比例加宽；选目录后自动展示第一个番号。
+- 顶栏顺序改为「目录 → 选择目录 → 共 N 个 → 筛选 → 刷新」；批量保存 / 保存当前 NFO 改蓝底主按钮。
+- 修复：更新检测改取 tag 最大的 release 并同时比版本号与日期；信息管理表单 16 行间凭空多一行空白；QSS 逗号选择器丢前缀导致 hover 常态生效。
 
 ## 2026-10-01
 
-### 改进
-
-- 读取模式勾选项文案去掉多余的「已」字
-- 刮削页读取模式区说明文案改写
-- 演员页「补全Kodi/Plex/Jvedio演员头像」组说明与运行日志文案统一
-- 演员页 Gfriends 相关三处文案调整
-
-### 修复
-
-- 命名页最小化时视频文件名与空格左移，与「使用路径中包含的画质信息」对齐
-- 主页面最大化后左侧栏下方背景与上方颜色断层
-- 演员页最大化时最下方「开始补全」按钮与上方两个宽度不一致
-- 演员页最小化时上方两个「开始补全」按钮缩到与最下方同宽
-- 演员页最小化时七枚控件左移，与「使用Graphis头像」对齐
-- 演员页最大化时「清除所有.actors文件夹」右缘对到「选择目录」按钮右缘
+- 读取模式与演员页多处文案改写；命名页、主页左侧栏、演员页多处最大化 / 最小化对齐修复。
 
 ## 2026-09-30
 
-### 改进
-
-- 软件工具页演员库分组布局重排与紧凑化
-- 翻译页「简介」「演员」两组间距收紧
-- 各页组框底部空白批量收紧
-- 命名页说明文案收紧与行间距对齐
-- 字幕页最大化时两处控件左对齐到「视频文件名」
-
-### 修复
-
-- 长提示词尾字被裁
-- 最大化时窗口四周先出现一大圈黑屏、然后才放大
-- 演员 / NFO / 高级三页最大化或还原时控件先落错位、再跳到目标位
-- 演员页「点击下载演员数据库」被推到很远
-- 软件工具页最大化时校验行两说明单行显示
-- 启动时窗口正好落在屏幕正中
-- 界面缩放调大后左下角状态行压住底部按钮
-- 点击「软件设置-翻译」「软件设置-NFO」有几率进程直接退出
-- `MDCx.py` 与 `MDCx.ui` 失同步
-- 命名页同步不得加「输入指纹相同就整体返回」的短路
-- 高分屏缩放补 300% 档，放不下当前屏幕的档位自动隐藏
+- 软件工具页演员库分组重排；翻译页、命名页、字幕页间距收紧。
+- 修复：长提示词尾字被裁；最大化时四周先黑屏；控件先落错位再跳目标位；界面缩放调大后状态行压住按钮；`MDCx.py` 与 `MDCx.ui` 失同步。
 
 ## 2026-09-28
 
-### 改进
-
-- 发版工作流收敛为唯一构建发布流水线
-- 新增 Python 3.14 兼容性构建工作流
-- build-py314.yml 改为与 build-py313.yml 同构的 3.14 发版流程
-- 文档写明「网络重试次数默认就是 3 次」
-
-### 修复
-
-- `actions/cache` 由 @v4 升到 @v6
-- `ci.yaml` 不再监听 push，只保留 pull_request 门禁
-- `pyproject.toml` 依赖逐条按 Python 3.14 核对并抬高 3 处下限
-- CI 全平台构建失败：`uv.lock` 根包版本漏同步
-- 重试次数滑动条放开到 1~3、保存配置即重建网络客户端
+- 发版工作流收敛为唯一构建发布流水线；新增 Python 3.14 兼容性构建工作流。
+- `actions/cache` 升 @v6；`ci.yaml` 只保留 pull_request 门禁；`pyproject.toml` 依赖按 3.14 核对抬高 3 处下限；重试次数滑动条放开到 1~3。
 
 ## 2026-09-27
 
-### 修复
-
-- Amazon 封面下载改请求 SL2560 原图变体
-- 刮削后左下角模式行只剩光杆图标
-- 左下角状态区图标对齐 mdcx-diy-main，版本检查跳转改自有仓库
-- 「使用代理」开关不再联动 CF Bypass 代理
-- 诊断表格与表头按显示宽度对齐
-- CF 挑战页识别补「Verify you are human」复选框文案
-- missav 默认地址由 missav.ai 改为 missav.ws，镜像抽样改为 missav.live
-- 检测整轮持有 computed 租约
-- 镜像轮询 404 误判
-- 站点名单存盘归一化
-- 检测页 bypass 串行化
-- Trawl 后端四处修复
+- Amazon 封面改请求 SL2560 原图；左下角状态区图标对齐、版本检查跳转改自有仓库。
+- 修复：刮削后左下角模式行只剩光杆图标；「使用代理」不再联动 CF Bypass；CF 挑战页识别补「Verify you are human」；missav 默认地址改 `missav.ws`；镜像轮询 404 误判；Trawl 后端四处修复。
 
 ## 2026-09-24
 
-### 修复
-
-- Bypass `/html` 路未解开的挑战页不再冒充成功
-- aventertainments 搜索页两类「假 200」点名报错
-- 「跳过前置 Poster 大小校验」提示文案合并为一段
-- 演员设置页 Gfriends 本地仓库「选择目录」按钮与本地头像库样式不一致
-- 命名页 / 读取模式等界面文案与布局整理
-- CF Bypass 自动适配层三处逻辑修复
-- missav / avsex / getchu / javlibrary / r18dev 代理路由与外部 CF 回环地址修复
-- 直连传输失败时 bypass 兜底一次
-- FlareSolverr /v1 proxy 参数改传对象形式
-- 外部 CF 适配层启动探针改查 /healthz
-- 网络请求超时 / 重试语义写明并两次上调
-- 检测报告根因分组新增「CF Bypass 已尝试但未解开」
-- 超时 45s → 30s、重试 4 次 → 3 次
+- CF Bypass 自动适配层三处修复；`/html` 路未解开的挑战页不再冒充成功；aventertainments 两类「假 200」点名报错。
+- 网络请求超时 45s → 30s、重试 4 次 → 3 次；检测报告根因新增「CF Bypass 已尝试但未解开」；missav / avsex / getchu / javlibrary / r18dev 代理路由修复。
 
 ## 2026-09-22
 
-### 修复
-
-- 「刮削中 / 成功 / 失败」统计标签最大化后与结果树「成功」错位
-- 文件名带 CRACKED 未识别为无码破解
-- 窗口偏矮时导航栏左下角状态信息被裁
-- 网络设置「网站设置」清除残留说明
-- 正在获取数据时关闭演员管理器导致主程序一起退出
-- 数据清洗误删合法结构
-- 结果树 / 统计栏固定 202 宽，最大化后与缩略图间距过远
-- 网络检测后网站设置下拉里 theporndb 仍无状态圆点
-- 全量获取演员资料时大量「wiki 个人资料表格列数不匹配」警告，生日 / 出生地丢失
-- 演员详情「现有数据」简介把 `<br>` 显示为字面文本
-- 演员管理器「停止获取」后立即重开，旧任务残留结果覆盖新任务
-- DMM 图床链接探测提速、图床失败自动冷却
-- 海报超分增强
-- 界面文案与文档对齐、本地 / CI 自检减负
+- 修复：统计标签最大化后错位；文件名带 CRACKED 未识别为无码破解；取数中关闭演员管理器导致主程序退出；数据清洗误删合法结构；演员详情简介把 `<br>` 显示成字面文本；DMM 图床探测提速与失败冷却；海报超分增强。
 
 ## 2026-09-19
 
-### 改进
-
-- 调试日志三开关与字段来源排障块
-- 演员管理器「获取数据」支持按模式筛子集（4 种模式）
-- 统计栏新增「重复」分项
-- 网络设置新增「直连白名单」
-- 剧照改「有就下、没有就没有」
-
-### 修复
-
-- 主页「编辑 NFO」铺满整页，切番号会关掉面板
-- Official 站点说明与「检测网络」覆盖面易被误读为只有无码路由
-- 演员管理器「获取数据」下拉重排与「重新获取所有演员简介」新模式
-- 数据清洗失败「只见计数不见原因」，且完成后误以为还要点同步
-- 演员管理器最大化后底部出现横向滚动条
-- 主窗隐藏到托盘后，关闭演员管理器会连带整个程序退出
-- 演员管理器「只看演员」从未生效，导演 / 编剧等非演出角色混入列表
-- 选择媒体库 20 行只显示 19 行、合集库混入列表
-- 演员管理器新增「数据清洗」：清理占位简介、`0000-00-00` 生日等历史噪声
-- 演员管理器最大化后封面缩放与简介 / 标签 / NFO 编辑器布局
-- 连接 Emby / Jellyfin 服务器与获取媒体库列表耗时几分钟且日志无提示
-- 演员管理器出生日期靠左显示、右侧竖直滚动条过细镂空
-- 演员管理器批量同步 HTTP 400（哨兵生日、null source 两条根因）
-- 统计栏「原始条目数 / 唯一名字数」切换
-- 「选择媒体库」窗口过小，媒体库多时半屏滚不完
-- 网络检测完成后，网站设置下拉中五个 API 站点不标注状态
-- 网络诊断三站探测失败处理与「搜索失败」报错无因
-- 发布工作流 macOS Intel 构建永远排队
-- Dependabot / OSV 安全告警：soupsieve 2.8.4 → 2.9.2、anyio 4.11.0 → 4.14.2
-- 启动自检纳入 FC2PPVDB，cookie 检查只告警不清空
-- 托盘隐藏主窗后操作演员管理器仍会弹出主窗
-- 剧照下载失败后回退下一剧照网站
-- 维基百科 / 维基数据刮削限速
-- 最大化后封面 / 缩略图黑框盖住下方信息区字段
-- 网络设置页「CF Bypass 代理」与「超时时间」文字重叠
-- 日志页日志上方一大片空白
-- 使用说明展开 Official 官网清单
-- 信息管理页小窗时表单被裁、保存按钮看不见
-- 刮削探测超时 15s→30s 并自动递进重试
-- 有码封面裁剪后仍输出横版
-- 再次刮削失败文件被重复计数
-- 「图片已被网站删除」日志不标来源站点
-- 连续失败 3 次不再自动重刮的提示不明确
-- 字段来源表「已失败」不区分失败类因
-- 映射云盘原子写入静默丢失
-- 停止后「继续刮削剩余任务」丢失任务
-- 大批量刮削的收尾期资源归还
-- 网盘 / 映射盘目录创建失败被误报「权限不足」
-- Lulubar 网络检测误报「测试番号未被收录」
-- 拦截自动二次启动
-- 带 DMM `z` 尾缀番号在 javdb / javbus 搜不到
-- 剧照 20 张只保留 4 张
-- Jellyfin 12 演员列表恒为 0
-- 主界面三项 UI 交互修复
+- 新增调试日志三开关与字段来源排障块；演员管理器「获取数据」支持按模式筛子集；网络设置新增「直连白名单」。
+- 修复：主页「编辑 NFO」铺满整页；主窗隐藏托盘后关演员管理器连带退出；「只看演员」从未生效；选择媒体库 20 行只显示 19 行；Emby / Jellyfin 连接与取库耗时且无日志；批量同步 HTTP 400（哨兵生日、null source）；剧照 20 张只留 4 张；Jellyfin 12 演员列表恒为 0。
 
 ## 2026-09-12
 
-### 修复
-
-- 欧美（ThePornDB）同日多发刮错作品
-- 欧美（ThePornDB）单文件「填网址刮削」取不到数据
-- TRAWL 便携版打包依赖布局修正
-- TRAWL 便携版首次启动失败
-- 亚马逊刮削时整体失败
-- 主界面放大后左侧状态区滞留中部
-- 单数字前缀番号被误剥
-- 演员管理「数据源测试」弹 Python-CFFI error
-- 演员管理日志位置与命名 / Emby 同步 400 排查
-- 站点未收录不再永久跳过
-- 字母+数字系列番号误识别
-- 命名模板超宽智能缩短的三次修补
-- 文件名带标题时 T38-041 识别失败并跳过 avbase
+- 修复：欧美 ThePornDB 同日多发刮错、单文件填网址取不到数据；TRAWL 便携版打包布局与首次启动；亚马逊刮削整体失败；单数字前缀番号被误剥；字母+数字系列番号误识别；命名模板超宽缩短。
 
 ## 2026-09-06
 
-### 改进
-
-- 全量检查提速 3 倍
-
-### 修复
-
-- 默认代理列表 seesaawiki.jp 拼写错误
-- 设置页最大化三处控件对齐
-- 「走代理网站」下拉框按数据源名称选择，但部分站点仍直连
-- 原生边框下三处窗口 / 布局问题
-- fanart 变临时文件且假报成功
-- 演员管理器与主窗状态互相干扰
-- 信息管理页最大化布局三问题
-- 欧美 theporndb 指定网址刮不出
-- 检测网络多处误报与引导不足
-- xcity 爬虫新增 HTML 备用刮削路径
+- 全量检查提速 3 倍。
+- 修复：默认代理列表 `seesaawiki.jp` 拼写；部分站点仍直连；fanart 变临时文件且假报成功；演员管理器与主窗状态互相干扰；欧美 theporndb 指定网址刮不出。
 
 ## 2026-09-05
 
-### 新增
-
-- 新增 7mmtv 聚合站爬虫
-- 新增三个爬虫
-- 精简 15 个冗余 / 失效爬虫
-
-### 改进
-
-- JavDB 全系图源无水印升级
-- 无码官网五站接入默认代理列表
-- DMM 直构静态路由种子 v2
-- ASIN 数据库读零校验与性能优化
-- 刮削失败原因 Top N 摘要
-- 刮削进度预计剩余时间
-- LLM 翻译同批次缓存、关闭思考模式
-- DMM 高清直链升级推广到 11 个聚合站爬虫
-- 字段来源日志降噪
-- javdb_app 签名失效 fail-fast 诊断
-- madouqu 动态域名
-- 站点级 CF 指纹池扩充
-- 隐藏导航入口后的间隙对齐，导航按钮改名
-
-### 修复
-
-- 三页内容最大化后横向不跟随
-- 刮削速度退化的三层修复
-- 检测网络页中途异常中断
-- 左侧导航入口可隐藏
-- 恢复系统最大化按钮 + 修复「不能切换配置」
-- 检测网络页按钮悬浮遮挡日志
-- Windows 原生边框下缩放 / 切页布局错乱
-- Emby 演员管理器与 NFO 管理体验
-- Emby / Jellyfin 演员刮取系列修复
-- Emby / Jellyfin 演员信息更新与图片上传失败
-- NFO 库管理三个症状
-- 窗口最大化后内容不跟随缩放
-- 保存设置 / 停止刮削后内存占满卡死
-- 整理模式演员名不映射中文
-- 全库审查 26 项缺陷修复
-- 五项数据丢失 / 性能缺陷
-- 失败列表跨影片错误污染
-- LogBuffer 内存泄漏
-- 网络检测多项修复
-- DMM 图占位图误判
-- official 无码官网 studio 字段污染
-- CI Windows charmap 崩溃
-- 打包脚本 Windows runner 因 GBK 解码崩溃
-- Dependabot 安全警报 3 项
+- 新增 7mmtv 聚合站爬虫与三个爬虫，精简 15 个冗余 / 失效爬虫。
+- JavDB 全系图源无水印升级；DMM 高清直链推广到 11 个聚合站；无码官网五站接入默认代理；刮削进度加预计剩余时间与失败原因 Top N。
+- 修复：三页内容最大化后横向不跟随；刮削速度退化三层修复；检测页中途异常中断；保存设置 / 停止刮削后内存占满；失败列表跨影片污染；LogBuffer 内存泄漏；全库审查 26 项缺陷。
 
 ## 2026-08-23
 
-### 新增
-
-- NFO 库管理页面
-- 字段级跳过抓取
-- NFO 合并策略
-- 爬虫镜像 / 域名轮询
-- avmoo / avheat 新增爬虫，avsox 改 API
-- dmm_api 换 DMM 官方 Affiliate API，新增 thejavdb_api
-- MGStage 官方图源直构双兜底
-- TRAWL / FlareSolverr 外部 CF 服务适配层
-- 移除内置 CF Bypass 服务
-- 演员库增强
-- 检查演员缺失番号多数据源重写
-- 站点定位说明
-- 图片下载大小上限
-- 爬虫文件去 `_new` 后缀
-- JavDB App 签名简化 + 设备参数补全
-- 移植 sakuramediabe 4 项改进
-- Emby 演员管理器入口移到左侧导航
-- 界面缩放比例配置
-- Windows CI 离线测试全量适配
-
-### 改进
-
-- NFO 库管理三栏修复与批量提示修复
-- 全模块审查修复
-- Emby 演员管理器 15 项修复 / 优化与窗口遮挡
-- 全页面 UI 布局批量修复
-- 网络检测增强 6 项
-- 翻译、CLI、爬虫、下载 / 文件、崩溃容错、并发 / 性能、Windows 体验等专项修复
-- CI 双平台门禁、GUI 启动冒烟测试
-- 打包与 Release 工作流收口
-- quick-check 快速检查命令 + mypy 类型检查启用修复
-- UI 布局静态检查脚本
-- 跨线程 Qt 安全收口
-- UI 收口到 .ui + 几何回归测试
-- 刮削缓存管理 UI
-- 死代码清理、回归测试、版本元数据统一、静态质量收口
-- 性能优化与启动提速
-
-### 修复
-
-- 主窗口启动崩溃
-- 设置页与工具页滚动修复
-- 设置页底部留白修复
-- Windows 下启动崩溃
-- 单 exe 按钮无提示退出
-- executor.submit 传参错误
-- 跨线程 Qt 不安全操作
-- 日志通道不通
-- 演员管理器 Event loop is closed
-- 演员管理器获取列表无反应
-- 演员管理器设置保存不生效
-- 演员管理器设置弹窗 QListWidget 遍历崩溃
-- 演员管理器数据源测试跨线程 UI 崩溃
-- 翻译页 label_60 文字被覆写
-- 网络设置 groupBox 重影
-- `MDCx.ui` 重复 objectName 消除
-- label_601 死引用删除
-- Courier 字体替换
-- 崩溃转储埋点
+- 新增 NFO 库管理页面、字段级跳过抓取、NFO 合并策略、爬虫镜像 / 域名轮询。
+- 新增 avmoo / avheat 爬虫，avsox 改 API；dmm_api 换 DMM 官方 Affiliate API；新增 thejavdb_api；MGStage 官方图源直构双兜底。
+- 接入 TRAWL / FlareSolverr 外部 CF 服务适配层，移除内置 CF Bypass。
+- 界面缩放比例配置、跨线程 Qt 安全收口、UI 收口到 .ui + 几何回归测试、quick-check 与 mypy 启用。
+- 修复：主窗口启动崩溃、设置页滚动与底部留白、单 exe 按钮无提示退出、日志通道不通、演员管理器多处崩溃与无响应。
 
 ## 2026-08-15
 
-### 新增
-
-- DMM 高清图识别与去重
-- ASIN 数据库写入去重
-- ASIN 出厂库落地：增量合并、出厂库更新、修合并副作用
-- 相似片推荐
-- SQLite 刮削状态缓存
-- 结果摘要缓存
-- 本地 Bypass 服务健康状态机
-- 爬虫类型分类校准
-- Emby 演员缓存持久化
-- CF Bypass 落地域名白名单
-
-### 改进
-
-- 相似推荐特征扩展与召回修复
-- 图片尺寸探测失效
-- GUI 状态卡死
-- 停止标志 / 跨线程 Qt
-- trailer 旧文件复用
-- Amazon ASIN 记录丢失
-- 爬虫修复
-- 读模式 tmdbid 不落盘
-- 文件写入原子化
-- LogBuffer 并发安全
-- 死代码清理
-- 演员库维护工具健壮性
-- info 库重构与同步
-- Emby 演员管理器增强与健壮性
-- Emby 数据源实现合并、Emby API 共用函数提取
-- 本地头像预扫描索引
-- 测试增强、ASIN 库测试增强、打包与 CI 加固
+- 新增 DMM 高清图识别去重、ASIN 出厂库增量合并、相似片推荐、SQLite 刮削状态缓存、结果摘要缓存、CF Bypass 健康状态机、Emby 演员缓存持久化。
+- 改进：相似推荐特征与召回、文件写入原子化、LogBuffer 并发安全、读模式 tmdbid 落盘、打包与 CI 加固。
 
 ## 2026-08-14
 
-### 新增
+- 新增 DMM 官方高清直链（覆盖九个爬虫）、同番号结果 TTL 缓存、R18.dev 英文标题掩蔽还原、演员库维护工具、Emby 演员管理器。
 
-- DMM 官方高清直链
-- DMM 高清覆盖九个爬虫
-- 同番号刮削结果 TTL 缓存
-- R18.dev 英文标题掩蔽还原
-- 演员库维护工具
-- Emby 演员管理器
+## 2026-08-03 / 2026-08-02
 
-### 改进
-
-- 补别名 / 补全功能调整
-- 演员库维护工具健壮性
-- info 库重构与同步
-- 打包与网络
-- UI 与布局
-- 网络诊断
-- 安全
-- minnano 路径 bug
-- mypy 严格化
-- 测试增强
-
-## 2026-08-03
-
-### 新增
-
-- 演员库维护工具改为直接操作 xlsx
-
-### 改进
-
-- 同步别名与刮削共用同一规则
-- 工具页工具排序调整
-- 打开演员数据库按钮
-- 并发提速
-- 死代码清理
-- 记忆文件写入
-
-### 修复
-
-- 单 exe 按钮无提示退出
-- executor.submit 传参错误
-- 跨线程 Qt 不安全操作
-- 日志通道不通
-- 崩溃转储埋点
-
-## 2026-08-02
-
-### 改进
-
-- 工具页槽函数抽取
-- 目录选择模式统一
-- 删除 2 个废弃 import
-- 行索引缓存
-- 读取模式批量落盘
-- 格式化跳过
-- 测试基线治理
-- 打包配置补充
+- 演员库维护工具改为直接操作 xlsx；同步别名与刮削共用同一规则；工具页工具排序与槽函数抽取。
+- 修复：单 exe 按钮无提示退出、`executor.submit` 传参错误、跨线程 Qt 不安全操作、日志通道不通。
 
 ## 2026-08-01
 
-### 新增
-
-- 演员库维护工具
-- Emby 演员管理器（选库、表格查看）
-- 封面补图工具与封面补图独立脚本
-- JIMMY 前缀路由
-- 失败原因记录
-- 自动海报选优
-- 界面缩放比例配置
-- 刮削流程精简
-
-### 改进
-
-- Windows 路径超限
-- 中文字幕标签误添加
-- explorer /select 路径未引号
-- Emby 4.9 剧照显示
+- 新增演员库维护工具、Emby 演员管理器（选库 / 表格查看）、封面补图工具、失败原因记录、自动海报选优、界面缩放比例配置。
+- 修复：Windows 路径超限、中文字幕标签误添加、`explorer /select` 路径未引号、Emby 4.9 剧照显示。
 
 ## 2026-07-18
 
-### 新增
-
-- R18.dev 爬虫
-- JavDB API 爬虫
-- MissAV 免防护墙爬虫 missav_api
-- 四种刮削模式
-- 字段级优先级配置
-- 刮削类型独立配置
-- 标签优先级系统
-- 24 个命名模板字段
-- 演员 NFO 生成
-- 海报裁剪工具
-- 网络连通性检查
-- 软链接支持
-- 暗色 / 亮色主题切换
-- 缺失文件检测
-- 成功 / 失败文件列表
-- 多 CD 分集支持
-- 额外剧照处理
-- 图片修复
-- 内置资源管理
-- 配置自动迁移
-- 配置热切换
-- 敏感字段脱敏
-- 内置 CF Bypass 与 CF Bypass 双模式
-- 域名级独立限流
-- 连接池管理
-- 马赛克标准化
-- 无码官网爬虫与 official 官网前缀路由
-- Minnano-av 演员信息刮削源
-- Gfriends 头像本地仓库
-- Bing 翻译引擎
-- 界面缩放比例配置
-- 推送前自动跑测试
-
-### 改进
-
-- 修好 30 个第三方库的安全隐患
-- 绕过网站防护墙更稳更快
-- 界面缩放优化
-- 刮削速度优化
-- 演员 TMDB ID 查询加速
-- 代理设置更清晰
-- 日志去重、去掉没意义的 "(old)" 日志
-- 报错提示不再重复弹
-- 翻译跳过不再逐行输出
-- Poster 裁剪与直复制缩略图日志合并为一行
-- 新增一批测试用例
-- 添加类型检查工具
-- Excel 字体大小不一致
-- 可用网站列表刷新
-- 无码分类编辑框不再出现有码站
-- 分隔线不再用满屏 emoji
-- 选项更灵活
-
-### 修复
-
-- 网络标签页按钮重叠
-- Windows 下启动崩溃
-- R18.dev 补零位数
-- fc2cmadb 演员数据爬取修复
-- fc2ppvdb Cookie 检查优化
-- fc2ppvdb 适配 fc2cmadb
-- avsex 更新修复
-- iqqtv 标题清理
-- xcity 刮不出中文
-- 多任务同时刮会串数据
-- 预置 4 个默认代理
-- 刮削失败标题被日志污染
-- 刮削过程更稳
-- 搜索链接中文兼容
-- AV-Wiki get_actorname 假阳性匹配修复
-- 演员映射表 map_actor_names 防御增强
-- NFO 里的 `<![CDATA[...]]>`
-- 正则表达式安全
-- 并发请求异常
-- 被悄悄吞掉的错误日志
+- 新增 R18.dev / JavDB API / missav_api 爬虫，四种刮削模式，字段级优先级与标签优先级，24 个命名模板字段，演员 NFO 生成，海报裁剪，网络连通性检查，软链接，明暗主题，成功 / 失败列表，配置迁移与热切换。
+- 修复 30 个第三方库安全隐患；无码官网爬虫与 official 前缀路由；域名级独立限流与连接池管理。
+- 修复：网络标签页按钮重叠、Windows 启动崩溃、多任务同时刮串数据、正则安全、被吞掉的错误日志。
