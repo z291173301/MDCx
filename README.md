@@ -57,10 +57,10 @@ MDCx 是一个桌面工具，自动从47个网站抓取视频文件的元数据�
 
 ## 核心特色
 
-- **53个网站爬虫** — 有码、无码、FC2、国产、欧美全覆盖，部分站点免 CF 直连
+- **47个网站爬虫** — 有码、无码、FC2、国产、欧美全覆盖，部分站点免CF直连
 - **智能番号识别** — 自动判断番号类型（有码/无码/个摄/国产传媒/欧美视频）
-- **标准NFO生成** — 30+ 元数据字段，Emby/Jellyfin/Kodi 通用
-- **多引擎翻译** — Google、Bing、Baidu、DeepL、DeepLX、LLM 共 6 种
+- **标准NFO生成** — 30+元数据字段，Emby/Jellyfin/Kodi 通用
+- **多引擎翻译** — Google、Bing、Baidu、DeepL、DeepLX、LLM 共6种
 - **图片处理** — 人脸裁剪、水印、Amazon 高清封面、官方图源兜底（DMM 高清封面自动学习厂牌前缀 + MGStage 素人高清海报）、JavDB 系图源无水印原图（App CDN 加密流自动解密）、海报超分（Real-ESRGAN 4x，低清封面自动放大补清）
 - **演员数据库** — Excel 数据库 + TMDB/Wikidata/Gfriends 多源补全
 - **Emby/Jellyfin集成** — 自动同步演员信息和头像（Emby 演员管理工具支持最大化/拖拽缩放，默认适配屏幕）
