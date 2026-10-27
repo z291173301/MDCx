@@ -323,6 +323,8 @@ markupsafe>=3.0.4    pydantic-core>=2.50.1  PyQt6-sip>=13.13.0
 - 说「提交」= 只 `git commit`；说「推送」「推到 GitHub」「推远程」才 `git push`。两件事不合并推断。
 - 理由：本仓库直推 `main` 不触发 CI（见 10.6），误提交会直接进主干历史；事后回滚要 `git revert` 甚至 `reset`，恢复成本远高于少提交一次。
 - 获授权后的动作仍守 10.6 门禁与 `DADA/MEMORY.md` 的「检查与提交纪律」：`git add -- <具体文件>`、提交前看 `git status` 查残留、按需 `uv run quick-check` / `uv run check --skip-hook-install`。
+- **提交优先用 GitHub Desktop**（用户 2026-10-27 定规）：人工提交、推送默认走 GitHub Desktop；批量或脚本化时才用命令行 `git`。
+- **提交 / 推送一律尽量走代理**（用户 2026-10-27 定规）：无论用 GitHub Desktop 还是命令行工具，操作前先确认代理已开。命令行直连失败时用一次性代理参数（本机系统代理 `127.0.0.1:7897`，端口按实际替换）：`git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 push origin main`；报网络错先用 `git ls-remote origin main` 对 SHA，确认没推上去再重试。
 
 ### 10.11 大模型输出纪律
 
