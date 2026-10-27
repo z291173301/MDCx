@@ -2,6 +2,14 @@
 
 按日期分段记录（`## YYYY-MM-DD`，新 → 旧）。每条只写「做了什么 / 改了什么 / 修了什么」，原因与排查过程见 `docs/Development.md` 与 `DADA/MEMORY.md`。
 
+## 2026-10-27
+
+### 授权状态日志行去掉「已授权（…）」外壳
+
+- 主日志首行改为「🔐 授权状态：授权文件，永久有效」；有期限的显示「🔐 授权状态：授权文件，有效期至 YYYY-MM-DD」；未授权仍为「未授权（原因）」。
+- 改动在 `mdcx/utils/licensing/guard.py` 的 `describe()`，`log_status` 与 `license_ui._emit_license_status` 自动跟随。
+- 测试：`tests/test_license_system.py::test_describe_wording_without_licensed_shell`。
+
 ## 2026-10-26
 
 ### 高级页「隐藏图标」行右侧新增「设备编号」按钮（导出设备 ID 的 txt）

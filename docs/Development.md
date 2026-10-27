@@ -324,6 +324,15 @@ markupsafe>=3.0.4    pydantic-core>=2.50.1  PyQt6-sip>=13.13.0
 - 理由：本仓库直推 `main` 不触发 CI（见 10.6），误提交会直接进主干历史；事后回滚要 `git revert` 甚至 `reset`，恢复成本远高于少提交一次。
 - 获授权后的动作仍守 10.6 门禁与 `DADA/MEMORY.md` 的「检查与提交纪律」：`git add -- <具体文件>`、提交前看 `git status` 查残留、按需 `uv run quick-check` / `uv run check --skip-hook-install`。
 
+### 10.11 大模型输出纪律
+
+用户 2026-10-27 定规：每次与大模型对话默认**只返回修改后的片段**，不重复输出未改动的全文，尽量节省 token。
+
+- 只贴发生变化的函数、类、配置段或文档段落，并注明文件路径与定位（函数名、小节名或行号）。
+- 新建文件、用户明确要求全文、或只给片段会产生歧义时，才输出全文。
+- 说明优先写「改了什么、为什么、怎么验证」，不复述整份文件。
+- 需要用户确认时只引用关键几行，不把整份文件再贴一遍。
+
 ---
 
 ## 11. 左下角状态区图标规范
@@ -434,11 +443,14 @@ PyInstaller，入口 `main.py`。Linux 手动构建依赖见 `Install.md#linux-�
 `.github/workflows/build-py315.yml`（Build and Release Python3.15），三平台矩阵：macOS ARM64 / Windows x86_64 / Linux x86_64。
 
 - tag 为纯数字 `LOCAL_VERSION`。
+- **发布目标只有公开仓库**：默认 `z291173301/MDCx`，可用仓库变量 `MDCX_PUBLIC_REPO` 覆盖；目标分支默认 `main`，可用 `MDCX_PUBLIC_BRANCH` 覆盖。私有开发仓 `MDCx-Dev` **不创建 Release**，本仓库 `GITHUB_TOKEN` 只有 `contents: read`。
+- 跨仓库写用 Secrets 里的 `MDCX_SYNC_TOKEN`（公开仓库 Contents: Read and write）。未配置时发布步骤直接报错，不会退回私有仓库。
 - 资产名 `MDCx-<tag>-<平台>-<架构>-<40位sha>.<ext>`（2026-10-22 起去掉展示版本号段；客户端只读 `tag_name` 不解析资产名，故零影响）。资产名同时写在本文档与 `tests/test_py315_release_workflow.py::_EXPECTED_ASSETS`，**三处同改**。
 - Release 标题 `MDCx <日期版本号>`，日期取自源码 `consts.py::LOCAL_VERSION`；补发旧 tag 时按 tag 取日期并告警。由 `test_asset_names_and_release_title` 与 `test_release_title_date_comes_from_source_code` 钉住。
-- 2026-10-20 起 macOS Intel 腿退役（macos-15-intel / x86_64）：**矩阵项、产物核对项、Create Release 步骤三处必须同删**。只删矩阵项会因核对项永远缺 `dist/MDCx-x86_64.dmg` 而 exit 1 卡死全平台；只删矩阵项留上传步骤会留下半成品 Release。守卫 `test_macos_intel_leg_is_gone`。
+- **重名先删后建**：公开仓库已有同 tag 或同标题的 Release 时，先 `gh release delete <tag> --cleanup-tag`，再 `gh release create`；旧 tag 没有 Release 时也要清掉残留 tag。删除发生在三平台产物核对、正文截断、资产重命名之后，构建失败不会先删线上版本。
+- 2026-10-20 起 macOS Intel 腿退役（macos-15-intel / x86_64）：**矩阵项、产物核对项、资产重命名项三处必须同删**。只删矩阵项会因核对项永远缺 `dist/MDCx-x86_64.dmg` 而 exit 1 卡死全平台。守卫 `test_macos_intel_leg_is_gone`。
 - 触发方式：push tag `2*`（如 20260928）自动发正式版，prerelease 一律 false；`workflow_dispatch` 手动补发（tag 留空取 `consts.py::LOCAL_VERSION`，prerelease 由输入决定）。
-- 2026-09-28 删除 `build-py313.yml` / `build-windows.yml` / `build-linux.yml`，2026-10-21 删除 `build-py314.yml` → **发版路径自始至终只有一条**（两条并存会共用纯数字 tag 命名空间且都 overwrite:true，互相刷包并把 release 顶到列表第一条）。
+- 2026-09-28 删除 `build-py313.yml` / `build-windows.yml` / `build-linux.yml`，2026-10-21 删除 `build-py314.yml`，2026-10-27 删除 `mirror-release.yml` → **发版路径自始至终只有一条**。
 
 ### 14.3 Python 3.15 专属
 
@@ -448,11 +460,20 @@ PyInstaller，入口 `main.py`。Linux 手动构建依赖见 `Install.md#linux-�
 
 ### 14.4 五条护栏
 
-1. **缺产物不发版**：`build-app` 带 continue-on-error，`publish-release` 用 `if: !cancelled() && needs.build-app.result == 'success'`，不能写 `success()`。
+1. **缺产物不发版**：`build-app` 带 continue-on-error，`publish-release` 用 `if: !cancelled() && needs.build-app.result == 'success'`，不能写 `success()`；发布前再核对三平台产物非空。
 2. **并发不互杀**：`concurrency` 按 ref 分组 + `cancel-in-progress: false`。
-3. **重跑幂等**：三个 Create Release 都带 `overwrite: true`。
-4. **Release 正文按文件写**：`Extract current changelog` 落 `release-notes.md`，`Publish release notes` 用 runner 自带 `gh release edit --notes-file`，**必须排在三个 Create Release 之后**（svenstaro 每次用 body 覆盖正文；`svenstaro/upload-release-action@v2` 无 `body_file` 输入）。
+3. **重跑幂等**：公开仓库同 tag 或同标题的旧 Release 先删再建；残留 tag 一并清理。
+4. **Release 正文按文件写**：`Extract current changelog` 落 `release-notes.md`，截断后写 `release-body.md`，用 `gh release create --notes-file` 一次写入；不再使用会覆盖正文的 `svenstaro/upload-release-action`。
 5. **正文长度上限**：125,000 字符，超了 API 422。写入前按行截到 120,000 并注明「完整内容见 docs/Changelog.md 的 ## <日期> 段」，截断用 `python3`（找不到则跳过并告警）。
+
+### 14.5 文档同步
+
+`.github/workflows/sync-docs.yml` 把私有仓 `docs/*.md` 的改动同步到公开仓库（默认 `z291173301/MDCx`，变量 `MDCX_PUBLIC_REPO` / `MDCX_PUBLIC_BRANCH` 可覆盖）。
+
+- push 到 `main` 且命中 `docs/*.md` / `docs/**/*.md`（含大写 `.MD`）时，按 `github.event.before..github.sha` 的 diff 只处理本次改动/新增/删除的文件；未改动的文档不覆盖公开仓。
+- 手动 `workflow_dispatch`、首次推送或 force push 找不到父提交时，才全量同步 `docs` 下的 md。
+- 目标文件内容已一致时不产生空提交；源文件删除时同步删除公开仓对应文件。
+- 需要 Secrets 里的 `MDCX_SYNC_TOKEN`（公开仓 Contents: Read and write）；未配置直接失败，避免“以为同步了其实没同步”。
 
 ---
 
