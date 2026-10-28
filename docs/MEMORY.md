@@ -16,6 +16,7 @@
 - **演员管理器授权弹窗字号要回落**：演员管理器的 QSS 整体放大一号，授权弹窗会继承；主窗/子窗 QSS 必须拼上 `_premium_popup_qss()`（`QMessageBox, QMessageBox *` 统一用 `_ui_font_pt(0)`），否则弹窗比主界面窄。只改 QMessageBox 自身不够，内部 QLabel 仍继承放大字号。
 - **账单导入与授权弹窗分文件**：账单导入只在 `bill_import_ui.py`（按钮、机器绑定轮询、导入流程），不写授权弹窗；未绑定机器的点击由 `premium_gate.MachineBoundClickGuard` 在按钮层拦，`import_bill()` 不再出现授权判断。
 - **未授权 ≠ 关掉入口**（2026-10-27 口径，推翻此前「演员管理整窗拦」）：窗口能开、能连 Emby 读取、能统计；只有联网取数 / 写回服务器 / 写本地文件的动作点时才拦。独立顶层窗口（演员管理器）走 `premium_gate.premium_denied()`，主窗走 `premium_gate.premium_gate()`，两者共用同一份弹窗文案。
+- **未授权点击只弹窗，不写状态栏 / 日志**（2026-10-28 用户口径）：被拦时只弹 `premium_gate.premium_warning()`，不要再 `show_scrape_info("🔒 …：请获取授权")`，也不要 `show_log_text(...)` 追加一行；演员管理器的 `_premium_blocked()` 同样不写窗口日志，开窗时也不打印「🔒 未授权…」提醒。额度用完的「今日免费额度已用完」状态提示不在此列。
 
 ## 检查与提交纪律
 
