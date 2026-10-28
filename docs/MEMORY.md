@@ -10,8 +10,8 @@
 - **记忆只写这一个文件**：`D:\@Data\MDCx\DADA\MEMORY.md`。不要另建 `.workbuddy-ai/memory/` 之类的旁路记忆文件（用户 2026-10-23 要求）。本文件不受 150 行限制，只记可复用做法，不记一次性事实。
 - **大模型输出只给改动片段**（2026-10-27 定规）：默认只返回修改后的片段，不重复输出全文；新建文件、用户明确要求全文、或只给片段会产生歧义时才输出全文。
 - 改动前先说明「改什么、为什么」；遇到值得记的内容主动记入，不用等提醒；直接在当前分支操作，不擅自建分支。
-- **授权/未授权文案只有两个落点**：弹窗正文 `premium_gate.premium_message()`（`<功能名>功能需要获取授权后才能使用`，句末不带句号）、状态日志 `guard.describe()`（未授权只给原因，不套「未授权（…）」）。功能名由 `premium_gate.GUARDED_ACTIONS` / `_license_gate(action)` 传入，改文案只改这两处。
-- **授权弹窗只走 `premium_gate.premium_warning()`**（读取模式放行时的一次性说明走 `premium_reading_notice()`）：标题固定「请获取授权」、正文同源，尺寸自然一致。主窗 / 工具页 / 信息管理 / 演员管理 / 机器绑定（生成授权、私钥）都不再自己写 `QMessageBox`。
+- **授权/未授权文案只有三个落点**：弹窗正文 `premium_gate.premium_message()`（`<功能名>功能需要获取授权后才能使用`，句末不带句号）、额度用完正文 `premium_gate.premium_quota_message()`、状态日志 `guard.describe()`（未授权只给原因，不套「未授权（…）」）。功能名由 `premium_gate.GUARDED_ACTIONS` / `_license_gate(action)` 传入，改文案只改这几处。
+- **授权弹窗只走 `premium_gate.premium_warning()`**（读取模式放行时的一次性说明走 `premium_reading_notice()`，每日额度用完走 `premium_quota_warning()`）：标题固定「请获取授权」、正文同源，尺寸自然一致。主窗 / 工具页 / 信息管理 / 演员管理 / 机器绑定（生成授权、私钥）都不再自己写 `QMessageBox`。
 - **演员管理器授权弹窗字号要回落**：演员管理器的 QSS 整体放大一号，授权弹窗会继承；主窗/子窗 QSS 必须拼上 `_premium_popup_qss()`（`QMessageBox, QMessageBox *` 统一用 `_ui_font_pt(0)`），否则弹窗比主界面窄。只改 QMessageBox 自身不够，内部 QLabel 仍继承放大字号。
 - **账单导入与授权弹窗分文件**：账单导入只在 `bill_import_ui.py`（按钮、机器绑定轮询、导入流程），不写授权弹窗；未绑定机器的点击由 `premium_gate.MachineBoundClickGuard` 在按钮层拦，`import_bill()` 不再出现授权判断。
 - **未授权 ≠ 关掉入口**（2026-10-27 口径，推翻此前「演员管理整窗拦」）：窗口能开、能连 Emby 读取、能统计；只有联网取数 / 写回服务器 / 写本地文件的动作点时才拦。独立顶层窗口（演员管理器）走 `premium_gate.premium_denied()`，主窗走 `premium_gate.premium_gate()`，两者共用同一份弹窗文案。

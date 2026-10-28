@@ -2,6 +2,16 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-10-28
+
+### 整理模式免费；其它模式未授权合计每天最多成功刮削 10 个番号
+
+- 「整理模式」不再需要授权：未授权点开始直接按整理模式跑，不联网、不计数、不弹授权提示。
+- 「读取模式」「整理模式」之外的正常 / 分离 / 视频 / 更新 / 补全模式：未授权时**这些模式合计**每天最多成功刮削 **10 个番号**（共用一个额度池，不是每个模式各 10 个；按番号去重，同番号重试不重复占额）。额度计数加密写入 `userdata/scrape_state.db` 的 `license_quota` 表（HMAC-CTR + encrypt-then-MAC，密钥与每日上限按四段分片 + 掩码散在 `_quota_key` / `_quota_a..d`，防直读明文），跨重启累计、次日自动清零。
+- 额度用完后，本轮多余的番号不再联网刮削，**只记入失败列表、不移动文件**，同时弹一次「请获取授权」说明额度已用完；下一次点开始若额度仍为 0，起任务闸门直接拦下并提示。
+- 新增 `mdcx/utils/licensing/quota.py`（预留—提交/释放的并发计数）、`mdcx/utils/licensing/_quota_key.py` / `_quota_a..d.py`（额度密钥与每日上限混淆）；`guard.scrape_allowed()` / `mode_allowed()`、`premium_gate.license_gate()`、`core.scraper` 逐文件路径已接入。
+- 测试：`tests/test_license_quota.py`、`tests/test_license_buttons.py`。
+
 ## 2026-10-27
 
 ### 演员行右键菜单新增「更新内容」：改完就地提交
