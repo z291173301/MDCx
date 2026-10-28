@@ -4,6 +4,13 @@
 
 ## 2026-10-29
 
+### 「当前配置」下拉框排除 `license.json`
+
+- 用户反馈：`license.json` 是授权文件不是配置文件，却出现在「当前配置」下拉框里，选中它等于把授权内容当配置加载。
+- `mdcx/config/manager.py::ConfigManager.list_configs()` 在列出 `*.json` 时排除 `license.json`（大小写不敏感，`LICENSE.JSON` 同样排除）；其余 `.json` 仍一个不滤，保留「读不出来的那份也要能选」的逃生通道。
+- 该名字与 `mdcx/utils/licensing/state.py::LICENSE_FILE_NAME` 保持一致，但不 import，避免 config 层反向依赖 licensing 层。
+- 测试：`tests/test_config_list_excludes_license.py`。
+
 ### 鼠标任何情况下都不再出现手型（✋）
 
 - 用户定规：鼠标在软件里始终保持箭头，任何控件、任何状态都不要变成 ✋。
