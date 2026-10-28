@@ -4,6 +4,18 @@
 
 ## 2026-10-28
 
+### 请求前缀 `GET http(s)://` 中间的空格保留
+
+- 用户定规：请求前缀统一写成 `GET https://…` / `GET http://…`（方法与地址之间有一个空格），日志清洗不得把它压成 `GEThttps://…` / `GEThttp://…`。
+- `mdcx/utils/__init__.py::strip_log_spaces()` 删完行内空格后，对**标签外**的请求前缀（`GET` / `POST` / `HEAD` / `PUT` / `DELETE` / `PATCH` / `OPTIONS` + `http(s)://`）补回一个空格；URL 路径里的同名串不动。
+- 测试：`tests/test_log_left_align.py::test_strip_log_spaces_keeps_http_request_gap`、`::test_strip_log_spaces_does_not_touch_request_like_text_in_url`。
+
+### 版本标识 `MDCx YYYYMMDD` 中间的空格保留
+
+- 用户定规：版本显示统一写成 `MDCx 20261027`（品牌名与日期之间有一个空格），日志清洗不得把它压成 `MDCx20261027`。
+- `mdcx/utils/__init__.py::strip_log_spaces()` 删完行内空格后，对**标签外**的 `MDCx` + 8 位日期补回一个空格；HTML 标签属性 / URL 里的同名串不动。
+- 测试：`tests/test_log_left_align.py::test_strip_log_spaces_keeps_mdcx_version_gap`、`::test_strip_log_spaces_does_not_touch_version_like_text_in_html_tag`。
+
 ### 日志行首图标与文字之间恢复一个空格
 
 - 用户定规：日志除换行外不留多余空格，但每行行首的图标与文字之间要留一个空格（如 `🔐 授权状态：`、`📂 程序目录：`）。
