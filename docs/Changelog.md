@@ -27,7 +27,7 @@
 - 弹窗时机按「成功番号数」判定：并发时预留位占满不等于额度用完（可能 1 个成功、9 个还在跑），只有真的攒满 10 个成功番号、且本轮已有番号被拒才弹；第 11 个起的番号一律不再联网，直接强制停止并记入失败列表（文件留在原位置）。
 - 「读取模式」「整理模式」任何情况下都不弹授权窗：`premium_gate.license_gate()` 对这两种模式直接静默放行（原读取模式首次点开始的一次性说明框已删除），只有其它模式额度用完才弹。
 - 未授权时「设置→高级→间歇刮削→连续刮削」填再大也不越过额度：一轮最多连续刮 10 个番号（填 11 也只连刮 10 个），已授权按设置值；落点 `guard.rest_batch_limit()`，`core.scraper` 的休息判断与日志都改用压缩后的值。
-- 授权弹窗文案按用户口径改为逐模式写全：`当前电脑未获得授权：读取模式、整理模式可以正常使用；正常模式、分离模式、视频模式、更新模式、补全模式合计每天最多成功刮削10个番号，不会移动文件，超出部分会记入失败列表`（`premium_message()` / `premium_quota_message()` 共用新增的 `_license_notice()`）。
+- 授权弹窗文案按用户口径改为逐模式写全：`当前电脑没有授权文件：读取模式、整理模式可以正常使用；正常模式、分离模式、视频模式、更新模式、补全模式合计每天最多成功刮削10个番号，不会移动文件，超出部分会记入失败列表`（`premium_message()` / `premium_quota_message()` 共用新增的 `_license_notice()`）。
 - 修「重启软件后额度又从 0 开始」：额度改成**双份持久化**——`userdata/scrape_state.db` 的 `license_quota` 表 + `userdata/license_quota.state` 备份文件（临时文件 + `os.replace` 原子写，不经 SQLite 锁），读回时两处取并集。原先写库撞上断点缓存的长事务（`database is locked`）会静默失败、计数只留内存，重启就丢；现在写库失败会重试并落到备份文件，删 `scrape_state.db` 重置缓存也不会把额度清零。
 - 新增 `quota.refresh()`（只增不减地与磁盘对齐）：软件启动时写入主日志第二行「🔓 今日免费刮削额度：已成功 X/10 个番号，剩余 Y 个」，额度为 0 时写「🔒 已用完…需获取授权」；`guard.scrape_allowed()` / `guard.mode_allowed()`、`premium_gate.license_gate()` 判断前都先 `refresh()`，重启后点正常 / 分离 / 视频 / 更新 / 补全模式或其它需授权功能会立刻弹窗拦下。
 - 新增 `mdcx/utils/licensing/quota.py`（预留—提交/释放的并发计数）、`mdcx/utils/licensing/_quota_key.py` / `_quota_a..d.py`（额度密钥与每日上限混淆）；`guard.scrape_allowed()` / `mode_allowed()`、`premium_gate.license_gate()`、`core.scraper` 逐文件路径已接入。
