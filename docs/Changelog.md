@@ -2,6 +2,16 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-10-29
+
+### 鼠标任何情况下都不再出现手型（✋）
+
+- 用户定规：鼠标在软件里始终保持箭头，任何控件、任何状态都不要变成 ✋。
+- 新增 `mdcx/utils/qt_cursor.py::install_arrow_cursor_guard()`：在 `QApplication` 上装事件过滤器，任何控件触发 `CursorChange` 且新光标是 `PointingHandCursor` / `OpenHandCursor` / `ClosedHandCursor` 时立即改回 `ArrowCursor`。`main.py` 创建 `QApplication` 后安装。
+- 该守卫专门解决「只给控件设一次箭头仍会变手」的情况：`QLabel` 富文本 `<a href>` 锚点悬停时由 `QWidgetTextControl` 自行切手型，侧栏 `[赞助作者]` 即属此类。
+- 清掉代码与 `.ui` 里所有显式手型赋值：`mdcx/views/MDCx.ui`（10 处，重新生成 `MDCx.py`）、`window_ops.py`（拖窗 / 版本号）、`cut_window.py`（裁剪框拖动）、`init.py`（站点网址下拉悬停）。其它功能光标（文字 I 形、等待、分隔条调整）不受影响。
+- 测试：`tests/test_license_buttons.py::test_hand_cursor_is_always_forced_back_to_arrow`、`::test_donate_link_keeps_arrow_cursor`。
+
 ## 2026-10-28
 
 ### 产品名 `CF Bypass` / `CloudFlare Bypass` 中间的空格
