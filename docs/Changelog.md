@@ -4,6 +4,21 @@
 
 ## 2026-10-28
 
+### 产品名 `CF Bypass` / `CloudFlare Bypass` 中间的空格
+
+- 用户定规：`CFBypass` 一律显示成 `CF Bypass`、`CloudFlareBypass` 一律显示成 `CloudFlare Bypass`（两个词之间留一个空格）。
+- `mdcx/utils/__init__.py::_restore_kept_gaps()` 的固定搭配新增 `CF` + `Bypass`、`Cloud[Ff]lare` + `Bypass` 两条；日志清洗删完行内空格后补回。URL 段（`https://a.com/CFBypass`）与代码标识符（`CFBypassHostIssue`）不补空格。
+- 网络设置页「使用代理」提示框里写死的 `CF Bypass代理` 已从 `CFBypass代理` 改正（`mdcx/views/MDCx.ui` 与生成的 `mdcx/views/MDCx.py` 同步）。
+- 测试：`tests/test_log_left_align.py::test_strip_log_spaces_keeps_cf_bypass_gap`、`::test_strip_log_spaces_does_not_touch_cf_bypass_like_text_in_url_or_identifier`。
+
+### 日志页 / 网络检测页 / 授权弹窗的请求前缀空格（URL 转超链接后）
+
+- 用户反馈：软件日志页及其他页面仍显示 `GEThttps://…` / `GEThttp://…`。
+- 原因：URL 先被 `add_html()` / `add_html_plain_text()` 包成 `<a href="…">…</a>`，清洗时 `GET` 与 `https://…` 被整个开始标签隔开，旧的相邻字符匹配补不回空格，界面可见文字就被压成 `GEThttps://…`。
+- `mdcx/utils/__init__.py::_restore_kept_gaps()` 改为穿透 HTML 标签看下一个**可见**字符：`GET <a href="…">https://…</a>` 照样在方法后补一个空格；`MDCx YYYYMMDD` 同规则。URL 路径 / 查询串里的同名串（`https://a.com/GEThttps://b`、`?q=MDCx20261027`）仍不动，重复清洗保持幂等。
+- 覆盖 GET / POST / HEAD / PUT / DELETE / PATCH / OPTIONS，与 `http://`、`https://` 两种前缀。
+- 测试：`tests/test_log_left_align.py::test_strip_log_spaces_keeps_request_gap_across_html_tags`、`::test_add_html_keeps_request_gap_before_link`、`::test_add_html_request_gap_is_idempotent_on_second_pass`。
+
 ### 请求前缀 `GET http(s)://` 中间的空格保留
 
 - 用户定规：请求前缀统一写成 `GET https://…` / `GET http://…`（方法与地址之间有一个空格），日志清洗不得把它压成 `GEThttps://…` / `GEThttp://…`。
