@@ -23,6 +23,7 @@
 烧了太多Token入不敷出了，两个月连续高强度更新烧了几百亿Token投入太多没有赞助没有回报，至今为止只收到一笔共100元捐款，时间精力投入太多免费难以为继，软件转收费模式了，500元一个授权绑定机器，转授权模式后软件各项功能将继续更新，各种问题继续修复，如果有谁闲的蛋疼举报则软件随时下架，反正我自己有源代码随便修改无限使用
 
 想要授权文件的Telegram加好友私聊，或者直接加群后私聊https://t.me/+OVnB6Cw8gkxlYzM1
+
 <img width="1560" height="1641" alt="image" src="https://github.com/user-attachments/assets/bea77952-e13a-45b3-b4ca-12001ddc5873" />
 
 ![image](https://github.com/user-attachments/assets/6e4a9ab3-8c28-4714-af0e-be41d5e71e67)
