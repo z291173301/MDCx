@@ -106,7 +106,7 @@ MDCx 刮削网站类型汇总表
     JavDB_APP     https://apidd.czssdgz.com     JavDB App 接口镜像（apidd.*），内容集同 JavDB
     Missav        https://missav.live/dm247/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
     Missav_API    https://missav.live/dm247/cn  Missav 接口实现（fourhoi.com）
-    ThepornDB     https://api.theporndb.net     api.theporndb.net。欧美 scenes/movies 库（登录墙）
+    ThepornDB     https://api.theporndb.net    API 子域 api.theporndb.net（主域 /api 为备用基址，子域不通时自动兜底）。欧美 scenes/movies 库（登录墙）
 
 ================================================================================================================
 【国产传媒】  合计 10 站   （官网 2 + 第三方 8）

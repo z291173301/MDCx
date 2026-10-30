@@ -7,7 +7,7 @@
 ## 协作与质量
 
 - 一律用简体中文回复；面向小白的说明按「现象和影响 → 原因 → 可执行步骤」三段写；日期时间用北京时间（UTC+8）并显式注明。
-- **日志与界面文字不留多余空格，图标后保留一个空格**（2026-10-28 用户定规）：日志窗口、日志文件、详情日志、弹窗、按钮、菜单、标签等所有可见文字，除换行外不保留多余空格 / Tab / 全角空格；数字与汉字紧贴（如「10个站点」），需要停顿用冒号或顿号。但每行行首的图标与文字之间必须保留一个空格（如「🔐 授权状态：」「📂 程序目录：」），版本标识 `MDCx YYYYMMDD` 中间也保留一个空格（如「MDCx 20261027」，不得压成「MDCx20261027」），HTTP 请求前缀「GET http(s)://」中间同样保留一个空格（如「GET https://a.com」，不得压成「GEThttps://a.com」），产品名「CF Bypass」「CloudFlare Bypass」中间同样保留一个空格（不得压成「CFBypass」「CloudFlareBypass」），URL 被 `add_html()` 包成 `<a href="…">` 后也成立。日志出口由 `utils.strip_log_spaces()` 兜底，新文案也不要主动加多余空格。
+- **日志与界面文字不留多余空格，图标后保留一个空格**（2026-10-28 用户定规）：日志窗口、日志文件、详情日志、弹窗、按钮、菜单、标签等所有可见文字，除换行外不保留多余空格 / Tab / 全角空格；数字与汉字紧贴（如「10个站点」），需要停顿用冒号或顿号。但每行行首的图标与文字之间必须保留一个空格（如「🔐 授权状态：」「📂 程序目录：」），版本标识 `MDCx YYYYMMDD` 中间也保留一个空格（如「MDCx 20261027」，不得压成「MDCx20261027」），HTTP 请求前缀「GET http(s)://」中间同样保留一个空格（如「GET https://a.com」，不得压成「GEThttps://a.com」），产品名「CF Bypass」「CloudFlare Bypass」中间同样保留一个空格（不得压成「CFBypass」「CloudFlareBypass」），URL 被 `add_html()` 包成 `<a href="…">` 后也成立。**另外保留空格的四处（2026-10-30 定规）**：诊断串的 `HTTP 403`（状态码与 `HTTP` 之间）、`403 body=`（状态码与响应体之间）、URL 与「失败」之间（`…fa735 失败：`，不得压成 `…fa735失败：`）、双引号内的原文（响应体/引用，如 `body={"message":"This action is unauthorized."}`，不得压成 `Thisactionisunauthorized.`）。日志出口由 `utils.strip_log_spaces()` 兜底，新文案也不要主动加多余空格。**例外：检测网络页的检测报告**（2026-10-30 用户定规）——那是等宽表格，列间连续空格就是排版本身，`show_net_info()` 走 `add_html_plain_text(keep_spaces=True)` 保留原样，不要给它套空格清洗。
 - **记忆只写这一个文件**：`D:\@Data\MDCx\DADA\MEMORY.md`。不要另建 `.workbuddy-ai/memory/` 之类的旁路记忆文件（用户 2026-10-23 要求）。本文件不受 150 行限制，只记可复用做法，不记一次性事实。
 - **大模型输出只给改动片段**（2026-10-27 定规）：默认只返回修改后的片段，不重复输出全文；新建文件、用户明确要求全文、或只给片段会产生歧义时才输出全文。
 - 改动前先说明「改什么、为什么」；遇到值得记的内容主动记入，不用等提醒；直接在当前分支操作，不擅自建分支。
@@ -160,6 +160,8 @@
 - 带语言段的入口地址不能直接当前缀拼：`base/web.py::site_root()` 先收敛成 `scheme://host`；missav 默认地址固定带 `/dm247/cn`，不带会被 302 到英文页。
 - javdb 三源：javdb（网页）/ javdb_api（镜像站）/ javdb_app（App API，免 CF 最稳）；thejavdb 与 javdb 无关。App 签名见 `docs/Javdb_App_Signature.md`，排障锚点 = 三主机同时 4xx 或 InvalidSignature；搜索 limit ≤ 50，分页须 `movie_sort_by=release`。
 - javdb 图源无水印体系：`tp.spfcas.com` 是 App 专用（单字节 XOR），`c0.jdbstatic.com` 带水印；解密集中在 `base/web.py`。加密流尺寸探测 (0,0) 属预期。
+- **ThePornDB 的 401 与 403 不是一回事**（2026-10-30 实测）：401 = Token 不存在/失效；403 `This action is unauthorized.` = Token 已通过验证但没该接口权限（粘贴了网页登录令牌、旧 Token 被重置、账号无哈希直查权限）。403 绝不能提示「检查网络或代理」，也不能中断刮削（哈希直查 403 就退到标题搜索）。判定与文案只在 `mdcx/utils/theporndb_token.py`，三处（设置页检测、检测网络页、刮削爬虫）共用。
+- **ThePornDB 接口基址是 `api.theporndb.net`**（用户 2026-10-30 确认，勿再改成主域 `/api`）。主域 `/api` 只是 `API_BASE_FALLBACK`：仅在子域连接层失败、或 403 但响应体不是本站 JSON（Cloudflare 挑战页）时由 `with_fallback_base()` 兜底重试一次；真 403 JSON 与 404 不重试。
 
 ## Windows 打包与发布
 

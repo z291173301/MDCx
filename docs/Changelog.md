@@ -2,6 +2,46 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-10-30
+
+### ThePornDB 接口基址回到 `api.theporndb.net`（主域 `/api` 降为备用）
+
+- 用户反馈（换了 API key 仍是同一条 403）：「一直是这样，已经换了 API key 了，正确的地址是 `https://api.theporndb.net/scenes/hash/8679fcbdd29fa735`」。
+- 回滚 2026-10-29 的「API 迁到主域 `/api`」：`mdcx/utils/theporndb_token.py::API_BASE` 改为 `https://api.theporndb.net`（`HASH_PROBE_URL` / `LIST_PROBE_URL` 随之生效）；`mdcx/crawlers/theporndb.py::base_url_()`、`read_data()` 的 `real_url`、`get_real_url()` 的 `res_id_url` 一并回到子域；`mdcx/tools/actor_sources.py::_THEPORNDB_API` 同步。
+- 新增 `API_BASE_FALLBACK = "https://theporndb.net/api"` 与 `with_fallback_base()` / `should_try_fallback()` / `looks_like_api_body()`：子域**连接层失败**（超时/解析不到，取不到状态码）或 **403 但响应体不是本站 JSON**（被 Cloudflare 挑战页顶掉）时，自动换主域 `/api` 重试一次；真 403 JSON、404（哈希未命中）不重试。三处共用：设置页「检测」、检测网络页「ThePornDB Token」项、爬虫 `_get_json()`。
+- `appoint_url` 归一化改用 `_APPOINT_URL_RE`：`theporndb.net/x`、`www.theporndb.net/x`、`theporndb.net/api/x`、`api.theporndb.net/api/x` 四种写法统一收敛到 `https://api.theporndb.net/x`。
+- 测试：`tests/test_theporndb_token.py`（基址断言、`with_fallback_base` / `should_try_fallback` / `looks_like_api_body`、子域超时与 403 挑战页两种兜底、检测页兜底）、`tests/crawlers/test_theporndb.py::test_theporndb_subdomain_dead_falls_back_to_main_domain`。
+- 注：本机 `curl https://api.theporndb.net/scenes/hash/…` 实测超时（status=000），主域 `/api` 返回 401 JSON；两条路在不同网络环境下可通性不同，故保留兜底而不是单点依赖。
+
+### 检测网络页恢复等宽表格对齐（回到 2026-10-28 之前的样式）
+
+- 用户反馈：检测网络页的检测报告挤成一串（`200927ms代理连接正常`、`代理状态已启用`、表头「状态站点状态码耗时路由信息」连在一起），要回到 2026-10-28 之前的对齐样式。
+- 原因：2026-10-28 起的「日志不留多余空格」规则在 `utils.strip_log_spaces()` 里统一执行，检测页出口 `show_net_info()` → `add_html_plain_text()` 也走了这道清洗；而这份报告的各列全靠连续空格排版（`_format_header()` 表头四列按真机实测校准的间隙、`format_result_line()` 的 `_pad_left/_pad_right` 固定列宽、`基础环境` 的 `_pad_right(…, 16)`），空格被删光后列位信息就没了。
+- `mdcx/utils/__init__.py::add_html_plain_text()` 新增 `keep_spaces` 参数（默认 `False`，软件日志页行为不变）；`mdcx/controllers/main_window/net_check.py::show_net_info()` 改为 `keep_spaces=True`，检测页原样渲染。复制到剪贴板的报告本来就是原始行，不受影响。
+- 测试：`tests/test_log_left_align.py::test_net_check_page_keeps_report_alignment`（表头与数据行渲染后空格一个不少，同一段文字走日志页仍被清洗）。
+- 版本号 `LOCAL_VERSION` 由 `20261028` 升到 `20261030`（实际提交日期）。
+
+### ThePornDB 403 不再误报成「连接失败」
+
+- 用户反馈：设置页「检测」报 `❌ ThePornDB连接失败:GET https://theporndb.net/api/scenes/hash/8679fcbdd29fa735失败:HTTP403body={"message":"This action is unauthorized."}`。
+- 实测确认 403 的真实含义（当日判断：`api.theporndb.net` 子域整体 403、API 已迁到主域 `/api`；该判断当天即按用户确认回滚，见上一条）：不带 Token 或 Token 不存在/失效 → `401 {"message":"Unauthenticated."}`；Token **通过身份验证但没有该接口权限** → `403 {"message":"This action is unauthorized."}`。即 403 既不是网络故障也不是 Token 填错，而是「这个 Token 没哈希直查权限」，提示「请检查网络或代理设置」会把人带偏。
+- 新增 `mdcx/utils/theporndb_token.py`：接口地址（`HASH_PROBE_URL` / `LIST_PROBE_URL` / `TOKEN_PAGE`）、`http_status_from_error()`（4xx/5xx 时 `web_async.request()` 只回 `(None, "GET … 失败: HTTP 403 body=…")`，状态码只能从错误串取）、`token_issue_message()` / `token_issue_short()` 三处共用文案。
+- `mdcx/base/web.py::check_theporndb_api_token()`：哈希 403 时再用标题查询复核——能过就报「✅ 连接正常（哈希直查无权限，刮削会自动改用标题搜索）」；两个接口都 403（或其它状态码）则按原文打印 `❌ 连接失败：GET …失败：HTTP 403 body={…}`。顺带 `.strip()` 掉粘贴时带的空白/换行。
+- `mdcx/core/network_check.py`：「ThePornDB Token」项 403 记警告（`Token 无该接口权限（403），刮削会自动改用标题搜索`）、401 记失败，不再把原始 body 当网络故障。
+- `mdcx/crawlers/theporndb.py`：哈希直查 403 明确记一行「哈希直查无权限(403)，改用标题搜索」后继续刮；标题查询/详情请求遇 401/403 抛出同一条可执行提示（不再甩 `body=` 原文）。`_headers()` 同样 strip Token。
+- 测试：`tests/test_theporndb_token.py`（状态码解析、检测按钮四种结局、检测页 403/401 分类）、`tests/crawlers/test_theporndb.py::test_theporndb_hash_403_falls_back_to_search`、`::test_theporndb_search_403_reports_token_permission`。
+
+### ThePornDB 检测失败行改成可读的诊断原文
+
+- 用户 2026-10-30 定规：这一行要长成
+  `❌ ThePornDB连接失败：GET https://theporndb.net/api/scenes/hash/8679fcbdd29fa735失败：HTTP 403 body={"message":"This action is unauthorized."}`
+  而不是 `❌ ThePornDB连接失败:GET …失败:HTTP403body={"message":"Thisactionisunauthorized."}`。
+- 三处问题：① 站点名重复（文案里写了一遍 `ThePornDB`，`with_site_prefix()` 又补一遍，成了 `ThePornDBThePornDB`）；② 冒号是半角；③ `HTTP 403` 与响应体里的空格被 `strip_log_spaces()` 删光。
+- `mdcx/utils/__init__.py::strip_log_spaces()`：**双引号里的内容原样保留空格**（响应体/引用原文，`body={"message":"This action is unauthorized."}` 不能再压成 `Thisactionisunauthorized.`），引号状态每行重置；`_restore_kept_gaps()` 新增 `HTTP 403`（状态码与 `HTTP` 之间）与 `403 body=`（状态码与响应体之间）两条补空格规则，且都幂等——日志页要过 `log_console.log_text()`、`show_log_text()`、`add_html()` 三道清洗，每道都成立才不会被后一道吃掉。
+- `mdcx/base/web.py`：失败文案统一成 `❌ 连接失败：…`（站点名交给 `with_site_prefix()` 补，不再重复），新增 `_format_theporndb_error()` 只把 `失败: ` 的冒号换成全角 `失败：`，其余（含 URL 与「失败」之间的空格）原样保留。
+- 用户第二轮定规：URL 与「失败」之间**要**留一个空格（`…fa735 失败：HTTP 403`），故 `strip_log_spaces()` 再加一条「URL 后接失败」规则——`_prev_visible_char()` 反向跳过 `<a>…</a>` 标签找 URL 末字符，只在同一条 URL 后面补空格，`ThePornDB连接失败`、`CloudFlare Bypass失败` 这类不受影响。
+- 测试：`tests/test_theporndb_token.py::test_failed_log_line_keeps_raw_body_readable`（断言日志窗口那一行的完整形态）、`tests/test_log_left_align.py::test_strip_log_spaces_keeps_quoted_content`、`::test_strip_log_spaces_keeps_http_status_gap`。
+
 ## 2026-10-29
 
 ### 「当前配置」下拉框排除 `license.json`
