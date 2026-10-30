@@ -71,6 +71,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 - **本表「说明」列是爬虫自己的文案原样**（用 `+` 连写能力）；**界面上显示时一律归一成 `/`**（`_site_description()` 里换掉），且下拉框显示文本、「可用网站」候选区悬停提示两处都改用**现算的类型名单**（`综合：有码/无码/欧美/传媒` 这类，与下表的旧文案不一定逐字一致——名单才准；名单里不写「动漫」「个摄」，但「短剧」照常显示）。
 - **Official**：按番号前缀自动路由到 30 家有码片商官网，并保留 Dahlia/Faleno 前缀回退；全部走代理；前缀表维护在 `manual.py` 的 `OFFICIAL` 字典。Official 本身没有固定检测入口，网络检测时按番号动态检测、跳过属正常情况。原来的五个无码官网已拆成独立站点 `Official·10Musume`、`Official·1Pondo`、`Official·Caribbeancom`、`Official·HEYZO`、`Official·Pacopacomama`：各有自己的 `Website` 枚举、爬虫与官网地址，网络检测各占一行、各用各的探测番号，可单独启用/禁用，互不影响；默认只进无码番号组，不再由 Official 路由。
 - **JavDB_APP**：APK 逆向签名直连，封面/海报/剧照走 App CDN 无水印原图，签名失效自动诊断，详见 [Javdb_App_Signature.md](Javdb_App_Signature.md)。
+- **ThepornDB**：站点默认地址是 API 子域 `api.theporndb.net`（爬虫与 Token 都走它），但网络检测里那条 `ThepornDB` 站点行打的是主站首页 `https://theporndb.net`——API 子域没有根路由，`GET https://api.theporndb.net/` 会回 404，不能拿来判站点通不通。接口能不能用看「账号/API」组的「ThePornDB Token」项。
 
 > 注意：JavDB_API、JavDB_APP、Missav_API、R18.dev、TheJavDB 这五条是免 CF 通道，稳定性好，建议优先选用。
 

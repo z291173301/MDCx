@@ -162,6 +162,7 @@
 - javdb 图源无水印体系：`tp.spfcas.com` 是 App 专用（单字节 XOR），`c0.jdbstatic.com` 带水印；解密集中在 `base/web.py`。加密流尺寸探测 (0,0) 属预期。
 - **ThePornDB 的 401 与 403 不是一回事**（2026-10-30 实测）：401 = Token 不存在/失效；403 `This action is unauthorized.` = Token 已通过验证但没该接口权限（粘贴了网页登录令牌、旧 Token 被重置、账号无哈希直查权限）。403 绝不能提示「检查网络或代理」，也不能中断刮削（哈希直查 403 就退到标题搜索）。判定与文案只在 `mdcx/utils/theporndb_token.py`，三处（设置页检测、检测网络页、刮削爬虫）共用。
 - **ThePornDB 接口基址是 `api.theporndb.net`**（用户 2026-10-30 确认，勿再改成主域 `/api`）。主域 `/api` 只是 `API_BASE_FALLBACK`：仅在子域连接层失败、或 403 但响应体不是本站 JSON（Cloudflare 挑战页）时由 `with_fallback_base()` 兜底重试一次；真 403 JSON 与 404 不重试。
+- **ThePornDB 的「站点检测」行打主站 `https://theporndb.net`**（用户 2026-10-30）：API 子域没有根路由，`GET https://api.theporndb.net/` 回 404，拿它当连通性检测地址必然误报。站点行固定主站首页（不取 `base_url_()`／自定义 URL）且 `crawl_probe=False`；「接口/Token 能不能用」仍归「账号/API」组的「ThePornDB Token」项（`api.theporndb.net/scenes/hash/…`）。两条路的基址各司其职，不要合并成一个常量。
 
 ## Windows 打包与发布
 

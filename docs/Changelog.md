@@ -4,6 +4,16 @@
 
 ## 2026-10-30
 
+### ThePornDB 站点检测改打主站首页 `https://theporndb.net/`
+
+- 用户反馈：ThepornDB 的站点网络检测要用 `https://theporndb.net/`；打 `https://api.theporndb.net/` 会报 HTTP 404。
+- 原因：API 子域**没有根路由**——`GET https://api.theporndb.net/` 本来就 404，拿它当「站点通不通」的检测地址必然误报红点。此前该站直接从「站点检测」组里跳过，检测页只剩「账号/API」组的一条 Token 项，站点本身可不可达反而看不出来。
+- `mdcx/utils/theporndb_token.py` 新增 `WEB_BASE = "https://theporndb.net"`（主站基址，`TOKEN_PAGE` 由它拼出），与 `API_BASE` 各司其职。
+- `mdcx/core/network_check.py::_build_site_specs()`：ThepornDB 不再整站跳过，改为产出一条「站点检测」项 `ThepornDB → https://theporndb.net`；不走 `base_url_()`／用户自定义 URL（那两者都是 API 子域），也不跑爬虫刮削探测（探测打的是 API、还要 Token）。
+- `NetworkCheckSpec` 新增 `crawl_probe: bool = True`：连通后是否再用爬虫实探「能不能刮」。仅 ThepornDB 站点行置 `False`，其余站点默认行为不变；探测条件相应加 `and spec.crawl_probe`。
+- 职责划分：站点行判「主站能不能上」（200 → 连接正常），接口/Token 能不能用仍由「ThePornDB Token」项（`api.theporndb.net/scenes/hash/…`）判定，两条结果都带 `site=ThepornDB`，缓存按「本轮最差」聚合回标网站设置下拉。
+- 测试：`tests/test_network_check.py::test_theporndb_site_spec_probes_main_site_not_api_root`。
+
 ### ThePornDB 接口基址回到 `api.theporndb.net`（主域 `/api` 降为备用）
 
 - 用户反馈（换了 API key 仍是同一条 403）：「一直是这样，已经换了 API key 了，正确的地址是 `https://api.theporndb.net/scenes/hash/8679fcbdd29fa735`」。
