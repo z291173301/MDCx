@@ -10,6 +10,7 @@
 - 原因：`pushButton_tips_complete_mode` 只在 `init.py` 里设了图标与 tooltip，漏了 `clicked` 信号连接，`tips.py` 也没有对应槽函数；其余六个模式的按钮都接了 `_show_tips(...toolTip())`。
 - `mdcx/controllers/main_window/tips.py` 新增 `pushButton_tips_complete_mode_clicked()`；`init.py` 补上 `clicked.connect(...)`。tooltip 里两处旧控件名同步为当前界面文案（「本地信息文件有链接，重新下载封面图与缩略图」「本地信息合并及策略」）。
 - 测试：`tests/test_settings_mode_tips_buttons.py` 锁死七个模式说明按钮都存在于 `.ui`、都有槽函数、都在 `init.py` 里接上 `clicked`，且槽函数确实把 tooltip 交给说明弹窗。
+- 版本号 `LOCAL_VERSION` 由 `20261030` 升到 `20261104`（实际提交日期）。
 
 ## 2026-10-30
 
