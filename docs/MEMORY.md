@@ -26,7 +26,7 @@
 - **本机没装 uv、也不要装**（2026-10-24）：门禁直接用系统 Python `"C:/Program Files/Python315/python.exe" -m ruff format --check mdcx tests scripts` / `-m ruff check ...` / `-m mypy mdcx/` / `-m pytest -m "not network" -q`，不要写 `uv run`。
 - 改代码后跑快速门禁（format + check + mypy），提交前加跑全量 `pytest -m "not network"`；只改 `docs/*.md` 或本文件时只需 `git diff --check`。
 - 全绿判定 = 退出码 0，且 `grep -E "\.py:[0-9]+: error|Found [0-9]+ error"` 无输出（mypy 输出可能被 tail 截断）。
-- `ruff check` 过 ≠ `ruff format --check` 过；改了 .py 必须 `ruff format` 落地。格式化要用仓库锁定版 ruff（pyproject pin `>=0.17.1,<0.18.0`，uv.lock 实锁 0.17.1）；升版后必须 `uv lock` + `uv sync` 再全量 format + check。
+- `ruff check` 过 ≠ `ruff format --check` 过；改了 .py 必须 `ruff format` 落地。格式化要用仓库锁定版 ruff，**`uv.lock` 是唯一版本来源**：`pyproject.toml` / `requirements.txt` / `uv.lock` 根 specifier 由 `python -m scripts.sync_ruff_version` 自动同步（`--check` 只校验；`scripts/check.py` 检测到漂移会自动改写并拦截，提交后再重跑）。升版流程：先升级 `uv.lock` 的 ruff → 跑同步脚本 → 全量 format + check；`tests/test_ruff_version_sync.py` 锁死。
 - `scripts/` 也在 check 范围内。`check.py` 的 ALWAYS 段 = `ruff format --check` → `ruff check` → `mypy mdcx/` → `check_thread_safety`（**不含 pytest**）；要全量门禁显式加 `--with-tests`：`"C:/Program Files/Python315/python.exe" scripts/check.py --skip-hook-install --with-tests`。
 - `check_ui_layout` 已移出门禁，只作手工诊断：`-m scripts.check_ui_layout`。xlsx 校验按路径跳过（`check_actor_db` / `check_info_db` 只在对应出厂库或校验脚本有改动时跑）。
 - `ci.yaml` 的 `on:` 只有 `pull_request: branches: [main]`，**直推 main 不触发 CI**；门禁靠「PR + 本地自检」两道。

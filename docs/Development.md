@@ -185,6 +185,7 @@ markupsafe>=3.0.4    pydantic-core>=2.50.1  PyQt6-sip>=13.13.0
 
 - `requires-python` 固定 `>=3.15`（3.15 是当前唯一构建目标），不带 upper bound。
 - 131 个锁包里 129 个有 wheel，唯一例外 pyyaml（无 cp315 wheel），靠 `PYYAML_FORCE_LIBYAML=0` 出纯 Python wheel。
+- ruff 版本以 `uv.lock` 为唯一来源。升级 ruff 后运行 `python -m scripts.sync_ruff_version`，自动同步 `pyproject.toml`（`ruff>=X,<Y`）、`requirements.txt`（`ruff>=X`）和 `uv.lock` 根 metadata 的 specifier；`--check` 只校验不改文件。`scripts/check.py` 发现漂移会自动同步并以非 0 退出，提交同步结果后重跑即可。标准升级流程：`uv lock --upgrade-package ruff` → 同步脚本 → 全量 format/check；`tests/test_ruff_version_sync.py` 钉死一致性。
 
 ---
 

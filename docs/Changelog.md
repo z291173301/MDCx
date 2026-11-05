@@ -2,6 +2,22 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-11-05
+
+### 新增「获取视频时长」开关（OpenCV 兜底写 NFO）
+
+- 软件设置 → 高级新增「获取视频时长」复选框（默认不勾选，勾选状态写入配置文件；旧配置不会自动开启，取消后保存也不会被重新勾上）。
+- 勾选后，所有站点都刮削不到时长时，对真实视频文件用 OpenCV 读取时长（分钟）并写入 NFO 的 `<runtime>`；PyAV / ffprobe 仅作兜底。`.strm` 只含链接、播放器/解码器无法据此取时长，明确排除。
+- 仅在会写 NFO 的刮削/补全流程触发，读取/整理模式不改 NFO。
+- 测试：`tests/test_get_video_duration.py`。
+
+### ruff 版本声明自动跟随 `uv.lock`
+
+- 新增 `scripts/sync_ruff_version.py`：以 `uv.lock` 为唯一来源，同步 `pyproject.toml`、`requirements.txt` 与 `uv.lock` 根 metadata 的 ruff 版本声明；`--check` 可只校验。
+- `scripts/check.py` 启动时自动同步；检测到漂移会改写文件并以非 0 退出，提交同步结果后重跑即可。
+- `tests/test_ruff_version_sync.py` 钉死三处声明一致；ruff 锁版本由 0.17.1 升到 0.17.3。
+- 版本号 `LOCAL_VERSION` 由 `20261104` 升到 `20261105`（实际提交日期）。
+
 ## 2026-11-04
 
 ### 补全模式右侧「?」按钮点击无反应
