@@ -4,6 +4,14 @@
 
 ## 2026-11-06
 
+### 指定网站 Official 聚合与官网展示统一
+
+- 软件设置 → 刮削网站 → 网站偏好 → 指定网站：38 个 `Official·` 单站合并为一行 `Official`（33 有码 + 5 无码全含在内），下拉不再挤满官网；选中 `Official` 时按番号前缀自动路由到各单站刮削（品牌锁 → 有码 29 站 + Prestige → 无码 5 站），无命中前缀时回退 38 站多站并发兜底。网络页「当前网站」仍保留 38 单站（逐站检测/自定义网址按站独立）。
+- 新增 `Website.OFFICIAL = "Official"` 聚合入口（仅 `website_single` 可取，不注册爬虫、不进类型默认名单、不参与网络检测与字段优先级）；旧配置 `website_single=Official` 原样保留，不再落到 `Official·S1`。
+- 编辑官方网站源：候选区只有 `Official`（33 站）与 `Official·uncensored`（5 站）两组，不再摆「官方/有码/无码…」八个类型标题；成员与启用网站一律短名显示（去 `Official·` 前缀，仅展示层，枚举值与存盘不变）。
+- 类型刮削网站 → 编辑网站 → 启用网站：33 有码站统一显示为 `Official`、5 无码站统一显示为 `Official·uncensored`（仅展示名，`UserRole` 仍存真实值，悬停点出真实站点，实际刮削仍按真实站点值 A-Z 顺序）。
+- 测试：`test_website_single_official_rows`（指定聚合一行/网络页 38 单站/徽标按站独立）、`test_official_uncensored_split_migration`（`website_single` 保留聚合）、`test_site_source_copy_menu`（八组标题）、新增 `test_official_aggregate`（前缀路由/两组短名/启用统一展示）同步。
+
 ### Official 四站改名与可用网站聚合展示
 
 - `Prestige`/`Faleno`/`Dahlia`/`MGStage` 改名 `Official·Prestige`/`Official·Faleno`/`Official·Dahlia`/`Official·MGStage`（枚举值 + 爬虫 `display_name` + 旧配置 `_rename_site` 兼容 + `default_config.json` 模板同步）；有码 `Official·` 系共 33 站。
