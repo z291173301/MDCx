@@ -143,8 +143,8 @@
 
 - 各站探测番号与收录依据见爬虫类注释；javdb 仅搜 FC2 时需要 Cookie。
 - 站点 API 坑：missav_api 的 Recombee 仅 POST；DMM Affiliate v3 必需 site/service/floor 且 keyword 用 content_id 形态；madouqu 域名动态维护（24h 缓存）；madou_club 番号无横杠；parsel `Selector.get()` 纯 JSON 返回 dict（解析兼容 str/dict/Selector 三态）。
-- **当前注册爬虫 36 个**（`docs/Features.md` 同步）；数字开头模块名（`7mmtv.py`）用 `importlib.import_module` 加载。
-- 站点收录边界：AVEntertainments 只在无码组；Getchu、AVSEX 大陆 IP 过不了 CF 故从六组移除；Official 只在有码/无码两组。
+- **当前注册爬虫 35 个**（`docs/Features.md` 同步）；数字开头模块名（`7mmtv.py`）用 `importlib.import_module` 加载。
+- 站点收录边界：AVEntertainments 只在无码组；Getchu 大陆 IP 过不了 CF 故从六组移除；Official 只在有码/无码两组。
 - 「素人番号」已改名「国产短剧」（枚举值/字段名仍是 `SUREN` / `website_suren`），默认名单只剩 JavDay；短剧无番号格式，只有锁定类型才走这一组。
 - 七组名 = 有码番号/无码番号/个摄番号/欧美视频/国产传媒/国产短剧/动漫里番；下拉八项多一个「自动判断」。组名与下拉文案、chip 短名、`PALETTE_GROUP_TYPES` 组序同源；下拉下标↔值映射读 `FixedScrapingType.dropdown_values()`（顺序源 `dropdown_order()`，不能写成类体常量——Enum 会报 TypeError）。
 - 「锁定类型」运行期只有一张真相表 `models.SCRAPING_TYPE_SITE_FIELDS`；保留 `getattr(config, field, None)` 惰性取值；锁定分支只给 `GUOCHAN` 硬塞 `mosaic="国产"`；回退类型名单必须用有序的 `get_type_sites()`，不能用 `list(set)`（Website 枚举 str 的 hash 每进程随机化）。

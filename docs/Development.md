@@ -143,7 +143,7 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 - 指纹池默认 7 种画像轮换：Chrome 124/131/136 Win、Chrome 136 Mac、Firefox 133/135 Win、Safari 17.2 iOS；Amazon 用纯桌面 6 种池（不含 Safari iOS）。
 - 限流：并发数 + 全局线程延时；Amazon 另用 `AdaptiveRequestThrottle`（429 自动降速冷却）+ 指数退避。
 - **CF Bypass** 走 `mdcx/cf_bypass/trawl_adapter.py`（TRAWL `/scrape` 或 FlareSolverr `/v1`）；JavLibrary 额外支持 Selenium+Edge（`selenium_adapter.py`）→ Playwright+Edge（`playwright_adapter.py`，async 原生，`channel="msedge"`，goto 失败 tenacity 重放 1 次）；`cf_selenium_bypass` 默认开启。内置 CF Bypass（cloakbrowser + cf_bypasser）已于 v2.0.6 移除。
-- **代理路由**：按「走代理网站」域名，默认 37 域（amazon.co.jp、m.media-amazon.com、xcity.jp、minnano-av.com、avbase.net、javbus.com、javdb.com、javlibrary.com、r18.dev、mgstage.com、prestige-av.com、seesaawiki.jp、avsox.click、avsox.com、avmoo.shop、avmoo.com、avheat.shop、avheat.com、heyzo.com、caribbeancom.com、1pondo.tv、pacopacomama.com、10musume.com、mywife.cc、github.com、raw.githubusercontent.com、google.com、missav.ws、missav.live、aventertainments.com、javfree.me、7mmtv.sx、avsex.cc、getchu.com、dl.getchu.com）。
+- **代理路由**：按「走代理网站」域名，默认 36 域（amazon.co.jp、m.media-amazon.com、xcity.jp、minnano-av.com、avbase.net、javbus.com、javdb.com、javlibrary.com、r18.dev、mgstage.com、prestige-av.com、seesaawiki.jp、avsox.click、avsox.com、avmoo.shop、avmoo.com、avheat.shop、avheat.com、heyzo.com、caribbeancom.com、1pondo.tv、pacopacomama.com、10musume.com、mywife.cc、github.com、raw.githubusercontent.com、google.com、missav.ws、missav.live、aventertainments.com、javfree.me、7mmtv.sx、getchu.com、dl.getchu.com）。
 - **TRAWL/FlareSolverr 适配层**：对外暴露 cf_bypasser 三端点 `/cookies` `/html` `/mirror`；trawl 走原生 `/scrape`（响应无 `responseHeaders`/`body`，适配层走 html 回退）；flaresolverr 走 POST `/v1`（`cmd=request.get/post`），响应头从 `solution.headers` 还原；配置 `cf_bypass_trawl_url` + `cf_bypass_trawl_backend`（默认 trawl）；`AsyncWebClient` 自动拉起 `TrawlAdapterServer`（随机端口 + uvicorn 子进程）；回环 https 经 `normalize_trawl_url` 降回 http（否则 60s 探活失败永久禁用）；`is_proxy_host` 名单写主域时同站动态镜像自动跟随走代理，直连白名单优先。
 - **动态域名**：`base/web.py::get_aio_domain(site)` 解析 `tellme.pw/{site}` 的 `__AIO_SITE_URLS__`，1 天缓存、三站互兜；`get_javlibrary_domain()` 抓 github.com/javlibcom 主页 `rel="nofollow me"` 链接，失败回退已知镜像。
 - **网络检测**（`core/network_check.py`）：检测项由 `check_urls()` 动态生成；API 类爬虫走真实刮削探测 `_probe_crawler_by_run`；探针番号优先级 `NetworkCheckSpec.probe_number` > 爬虫 `probe_number` 类属性 > 全局 `SCRAPE_PROBE_NUMBER`（默认 SSNI-647）；Official 五个无码官网子检测项各带带站点前缀的实存番号（`official_uncensored.py::UNCENSORED_OFFICIAL_SITES`）；`_DETERMINISTIC_PROBE_MARKERS` 命中即首次定论，其余按 `SCRAPE_PROBE_ATTEMPT_TIMEOUTS`（30s→45s）递进重试；终局说明只在两档都真超时时写「均超时」，站点可达但番号不存在单独出提示不计故障；结果持久化到 `userdata/network_check_cache.json`（`merge_site_check_cache` / `load_site_check_cache`），同一站点多条结果只在本轮内取最差，五站子检测项另以 `Official·厂牌` 为键各存一份（`_SITE_CHECK_KEY_ROLE`）。
@@ -300,7 +300,7 @@ markupsafe>=3.0.4    pydantic-core>=2.50.1  PyQt6-sip>=13.13.0
 改 `TYPE_DEFAULT_SITES` 七组默认名单前先问「这站在这一类番号上真的有条目吗」：
 
 - `AVEntertainments` 只无码番号（正規無修正 DVD 販売/配信商城）→ 只在无码组。
-- `Getchu`、`AVSEX` 对大陆 IP 过不了 CF 墙 → 前六组不收（Getchu 只随动漫里番一组）。
+- `Getchu` 对大陆 IP 过不了 CF 墙 → 前六组不收（Getchu 只随动漫里番一组）。
 - `Official` 按番号前缀路由到片商官网，国产/欧美/个摄没有收录 → 只在有码/无码两组。
 - `MyWife` 不属于任何类型 → 七组都不该有。
 - 移除站点只动默认名单，不动爬虫注册与 `Website` 枚举。
