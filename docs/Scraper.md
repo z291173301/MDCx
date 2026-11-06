@@ -28,8 +28,8 @@ MDCx 刮削网站类型汇总表
     Official·Wanz     https://www.wanz-factory.com有码片商官网。番号前缀自动锁定本站
     Official·Ideapockethttps://ideapocket.com      有码片商官网。番号前缀自动锁定本站
     Official·Kirakira https://kirakira-av.com     有码片商官网。番号前缀自动锁定本站
-    Official·EBody    https://www.av-e-body.com   有码片商官网。番号前缀自动锁定本站
-    Official·Bi       https://bi-av.com           有码片商官网。番号前缀自动锁定本站
+    Official·E-Body    https://www.av-e-body.com   有码片商官网。番号前缀自动锁定本站
+    Official·Bi-av    https://bi-av.com           有码片商官网。番号前缀自动锁定本站
     Official·Premium  https://premium-beauty.com  有码片商官网。番号前缀自动锁定本站
     Official·Miman    https://miman.jp            有码片商官网。番号前缀自动锁定本站
     Official·Tameikegorohttps://tameikegoro.jp      有码片商官网。番号前缀自动锁定本站
@@ -38,11 +38,11 @@ MDCx 刮削网站类型汇总表
     Official·Befree   https://befreebe.com        有码片商官网。番号前缀自动锁定本站
     Official·Muku     https://muku.tv             有码片商官网。番号前缀自动锁定本站
     Official·Attackershttps://attackers.net       有码片商官网。番号前缀自动锁定本站
-    Official·Mko      https://mko-labo.net        有码片商官网。番号前缀自动锁定本站
+    Official·MKO      https://mko-labo.net        有码片商官网。番号前缀自动锁定本站
     Official·Dasdas   https://dasdas.jp           有码片商官网。番号前缀自动锁定本站
-    Official·Mvg      https://mvg.jp              有码片商官网。番号前缀自动锁定本站
+    Official·MVG      https://mvg.jp              有码片商官网。番号前缀自动锁定本站
     Official·Opera    https://av-opera.jp         有码片商官网。番号前缀自动锁定本站
-    Official·Oppai    https://oppai-av.com        有码片商官网。番号前缀自动锁定本站
+    Official·Oppai-av    https://oppai-av.com        有码片商官网。番号前缀自动锁定本站
     Official·V-AV      https://v-av.com            有码片商官网。番号前缀自动锁定本站
     Official·To-satsu  https://to-satsu.com        有码片商官网。番号前缀自动锁定本站
     Official·Bibian   https://bibian-av.com       有码片商官网。番号前缀自动锁定本站
@@ -242,8 +242,8 @@ Official·Madonna      官网：有码·Madonna           有码                
 Official·Wanz         官网：有码·Wanz              有码                                https://www.wanz-factory.com    WANZ-001
 Official·Ideapocket   官网：有码·Ideapocket        有码                                https://ideapocket.com          IPX-001
 Official·Kirakira     官网：有码·Kirakira          有码                                https://kirakira-av.com         KIBD-001
-Official·EBody        官网：有码·EBody             有码                                https://www.av-e-body.com       EBOD-001
-Official·Bi           官网：有码·Bi                有码                                https://bi-av.com               BBI-001
+Official·E-Body        官网：有码·E-Body             有码                                https://www.av-e-body.com       EBOD-001
+Official·Bi-av           官网：有码·Bi-av                有码                                https://bi-av.com               BBI-001
 Official·Premium      官网：有码·Premium           有码                                https://premium-beauty.com      PRED-001
 Official·Miman        官网：有码·Miman             有码                                https://miman.jp                MMND-001
 Official·Tameikegoro  官网：有码·Tameikegoro       有码                                https://tameikegoro.jp          MEYD-001
@@ -252,11 +252,11 @@ Official·Kawaii       官网：有码·Kawaii            有码                
 Official·Befree       官网：有码·Befree            有码                                https://befreebe.com            BF-001
 Official·Muku         官网：有码·Muku              有码                                https://muku.tv                 MUKD-001
 Official·Attackers    官网：有码·Attackers         有码                                https://attackers.net           ATID-001
-Official·Mko          官网：有码·Mko               有码                                https://mko-labo.net            MISM-001
+Official·MKO          官网：有码·MKO               有码                                https://mko-labo.net            MISM-001
 Official·Dasdas       官网：有码·Dasdas            有码                                https://dasdas.jp               DASS-001
-Official·Mvg          官网：有码·Mvg               有码                                https://mvg.jp                  MVSD-001
+Official·MVG          官网：有码·MVG               有码                                https://mvg.jp                  MVSD-001
 Official·Opera        官网：有码·Opera             有码                                https://av-opera.jp             OPUD-001
-Official·Oppai        官网：有码·Oppai             有码                                https://oppai-av.com            PPPE-001
+Official·Oppai-av        官网：有码·Oppai-av             有码                                https://oppai-av.com            PPPE-001
 Official·V-AV          官网：有码·V-AV               有码                                https://v-av.com                VICD-001
 Official·To-satsu      官网：有码·To-satsu           有码                                https://to-satsu.com            STOL-001
 Official·Bibian       官网：有码·Bibian            有码                                https://bibian-av.com           BBAN-001
@@ -287,10 +287,10 @@ Xcity             有码：仅限有码              有码                     
 ■ 默认字段抓取优先级   DEFAULT_FIELD_SITE_PRIORITY（50 站，真正决定请求先后）
     ThepornDB             AVheat                DMM                   Official·S1
     Official·Moodyz       Official·Madonna      Official·Wanz         Official·Ideapocket
-    Official·Kirakira     Official·EBody        Official·Bi           Official·Premium
+    Official·Kirakira     Official·E-Body        Official·Bi-av           Official·Premium
     Official·Miman        Official·Tameikegoro  Official·Fitch        Official·Kawaii
-    Official·Befree       Official·Muku         Official·Attackers    Official·Mko
-    Official·Dasdas       Official·Mvg          Official·Opera        Official·Oppai
+    Official·Befree       Official·Muku         Official·Attackers    Official·MKO
+    Official·Dasdas       Official·MVG          Official·Opera        Official·Oppai-av
     Official·V-AV            Official·To-satsu      Official·Bibian       Official·Honnaka
     Official·Rookie       Official·Nanpa        Official·Hajimekikaku Official·HHH
     Official·10Musume     Official·1Pondo       Official·Caribbeancom Official·HEYZO
@@ -373,8 +373,8 @@ Xcity             有码：仅限有码              有码                     
                     「启用网站」列表与「字段优先级」那几行没有这一项——那里没有「启用列表」
                     可言，点了只会让人不知道加到哪儿去。
                     站点右键菜单最上方另有「启用站点：X」「禁用站点：X」两条（在「复制站点」之上，
-                    两条始终显示、按当前状态互斥置灰）。禁用状态按类型分域存在 website_disabled（非官方类型共用）与 website_official_disabled（官方网站专用），
-                    七个类型组共用：任一组的候选区或启用列表里禁用，其余组同步变灰；
+                    两条始终显示、按当前状态互斥置灰）。禁用状态按类型分域存在八份名单（官方/有码/无码/个摄/欧美/国产传媒/国产短剧/动漫里番各一份，相互独立），
+                    只影响当前类型：本组候选区或启用列表里禁用，其它组不受影响；
                     默认空列表即全部启用，每次启用/禁用立即落盘，无需再点「保存」，
                     点「取消」也不会回滚。被禁用的站仍可选中、拖拽、
                     移除，网络检测不再生成检测项，自动刮削的完整/极速路径与强制单站路由都在

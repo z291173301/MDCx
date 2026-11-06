@@ -4,6 +4,23 @@
 
 ## 2026-11-06
 
+### 官网站改名 Bi-av/Oppai-av
+
+- 域名口径改名：`Official·Bi`→`Official·Bi-av`、`Official·Oppai`→`Official·Oppai-av`（枚举值 + 爬虫注册名 + 定位说明 + 旧配置 `_rename_site` 兼容 + `default_config.json` 模板 + 使用说明同步）；启用网站与可用网站候选区（均派生自站点值）同步新名。
+- 测试：新增 `-av` 后缀改名迁移用例，短名显示用例覆盖 E-Body/MKO/MVG/Bi-av/Oppai-av。
+
+### 官网站改名与单体行调序
+
+- 三站品牌写法改名：`Official·EBody`→`Official·E-Body`、`Official·Mko`→`Official·MKO`、`Official·Mvg`→`Official·MVG`（枚举值 + 爬虫注册名 + 定位说明 + 旧配置 `_rename_site` 兼容 + `default_config.json` 模板 + 使用说明同步）；可用站点候选区与软件设置-网络-网站设置-当前网站下拉（均取自注册爬虫站点值）同步新名。
+- 其它类型编辑网站弹窗：候选区 `Official·uncensored` / `Official` 两个单体行调换位置（无码在前，紧随「无码官网」聚合行之后）。
+- 测试：新增品牌改名迁移用例，单体行位置用例同步新顺序。
+
+### 八类禁用名单相互独立与候选区聚合行改名
+
+- 禁用按八类独立存放：官方/有码/无码/个摄/欧美/国产传媒/国产短剧/动漫里番各一份名单（有码沿用 `website_disabled`，其余各有 `website_*_disabled`），在有码里禁用某站不再影响其它任何类型；旧配置迁移（`per_type_disabled_scope_migrated` 标记，`config_version` 仍为 2）把六份新名单初值复制为主名单（行为不变，之后互不影响）。
+- 其它类型编辑网站弹窗：候选区聚合行 `Official`→「有码官网」（33 站）、`Official·uncensored`→「无码官网」（无码五站），其后另起 `Official` / `Official·uncensored` 两个单体行；官方网站弹窗内两组名称不变。
+- 测试：`test_official_disabled_scope` 同步八域分域/独立性/迁移播种，`test_site_source_type_groups` 与 `test_official_aggregate` 同步新标题与单体行。
+
 ### pytest conftest robustness：导入期永不炸整轮 + os._exit 让路
 
 - `tests/conftest.py` 顶层生产 `Config()` 构造加容错：失败时退化为 `None`，缺字段访问以清晰 `AttributeError` 定位到具体用例，不再让整个 run 在 collection 阶段全灭（`ERROR tests/conftest.py`，一个用例都跑不起来）。
