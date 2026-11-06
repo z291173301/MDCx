@@ -4,6 +4,13 @@
 
 ## 2026-11-06
 
+### 字段优先级与启用网站的官网聚合为单个 Official
+
+- 字段优先级弹窗（官方网站除外）：各行与可用网站里的官网收拢为单个 `Official`（有码 33 站）/ `Official·uncensored`（无码 5 站）；`Official` 只是显示名，实际刮削按组内站点值 A-Z 逐站尝试（配置里存聚合、请求时展开，禁用某家官网仍按单站过滤生效）。
+- 有码编辑网站弹窗的启用网站：33 家官网合并为单个 `Official`，不再出现 30 多个同名行；其它类型同理（无码为单个 `Official·uncensored`）；缺站（摘掉过某站）不收拢，原样保留。
+- 新增 `Website.OFFICIAL_UNCENSORED` 聚合枚举；旧配置迁移（`official_aggregate_collapse_migrated` 标记，`config_version` 仍为 2）：官网单站齐套即收拢为聚合，官网源与官方字段优先级保留单站，禁用名单保留单站。
+- 测试：`test_official_aggregate` 新增展开/收拢/缺站保留/迁移对齐用例，`test_official_uncensored_split_migration` 同步收拢后终态。
+
 ### 官网分组改名与非官网弹窗去官方组
 
 - 编辑官方网站源：候选区两组改名 `Official` →「有码官网」（33 有码站）、`Official·uncensored` →「无码官网」（无码五站），成员与启用网站仍短名显示，加入/复制逻辑不变。
