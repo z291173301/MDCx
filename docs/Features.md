@@ -34,8 +34,8 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | Javlibrary_APP | zlibz.com 公布的镜像（默认 www.f101w.com/cn） | 有码：仅限有码 |
 | Missav | missav.ws | 综合：有码+无码 |
 | Missav_API | Recombee API | 综合：有码+无码 |
-| Official·MGStage | mgstage.com | 有码：有码+素人 |
-| Official·Prestige | prestige-av.com | 有码：有码+素人 |
+| Official·MGStage | mgstage.com | 聚合：有码+素人 |
+| Official·Prestige | prestige-av.com | 聚合：有码+素人 |
 | R18.dev | r18.dev | 有码：仅限有码 |
 | Official·S1 | s1s1s1.com | 官网：有码·S1 |
 | Official·Moodyz | moodyz.com | 官网：有码·Moodyz |
@@ -71,7 +71,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | Official·Caribbeancom | caribbeancom.com | 官网：无码 |
 | Official·HEYZO | heyzo.com | 官网：无码 |
 | Official·Pacopacomama | pacopacomama.com | 官网：无码 |
-| AVBase | av-base.net | 有码：有码+素人 |
+| AVBase | av-base.net | 聚合：有码+素人 |
 | FreeJavBT | freejavbt.com | 有码：仅限有码 |
 | Official·MyWifes | mywife.cc | 有码：MyWife（有码官网，按番号前缀自动路由） |
 | Getchu | getchu.com | 综合：有码+游戏+视频 |

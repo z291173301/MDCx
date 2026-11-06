@@ -204,7 +204,7 @@ MDCx 刮削网站类型汇总表
 --------------------------------------------------------------------------------------------------------------------------
 7mmtv             综合：有码+无码+素人+FC2    有码+无码+素人+FC2+国产             https://7mmtv.sx
 Airav.cc          有码：仅限有码              有码+无码+素人                      https://airav.io
-AVBase            有码：有码+素人             有码+素人                           https://avbase.net
+AVBase            聚合：有码+素人             有码+素人                           https://avbase.net
 AVEntertainments  无码：仅限无码              无码（该站只有无码番号）            https://aventertainments.com            TRG-095
 AVheat            欧美：欧美番号              欧美                                https://avheat.shop/cn                  Men.26.08.17
 AVMOO             有码：仅限有码              有码                                https://avmoo.shop/cn
@@ -232,7 +232,7 @@ LibreFanza          有码：仅限有码              有码                   
 Lulubar           综合：仅限有码              有码+无码+素人+欧美+国产            https://lulubar.co                      IPZZ-547
 Madou.club        国产：麻豆番号              国产                                https://madou.club                      MDX0236
 Madouqu           国产：仅限国产              国产                                https://madouqu.shop                    MDX0216
-Official·MGStage    有码：有码+素人             有码+素人                           https://www.mgstage.com                 ABF-389
+Official·MGStage    聚合：有码+素人             有码+素人                           https://www.mgstage.com                 ABF-389
 Missav            综合：有码+无码             有码+无码+素人                      https://missav.live/dm247/cn
 Missav_API        综合：有码+无码             有码+无码+素人                      https://missav.live/dm247/cn
 MyWife            有码：MyWife                不进任何类型组（单独指定）          https://mywife.cc                       mywife-2306
@@ -270,7 +270,7 @@ Official·1Pondo   官网：无码                  无码                      
 Official·Caribbeancom 官网：无码无码https://caribbeancom.com    caribbeancom-082226-001
 Official·HEYZO    官网：无码                  无码                                https://heyzo.com                       heyzo-3935
 Official·Pacopacomama 官网：无码无码https://pacopacomama.com    pacopacomama-072625_100
-Official·Prestige   有码：有码+素人             有码+素人                           https://prestige-av.com                 ABW-130
+Official·Prestige   聚合：有码+素人             有码+素人                           https://prestige-av.com                 ABW-130
 R18.dev           有码：仅限有码              有码                                https://r18.dev
 TheJavDB          有码：仅限有码              有码                                https://thejavdb.net
 ThepornDB         欧美：欧美番号              无码+欧美                           https://api.theporndb.net
