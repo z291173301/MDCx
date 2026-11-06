@@ -4,6 +4,23 @@
 
 ## 2026-11-06
 
+### 新增 Hbox 刮削站点（hbox.jp）
+
+- 新增 `mdcx/crawlers/hbox.py`：18 岁验证用 Cookie `age_check_ok=true` 直通；站内搜索走 `/search_result?q_array[]=<关键词>`（`q` 参数被服务端忽略，番号搜不到——成人影片用标题关键词搜，最多 3 个候选）；列表锚点 `/cid/` 按标题相似度取前 5；详情页从 `gtmSetItemList(item_list_name, 0, {...})` 内嵌 JSON 取全字段。
+- 字段映射：発売日=发行日期、配信開始日=配信日期、メーカー（label_name）=制作商、maker_name=发行商、シリーズ=系列、女優/男優（casts）=演员、監督=导演、時間（秒→时:分:秒→分钟）=时长、評価（review_avg.score）=评分、タグ=标签、作品紹介（description）=简介；番号取内嵌 `product_number`（页面展示缺番号字段）；封面 `cover.jpg`、剧照 `gallery_N.jpg`（image3 域名，绝对路径拼接）；全站搜索返回混合分类，movie→有码、anime 成人向→里番。
+- 成人影片无番号可查：本站搜索不支持番号，输入番号时用文件名标题候选搜全站，详情页 `product_number` 与输入番号不一致时丢弃；动漫/里番直接用标题搜。
+- 接入：新增 `Website.HBOX` 并注册爬虫；有码组与动漫组默认追加到末尾，`proxy_sites` 默认追加 `hbox.jp`，`manual.WEB_DIC` 增加 `hbox`，`default_config.json` 有码/动漫默认加入 `Hbox`；探测番号 `GS-2136`（番号搜索恒返回通用列表，网络检测走回退路径告警，属已知限制）。
+- 测试：新增 `tests/crawlers/test_hbox.py`（详情解析、番号不一致丢弃、空搜索、动漫分类、注册与 Cookie 单测）；有码组 29→30、动漫组 4→5 等计数同步。
+- 文档/UI同步：`Features`、`Scraper`、`Development`、`Configuration`、`User_Guide`、`MEMORY` 与关于页有码/动漫名单；版本号保持 `v3.0`，`LOCAL_VERSION` 不变。
+
+### 新增 Jav321 刮削站点（jav321.com）
+
+- 新增 `mdcx/crawlers/jav321.py`：站内搜索走 `POST /search`（字段 `sn`）；精确番号直回详情页，非精确命中按 `/video/<cid>` 反查番号后跟进详情；详情页判定要求 `h3` 标题块与品番行同时存在。
+- 字段映射：出演者=演员、メーカー=制作商、品番=番号、配信開始日=日期；封面/剧照走 DMM（`ps.jpg`/`pl.jpg`/`jp-N.jpg`），预告走 DMM 预告链；探测番号 `SNOS-484`。
+- 接入：新增 `Website.JAV321` 并注册爬虫；有码组默认追加到末尾，`proxy_sites` 默认追加 `jav321.com`，`manual.WEB_DIC` 增加 `jav321`，`default_config.json` 有码默认加入 `Jav321`。
+- 测试：新增 `tests/crawlers/test_jav321.py`（精确直达、列表跟进、指定 URL、空结果、注册与解析单测）；DMM 升级覆盖增至 11 站，有码组 28→29、复制列表 43→44 等计数同步。
+- 文档/UI同步：`Features`、`Scraper`、`Development`、`Configuration`、`User_Guide`、`MEMORY` 与关于页有码名单；版本号保持 `v3.0`，`LOCAL_VERSION` 不变。
+
 ### 下线 AVSEX 站（avsex.cc 失联）
 
 - 删除爬虫 `mdcx/crawlers/avsex.py` 及其测试 `tests/crawlers/test_avsex.py`；移除 `crawlers/__init__.py` 注册、`Website.AVSEX` 枚举、`enums._missing_` / `migrations._SITE_RENAMES` 旧值映射、`manual.WEB_DIC` 的 `9sex`/`avsex` 入口。

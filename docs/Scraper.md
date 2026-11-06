@@ -2,7 +2,7 @@
 MDCx 刮削网站类型汇总表
 更新日期：2026-10-20     仓库：D:\@Data\MDCx
 数据来源：逐站实访官网/站点导航文案 + MDCx 爬虫 mosaic / site_description 判定
-覆盖范围：MDCx 已注册 44 个刮削网站（含 Official 与五个独立无码官网）
+覆盖范围：MDCx 已注册 46 个刮削网站（含 Official 与五个独立无码官网）
 名单口径：本表第一部分的六组清单 = 用户认定的最终口径，与 docs/Features.md「各类型默认网站源」表一致
 ================================================================================================================
 
@@ -12,7 +12,7 @@ MDCx 刮削网站类型汇总表
 ################################################################################################################
 
 ================================================================================================================
-【有码番号（含码 / 马赛克）】  合计 28 站   （官网 12 + 第三方 16）
+【有码番号（含码 / 马赛克）】  合计 30 站   （官网 12 + 第三方 18）
 ================================================================================================================
   ── 官网 / 厂牌 / 官方接口 (12) ──
     AVBase        https://avbase.net            FANZA/MGS/DUGA 50 万+ 作品名寄せ库，纯日系，无欧美/FC2/国产
@@ -26,11 +26,12 @@ MDCx 刮削网站类型汇总表
     Prestige      https://prestige-av.com       PRESTIGE 厂牌官网。MDCx 站点描述「有码+素人」
     Xcity         https://tc.xcity.jp           XCITY 日系有码综合会员站（JS 渲染，导航不可读）
 
-  ── 第三方 / 聚合站 (16) ──
+  ── 第三方 / 聚合站 (18) ──
     7mmtv           https://7mmtv.sx              导航 有碼AV/無碼AV/素人AV/無碼破解/國產影片；FC2 前缀单独判定
     Airav.cc        https://airav.io              airav.io。分类磁贴含 素人 / 無碼，按分类切换有码/无码
     AVMOO           https://avmoo.shop/cn         「AVMOO - 你的线上日本成人影片情报站」，纯日系有码
     FreeJavBT       https://freejavbt.com         导航 有碼 / 無碼 / 歐美 / FC2 + 系列 LUXU / ARA / SIRO / AV Bro
+    Hbox            https://hbox.jp               アダルト総合サイト：AV 有码 + 動漫/里番；只能按标题搜，不支持番号搜索
     IQQTV           https://iqqr1.org/cn          iqqr1.org。导航 日本/獨家/國產/無碼/歐美；识别 1pondo 系前缀
     JavBus          https://www.javbus.com        四条线路轮流：www.javbus.com → www.dmmsee.casa → www.javsee.cyou → www.cdnbus.bond
     JavDay          https://javday.app            「JAVDAY | 免費高清AV在線看| 麻豆 SWAG 看到飽」
@@ -40,6 +41,7 @@ MDCx 刮削网站类型汇总表
     JavFree         https://javfree.me            菜单 Censored…Uncensored / FC2 / Caribbeancom / 1pondo / Heyzo / 10musume
     JavLibrary      https://javlibrary.com/cn     业界标准 有碼/無碼/FC2 三分类（Cloudflare 拦截，经公开资料交叉确认）
     Javlibrary·镜像 https://f101w.com/cn          zlibz.com 公布的 JavLibrary 镜像（无 CF 墙，默认中文页 /cn）
+    Jav321          https://www.jav321.com        DMM 系聚合站：出演者=演员、メーカー=片商，封面/剧照走 pics.dmm.co.jp
     Lulubar         https://lulubar.co            lulubar.co。HTML 关键词命中 有码/无码/欧美/素人/国产
     Missav          https://missav.live/dm247/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
     Missav_API      https://missav.live/dm247/cn  Missav 接口实现（fourhoi.com）
@@ -150,14 +152,15 @@ MDCx 刮削网站类型汇总表
         「不走代理的网站」下拉不含这些站。
 
 ================================================================================================================
-【动漫里番（里番 / 同人 / 书籍 / 动漫，MDCx 内置 dongman 类型组）】  合计 4 站
+【动漫里番（里番 / 同人 / 书籍 / 动漫，MDCx 内置 dongman 类型组）】  合计 5 站
 ================================================================================================================
     Getchu        http://getchu.com             里番/同人志/书籍/动漫商品邮购；DLID* 前缀强制路由本站
+    Hbox          https://hbox.jp               アダルト総合サイト：AV 有码 + 動漫/里番；只能按标题搜，不支持番号搜索
     JavDB         https://javdb580.com          Tags 含 Anime
     JavDB_API     https://javdb580.com          同 JavDB
     JavDB_APP     https://javdbapp.com          同 JavDB（App 接口，免 CF）
 
-    注：这一组现在也是「类型刮削网站」下的一个类型（动漫里番），默认勾这 4 个站；
+    注：这一组现在也是「类型刮削网站」下的一个类型（动漫里番），默认勾这 5 个站；
         Getchu 在前六组里都没有（原站对大陆 IP 过不了 Cloudflare 墙，
         加进来只会白挂一次请求，2.5.6 起从前六组移除），只有动漫里番这一组默认带着它。
 
@@ -165,7 +168,7 @@ MDCx 刮削网站类型汇总表
     个摄/欧美/国产任一类，走「网站偏好 → 指定网站」或路径含 mywife 单独指定。
 
 ################################################################################################################
-# 第二部分   MDCx 已注册刮削网站总表（37 站）
+# 第二部分   MDCx 已注册刮削网站总表（39 站）
 ################################################################################################################
 
 站点              MDCx 站点说明               实访内容类型                        官网地址                                探针番号
@@ -185,6 +188,7 @@ FC2               FC2：FC2官网                无码+素人+FC2              
 FC2PPVDB          FC2：FC2网站                素人+FC2                            https://fc2cmadb.com                    FC2-4988506
 FreeJavBT         有码：仅限有码              有码+无码+FC2+欧美                  https://freejavbt.com
 Getchu            综合：有码+游戏+视频        有码（另有里番/同人/书籍/动漫）     http://getchu.com                       AIV
+Hbox              综合：有码+动漫/里番        有码+动漫/里番                      https://hbox.jp                         GS-2136
 IQQTV             综合：有码+无码+素人+国产   有码+无码+素人+欧美+国产            https://iqqr1.org/cn
 JavBus            综合：有码+无码             有码+无码+FC2+欧美                  https://www.javbus.com
 JavDay            综合：有码+无码+国产        有码+无码+国产                      https://javday.app
@@ -194,6 +198,7 @@ JavDB_APP         综合：有码+无码             有码+无码+FC2+欧美   
 JavFree           综合：有码+FC2              有码+无码+FC2                       https://javfree.me                      SSNI-647
 JavLibrary        有码：仅限有码              有码+无码+FC2                       https://javlibrary.com/cn
 Javlibrary·镜像   有码：仅限有码              同 JavLibrary（默认中文页 /cn）     https://f101w.com/cn
+Jav321            有码：仅限有码              有码                                https://jav321.com                      SNOS-484
 LibreDMM          有码：仅限有码              有码                                https://libredmm.com                    IPX-535
 Lulubar           综合：仅限有码              有码+无码+素人+欧美+国产            https://lulubar.co                      IPZZ-547
 Madou.club        国产：麻豆番号              国产                                https://madou.club                      MDX0236

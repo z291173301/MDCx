@@ -188,7 +188,7 @@
 | 配置项 | 作用 |
 |-------|------|
 | 代理地址 | HTTP/HTTPS/SOCKS5 地址，协议写在 URL 里（如 `http://127.0.0.1:7890`、`socks5://127.0.0.1:1080`）|
-| 走代理网站 | 只对这些网站用代理，其他直连（默认含 `amazon.co.jp, m.media-amazon.com, xcity.jp, minnano-av.com, avbase.net, javbus.com, javdb.com, javlibrary.com, r18.dev, mgstage.com, prestige-av.com, seesaawiki.jp, avsox.click, avsox.com, avmoo.shop, avmoo.com, avheat.shop, avheat.com, heyzo.com, caribbeancom.com, 1pondo.tv, pacopacomama.com, 10musume.com, mywife.cc, github.com, raw.githubusercontent.com, google.com, missav.ws, missav.live, aventertainments.com, javfree.me, 7mmtv.sx, getchu.com, dl.getchu.com`）|
+| 走代理网站 | 只对这些网站用代理，其他直连（默认含 `amazon.co.jp, m.media-amazon.com, xcity.jp, minnano-av.com, avbase.net, javbus.com, javdb.com, javlibrary.com, r18.dev, mgstage.com, prestige-av.com, seesaawiki.jp, avsox.click, avsox.com, avmoo.shop, avmoo.com, avheat.shop, avheat.com, heyzo.com, caribbeancom.com, 1pondo.tv, pacopacomama.com, 10musume.com, mywife.cc, github.com, raw.githubusercontent.com, google.com, missav.ws, missav.live, aventertainments.com, javfree.me, 7mmtv.sx, getchu.com, dl.getchu.com, jav321.com, hbox.jp`）|
 | 直连白名单 | 优先级高于「走代理网站」：命中则强制直连，其余仍按上方列表分流；默认空，旧配置行为不变 |
 | 全部走代理 | 默认关。开启后所有请求都发往上方代理地址，分流交给代理软件（Clash 等）裁决，「走代理网站」列表不再生效；会显著增加代理流量消耗（高清图为大流量来源）|
 | CloudFlare 绕过服务 | TRAWL / FlareSolverr 风格外部CF服务地址（如 `http://127.0.0.1:8191`），MDCx 自动拉起协议适配层；回环地址（127.0.0.1/localhost）写成 `https` 会自动降回 `http`（本地实例只 serving 纯 HTTP） |
