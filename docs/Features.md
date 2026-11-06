@@ -17,7 +17,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | 欧美 | 数字.数字.数字.数字 | 123.45.67.89 |
 | 国产短剧 | 无统一番号格式 | （按剧名搜 JavDay，条目只有站内随机 ID） |
 
-### 全部 36 个爬虫
+### 全部 35 个爬虫
 
 > 「说明」列与软件内「设置→刮削网站」下拉框显示的爬虫定位标签一一对应（取自各爬虫类的 `description`）。
 
@@ -370,7 +370,7 @@ NFO、JSON（含 `-mediainfo.json`）、字幕、种子、bif 等。
 
 - **HTTP 客户端**：curl-cffi 模拟浏览器 TLS 指纹，默认 7 种浏览器画像自动轮换（Chrome 124/131/136 Win + Chrome 136 Mac + Firefox 133/135 Win + Safari iOS；Amazon 刮削用专用桌面池 6 种）
 - **网络连通性检测**：网络页「开始检测」按钮逐站检查连通性与刮削能力——镜像/动态域名站点多地址检测（主站+镜像），API 类爬虫走真实刮削探测，结果按基础环境/连通性/刮削站点/账号 API/辅助服务分组展示
- - **代理**：支持 HTTP/HTTPS/SOCKS5 代理；"走代理网站"列表支持域名与数据源名称两种写法——填数据源名（可从旁边下拉框直接选择，如 Missav、JavDB、7mmtv）时，该数据源的主域/镜像/备用域名均自动走代理，站点换域名无需改配置（议题 #83）；默认含 amazon.co.jp、m.media-amazon.com、xcity.jp、minnano-av.com、avbase.net、javbus.com、javdb.com、javlibrary.com、r18.dev、mgstage.com、prestige-av.com、seesaawiki.jp、avsox/avmoo/avheat 主镜像、无码官网五站、mywife.cc、github.com 系、google.com、missav 两镜像、aventertainments.com、javfree.me、7mmtv.sx 等共 36 个域名，完整列表见设置 → 网络页），其他直连
+ - **代理**：支持 HTTP/HTTPS/SOCKS5 代理；"走代理网站"列表支持域名与数据源名称两种写法——填数据源名（可从旁边下拉框直接选择，如 Missav、JavDB、7mmtv）时，该数据源的主域/镜像/备用域名均自动走代理，站点换域名无需改配置（议题 #83）；默认含 amazon.co.jp、m.media-amazon.com、xcity.jp、minnano-av.com、avbase.net、javbus.com、javdb.com、javlibrary.com、r18.dev、mgstage.com、prestige-av.com、seesaawiki.jp、avsox/avmoo/avheat 主镜像、无码官网五站、mywife.cc、github.com 系、google.com、missav 两镜像、aventertainments.com、javfree.me、7mmtv.sx 等共 34 个域名，完整列表见设置 → 网络页），其他直连
 - **Cloudflare 绕过**：通过CloudFlare 绕过服务（TRAWL `/scrape` 或 FlareSolverr `/v1`）自动绕过 CF 防护页，MDCx 自动拉起协议适配层翻译请求，无需内置浏览器；可选配置独立 Bypass 代理；Bypass 服务失效时自动跳过避免空等
 - **Selenium CF Bypass（JavLibrary 专用）**：JavLibrary 遇 Cloudflare JS challenge 时自动 fallback 到 Selenium+Edge headless 获取页面 HTML（cf_selenium_bypass，默认开启）。需要 Windows 10/11 + Edge 浏览器，首次使用自动安装 selenium；无 Edge 环境优雅降级，连续失败 3 次进入 5 分钟冷却。`Javlibrary·镜像` 继承同一套逻辑，但镜像站本身没有 CF 墙，实践中走不到这条兜底
 - **Cloudfleare 校验服务**：可配置可信落地域名列表（逗号分隔，支持 `*.example.com` 子域通配），只校验**已走 Bypass** 的请求最终落在哪个域名，不控制哪些站点走 Bypass；防第三方服务被劫持时把恶意页面当数据；留空表示不校验

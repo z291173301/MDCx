@@ -10,7 +10,7 @@
 - 默认配置清掉该站：`models.proxy_sites` 默认代理名单去掉 `avsex.cc`（36 域）；`v1.py` 有码/素人/中文标题/中文简介/海报/剧照排除/评分/导演/系列/工作室/发行商 11 处默认值去掉 `avsex`（`studio_website_exclude` 清空）。
 - 素人番号前缀剥离只保留 MGStage 特例（`file_crawler.py`、`file.py` 注释同步）；`tips.py` 有码/无码/国产三行文案去掉该站；`site_priority_dialog.py` 三处注释同步。
 - 存量旧配置里的 `avsex` 站点值按未知站点过滤（与其它已下线站点同规则），不再单独迁移。
-- 测试同步：`test_dmm_upgrade_coverage` 推广名单 11→10 站；`test_cf_proxy_routing` 默认名单断言改用 `getchu.com`；`test_cf_transport_fallback` 通用 URL 改用 `example.com`；`test_network_check` 示例改用 `avsox.click`；`test_site_combo_tooltips` 去掉 AVSEX 断言；`test_site_list_normalize` 示例改用 `AVSOX.CLICK`；`test_site_source_type_groups` 无标题组只剩 `MyWife`。
+- 测试同步：`test_dmm_upgrade_coverage` 推广名单 11→10 站；`test_cf_proxy_routing` 默认名单断言改用 `getchu.com`；`test_cf_transport_fallback` 通用 URL 改用 `example.com`；`test_network_check` 示例改用 `avsox.click`；`test_site_combo_tooltips` 去掉 AVSEX 断言；`test_site_list_normalize` 示例改用 `AVSOX.CLICK`；`test_site_source_type_groups` 无标题组只剩 `MyWife`；`test_site_source_copy_menu` 复制列表计数 44→43 站。
 - 文档同步：`Features` 站点表删行（综合/国产两组去掉该站，候选区 44→43 站）、`Scraper` 总表 38→37 站、`Development` 代理默认 37→36 域、`Configuration`/`User_Guide` 代理名单、`MEMORY` 爬虫计数 36→35。
 - 版本号 `LOCAL_VERSION` 由 `20261105` 升到 `20261106`。
 
