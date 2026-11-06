@@ -90,7 +90,7 @@ MDCx 刮削网站类型汇总表
     7mmtv            https://7mmtv.sx              导航 有碼AV/無碼AV/素人AV/無碼破解/國產影片；FC2 前缀单独判定
     Airav.cc         https://airav.io              airav.io。分类磁贴含 素人 / 無碼，按分类切换有码/无码
     AVSOX            https://avsox.click/cn        avsox.click。与 avmoo/avheat 同 tellme.pw AIO 平台，纯无码
-    AVEntertainment          https://aventertainments.com  AV 安态。「正規無修正」DVD 販売 / 配信
+    AVEntertainments https://aventertainments.com  AV 安态。「正規無修正」DVD 販売 / 配信
     FreeJavBT        https://freejavbt.com         导航 有碼 / 無碼 / 歐美 / FC2 + 系列 LUXU / ARA / SIRO / AV Bro
     IQQTV            https://iqqr1.org/cn          iqqr1.org。导航 日本/獨家/國產/無碼/歐美；识别 1pondo 系前缀
     JavBus           https://www.javbus.com        四条线路轮流：www.javbus.com → www.dmmsee.casa → www.javsee.cyou → www.cdnbus.bond
@@ -205,7 +205,7 @@ MDCx 刮削网站类型汇总表
 7mmtv             综合：有码+无码+素人+FC2    有码+无码+素人+FC2+国产             https://7mmtv.sx
 Airav.cc          有码：仅限有码              有码+无码+素人                      https://airav.io
 AVBase            有码：有码+素人             有码+素人                           https://avbase.net
-AVEntertainment           无码：仅限无码              无码（该站只有无码番号）            https://aventertainments.com            TRG-095
+AVEntertainments  无码：仅限无码              无码（该站只有无码番号）            https://aventertainments.com            TRG-095
 AVheat            欧美：欧美番号              欧美                                https://avheat.shop/cn                  Men.26.08.17
 AVMOO             有码：仅限有码              有码                                https://avmoo.shop/cn
 AVSOX             无码：仅限无码              无码                                https://avsox.click/cn                  081826_100

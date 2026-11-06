@@ -144,7 +144,7 @@
 - 各站探测番号与收录依据见爬虫类注释；javdb 仅搜 FC2 时需要 Cookie。
 - 站点 API 坑：missav_api 的 Recombee 仅 POST；DMM Affiliate v3 必需 site/service/floor 且 keyword 用 content_id 形态；madouqu 域名动态维护（24h 缓存）；madou_club 番号无横杠；parsel `Selector.get()` 纯 JSON 返回 dict（解析兼容 str/dict/Selector 三态）。
 - **当前注册爬虫 73 个**（`docs/Features.md` 同步）；数字开头模块名（`7mmtv.py`）用 `importlib.import_module` 加载。
-- 站点收录边界：AVEntertainment 只在无码组；Getchu 大陆 IP 过不了 CF 故从六组移除；Official·有码 29 站只在有码组、无码五站只在无码组。
+- 站点收录边界：AVEntertainments 只在无码组；Getchu 大陆 IP 过不了 CF 故从六组移除；Official·有码 29 站只在有码组、无码五站只在无码组。
 - 「素人番号」已改名「国产短剧」（枚举值/字段名仍是 `SUREN` / `website_suren`），默认名单只剩 JavDay；短剧无番号格式，只有锁定类型才走这一组。
 - 七组名 = 有码番号/无码番号/个摄番号/欧美视频/国产传媒/国产短剧/动漫里番；下拉八项多一个「自动判断」。组名与下拉文案、chip 短名、`PALETTE_GROUP_TYPES` 组序同源；下拉下标↔值映射读 `FixedScrapingType.dropdown_values()`（顺序源 `dropdown_order()`，不能写成类体常量——Enum 会报 TypeError）。
 - 下拉能力文案与候选区悬停解耦（严格执行）：候选区悬停用全称（有码番号/无码番号/个摄视频/欧美视频/国产传媒/国产短剧/动漫里番），当前网站/指定网站下拉用短词（有码/无码/个摄/欧美/国产/短剧/动漫）防挤压右侧地址列；类型刮削、指定网站、当前网站三者显示互不影响，改一处不联动另一处。

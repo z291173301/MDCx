@@ -300,9 +300,9 @@ markupsafe>=3.0.4    pydantic-core>=2.50.1  PyQt6-sip>=13.13.0
 
 改 `TYPE_DEFAULT_SITES` 七组默认名单前先问「这站在这一类番号上真的有条目吗」：
 
-- `AVEntertainment` 只无码番号（正規無修正 DVD 販売/配信商城）→ 只在无码组。
+- `AVEntertainments` 只无码番号（正規無修正 DVD 販売/配信商城）→ 只在无码组。
 - `Getchu` 对大陆 IP 过不了 CF 墙 → 前六组不收（Getchu 只随动漫里番一组）。
-- `Official·有码 33 站`（29 家片商 + 改名的 Dahlia/Faleno/MGStage/Prestige）按番号前缀锁定对应官网，国产/欧美/个摄没有收录 → 只在有码组；无码五站只收无码 → 只在无码组。
+- `Official·有码 33 站`按番号前缀锁定对应官网，国产/欧美/个摄没有收录 → 只在有码组；无码五站只收无码 → 只在无码组。
 - `MyWife` 不属于任何类型 → 七组都不该有。
 - 移除站点只动默认名单，不动爬虫注册与 `Website` 枚举。
 
