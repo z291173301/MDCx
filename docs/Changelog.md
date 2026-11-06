@@ -54,6 +54,14 @@
 - 「校验视频时长」复选框文案改为「校验时长字段」（`tests/test_advanced_page_hint_align.py` 同步断言）。
 - 测试：`tests/test_advanced_scale_combo_width.py`（新口径重写）、`tests/test_advanced_page_hint_align.py`、`tests/test_advanced_dialog_row_align.py`、`tests/test_get_video_duration.py`。
 
+### Hbox/Jav321 探测地址修正（详情页直连 + www 主域）
+
+- Hbox：`/search_result?q_array[]=GS-2136` 实测无内容（搜番号恒回未过滤通用列表），探测改打已知详情页 `/category/movie/av/=/cid/709085`；`probe_number` 换为该页番号 `FTHTD-227`（详情页番号交叉校验用）。
+- Jav321：裸域 `https://jav321.com/video/*` 301 到首页空页（旧探测号 `SNOS-484` 报「没有获取到番号标题」），默认基址切到 `https://www.jav321.com`（`POST /search` 在 www 下 301 直达详情页）；`probe_number` 换为站内核验的 `SNOS-460`（`/video/snos00460`，2026-11-06 发行）。
+- 机制：`NetworkCheckSpec` 新增 `probe_url`（设置后跳过番号搜索、用 `_run` 的 `appoint_url` 分支真实刮削探测）；Hbox 检测项地址即详情页（进 `SPECIAL_CHECK_PATHS`，自带 `age_check_ok=true` Cookie，免 302 到验证页）。
+- 测试：`test_jav321.py` 重写为 SNOS-460 实测数据 + www 断言；`test_hbox.py` 探测号断言同步；`test_network_check.py` 新增 Hbox 检测项与 `probe_url` 直连探测单测。
+- 文档同步：`Scraper` 探测表两行、`Features` Jav321 域名。
+
 ## 2026-11-05
 
 ### 新增「获取视频时长」开关（OpenCV 兜底写 NFO）

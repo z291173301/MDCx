@@ -64,7 +64,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | JavFree | javfree.me | 综合：有码+FC2 |
 | 7mmtv | 7mmtv.sx | 综合：有码+无码+素人+FC2 |
 | ThepornDB | api.theporndb.net | 欧美：欧美番号 |
-| Jav321 | jav321.com | 综合：有码+动漫 |
+| Jav321 | www.jav321.com | 综合：有码+动漫 |
 | Hbox | hbox.jp | 综合：有码+动漫/里番 |
 
 补充说明（不在下拉标签里体现的细节）：

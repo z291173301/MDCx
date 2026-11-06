@@ -189,7 +189,7 @@ FC2               FC2：FC2官网                无码+素人+FC2              
 FC2PPVDB          FC2：FC2网站                素人+FC2                            https://fc2cmadb.com                    FC2-4988506
 FreeJavBT         有码：仅限有码              有码+无码+FC2+欧美                  https://freejavbt.com
 Getchu            综合：有码+游戏+视频        有码（另有里番/同人/书籍/动漫）     http://getchu.com                       AIV
-Hbox              综合：有码+动漫/里番        有码+动漫/里番                      https://hbox.jp                         GS-2136
+Hbox              综合：有码+动漫/里番        有码+动漫/里番                      https://hbox.jp                         FTHTD-227
 IQQTV             综合：有码+无码+素人+国产   有码+无码+素人+欧美+国产            https://iqqr1.org/cn
 JavBus            综合：有码+无码             有码+无码+FC2+欧美                  https://www.javbus.com
 JavDay            综合：有码+无码+国产        有码+无码+国产                      https://javday.app
@@ -199,7 +199,7 @@ JavDB_APP         综合：有码+无码+动漫         有码+无码+FC2+欧美
 JavFree           综合：有码+FC2              有码+无码+FC2                       https://javfree.me                      SSNI-647
 JavLibrary        有码：仅限有码              有码+无码+FC2                       https://javlibrary.com/cn
 Javlibrary·镜像   有码：仅限有码              同 JavLibrary（默认中文页 /cn）     https://f101w.com/cn
-Jav321            综合：有码+动漫              有码+动漫                            https://jav321.com                      SNOS-484
+Jav321            综合：有码+动漫              有码+动漫                            https://www.jav321.com                  SNOS-460
 LibreDMM          有码：仅限有码              有码                                https://libredmm.com                    IPX-535
 Lulubar           综合：仅限有码              有码+无码+素人+欧美+国产            https://lulubar.co                      IPZZ-547
 Madou.club        国产：麻豆番号              国产                                https://madou.club                      MDX0236
