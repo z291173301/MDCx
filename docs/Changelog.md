@@ -4,6 +4,12 @@
 
 ## 2026-11-07
 
+### Hbox 探测改走固定详情页内容校验（不再误报超时）
+
+- 连通性对 Hbox 详情页做内容校验：检测地址本身就是详情页（`/cid/709085`），200 但无 `gtmSetItemList` 作品 JSON（丢 Cookie / 节点 IP 被限制时回的 age_check 空壳）直接判 WARNING「详情页未返回作品数据，请更换代理节点后重试」，不再先报「连接正常」再让固定链接探测去撞「详情页未找到作品数据」。探测本身仍是固定链接直连（`probe_url`），从不走番号搜索（Hbox 不支持番号搜索）。
+- 「详情页未找到作品数据」「没有获取到作品标题」列入确定性探测结论：首探即定论，不再按 30s/45s 白白重试两次后才报「均失败」。
+- 测试：`test_network_check.py` 新增空壳判 WARNING / 正常页判 OK / 确定性首探即定论（单次调用、原文返回）三用例。
+
 ### 站点改名与官网独立站合并统一
 
 - `AVEntertainments`→`AVEnter`（枚举值改名；旧值经 `_missing_` 别名与 `_SITE_RENAMES` 迁移继续可读，存量配置自动归一；`default_config.json`、帮助、提示、`docs/Features.md`、`docs/Scraper.md` 同步；候选区排序键（AVSOX 之后）按成员引用不受影响）。
