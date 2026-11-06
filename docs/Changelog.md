@@ -4,6 +4,19 @@
 
 ## 2026-11-06
 
+### JavDB 三站动漫条目判动漫（AMCP-261）
+
+- 动漫在 JavDB 与 Jav321 的刮削流程与成人影片一致（番号搜索到详情页再取各字段），差别只在 `mosaic` 判定：JavDB 三站（`javdb`/`javdb_api`/`javdb_app`）`post_process` 以前只分有码/无码，動漫条目（如 `AMCP-261`，JavDB 地址 `/v/kKJ4OJ`，類別含 `Anime` 标签；Jav321 地址 `/video/h_1261amcp00261`）会被标成有码走错组。
+- 新增共享判定 `base/shared_fields.is_anime_tags()`（類別/Tags 含 `Anime`/`動漫`/`动漫`/`アニメ`/`里番`即动漫），三站 `post_process` 里优先判定：命中则 `mosaic` 返回「动漫」走动漫组（JavDB 详情字段：番号 `AMCP-261`、日期、时长 20 分钟、片商 `surviveMORE`、系列 `The Motion Anime`、标题、extrafanart 剧照；Jav321 详情字段：メーカー `surviveMORE`、品番 `amcp-261`、配信開始日、DMM 图床剧照——两边字段解析不动，只改 `mosaic`）。
+- 三站 `description` 由「综合：有码+无码」改为「综合：有码+无码+动漫」（悬停提示照旧隐藏「动漫」只显示类型名单，不受影响）。
+- 测试：三站各新增动漫 `post_process` 单测 + `description` 断言（`test_javdb.py` 另含 `is_anime_tags` 单测）；`Features`、`Scraper` 三站说明列同步。
+
+### Jav321 进动漫组与有码组排序调整
+
+- 有码组默认顺序调整：`Jav321` 排到 `JavBus` 之后、`Hbox` 排到 `JavFree` 之后（`models.TYPE_DEFAULT_SITES`、`default_config.json`、`Features` 默认名单与 `test_site_source_type_groups` 期望名单同步）。
+- `Jav321` 加入动漫组：动漫组默认名单变为 `Getchu、Hbox、Jav321、JavDB、JavDB_API、JavDB_APP`（5→6 站），`description` 由「有码：仅限有码」改为「综合：有码+动漫」；详情页 `/video/h_xxx` 或 DMM 图床 `digital/video/h_xxx`（如 `h_1261amcp00261` 动漫页封面 `ps.jpg`/横版 `pl.jpg`/剧照 `jp-1.jpg`、`jp-2.jpg`）即判动漫，`mosaic` 返回「动漫」走动漫组，其余仍返回「有码」。
+- 测试：`tests/crawlers/test_jav321.py` 新增动漫判定与动漫详情单测；动漫组复制计数 5→6 同步（`test_site_source_copy_menu`）；`Features`、`Scraper` 动漫名单与说明同步。
+
 ### 新增 Hbox 刮削站点（hbox.jp）
 
 - 新增 `mdcx/crawlers/hbox.py`：18 岁验证用 Cookie `age_check_ok=true` 直通；站内搜索走 `/search_result?q_array[]=<关键词>`（`q` 参数被服务端忽略，番号搜不到——成人影片用标题关键词搜，最多 3 个候选）；列表锚点 `/cid/` 按标题相似度取前 5；详情页从 `gtmSetItemList(item_list_name, 0, {...})` 内嵌 JSON 取全字段。

@@ -152,15 +152,16 @@ MDCx 刮削网站类型汇总表
         「不走代理的网站」下拉不含这些站。
 
 ================================================================================================================
-【动漫里番（里番 / 同人 / 书籍 / 动漫，MDCx 内置 dongman 类型组）】  合计 5 站
+【动漫里番（里番 / 同人 / 书籍 / 动漫，MDCx 内置 dongman 类型组）】  合计 6 站
 ================================================================================================================
     Getchu        http://getchu.com             里番/同人志/书籍/动漫商品邮购；DLID* 前缀强制路由本站
     Hbox          https://hbox.jp               アダルト総合サイト：AV 有码 + 動漫/里番；只能按标题搜，不支持番号搜索
+    Jav321        https://www.jav321.com        DMM 系聚合站：/video/h_xxx 与 digital/video/h_xxx 即动漫，mosaic 返回动漫
     JavDB         https://javdb580.com          Tags 含 Anime
     JavDB_API     https://javdb580.com          同 JavDB
     JavDB_APP     https://javdbapp.com          同 JavDB（App 接口，免 CF）
 
-    注：这一组现在也是「类型刮削网站」下的一个类型（动漫里番），默认勾这 5 个站；
+    注：这一组现在也是「类型刮削网站」下的一个类型（动漫里番），默认勾这 6 个站；
         Getchu 在前六组里都没有（原站对大陆 IP 过不了 Cloudflare 墙，
         加进来只会白挂一次请求，2.5.6 起从前六组移除），只有动漫里番这一组默认带着它。
 
@@ -192,13 +193,13 @@ Hbox              综合：有码+动漫/里番        有码+动漫/里番     
 IQQTV             综合：有码+无码+素人+国产   有码+无码+素人+欧美+国产            https://iqqr1.org/cn
 JavBus            综合：有码+无码             有码+无码+FC2+欧美                  https://www.javbus.com
 JavDay            综合：有码+无码+国产        有码+无码+国产                      https://javday.app
-JavDB             综合：有码+无码             有码+无码+FC2+欧美                  https://javdb580.com
-JavDB_API         综合：有码+无码             有码+无码+FC2+欧美                  https://javdb580.com
-JavDB_APP         综合：有码+无码             有码+无码+FC2+欧美                  https://apidd.czssdgz.com
+JavDB             综合：有码+无码+动漫         有码+无码+FC2+欧美+动漫              https://javdb580.com
+JavDB_API         综合：有码+无码+动漫         有码+无码+FC2+欧美+动漫              https://javdb580.com
+JavDB_APP         综合：有码+无码+动漫         有码+无码+FC2+欧美+动漫              https://apidd.czssdgz.com
 JavFree           综合：有码+FC2              有码+无码+FC2                       https://javfree.me                      SSNI-647
 JavLibrary        有码：仅限有码              有码+无码+FC2                       https://javlibrary.com/cn
 Javlibrary·镜像   有码：仅限有码              同 JavLibrary（默认中文页 /cn）     https://f101w.com/cn
-Jav321            有码：仅限有码              有码                                https://jav321.com                      SNOS-484
+Jav321            综合：有码+动漫              有码+动漫                            https://jav321.com                      SNOS-484
 LibreDMM          有码：仅限有码              有码                                https://libredmm.com                    IPX-535
 Lulubar           综合：仅限有码              有码+无码+素人+欧美+国产            https://lulubar.co                      IPZZ-547
 Madou.club        国产：麻豆番号              国产                                https://madou.club                      MDX0236
