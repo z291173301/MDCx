@@ -4,6 +4,14 @@
 
 ## 2026-11-06
 
+### Official 有码本部拆成 29 个独立官网站
+
+- 删 `OfficialCrawler` 统一路由器与 `Website.OFFICIAL`：29 家有码片商官网各立 `Website`（`Official·S1`…`Official·Hhh`）、各立爬虫（`crawlers/official_sites.py`，通用 `_OfficialSiteCrawler` + 29 薄子类）、各有官网基址与探测番号（如 S1 `SSNI-647`、Madonna `JUL-001`、Prestige 沿用既有 `Prestige` 站 `ABW-130`）。
+- 路由：321 个番号前缀在 `classify_scrape_task` 直接锁定对应官网单站（与 Dahlia/Faleno 同语义，失败无回退）；prestige 系 106 前缀锁定既有 `Prestige` 站；前缀表与旧 `ManualConfig.OFFICIAL` 逐字一致（`JUSD` 归 Madonna、`JUFD`/`JFB` 归 Fitch，与旧表后写覆盖语义一致）。
+- 旧配置迁移（`official_youma_split_migrated` 标记，`config_version` 仍为 2）：YOUMA 名单/全局字段优先级/type-youma 字段/`website_disabled` 里的 `Official` 原位展开成 29 站；`website_single=Official` 落到 `Official·S1`。
+- 网络检测：29 站各占一行（基址 + 各自探测番号 + CF Bypass），`merge_site_check_cache` 的 `Official` 聚合特例删除；`1pondo.tv`/`heyzo.com`/`prestige-av.com` 三站维持临时直通（`TEMP_DISABLED_NETWORK_CHECK_SITES`）。
+- 测试：`test_official.py` 重写（S1 实测 + 路由 + 注册表），迁移测试补 29 展开/幂等，`test_network_check`/`test_site_default_urls`/`test_ui_structure`/`test_config_conversion` 等同步；`Features`、`Scraper`（73 站）、`Development`、`MEMORY` 与关于页文案同步。
+
 ### JavDB 三站动漫条目判动漫（AMCP-261）
 
 - 动漫在 JavDB 与 Jav321 的刮削流程与成人影片一致（番号搜索到详情页再取各字段），差别只在 `mosaic` 判定：JavDB 三站（`javdb`/`javdb_api`/`javdb_app`）`post_process` 以前只分有码/无码，動漫条目（如 `AMCP-261`，JavDB 地址 `/v/kKJ4OJ`，類別含 `Anime` 标签；Jav321 地址 `/video/h_1261amcp00261`）会被标成有码走错组。

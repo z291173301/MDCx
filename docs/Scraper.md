@@ -2,7 +2,7 @@
 MDCx 刮削网站类型汇总表
 更新日期：2026-10-20     仓库：D:\@Data\MDCx
 数据来源：逐站实访官网/站点导航文案 + MDCx 爬虫 mosaic / site_description 判定
-覆盖范围：MDCx 已注册 46 个刮削网站（含 Official 与五个独立无码官网）
+覆盖范围：MDCx 已注册 73 个刮削网站（含 Official·有码 29 站与五个独立无码官网）
 名单口径：本表第一部分的六组清单 = 用户认定的最终口径，与 docs/Features.md「各类型默认网站源」表一致
 ================================================================================================================
 
@@ -12,9 +12,9 @@ MDCx 刮削网站类型汇总表
 ################################################################################################################
 
 ================================================================================================================
-【有码番号（含码 / 马赛克）】  合计 30 站   （官网 12 + 第三方 18）
+【有码番号（含码 / 马赛克）】  合计 58 站   （官网 38 + 第三方 20）
 ================================================================================================================
-  ── 官网 / 厂牌 / 官方接口 (12) ──
+  ── 官网 / 厂牌 / 官方接口 (38) ──
     AVBase        https://avbase.net            FANZA/MGS/DUGA 50 万+ 作品名寄せ库，纯日系，无欧美/FC2/国产
     Dahlia        https://dahlia-av.jp          DAHLIA 厂牌官网。番号前缀 DLDSS 自动锁定本站
     DMM                                                 FANZA/DMM 本体。有码主体，站内含「素人」品牌区（SOD はめちゃん 等）
@@ -22,11 +22,39 @@ MDCx 刮削网站类型汇总表
     Faleno        https://faleno.jp             Faleno 厂牌官网。FNS/FLN/JIMMY 前缀自动锁定本站
     LibreFanza      https://libredmm.com          DMM/FANZA 开源镜像
     MGStage       https://www.mgstage.com       MGS 厂牌官网。菜单含 素人ホイホイ / はめちゃん。/ SODクリエイト
-    Official                                            官网聚合入口。30 家有码片商官网，按番号前缀路由；无固定检测入口
+    Official·S1       https://s1s1s1.com          有码片商官网。番号前缀自动锁定本站
+    Official·Moodyz   https://moodyz.com          有码片商官网。番号前缀自动锁定本站
+    Official·Madonna  https://www.madonna-av.com  有码片商官网。番号前缀自动锁定本站
+    Official·Wanz     https://www.wanz-factory.com有码片商官网。番号前缀自动锁定本站
+    Official·Ideapockethttps://ideapocket.com      有码片商官网。番号前缀自动锁定本站
+    Official·Kirakira https://kirakira-av.com     有码片商官网。番号前缀自动锁定本站
+    Official·EBody    https://www.av-e-body.com   有码片商官网。番号前缀自动锁定本站
+    Official·Bi       https://bi-av.com           有码片商官网。番号前缀自动锁定本站
+    Official·Premium  https://premium-beauty.com  有码片商官网。番号前缀自动锁定本站
+    Official·Miman    https://miman.jp            有码片商官网。番号前缀自动锁定本站
+    Official·Tameikegorohttps://tameikegoro.jp      有码片商官网。番号前缀自动锁定本站
+    Official·Fitch    https://fitch-av.com        有码片商官网。番号前缀自动锁定本站
+    Official·Kawaii   https://kawaiikawaii.jp     有码片商官网。番号前缀自动锁定本站
+    Official·Befree   https://befreebe.com        有码片商官网。番号前缀自动锁定本站
+    Official·Muku     https://muku.tv             有码片商官网。番号前缀自动锁定本站
+    Official·Attackershttps://attackers.net       有码片商官网。番号前缀自动锁定本站
+    Official·Mko      https://mko-labo.net        有码片商官网。番号前缀自动锁定本站
+    Official·Dasdas   https://dasdas.jp           有码片商官网。番号前缀自动锁定本站
+    Official·Mvg      https://mvg.jp              有码片商官网。番号前缀自动锁定本站
+    Official·Opera    https://av-opera.jp         有码片商官网。番号前缀自动锁定本站
+    Official·Oppai    https://oppai-av.com        有码片商官网。番号前缀自动锁定本站
+    Official·V        https://v-av.com            有码片商官网。番号前缀自动锁定本站
+    Official·ToSatsu  https://to-satsu.com        有码片商官网。番号前缀自动锁定本站
+    Official·Bibian   https://bibian-av.com       有码片商官网。番号前缀自动锁定本站
+    Official·Honnaka  https://honnaka.jp          有码片商官网。番号前缀自动锁定本站
+    Official·Rookie   https://rookie-av.jp        有码片商官网。番号前缀自动锁定本站
+    Official·Nanpa    https://nanpa-japan.jp      有码片商官网。番号前缀自动锁定本站
+    Official·Hajimekikakuhttps://hajimekikaku.com    有码片商官网。番号前缀自动锁定本站
+    Official·Hhh      https://hhh-av.com          有码片商官网。番号前缀自动锁定本站
     Prestige      https://prestige-av.com       PRESTIGE 厂牌官网。MDCx 站点描述「有码+素人」
     Xcity         https://tc.xcity.jp           XCITY 日系有码综合会员站（JS 渲染，导航不可读）
 
-  ── 第三方 / 聚合站 (18) ──
+  ── 第三方 / 聚合站 (20) ──
     7mmtv           https://7mmtv.sx              导航 有碼AV/無碼AV/素人AV/無碼破解/國產影片；FC2 前缀单独判定
     Airav.cc        https://airav.io              airav.io。分类磁贴含 素人 / 無碼，按分类切换有码/无码
     AVMOO           https://avmoo.shop/cn         「AVMOO - 你的线上日本成人影片情报站」，纯日系有码
@@ -208,7 +236,35 @@ MGStage           有码：有码+素人             有码+素人              
 Missav            综合：有码+无码             有码+无码+素人                      https://missav.live/dm247/cn
 Missav_API        综合：有码+无码             有码+无码+素人                      https://missav.live/dm247/cn
 MyWife            有码：MyWife                不进任何类型组（单独指定）          https://mywife.cc                       mywife-2306
-Official          官网：有码                  有码
+Official·S1           官网：有码·S1                有码                                https://s1s1s1.com              SSNI-647
+Official·Moodyz       官网：有码·Moodyz            有码                                https://moodyz.com              MIDV-001
+Official·Madonna      官网：有码·Madonna           有码                                https://www.madonna-av.com      JUL-001
+Official·Wanz         官网：有码·Wanz              有码                                https://www.wanz-factory.com    WANZ-001
+Official·Ideapocket   官网：有码·Ideapocket        有码                                https://ideapocket.com          IPX-001
+Official·Kirakira     官网：有码·Kirakira          有码                                https://kirakira-av.com         KIBD-001
+Official·EBody        官网：有码·EBody             有码                                https://www.av-e-body.com       EBOD-001
+Official·Bi           官网：有码·Bi                有码                                https://bi-av.com               BBI-001
+Official·Premium      官网：有码·Premium           有码                                https://premium-beauty.com      PRED-001
+Official·Miman        官网：有码·Miman             有码                                https://miman.jp                MMND-001
+Official·Tameikegoro  官网：有码·Tameikegoro       有码                                https://tameikegoro.jp          MEYD-001
+Official·Fitch        官网：有码·Fitch             有码                                https://fitch-av.com            JUFE-001
+Official·Kawaii       官网：有码·Kawaii            有码                                https://kawaiikawaii.jp         CAWD-001
+Official·Befree       官网：有码·Befree            有码                                https://befreebe.com            BF-001
+Official·Muku         官网：有码·Muku              有码                                https://muku.tv                 MUKD-001
+Official·Attackers    官网：有码·Attackers         有码                                https://attackers.net           ATID-001
+Official·Mko          官网：有码·Mko               有码                                https://mko-labo.net            MISM-001
+Official·Dasdas       官网：有码·Dasdas            有码                                https://dasdas.jp               DASS-001
+Official·Mvg          官网：有码·Mvg               有码                                https://mvg.jp                  MVSD-001
+Official·Opera        官网：有码·Opera             有码                                https://av-opera.jp             OPUD-001
+Official·Oppai        官网：有码·Oppai             有码                                https://oppai-av.com            PPPE-001
+Official·V            官网：有码·V                 有码                                https://v-av.com                VICD-001
+Official·ToSatsu      官网：有码·ToSatsu           有码                                https://to-satsu.com            STOL-001
+Official·Bibian       官网：有码·Bibian            有码                                https://bibian-av.com           BBAN-001
+Official·Honnaka      官网：有码·Honnaka           有码                                https://honnaka.jp              HMN-001
+Official·Rookie       官网：有码·Rookie            有码                                https://rookie-av.jp            RBB-001
+Official·Nanpa        官网：有码·Nanpa             有码                                https://nanpa-japan.jp          NNPJ-001
+Official·Hajimekikaku 官网：有码·Hajimekikaku      有码                                https://hajimekikaku.com        HJMO-001
+Official·Hhh          官网：有码·Hhh               有码                                https://hhh-av.com              HUNTA-001
 Official·10Musume 官网：无码无码https://10musume.com        10musume-072625_01
 Official·1Pondo   官网：无码                  无码                                https://1pondo.tv                       1pondo-072625_001
 Official·Caribbeancom 官网：无码无码https://caribbeancom.com    caribbeancom-082226-001
@@ -228,8 +284,15 @@ Xcity             有码：仅限有码              有码                     
 # 第三部分   调度机制：字段优先级 / 联动组 / 排除项 / 强制单站路由
 ################################################################################################################
 
-■ 默认字段抓取优先级   DEFAULT_FIELD_SITE_PRIORITY（22 站，真正决定请求先后）
-    ThepornDB             AVheat                DMM                   Official
+■ 默认字段抓取优先级   DEFAULT_FIELD_SITE_PRIORITY（50 站，真正决定请求先后）
+    ThepornDB             AVheat                DMM                   Official·S1
+    Official·Moodyz       Official·Madonna      Official·Wanz         Official·Ideapocket
+    Official·Kirakira     Official·EBody        Official·Bi           Official·Premium
+    Official·Miman        Official·Tameikegoro  Official·Fitch        Official·Kawaii
+    Official·Befree       Official·Muku         Official·Attackers    Official·Mko
+    Official·Dasdas       Official·Mvg          Official·Opera        Official·Oppai
+    Official·V            Official·ToSatsu      Official·Bibian       Official·Honnaka
+    Official·Rookie       Official·Nanpa        Official·Hajimekikaku Official·Hhh
     Official·10Musume     Official·1Pondo       Official·Caribbeancom Official·HEYZO
     Official·Pacopacomama LibreFanza              MGStage               Prestige
     AVBase                JavDB                 JavBus                IQQTV
