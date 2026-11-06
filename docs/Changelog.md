@@ -153,7 +153,7 @@
 - JavLibrary：原站 `https://javlibrary.com/cn` 有 CF 墙，刮削探测 2 次 30s/45s 均超时；探测改打镜像详情页 `https://f101w.com/cn/javli6qwtu.html`（`DEFAULT_SITE_URLS[JAVLIBRARY]` 改为 `https://f101w.com`，`SPECIAL_CHECK_PATHS` 改为 `/cn/javli6qwtu.html`，`probe_url` 复用 `appoint_url` 分支跳过 `SSNI-647` 搜索直打详情页）。
 - LibreDMM（现 LibreFanza）：`www` 探测 `https://www.libredmm.com/movies/IPX-535` 报「未获取到 title」——站点已换新版 LibreFanza 版式（`h1` 只剩番号、标题移到 `h2.detail-title`、封面 `div.detail-artwork`、演职员 `dl+metadata-tags`、演员 `article.card h3`），旧 xpath 全取空；`libredmm.py` 与 `shared_fields.libredmm_detail_image` 加新版兼容（旧版照常通过）。
 - Madouqu：`?s=` 搜索经代理超时（探测 2 次 30s/45s 均失败），探测改打详情页 `https://madouqu.shop/video/mdx0216/`（`MADOUQU` 新增 `probe_url`）；新版主题（搜索 `article.resource-card a.cover-link`、详情 `header.entry-header h1`/`div.entry-content`/`a.category-label`）搜索与详情解析同步兼容。
-- 测试：`test_libredmm` + `test_madouqu` 12 项、`test_network_check` 全量 115 项、`field_crawl_retry`/`javlibrary_mirror`/`custom_site_url` 55 项通过。
+- 测试：`test_libredmm` + `test_madouqu` 12 项、`test_network_check` 全量 115 项、`field_crawl_retry`/`javlibrary_app`/`custom_site_url` 55 项通过。
 
 ### LibreDMM 改名 LibreFanza（域名不变）
 
@@ -404,7 +404,7 @@
 
 ### 「检查演员缺失番号」改为多站点汇总 + 归一化对比 + Excel 输出
 
-- 站点链按类型固定（有码 DMM→DMM_API→LibreDMM→JavDB→JavDB_API→JavDB_APP→Javlibrary·镜像→JavLibrary→JavBus，无码 / FC2 / 欧美 / 国产 / 动漫各有定稿链），顺序即优先级。
+- 站点链按类型固定（有码 DMM→DMM_API→LibreDMM→JavDB→JavDB_API→JavDB_APP→Javlibrary_APP→JavLibrary→JavBus，无码 / FC2 / 欧美 / 国产 / 动漫各有定稿链），顺序即优先级。
 - `tools/actor_sources.py` 重写为「站点注册表 + 归一化」：`ssis00006` / `SSIS-006` 先 `normalize_key()` 折叠再比对，`display_number()` 还原展示。
 - 同域名组串行、跨域名并发，每站最多 2 次请求；演员名先经 JavDB 演员库解析日文原名再查。
 - 输出 `演员名.xlsx`（番号 / 网站 / 链接地址），日志只留命中与缺失统计。
@@ -516,7 +516,7 @@
 
 - 新增「整理模式」：先直接移动，失败番号最后统一重试；支持分批与全有或全无事务。
 - 站点可禁用（右键「启用 / 禁用站点」），七个类型组共享一份禁用名单；「指定网站」不受禁用名单影响。
-- Official 旗下五个无码官网拆成独立站点；新增独立站点 `Javlibrary·镜像`。
+- Official 旗下五个无码官网拆成独立站点；新增独立站点 `Javlibrary_APP`。
 - 七组类型改名换序：FC2→个摄、国产→传媒、短剧移到传媒之后、动漫里番独立；「素人番号」改名「国产短剧」，默认名单收缩到只剩 JavDay。
 - 演员库并发写安全（进程级锁 + 原子写）、损坏时降级只读；刮削失败站点改为逐字段重试。
 - 修复：Lulubar 解析误报「站点无效」、MissAV_API 假成功、ThePornDB 同名作品误匹配、JavBus Cookie 误报、没填 LLM 密钥整个软件起不来、Qt 收尾原生崩溃（access violation）根除等。

@@ -68,7 +68,7 @@ MDCx 刮削网站类型汇总表
     JavDB_APP       https://apidd.czssdgz.com     JavDB App 接口镜像（apidd.*），内容集同 JavDB
     JavFree         https://javfree.me            菜单 Censored…Uncensored / FC2 / Caribbeancom / 1pondo / Heyzo / 10musume
     JavLibrary      https://javlibrary.com/cn     业界标准 有碼/無碼/FC2 三分类（Cloudflare 拦截，经公开资料交叉确认）
-    Javlibrary·镜像 https://f101w.com/cn          zlibz.com 公布的 JavLibrary 镜像（无 CF 墙，默认中文页 /cn）
+    Javlibrary_APP https://f101w.com/cn          zlibz.com 公布的 JavLibrary 镜像（无 CF 墙，默认中文页 /cn）
     Jav321          https://www.jav321.com        DMM 系聚合站：出演者=演员、メーカー=片商，封面/剧照走 pics.dmm.co.jp
     Lulubar         https://lulubar.co            lulubar.co。HTML 关键词命中 有码/无码/欧美/素人/国产
     Missav          https://missav.live/dm247/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
@@ -226,7 +226,7 @@ JavDB_API         综合：有码+无码+动漫         有码+无码+FC2+欧美
 JavDB_APP         综合：有码+无码+动漫         有码+无码+FC2+欧美+动漫              https://apidd.czssdgz.com
 JavFree           综合：有码+FC2              有码+无码+FC2                       https://javfree.me                      SSNI-647
 JavLibrary        有码：仅限有码              有码+无码+FC2                       https://javlibrary.com/cn
-Javlibrary·镜像   有码：仅限有码              同 JavLibrary（默认中文页 /cn）     https://f101w.com/cn
+Javlibrary_APP   有码：仅限有码              同 JavLibrary（默认中文页 /cn）     https://f101w.com/cn
 Jav321            综合：有码+动漫              有码+动漫                            https://www.jav321.com                  SNOS-460
 LibreFanza          有码：仅限有码              有码                                https://libredmm.com                    IPX-535
 Lulubar           综合：仅限有码              有码+无码+素人+欧美+国产            https://lulubar.co                      IPZZ-547
@@ -310,7 +310,7 @@ Xcity             有码：仅限有码              有码                     
     JavDB  ⇄  JavDB_API  ⇄  JavDB_APP
     Madou.club  ⇄  Madouqu      （同一份麻豆系国产数据的两条路：Madou.club 的条目有番号
                                 也有标题名，Madouqu 只有标题名，故 Madou.club 排在前面）
-    JavLibrary  ⇄  Javlibrary·镜像      （同一份数据的两条路：原站对大陆 IP 有 CF 墙、
+    JavLibrary  ⇄  Javlibrary_APP      （同一份数据的两条路：原站对大陆 IP 有 CF 墙、
                                           镜像没有；只勾一条不如两条都留着轮着试）
 
 ■ 海报默认排除   POSTER_DEFAULT_EXCLUDED_SITES（4 站）
