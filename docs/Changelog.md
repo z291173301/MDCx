@@ -4,6 +4,12 @@
 
 ## 2026-11-06
 
+### Official 四站改名与可用网站聚合展示
+
+- `Prestige`/`Faleno`/`Dahlia`/`MGStage` 改名 `Official·Prestige`/`Official·Faleno`/`Official·Dahlia`/`Official·MGStage`（枚举值 + 爬虫 `display_name` + 旧配置 `_rename_site` 兼容 + `default_config.json` 模板同步）；有码 `Official·` 系共 33 站。
+- 「编辑网站」可用网站候选区：七个分组标题之后钉住两行聚合行 `Official`（33 家有码官网）、`Official·uncensored`（5 家无码官网），38 个成员不再 A-Z 单列；拖拽/双击/右键/全部添加均展开为成员，不引入伪站点，路由、检测、启用/禁用仍按站独立。
+- 测试：`test_site_source_type_groups`/`test_site_source_copy_menu`/`test_site_group_linkage`/`test_site_list_editor_reorder`/`test_ui_structure` 同步；`Features`、`Scraper`、`MEMORY`、`Configuration`、关于页与 `tips.py` 文案同步。
+
 ### Official 有码本部拆成 29 个独立官网站
 
 - 删 `OfficialCrawler` 统一路由器与 `Website.OFFICIAL`：29 家有码片商官网各立 `Website`（`Official·S1`…`Official·Hhh`）、各立爬虫（`crawlers/official_sites.py`，通用 `_OfficialSiteCrawler` + 29 薄子类）、各有官网基址与探测番号（如 S1 `SSNI-647`、Madonna `JUL-001`、Prestige 沿用既有 `Prestige` 站 `ABW-130`）。

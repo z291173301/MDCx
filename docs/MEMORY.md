@@ -148,12 +148,12 @@
 - 「素人番号」已改名「国产短剧」（枚举值/字段名仍是 `SUREN` / `website_suren`），默认名单只剩 JavDay；短剧无番号格式，只有锁定类型才走这一组。
 - 七组名 = 有码番号/无码番号/个摄番号/欧美视频/国产传媒/国产短剧/动漫里番；下拉八项多一个「自动判断」。组名与下拉文案、chip 短名、`PALETTE_GROUP_TYPES` 组序同源；下拉下标↔值映射读 `FixedScrapingType.dropdown_values()`（顺序源 `dropdown_order()`，不能写成类体常量——Enum 会报 TypeError）。
 - 「锁定类型」运行期只有一张真相表 `models.SCRAPING_TYPE_SITE_FIELDS`；保留 `getattr(config, field, None)` 惰性取值；锁定分支只给 `GUOCHAN` 硬塞 `mosaic="国产"`；回退类型名单必须用有序的 `get_type_sites()`，不能用 `list(set)`（Website 枚举 str 的 hash 每进程随机化）。
-- 无码官网五站由 `official_uncensored.py` 统一路由，均需代理；1pondo / pacopacomama / 10musume 的 dyn/phpauto JSON API 直通。有码 29 站由 `official_sites.py` 统一路由（321 前缀锁定），与 Dahlia/Faleno 同单站锁定语义。
+- 有码 29 站由 `official_sites.py` 统一路由（321 前缀锁定），与 `Official·Dahlia`/`Official·Faleno` 同单站锁定语义；改名的四站（Dahlia/Faleno/MGStage/Prestige）已并入候选区 `Official` 聚合行。
 - 被墙站测试：`-m scripts.dev_proxy start|status|test <url>|stop`，日本 IP 限制站用 `--port 7891 --regions "jp|日本"`；连通性验证必须用 curl_cffi impersonate；批量探测要校验 `data.title` 防假阳性。
 - HTTP 4xx/5xx 错误串必须携带截断响应体（保留 `"HTTP {status}"` 前缀）。
 - 番号归一化：前导单数字双重语义（studio 名单数字保留 vs DMM 预约版 `9` 前缀剥掉），改正则前 grep 全部分支。
 - 站点域名优先级与删站属产品取舍，查证给方案不擅动；删站影响面 = 注册表 + Website 枚举 + 默认 proxy 列表 + `migrations.py` 清洗 + UI 列表。
-- **站点默认地址一律不带 `www.`，唯一例外 MGStage**（2026-10-24 定规）：`base_url_()` 默认值、AIO `fallback_domain`、`DEFAULT_SITE_URLS` 都不加，自定义网址也不再自动补 www。改默认地址一并核对 `docs/Scraper.md` 两张表。
+- **站点默认地址一律不带 `www.`，唯一例外 Official·MGStage**（2026-10-24 定规）：`base_url_()` 默认值、AIO `fallback_domain`、`DEFAULT_SITE_URLS` 都不加，自定义网址也不再自动补 www。改默认地址一并核对 `docs/Scraper.md` 两张表。
 - **失效域名直接删，不留兜底**（2026-10-24）：删到只剩一个地址的站点（7mmtv / IQQTV / freejavbt）连镜像轮换一起删。
 - **JavBus 四条线路、一个地址一次**：`www.javbus.com` → `www.dmmsee.casa` → `www.javsee.cyou` → `www.cdnbus.bond`，由 `_MULTI_ADDRESS_SITE_TARGETS` 派发，爬虫内部不再自建轮换。JavDB 默认 `javdb580.com`、第 2/4 次回退 `javdb.com`。
 - 「当前网站」下拉网址列显示一律去 www（`init._display_site_url`，只改显示）；新增配置 `last_custom_website`，交互中只置脏标记、`exit_app` 时落盘（别在交互里 `manager.save()`）。

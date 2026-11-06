@@ -16,12 +16,12 @@ MDCx 刮削网站类型汇总表
 ================================================================================================================
   ── 官网 / 厂牌 / 官方接口 (38) ──
     AVBase        https://avbase.net            FANZA/MGS/DUGA 50 万+ 作品名寄せ库，纯日系，无欧美/FC2/国产
-    Dahlia        https://dahlia-av.jp          DAHLIA 厂牌官网。番号前缀 DLDSS 自动锁定本站
+    Official·Dahlia https://dahlia-av.jp          DAHLIA 厂牌官网。番号前缀 DLDSS 自动锁定本站
     DMM                                                 FANZA/DMM 本体。有码主体，站内含「素人」品牌区（SOD はめちゃん 等）
     DMM_API       https://api.dmm.com           FANZA 官方 Web API（api.dmm.com）
-    Faleno        https://faleno.jp             Faleno 厂牌官网。FNS/FLN/JIMMY 前缀自动锁定本站
+    Official·Faleno https://faleno.jp             Faleno 厂牌官网。FNS/FLN/JIMMY 前缀自动锁定本站
     LibreFanza      https://libredmm.com          DMM/FANZA 开源镜像
-    MGStage       https://www.mgstage.com       MGS 厂牌官网。菜单含 素人ホイホイ / はめちゃん。/ SODクリエイト
+    Official·MGStage https://www.mgstage.com       MGS 厂牌官网。菜单含 素人ホイホイ / はめちゃん。/ SODクリエイト
     Official·S1       https://s1s1s1.com          有码片商官网。番号前缀自动锁定本站
     Official·Moodyz   https://moodyz.com          有码片商官网。番号前缀自动锁定本站
     Official·Madonna  https://www.madonna-av.com  有码片商官网。番号前缀自动锁定本站
@@ -51,7 +51,7 @@ MDCx 刮削网站类型汇总表
     Official·Nanpa    https://nanpa-japan.jp      有码片商官网。番号前缀自动锁定本站
     Official·Hajimekikakuhttps://hajimekikaku.com    有码片商官网。番号前缀自动锁定本站
     Official·Hhh      https://hhh-av.com          有码片商官网。番号前缀自动锁定本站
-    Prestige      https://prestige-av.com       PRESTIGE 厂牌官网。MDCx 站点描述「有码+素人」
+    Official·Prestige https://prestige-av.com       PRESTIGE 厂牌官网。MDCx 站点描述「有码+素人」
     Xcity         https://tc.xcity.jp           XCITY 日系有码综合会员站（JS 渲染，导航不可读）
 
   ── 第三方 / 聚合站 (20) ──
@@ -209,10 +209,10 @@ AVEntertainments  无码：仅限无码              无码（该站只有无码
 AVheat            欧美：欧美番号              欧美                                https://avheat.shop/cn                  Men.26.08.17
 AVMOO             有码：仅限有码              有码                                https://avmoo.shop/cn
 AVSOX             无码：仅限无码              无码                                https://avsox.click/cn                  081826_100
-Dahlia            有码：仅限有码              有码                                https://dahlia-av.jp                    DLDSS-539
+Official·Dahlia     有码：仅限有码              有码                                https://dahlia-av.jp                    DLDSS-539
 DMM               有码：仅限有码              有码+素人
 DMM_API           有码：仅限有码              有码                                https://api.dmm.com
-Faleno            有码：仅限有码              有码                                https://faleno.jp                       FNS-165
+Official·Faleno     有码：仅限有码              有码                                https://faleno.jp                       FNS-165
 FC2               FC2：FC2官网                无码+素人+FC2                       https://adult.contents.fc2.com          FC2-4680562
 FC2PPVDB          FC2：FC2网站                素人+FC2                            https://fc2cmadb.com                    FC2-4988506
 FreeJavBT         有码：仅限有码              有码+无码+FC2+欧美                  https://freejavbt.com
@@ -232,7 +232,7 @@ LibreFanza          有码：仅限有码              有码                   
 Lulubar           综合：仅限有码              有码+无码+素人+欧美+国产            https://lulubar.co                      IPZZ-547
 Madou.club        国产：麻豆番号              国产                                https://madou.club                      MDX0236
 Madouqu           国产：仅限国产              国产                                https://madouqu.shop                    MDX0216
-MGStage           有码：有码+素人             有码+素人                           https://www.mgstage.com                 ABF-389
+Official·MGStage    有码：有码+素人             有码+素人                           https://www.mgstage.com                 ABF-389
 Missav            综合：有码+无码             有码+无码+素人                      https://missav.live/dm247/cn
 Missav_API        综合：有码+无码             有码+无码+素人                      https://missav.live/dm247/cn
 MyWife            有码：MyWife                不进任何类型组（单独指定）          https://mywife.cc                       mywife-2306
@@ -270,7 +270,7 @@ Official·1Pondo   官网：无码                  无码                      
 Official·Caribbeancom 官网：无码无码https://caribbeancom.com    caribbeancom-082226-001
 Official·HEYZO    官网：无码                  无码                                https://heyzo.com                       heyzo-3935
 Official·Pacopacomama 官网：无码无码https://pacopacomama.com    pacopacomama-072625_100
-Prestige          有码：有码+素人             有码+素人                           https://prestige-av.com                 ABW-130
+Official·Prestige   有码：有码+素人             有码+素人                           https://prestige-av.com                 ABW-130
 R18.dev           有码：仅限有码              有码                                https://r18.dev
 TheJavDB          有码：仅限有码              有码                                https://thejavdb.net
 ThepornDB         欧美：欧美番号              无码+欧美                           https://api.theporndb.net
@@ -294,7 +294,7 @@ Xcity             有码：仅限有码              有码                     
     Official·V            Official·ToSatsu      Official·Bibian       Official·Honnaka
     Official·Rookie       Official·Nanpa        Official·Hajimekikaku Official·Hhh
     Official·10Musume     Official·1Pondo       Official·Caribbeancom Official·HEYZO
-    Official·Pacopacomama LibreFanza              MGStage               Prestige
+    Official·Pacopacomama LibreFanza              Official·MGStage        Official·Prestige
     AVBase                JavDB                 JavBus                IQQTV
     FreeJavBT             Missav                AVSOX                 AVMOO
     FC2                   FC2PPVDB
@@ -319,8 +319,8 @@ Xcity             有码：仅限有码              有码                     
 ■ 强制单站路由（命中即锁定单站，不走上面的优先级列表）
     番号 DLID*                    →  Getchu        （里番 / 同人 / 书籍 / 动漫）
     路径含 mywife                →  MyWife
-    番号 DLDSS                    →  Dahlia        （官网厂牌，2026-10-17 起独立成站）
-    番号 FNS / FLN / JIMMY        →  Faleno        （官网厂牌，2026-10-17 起独立成站）
+    番号 DLDSS                    →  Official·Dahlia   （官网厂牌，2026-10-17 起独立成站，2026-11-06 改名并入 Official 聚合）
+    番号 FNS / FLN / JIMMY        →  Official·Faleno   （官网厂牌，2026-10-17 起独立成站，2026-11-06 改名并入 Official 聚合）
     番号 1pondo / caribbeancom / 10musume / heyzo / pacopacomama
                                     →  对应的独立无码官网爬虫
                                        （Official·1Pondo / Caribbeancom / 10Musume / HEYZO / Pacopacomama）
