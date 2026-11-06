@@ -43,14 +43,14 @@ MDCx 刮削网站类型汇总表
     Official·Mvg      https://mvg.jp              有码片商官网。番号前缀自动锁定本站
     Official·Opera    https://av-opera.jp         有码片商官网。番号前缀自动锁定本站
     Official·Oppai    https://oppai-av.com        有码片商官网。番号前缀自动锁定本站
-    Official·V        https://v-av.com            有码片商官网。番号前缀自动锁定本站
-    Official·ToSatsu  https://to-satsu.com        有码片商官网。番号前缀自动锁定本站
+    Official·V-AV      https://v-av.com            有码片商官网。番号前缀自动锁定本站
+    Official·To-satsu  https://to-satsu.com        有码片商官网。番号前缀自动锁定本站
     Official·Bibian   https://bibian-av.com       有码片商官网。番号前缀自动锁定本站
     Official·Honnaka  https://honnaka.jp          有码片商官网。番号前缀自动锁定本站
     Official·Rookie   https://rookie-av.jp        有码片商官网。番号前缀自动锁定本站
     Official·Nanpa    https://nanpa-japan.jp      有码片商官网。番号前缀自动锁定本站
     Official·Hajimekikakuhttps://hajimekikaku.com    有码片商官网。番号前缀自动锁定本站
-    Official·Hhh      https://hhh-av.com          有码片商官网。番号前缀自动锁定本站
+    Official·HHH      https://hhh-av.com          有码片商官网。番号前缀自动锁定本站
     Official·Prestige https://prestige-av.com       PRESTIGE 厂牌官网。MDCx 站点描述「有码+素人」
     Xcity         https://tc.xcity.jp           XCITY 日系有码综合会员站（JS 渲染，导航不可读）
 
@@ -257,14 +257,14 @@ Official·Dasdas       官网：有码·Dasdas            有码                
 Official·Mvg          官网：有码·Mvg               有码                                https://mvg.jp                  MVSD-001
 Official·Opera        官网：有码·Opera             有码                                https://av-opera.jp             OPUD-001
 Official·Oppai        官网：有码·Oppai             有码                                https://oppai-av.com            PPPE-001
-Official·V            官网：有码·V                 有码                                https://v-av.com                VICD-001
-Official·ToSatsu      官网：有码·ToSatsu           有码                                https://to-satsu.com            STOL-001
+Official·V-AV          官网：有码·V-AV               有码                                https://v-av.com                VICD-001
+Official·To-satsu      官网：有码·To-satsu           有码                                https://to-satsu.com            STOL-001
 Official·Bibian       官网：有码·Bibian            有码                                https://bibian-av.com           BBAN-001
 Official·Honnaka      官网：有码·Honnaka           有码                                https://honnaka.jp              HMN-001
 Official·Rookie       官网：有码·Rookie            有码                                https://rookie-av.jp            RBB-001
 Official·Nanpa        官网：有码·Nanpa             有码                                https://nanpa-japan.jp          NNPJ-001
 Official·Hajimekikaku 官网：有码·Hajimekikaku      有码                                https://hajimekikaku.com        HJMO-001
-Official·Hhh          官网：有码·Hhh               有码                                https://hhh-av.com              HUNTA-001
+Official·HHH          官网：有码·HHH               有码                                https://hhh-av.com              HUNTA-001
 Official·10Musume 官网：无码无码https://10musume.com        10musume-072625_01
 Official·1Pondo   官网：无码                  无码                                https://1pondo.tv                       1pondo-072625_001
 Official·Caribbeancom 官网：无码无码https://caribbeancom.com    caribbeancom-082226-001
@@ -291,8 +291,8 @@ Xcity             有码：仅限有码              有码                     
     Official·Miman        Official·Tameikegoro  Official·Fitch        Official·Kawaii
     Official·Befree       Official·Muku         Official·Attackers    Official·Mko
     Official·Dasdas       Official·Mvg          Official·Opera        Official·Oppai
-    Official·V            Official·ToSatsu      Official·Bibian       Official·Honnaka
-    Official·Rookie       Official·Nanpa        Official·Hajimekikaku Official·Hhh
+    Official·V-AV            Official·To-satsu      Official·Bibian       Official·Honnaka
+    Official·Rookie       Official·Nanpa        Official·Hajimekikaku Official·HHH
     Official·10Musume     Official·1Pondo       Official·Caribbeancom Official·HEYZO
     Official·Pacopacomama LibreFanza              Official·MGStage        Official·Prestige
     AVBase                JavDB                 JavBus                IQQTV
@@ -373,7 +373,7 @@ Xcity             有码：仅限有码              有码                     
                     「启用网站」列表与「字段优先级」那几行没有这一项——那里没有「启用列表」
                     可言，点了只会让人不知道加到哪儿去。
                     站点右键菜单最上方另有「启用站点：X」「禁用站点：X」两条（在「复制站点」之上，
-                    两条始终显示、按当前状态互斥置灰）。禁用状态存在全局 website_disabled，
+                    两条始终显示、按当前状态互斥置灰）。禁用状态按类型分域存在 website_disabled（非官方类型共用）与 website_official_disabled（官方网站专用），
                     七个类型组共用：任一组的候选区或启用列表里禁用，其余组同步变灰；
                     默认空列表即全部启用，每次启用/禁用立即落盘，无需再点「保存」，
                     点「取消」也不会回滚。被禁用的站仍可选中、拖拽、

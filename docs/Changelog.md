@@ -4,6 +4,24 @@
 
 ## 2026-11-06
 
+### pytest conftest robustness：导入期永不炸整轮 + os._exit 让路
+
+- `tests/conftest.py` 顶层生产 `Config()` 构造加容错：失败时退化为 `None`，缺字段访问以清晰 `AttributeError` 定位到具体用例，不再让整个 run 在 collection 阶段全灭（`ERROR tests/conftest.py`，一个用例都跑不起来）。
+- `pytest_sessionfinish` 的 `os._exit(0)` 增加让路条件：xdist worker（`PYTEST_XDIST_WORKER`）、coverage 生效中、`MDCX_PYTEST_NO_FORCE_EXIT=1` 时走正常退出，避免在 IDE 测试适配器/xdist/coverage 下被报成“测试进程崩溃”；普通 CLI 全绿 run 行为不变（仍绕开 Qt 析构崩溃）。
+- 新增 `tests/test_conftest_robustness.py`（5 用例）钉住上述两处；`ruff format`/`ruff check` 全绿，子集回归 120 passed。
+
+### 官方字段重置保存无效修复与三站改名
+
+- 修官方网站字段优先级「一键重置→保存」无效：`build/normalize` 对官方类型误用聚合收拢，38 单站存成 `Official`/`Official·uncensored` 后重开被 38 名单过滤成空行；官方类型字段行一律存 38 单站不再收拢，旧配置（已存成两聚合）下次加载自动回退为 38 单站。
+- 官方网站字段优先级弹窗：可用网站与各字段行一律短名显示（去 `Official·` 前缀，悬停仍点出真实站点值；仅展示层，存盘与拖拽仍用真实值）。
+- 三站改名：`Official·Hhh`→`Official·HHH`、`Official·ToSatsu`→`Official·To-satsu`、`Official·V`→`Official·V-AV`（枚举值 + 爬虫 `display_name` + 旧配置 `_rename_site` 兼容 + `default_config.json` 模板同步）；网络页「当前网站」下拉取值自注册爬虫站点值同步更新。
+
+### 禁用名单按类型分域与 Official 整组禁用
+
+- 禁用按类型分域：官方网站类型读写 `website_official_disabled`，其余类型共用 `website_disabled`，两域互不影响；在有码里禁用 Official 不再影响官方网站弹窗，反之亦然；旧配置迁移（`official_disabled_scope_migrated` 标记，`config_version` 仍为 2）把官方相关值复制一份到官方名单，主名单聚合值原位展开为 33/5 全量（含 Dahlia/Faleno/Prestige/MGStage，29 全量同样补齐到 33）。
+- 非官方类型弹窗里右键禁用/启用聚合行（`Official`/`Official·uncensored`）即整组 33/5 站同步开关（含四个改名站）；启用列表里聚合单体在组内全被禁用时变灰；官方网站弹窗仍按单站禁用。
+- 测试：`test_official_uncensored_split_migration` 同步迁移终态（38 项加官方名单复制），新增 `test_official_disabled_scope`（成员展开/聚合/分域/迁移补齐）。
+
 ### 字段优先级与启用网站的官网聚合为单个 Official
 
 - 字段优先级弹窗（官方网站除外）：各行与可用网站里的官网收拢为单个 `Official`（有码 33 站）/ `Official·uncensored`（无码 5 站）；`Official` 只是显示名，实际刮削按组内站点值 A-Z 逐站尝试（配置里存聚合、请求时展开，禁用某家官网仍按单站过滤生效）。
