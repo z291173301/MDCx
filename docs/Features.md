@@ -44,7 +44,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | Official·Ideapocket | ideapocket.com | 官网：有码·Ideapocket |
 | Official·Kirakira | kirakira-av.com | 官网：有码·Kirakira |
 | Official·E-Body | www.av-e-body.com | 官网：有码·E-Body |
-| Official·Bi-av | bi-av.com | 官网：有码·Bi-av |
+| Official·Bi | bi-av.com | 官网：有码·Bi |
 | Official·Premium | premium-beauty.com | 官网：有码·Premium |
 | Official·Miman | miman.jp | 官网：有码·Miman |
 | Official·Tameikegoro | tameikegoro.jp | 官网：有码·Tameikegoro |
@@ -57,7 +57,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | Official·Dasdas | dasdas.jp | 官网：有码·Dasdas |
 | Official·MVG | mvg.jp | 官网：有码·MVG |
 | Official·Opera | av-opera.jp | 官网：有码·Opera |
-| Official·Oppai-av | oppai-av.com | 官网：有码·Oppai-av |
+| Official·Oppai | oppai-av.com | 官网：有码·Oppai |
 | Official·V-AV | v-av.com | 官网：有码·V-AV |
 | Official·To-satsu | to-satsu.com | 官网：有码·To-satsu |
 | Official·Bibian | bibian-av.com | 官网：有码·Bibian |
@@ -108,7 +108,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 
 | 类型 | 默认网站源 |
 |------|-----------|
-| **有码番号**（58） | DMM、DMM_API、LibreFanza、Official·Dahlia、Official·Faleno、Official·MGStage、Official·Prestige、Official·S1、Official·Moodyz、Official·Madonna、Official·Wanz、Official·Ideapocket、Official·Kirakira、Official·E-Body、Official·Bi-av、Official·Premium、Official·Miman、Official·Tameikegoro、Official·Fitch、Official·Kawaii、Official·Befree、Official·Muku、Official·Attackers、Official·MKO、Official·Dasdas、Official·MVG、Official·Opera、Official·Oppai-av、Official·V-AV、Official·To-satsu、Official·Bibian、Official·Honnaka、Official·Rookie、Official·Nanpa、Official·Hajimekikaku、Official·HHH、AVBase、AVMOO、JavDB、JavDB_API、JavDB_APP、JavBus、Jav321、JavDay、JavFree、Hbox、7mmtv、Airav.cc、FreeJavBT、IQQTV、Lulubar、Missav、Missav_API、R18.dev、Xcity、TheJavDB、JavLibrary、Javlibrary·镜像 |
+| **有码番号**（58） | DMM、DMM_API、LibreFanza、Official·Dahlia、Official·Faleno、Official·MGStage、Official·Prestige、Official·S1、Official·Moodyz、Official·Madonna、Official·Wanz、Official·Ideapocket、Official·Kirakira、Official·E-Body、Official·Bi、Official·Premium、Official·Miman、Official·Tameikegoro、Official·Fitch、Official·Kawaii、Official·Befree、Official·Muku、Official·Attackers、Official·MKO、Official·Dasdas、Official·MVG、Official·Opera、Official·Oppai、Official·V-AV、Official·To-satsu、Official·Bibian、Official·Honnaka、Official·Rookie、Official·Nanpa、Official·Hajimekikaku、Official·HHH、AVBase、AVMOO、JavDB、JavDB_API、JavDB_APP、JavBus、Jav321、JavDay、JavFree、Hbox、7mmtv、Airav.cc、FreeJavBT、IQQTV、Lulubar、Missav、Missav_API、R18.dev、Xcity、TheJavDB、JavLibrary、Javlibrary·镜像 |
 | **无码番号**（19） | AVSOX、AVEntertainments、Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama、JavDB、JavDB_API、JavDB_APP、JavBus、JavFree、7mmtv、Airav.cc、FreeJavBT、IQQTV、Lulubar、Missav、Missav_API |
 | **个摄番号**（12） | FC2、FC2PPVDB、AVSOX、JavDB、JavDB_API、JavDB_APP、JavBus、JavFree、7mmtv、IQQTV、Missav、Missav_API |
 | **欧美视频**（10） | ThepornDB、AVheat、JavDB、JavDB_API、JavDB_APP、JavBus、7mmtv、Missav、Missav_API、IQQTV |
@@ -126,7 +126,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 > **同一份名单也是「编辑网站」对话框里「可用网站」候选区的分组依据**（`TYPE_DEFAULT_SITES` 一个常量两处用，界面与默认行为不会漂）：打开「设置→刮削网站 → 类型刮削网站 → 编辑网站」，左侧候选区**开头就是七个加粗的分组标题**——`有码 ｜ 无码 ｜ 个摄 ｜ 欧美 ｜ 传媒 ｜ 短剧 ｜ 动漫`（**短名**，只在这一处用短名：七个 chip 必须挤在同一行，带「番号」三字会顶到框宽；`个摄`/`传媒` 是 2.6.0 起按用户口径改的称呼，与设置页的「个摄番号」「国产传媒」同义），**紧接着是两个聚合行「有码官网」（33 家有码官网）、「无码官网」（5 家无码官网），其后另起 `Official` / `Official·uncensored` 两个单体行**，从左到右排列，**紧接着右边就接着铺全部可用站点**。标题与其它站点一样是普通的一格，**底色不额外加深、只是文字加粗**，后面不留空白、也没有单独一行，所以首行看起来就是 `有码 无码 个摄 欧美 传媒 短剧 动漫 7mmtv Airav.cc AVBase …`。**标题与聚合行之下是一份去重后的 A-Z 名单**（`7mmtv` 到 `Xcity`，38 家聚合站点只在聚合行里出现、A-Z 名单里不再单列），同一站点只出现一次，七组之外的站点（`MyWife`）也在里面、**没有单独的「其他」分组标题**（它不在这七个类型里，但仍可正常勾选；由于每个站只出现一次，「它属于哪些类型」要看悬停提示）。站点行的悬停提示**只有一行 `<定位>：<类型名单>`**（如 7mmtv 为「综合：有码/无码/欧美/传媒」、AVSOX 为「无码：无码」、Madou.club 为「国产：麻豆」，冒号前的定性词沿用各站自己的定位说明，冒号后的名单由 `TYPE_DEFAULT_SITES` 现算、**次序跟上面那七个标题的组序一致**——不再用爬虫 `description` 里那句写死的文案，那句会与实际默认名单对不上，7mmtv 说明里就没有欧美、国产；**名单里不写「动漫」「个摄」**，动漫与其它类型的片子混在一站时不必单列，个摄（即原来的 FC2 组）同属有码那一类；**「短剧」则照常显示**——它只有 JavDay 一站，但正因如此更需要看得见——候选区那七个 chip、设置页各行标签与默认名单不受影响）。分隔符统一用 `/` 而非顿号，省宽度、悬停框不易折行；原先的「类型：…」「联动：…」两行已整行删掉（第一行已把类型名单说全，后两行是同一件事的重复）。**同一行也拼进三个站点下拉框的选项显示文本**（下拉框的悬停提示按用户要求只保留「上次检测：…」，不再重复能力文案）。不属任何类型组、或名单被隐空的站（`MyWife`、`Getchu`、`FC2`）改用它自己的定位说明一行。**双击某个标题即把该组全部网站按组内优先级顺序加入右侧「启用网站」列表**（组内顺序即上表的优先级顺序，联动组会自动补齐；**单击标题什么也不加**——七个标题挤在首行，顺手扫过必然挨个碰过去，一点就整组塞进去且无从撤销不是用户要的）；站点行的单击只是选中，加入靠双击站点或「添加选中」。右侧「启用网站」列表不受分组影响，顺序仍完全由用户拖拽决定。**两个列表都支持右键**：点站点复制该站名，**点某个标题复制它自己那一份名单**（如「有码」得 58 站，点「个摄」得 12 站、「动漫」得 6 站，互不相等；点聚合行复制它的成员名单（如「有码官网」得 33 站），点空白处复制整张列表（逗号分隔，与对话框上方输入框同格式，可直接粘回去比对或增删）。候选区的右键菜单**最下方**另有「加入列表：启用网站」（与双击同一套逻辑）：点标题加入整组、点站点加入那一个、点空白处加入当前选中的那些；「启用网站」列表与「字段优先级」那几行没有这一项。**右键站点时，菜单最上方还会先列「启用站点：X」「禁用站点：X」两条**（在「复制站点：X」之上）：已禁用时「启用站点」可点、「禁用站点」置灰，未禁用时反过来；点一下立即生效，候选区与右侧「启用网站」列表里该站同步变灰，悬停提示追加「已禁用：自动刮削、网络检测、图片兜底跳过；指定网站/单文件/重新刮削仍可用」，但仍可选中、拖拽与移除。禁用状态按类型分域存放：官方/有码/无码/个摄/欧美/国产传媒/国产短剧/动漫里番八类各一份名单（默认都是空列表即全部启用），相互独立、互不影响——在有码里禁用某站只影响有码的刮削，官方网站弹窗里看到的仍是启用；在非官方类型里右键禁用聚合行即整组禁用/启用（含 Dahlia/Faleno/Prestige/MGStage 四个改名站）每次启用/禁用后立即写入配置，不需要再点「保存」；点「取消」也不会回滚已经切换的禁用状态。被禁用的站不会进入自动刮削、网络检测与图片兜底；但用户明确指定该站时（指定网站模式、单文件、重新刮削）不受禁用名单影响，仍会正常请求并返回结果。重新启用后恢复原来的优先级与字段来源。
 
 **各爬虫适用类型**（能力分类，统计的是该站实际能处理的番号类型，与上表「说明」列的定位标签不是同一维度，因此会出现 Getchu、AVBase 等同时出现在「仅限有码」与带「综合：」标签的站点里；与上面的默认名单也不必一一对应，默认名单只收「该站确实能查到该类型条目」的站）：
-- **仅限有码**：DMM、DMM_API、TheJavDB、LibreFanza、R18.dev、AVBase、Xcity、Official·Prestige、Official·MGStage、Getchu、Javlibrary·镜像、JavLibrary、FreeJavBT、Lulubar、AVMOO、Airav.cc、Official·Dahlia、Official·Faleno、Official·S1、Official·Moodyz、Official·Madonna、Official·Wanz、Official·Ideapocket、Official·Kirakira、Official·E-Body、Official·Bi-av、Official·Premium、Official·Miman、Official·Tameikegoro、Official·Fitch、Official·Kawaii、Official·Befree、Official·Muku、Official·Attackers、Official·MKO、Official·Dasdas、Official·MVG、Official·Opera、Official·Oppai-av、Official·V-AV、Official·To-satsu、Official·Bibian、Official·Honnaka、Official·Rookie、Official·Nanpa、Official·Hajimekikaku、Official·HHH、Jav321、Hbox
+- **仅限有码**：DMM、DMM_API、TheJavDB、LibreFanza、R18.dev、AVBase、Xcity、Official·Prestige、Official·MGStage、Getchu、Javlibrary·镜像、JavLibrary、FreeJavBT、Lulubar、AVMOO、Airav.cc、Official·Dahlia、Official·Faleno、Official·S1、Official·Moodyz、Official·Madonna、Official·Wanz、Official·Ideapocket、Official·Kirakira、Official·E-Body、Official·Bi、Official·Premium、Official·Miman、Official·Tameikegoro、Official·Fitch、Official·Kawaii、Official·Befree、Official·Muku、Official·Attackers、Official·MKO、Official·Dasdas、Official·MVG、Official·Opera、Official·Oppai、Official·V-AV、Official·To-satsu、Official·Bibian、Official·Honnaka、Official·Rookie、Official·Nanpa、Official·Hajimekikaku、Official·HHH、Jav321、Hbox
 - **无码专属**：AVEntertainments、AVSOX、Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama
 - **综合（有码+无码）**：JavBus、JavDB、JavDB_API、JavDB_APP、Missav、Missav_API、JavDay、JavFree、IQQTV、7mmtv
 - **素人作品（2.6.0 起按有码刮削）**：7mmtv、AVBase、DMM、DMM_API、IQQTV、JavBus、JavDB、Official·MGStage、Missav、Missav_API、Official·Prestige、Official·Dahlia、Official·Faleno

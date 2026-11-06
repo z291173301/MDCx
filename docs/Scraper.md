@@ -29,7 +29,7 @@ MDCx 刮削网站类型汇总表
     Official·Ideapockethttps://ideapocket.com      有码片商官网。番号前缀自动锁定本站
     Official·Kirakira https://kirakira-av.com     有码片商官网。番号前缀自动锁定本站
     Official·E-Body    https://www.av-e-body.com   有码片商官网。番号前缀自动锁定本站
-    Official·Bi-av    https://bi-av.com           有码片商官网。番号前缀自动锁定本站
+    Official·Bi       https://bi-av.com           有码片商官网。番号前缀自动锁定本站
     Official·Premium  https://premium-beauty.com  有码片商官网。番号前缀自动锁定本站
     Official·Miman    https://miman.jp            有码片商官网。番号前缀自动锁定本站
     Official·Tameikegorohttps://tameikegoro.jp      有码片商官网。番号前缀自动锁定本站
@@ -42,7 +42,7 @@ MDCx 刮削网站类型汇总表
     Official·Dasdas   https://dasdas.jp           有码片商官网。番号前缀自动锁定本站
     Official·MVG      https://mvg.jp              有码片商官网。番号前缀自动锁定本站
     Official·Opera    https://av-opera.jp         有码片商官网。番号前缀自动锁定本站
-    Official·Oppai-av    https://oppai-av.com        有码片商官网。番号前缀自动锁定本站
+    Official·Oppai    https://oppai-av.com        有码片商官网。番号前缀自动锁定本站
     Official·V-AV      https://v-av.com            有码片商官网。番号前缀自动锁定本站
     Official·To-satsu  https://to-satsu.com        有码片商官网。番号前缀自动锁定本站
     Official·Bibian   https://bibian-av.com       有码片商官网。番号前缀自动锁定本站
@@ -243,7 +243,7 @@ Official·Wanz         官网：有码·Wanz              有码                
 Official·Ideapocket   官网：有码·Ideapocket        有码                                https://ideapocket.com          IPX-001
 Official·Kirakira     官网：有码·Kirakira          有码                                https://kirakira-av.com         KIBD-001
 Official·E-Body        官网：有码·E-Body             有码                                https://www.av-e-body.com       EBOD-001
-Official·Bi-av           官网：有码·Bi-av                有码                                https://bi-av.com               BBI-001
+Official·Bi           官网：有码·Bi                有码                                https://bi-av.com               BBI-001
 Official·Premium      官网：有码·Premium           有码                                https://premium-beauty.com      PRED-001
 Official·Miman        官网：有码·Miman             有码                                https://miman.jp                MMND-001
 Official·Tameikegoro  官网：有码·Tameikegoro       有码                                https://tameikegoro.jp          MEYD-001
@@ -256,7 +256,7 @@ Official·MKO          官网：有码·MKO               有码                
 Official·Dasdas       官网：有码·Dasdas            有码                                https://dasdas.jp               DASS-001
 Official·MVG          官网：有码·MVG               有码                                https://mvg.jp                  MVSD-001
 Official·Opera        官网：有码·Opera             有码                                https://av-opera.jp             OPUD-001
-Official·Oppai-av        官网：有码·Oppai-av             有码                                https://oppai-av.com            PPPE-001
+Official·Oppai        官网：有码·Oppai             有码                                https://oppai-av.com            PPPE-001
 Official·V-AV          官网：有码·V-AV               有码                                https://v-av.com                VICD-001
 Official·To-satsu      官网：有码·To-satsu           有码                                https://to-satsu.com            STOL-001
 Official·Bibian       官网：有码·Bibian            有码                                https://bibian-av.com           BBAN-001
@@ -287,10 +287,10 @@ Xcity             有码：仅限有码              有码                     
 ■ 默认字段抓取优先级   DEFAULT_FIELD_SITE_PRIORITY（50 站，真正决定请求先后）
     ThepornDB             AVheat                DMM                   Official·S1
     Official·Moodyz       Official·Madonna      Official·Wanz         Official·Ideapocket
-    Official·Kirakira     Official·E-Body        Official·Bi-av           Official·Premium
+    Official·Kirakira     Official·E-Body        Official·Bi           Official·Premium
     Official·Miman        Official·Tameikegoro  Official·Fitch        Official·Kawaii
     Official·Befree       Official·Muku         Official·Attackers    Official·MKO
-    Official·Dasdas       Official·MVG          Official·Opera        Official·Oppai-av
+    Official·Dasdas       Official·MVG          Official·Opera        Official·Oppai
     Official·V-AV            Official·To-satsu      Official·Bibian       Official·Honnaka
     Official·Rookie       Official·Nanpa        Official·Hajimekikaku Official·HHH
     Official·10Musume     Official·1Pondo       Official·Caribbeancom Official·HEYZO

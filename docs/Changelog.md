@@ -4,11 +4,6 @@
 
 ## 2026-11-06
 
-### 官网站改名 Bi-av/Oppai-av
-
-- 域名口径改名：`Official·Bi`→`Official·Bi-av`、`Official·Oppai`→`Official·Oppai-av`（枚举值 + 爬虫注册名 + 定位说明 + 旧配置 `_rename_site` 兼容 + `default_config.json` 模板 + 使用说明同步）；启用网站与可用网站候选区（均派生自站点值）同步新名。
-- 测试：新增 `-av` 后缀改名迁移用例，短名显示用例覆盖 E-Body/MKO/MVG/Bi-av/Oppai-av。
-
 ### 官网站改名与单体行调序
 
 - 三站品牌写法改名：`Official·EBody`→`Official·E-Body`、`Official·Mko`→`Official·MKO`、`Official·Mvg`→`Official·MVG`（枚举值 + 爬虫注册名 + 定位说明 + 旧配置 `_rename_site` 兼容 + `default_config.json` 模板 + 使用说明同步）；可用站点候选区与软件设置-网络-网站设置-当前网站下拉（均取自注册爬虫站点值）同步新名。
