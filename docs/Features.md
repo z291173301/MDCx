@@ -47,7 +47,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | FreeJavBT | freejavbt.com | 有码：仅限有码 |
 | MyWife | mywife.cc | 独立系列：人妻・熟女・3P（单独指定，不进任何类型组） |
 | Getchu | getchu.com | 综合：有码+游戏+视频 |
-| LibreDMM | libredmm.com | 有码：仅限有码 |
+| LibreFanza | libredmm.com | 有码：仅限有码 |
 | Xcity | xcity.jp | 有码：仅限有码 |
 | AVSOX | avsox.click | 无码：仅限无码 |
 | AVMOO | avmoo.shop | 有码：仅限有码 |
@@ -80,7 +80,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 
 | 类型 | 默认网站源 |
 |------|-----------|
-| **有码番号**（30） | DMM、DMM_API、LibreDMM、Dahlia、Faleno、MGStage、Prestige、Official、AVBase、AVMOO、JavDB、JavDB_API、JavDB_APP、JavBus、Jav321、JavDay、JavFree、Hbox、7mmtv、Airav.cc、FreeJavBT、IQQTV、Lulubar、Missav、Missav_API、R18.dev、Xcity、TheJavDB、JavLibrary、Javlibrary·镜像 |
+| **有码番号**（30） | DMM、DMM_API、LibreFanza、Dahlia、Faleno、MGStage、Prestige、Official、AVBase、AVMOO、JavDB、JavDB_API、JavDB_APP、JavBus、Jav321、JavDay、JavFree、Hbox、7mmtv、Airav.cc、FreeJavBT、IQQTV、Lulubar、Missav、Missav_API、R18.dev、Xcity、TheJavDB、JavLibrary、Javlibrary·镜像 |
 | **无码番号**（19） | AVSOX、AVEntertainments、Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama、JavDB、JavDB_API、JavDB_APP、JavBus、JavFree、7mmtv、Airav.cc、FreeJavBT、IQQTV、Lulubar、Missav、Missav_API |
 | **个摄番号**（12） | FC2、FC2PPVDB、AVSOX、JavDB、JavDB_API、JavDB_APP、JavBus、JavFree、7mmtv、IQQTV、Missav、Missav_API |
 | **欧美视频**（10） | ThepornDB、AVheat、JavDB、JavDB_API、JavDB_APP、JavBus、7mmtv、Missav、Missav_API、IQQTV |
@@ -98,7 +98,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 > **同一份名单也是「编辑网站」对话框里「可用网站」候选区的分组依据**（`TYPE_DEFAULT_SITES` 一个常量两处用，界面与默认行为不会漂）：打开「设置→刮削网站 → 类型刮削网站 → 编辑网站」，左侧候选区**开头就是七个加粗的分组标题**——`有码 ｜ 无码 ｜ 个摄 ｜ 欧美 ｜ 传媒 ｜ 短剧 ｜ 动漫`（**短名**，只在这一处用短名：七个 chip 必须挤在同一行，带「番号」三字会顶到框宽；`个摄`/`传媒` 是 2.6.0 起按用户口径改的称呼，与设置页的「个摄番号」「国产传媒」同义），从左到右排列，**紧接着右边就接着铺全部可用站点**。标题与其它站点一样是普通的一格，**底色不额外加深、只是文字加粗**，后面不留空白、也没有单独一行，所以首行看起来就是 `有码 无码 个摄 欧美 传媒 短剧 动漫 7mmtv Airav.cc AVBase …`。**标题之下是一份去重后的 A-Z 名单**（`7mmtv` 到 `Xcity`，共 45 个站），同一站点只出现一次，七组之外的站点（`MyWife`）也在里面、**没有单独的「其他」分组标题**（它不在这七个类型里，但仍可正常勾选；由于每个站只出现一次，「它属于哪些类型」要看悬停提示）。站点行的悬停提示**只有一行 `<定位>：<类型名单>`**（如 7mmtv 为「综合：有码/无码/欧美/传媒」、AVSOX 为「无码：无码」、Madou.club 为「国产：麻豆」，冒号前的定性词沿用各站自己的定位说明，冒号后的名单由 `TYPE_DEFAULT_SITES` 现算、**次序跟上面那七个标题的组序一致**——不再用爬虫 `description` 里那句写死的文案，那句会与实际默认名单对不上，7mmtv 说明里就没有欧美、国产；**名单里不写「动漫」「个摄」**，动漫与其它类型的片子混在一站时不必单列，个摄（即原来的 FC2 组）同属有码那一类；**「短剧」则照常显示**——它只有 JavDay 一站，但正因如此更需要看得见——候选区那七个 chip、设置页各行标签与默认名单不受影响）。分隔符统一用 `/` 而非顿号，省宽度、悬停框不易折行；原先的「类型：…」「联动：…」两行已整行删掉（第一行已把类型名单说全，后两行是同一件事的重复）。**同一行也拼进三个站点下拉框的选项显示文本**（下拉框的悬停提示按用户要求只保留「上次检测：…」，不再重复能力文案）。不属任何类型组、或名单被隐空的站（`MyWife`、`Getchu`、`FC2`）改用它自己的定位说明一行。**双击某个标题即把该组全部网站按组内优先级顺序加入右侧「启用网站」列表**（组内顺序即上表的优先级顺序，联动组会自动补齐；**单击标题什么也不加**——七个标题挤在首行，顺手扫过必然挨个碰过去，一点就整组塞进去且无从撤销不是用户要的）；站点行的单击只是选中，加入靠双击站点或「添加选中」。右侧「启用网站」列表不受分组影响，顺序仍完全由用户拖拽决定。**两个列表都支持右键**：点站点复制该站名，**点某个标题复制它自己那一份名单**（如「有码」得 30 站，点「个摄」得 12 站、「动漫」得 6 站，互不相等），点空白处复制整张列表（逗号分隔，与对话框上方输入框同格式，可直接粘回去比对或增删）。候选区的右键菜单**最下方**另有「加入列表：启用网站」（与双击同一套逻辑）：点标题加入整组、点站点加入那一个、点空白处加入当前选中的那些；「启用网站」列表与「字段优先级」那几行没有这一项。**右键站点时，菜单最上方还会先列「启用站点：X」「禁用站点：X」两条**（在「复制站点：X」之上）：已禁用时「启用站点」可点、「禁用站点」置灰，未禁用时反过来；点一下立即生效，候选区与右侧「启用网站」列表里该站同步变灰，悬停提示追加「已禁用：自动刮削、网络检测、图片兜底跳过；指定网站/单文件/重新刮削仍可用」，但仍可选中、拖拽与移除。禁用状态是**七个类型组共享的一份全局名单**（`Config.website_disabled`，默认空列表即全部启用），在有码里禁用，无码、个摄、欧美、传媒、短剧、动漫与候选区一起变灰；每次启用/禁用后立即写入配置，不需要再点「保存」；点「取消」也不会回滚已经切换的禁用状态。被禁用的站不会进入自动刮削、网络检测与图片兜底；但用户明确指定该站时（指定网站模式、单文件、重新刮削）不受禁用名单影响，仍会正常请求并返回结果。重新启用后恢复原来的优先级与字段来源。
 
 **各爬虫适用类型**（能力分类，统计的是该站实际能处理的番号类型，与上表「说明」列的定位标签不是同一维度，因此会出现 Getchu、AVBase 等同时出现在「仅限有码」与带「综合：」标签的站点里；与上面的默认名单也不必一一对应，默认名单只收「该站确实能查到该类型条目」的站）：
-- **仅限有码**：DMM、DMM_API、TheJavDB、LibreDMM、R18.dev、AVBase、Xcity、Prestige、MGStage、Getchu、Javlibrary·镜像、JavLibrary、FreeJavBT、Lulubar、AVMOO、Airav.cc、Dahlia、Faleno、Official、Jav321、Hbox
+- **仅限有码**：DMM、DMM_API、TheJavDB、LibreFanza、R18.dev、AVBase、Xcity、Prestige、MGStage、Getchu、Javlibrary·镜像、JavLibrary、FreeJavBT、Lulubar、AVMOO、Airav.cc、Dahlia、Faleno、Official、Jav321、Hbox
 - **无码专属**：AVEntertainments、AVSOX、Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama
 - **综合（有码+无码）**：JavBus、JavDB、JavDB_API、JavDB_APP、Missav、Missav_API、JavDay、JavFree、IQQTV、7mmtv
 - **素人作品（2.6.0 起按有码刮削）**：7mmtv、AVBase、DMM、DMM_API、IQQTV、JavBus、JavDB、MGStage、Missav、Missav_API、Prestige、Dahlia、Faleno
@@ -110,7 +110,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 ### DMM 官方高清直链
 
 - 封面/海报统一走 DMM 官方 awsimgsrc CDN 高清直链（竖版 `ps` 通常 1032×1469，部分系列为 745×1081 等中尺寸档；横版 `pl` 通常 2184×1469），由 `mdcx/crawlers/dmm_direct.py` 的番号→DMM cid 前缀映射生成，内置静态前缀表覆盖约 110 个主流系列（含 `h_xxx`/数字特殊前缀与跨厂商附加前缀），并叠加学习表自动扩充未收录系列的前缀。升级时校验分辨率宽≥700 过滤 147×200 缩略图占位图，避免把海报覆盖成低清缩略图。
-- **LibreDMM / R18.dev / JavBus / JavDB / JavDB API / JavDB App / DMM / DMM API / JavLibrary / AVBase** 十个爬虫在刮削时直接把返回的低清封面/海报升级为 DMM 高清（R18.dev 的 `jacket_full_url` 是 pics.dmm.co.jp 低清且部分系列 cid 未补零，JavBus 是自家 CDN 低清镜像，DMM/AVBase 用域名替换 + dmm_direct 前缀表候选），无码番号自动跳过。
+- **LibreFanza / R18.dev / JavBus / JavDB / JavDB API / JavDB App / DMM / DMM API / JavLibrary / AVBase** 十个爬虫在刮削时直接把返回的低清封面/海报升级为 DMM 高清（R18.dev 的 `jacket_full_url` 是 pics.dmm.co.jp 低清且部分系列 cid 未补零，JavBus 是自家 CDN 低清镜像，DMM/AVBase 用域名替换 + dmm_direct 前缀表候选），无码番号自动跳过。
 - **JavDB 系图源无水印升级**：JavDB / JavDB API / JavDB App 三站产出/落回的 javdb 图床图片，下载时自动改走 JavDB App 专用 CDN `tp.spfcas.com` 无水印原图（加密流下载层透明解密），替代带 javdb 水印的网页版 CDN；App CDN 路径中段由 JavDB_APP 响应自动学习，失效时自动回退网页版。DMM 升级链覆盖不到的番号（无码/FC2/老片等）落回 javdb 图源时受益。
 - 开启「Poster 选优」（poster_auto_best）时，候选池自动注入 DMM 竖版高清候选，按尺寸自动胜过低清原图，其他爬虫也能受益。
 - DMM 图下载失败按「设置→网络→重试」次数（默认 3 次）自动重试，应对 awsimgsrc 偶发的连接抖动。
@@ -345,7 +345,7 @@ NFO、JSON（含 `-mediainfo.json`）、字幕、种子、bif 等。
 - **自动补全**：通过 TMDB API 查询演员 ID 和多语言名称
 - **数据来源**：TMDB、Wikidata、Gfriends、Graphis.ne.jp
 - **反向查询**：已知中文名找日文名，或反过来
- - **演员数据维护工具**（软件工具页）：直接操作 `actor_database.xlsx`，独立按钮——补全中文名（按已有 TMDB ID 补中英繁体翻译）、补全 LibreDMM 链接（补信息链接）、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的条目，勾选「全量更新」并入全部行且不覆盖本地已有别名，配套「起始行/限量」分片续跑——中断后日志输出"将起始行填入 N-1 即可续跑"，处理日志带 [行N] 前缀便于人工定位）、JavDB 中文名（从 JavDB 移动端 API 查询演员中文名/繁体名，仅处理「中文名 == 日文原名」的行，用 name_zht 转简体补全，无需 TMDB API KEY，支持分片续跑）、minnano 补全（从 Minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，tmdb 项给人工修复步骤）、剔除男演员（按 tmdbid 校验 TMDB gender 删除男优，删前备份到「男优备份」sheet，支持限量/可中断，gender 0/1/未知一律保留）、校验 tmdbid 有效性（清除 TMDB 失效 id 并按名字重搜补回）、更新 nfo tmdbid（用本地库新 id 覆盖 nfo 旧 id，持久源同步）、打开演员数据库（用系统默认程序打开 xlsx 供查看与手工编辑）。另设「停止当前维护任务」按钮独立于软件界面刮削停止，一键请求停止当前维护任务。网络请求采用滑动窗口并发（TMDB 并发 5 / LibreDMM 并发 2 / JavDB 并发 5），每个联网维护工具支持限量参数（默认 5000，配合幂等可多次运行逐片处理 2 万+ 行，断点续传），停止时保存已处理部分，日志实时显示在 GUI 日志页。无需输入演员名单或选择 nfo 目录
+ - **演员数据维护工具**（软件工具页）：直接操作 `actor_database.xlsx`，独立按钮——补全中文名（按已有 TMDB ID 补中英繁体翻译）、补全 LibreFanza 链接（补信息链接）、补全别名（可选来源：TMDB、minnano 或 JavDB；默认仅补缺别名的条目，勾选「全量更新」并入全部行且不覆盖本地已有别名，配套「起始行/限量」分片续跑——中断后日志输出"将起始行填入 N-1 即可续跑"，处理日志带 [行N] 前缀便于人工定位）、JavDB 中文名（从 JavDB 移动端 API 查询演员中文名/繁体名，仅处理「中文名 == 日文原名」的行，用 name_zht 转简体补全，无需 TMDB API KEY，支持分片续跑）、minnano 补全（从 Minnano-av 补缺生日/简介，日文字段自动翻译）、检查用户库（扫描格式/结构/数据异常并弹窗报告，安全项可一键自动修复，tmdb 项给人工修复步骤）、剔除男演员（按 tmdbid 校验 TMDB gender 删除男优，删前备份到「男优备份」sheet，支持限量/可中断，gender 0/1/未知一律保留）、校验 tmdbid 有效性（清除 TMDB 失效 id 并按名字重搜补回）、更新 nfo tmdbid（用本地库新 id 覆盖 nfo 旧 id，持久源同步）、打开演员数据库（用系统默认程序打开 xlsx 供查看与手工编辑）。另设「停止当前维护任务」按钮独立于软件界面刮削停止，一键请求停止当前维护任务。网络请求采用滑动窗口并发（TMDB 并发 5 / LibreFanza 并发 2 / JavDB 并发 5），每个联网维护工具支持限量参数（默认 5000，配合幂等可多次运行逐片处理 2 万+ 行，断点续传），停止时保存已处理部分，日志实时显示在 GUI 日志页。无需输入演员名单或选择 nfo 目录
 - **Emby 演员管理工具**（左侧导航「演员管理」）：连接 Emby/Jellyfin 后获取演员列表（可配置只获取演员类型 / 重复去重），按可配置的数据源优先级匹配头像和背景图（Gfriends / Graphis.ne.jp / Minnano-av / 本地文件夹）与简介信息（本地演员库 / 维基百科 / Minnano-av / 本地数据库），预览后批量同步到 Emby（仅补缺失或强制重新获取，同步完成后自动刷新列表）。Gfriends / Graphis / 信息链路已合并为统一函数，按数据源优先级依次尝试；本地文件夹头像匹配采用预扫描索引（`build_local_avatar_index`），将 N 次全树遍历降为 1 次；头像缓存持久化到 `userdata/emby_actor_cache/` 目录（不再随临时目录清理丢失）。「设置」可配置数据源优先级与获取过滤；「数据源测试」可输入演员名逐源验证；演员行左键手势分三段：单击只选中（保持该格原有底色、不再铺浅蓝底，只在四周显示一圈蓝条表示「选中」）、再次单击进行内编辑（姓名/出生日期/出生地/详情/标签格；编辑中的格子为纯白底 + 四周一圈蓝边表示「编辑中」，不再铺整块蓝底）、快速双击或连续快速点击打开详情编辑对话框（**编辑状态中双击/连续点击同样弹出详情窗**；只读列如状态/头像/简介/影片数快速双击即打开），详情窗可编辑简介/信息并单独同步头像/简介；在姓名/出生日期/出生地/详情/标签格上按鼠标右键会弹出小菜单（更新内容 / 复制内容 / 编辑内容 / 查看详情）：「更新内容」位于「复制内容」上方，仅在该行确有可提交的非空内容变化时可点（出生日期/出生地/详情/标签本身没内容，或改完又恢复成服务器原值时置灰），确认后只把这一行提交到 Emby/Jellyfin（省去再点「开始全部更新同步」）；其余三项分别等于「复制该格的完整内容」「再次单击进行内编辑」「双击打开详情窗」，只读列与空白处右键不弹菜单；「清空缓存文件夹」清理已下载的头像缓存。底部状态栏实时显示连接与当前操作状态。
 
 ## 七、文件命名系统
@@ -387,7 +387,7 @@ NFO、JSON（含 `-mediainfo.json`）、字幕、种子、bif 等。
 - **缺失文件检测**：检查媒体库中缺失的文件
 - **海报裁剪工具**：图形化裁剪海报，可拖拽选择区域
 - **补全封面图片工具**：输入番号，多个用空格分隔，自动刮削并补齐缺失的Poster.jpg和Thumb.jpg，复用当前配置的站点优先级、命名、裁切、水印规则，所有站点拿不到图时自动走DMM官方高清直链兜底，内置约110个主流系列前缀表并自动学习未收录厂牌，竖版高清图片优先，无码番号跳过。
-- **演员数据维护工具**：直接操作 `actor_database.xlsx`，一键补全中文名、LibreDMM 链接、别名（可选来源 TMDB/minnano/JavDB，默认仅补缺别名行，可全量并入，支持起始行/限量分片续跑）、JavDB 中文名（从 JavDB 移动端 API 查询演员中文名/繁体名，无需 TMDB API KEY）、minnano 补全、检查用户库（扫描+自动修复安全项）、剔除男演员、校验 tmdbid 有效性、更新 nfo tmdbid、打开数据库查看编辑（复用当前配置的 TMDB API），并发请求日志实时显示
+- **演员数据维护工具**：直接操作 `actor_database.xlsx`，一键补全中文名、LibreFanza 链接、别名（可选来源 TMDB/minnano/JavDB，默认仅补缺别名行，可全量并入，支持起始行/限量分片续跑）、JavDB 中文名（从 JavDB 移动端 API 查询演员中文名/繁体名，无需 TMDB API KEY）、minnano 补全、检查用户库（扫描+自动修复安全项）、剔除男演员、校验 tmdbid 有效性、更新 nfo tmdbid、打开数据库查看编辑（复用当前配置的 TMDB API），并发请求日志实时显示
 - **网络连通性检查**：一键测试各网站可不可达
 - **相似推荐**：在右侧结果树中对任意影片右键→「查看相似片推荐」，基于标签IDF加权Jaccard相似度+系列/片商/发行商/导演/评分/年份/时长/演员等多维特征本地离线计算，自动推荐风格相近的影片，支持全部历史刮削结果含跨会话，双击推荐项可跳转
 - **命令行刮削**：`uv run crawl` 在终端中调试爬虫
