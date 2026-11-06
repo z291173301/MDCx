@@ -4,6 +4,14 @@
 
 ## 2026-11-07
 
+### 站点改名与官网独立站合并统一
+
+- `AVEntertainments`→`AVEnter`（枚举值改名；旧值经 `_missing_` 别名与 `_SITE_RENAMES` 迁移继续可读，存量配置自动归一；`default_config.json`、帮助、提示、`docs/Features.md`、`docs/Scraper.md` 同步；候选区排序键（AVSOX 之后）按成员引用不受影响）。
+- `MyWife`→`Official·MyWife`（与 Dahlia/Faleno/Prestige/MGStage 同口径的 Official 独立站）：网络页「当前网站」下拉新增 `Official·MyWife` 行（地址仍是 mywife.cc，全表 A-Z 排序）、原 `MyWife` 行消失；番号前缀表新增 `MYWIFE` 直锁（`MYWIFE-xxxx` 与 `MyWife No.1230` 双通道同归本站，共 322 个前缀）；存量 `website_single=MyWife` 偏好由迁移收拢到 `Official` 聚合。
+- Dahlia/Faleno/Prestige/MGStage/MyWife 并入 `OFFICIAL_YOUMA_SITES`（29→34）：与其它官网站同等对待，可用网站聚合行、官方默认名单、有码默认名单、禁用分组、迁移分组各处不再单独并列五站；`scripts/cover_backfill.py` 封面候选优先级去掉单列的 MGSTAGE（随元组走，顺序以元组为准）。
+- `Official·censored` 改回 `Official`（枚举值级别，2026-11-07 当日改回；短暂存在过的旧值仍可解析并由迁移归一，收拢标记升为 v4）：可用网站（按类型分组）与启用网站展示同步改回；`default_config.json` 20 处同步。
+- 测试：`test_official_aggregate`、`test_official_disabled_scope`、`test_official_uncensored_split_migration`（v4 标记/聚合名/改名归一）、`test_site_source_type_groups`、`test_website_single_official_rows`（29 spec 站 + 5 并入站分组断言）、`test_ui_structure`、`test_site_source_copy_menu`、`test_site_combo_tooltips`、`test_config_conversion`、`test_file_crawler_runtime`、`test_cover_backfill`、`test_mywife`、`test_review_regressions` 等全量同步。
+
 ### MyWife 并入 Official·censored 有码官网组与聚合改名
 
 - `Website.OFFICIAL` 值由 `Official` 改为 `Official·censored`：旧值经枚举 `_missing_` 别名与 `_SITE_RENAMES` 迁移继续可读，存量配置自动归一；`resources/config/default_config.json` 20 处同步；可用网站（按类型分组）与启用网站展示同步新名。
