@@ -62,6 +62,19 @@
 - 测试：`test_jav321.py` 重写为 SNOS-460 实测数据 + www 断言；`test_hbox.py` 探测号断言同步；`test_network_check.py` 新增 Hbox 检测项与 `probe_url` 直连探测单测。
 - 文档同步：`Scraper` 探测表两行、`Features` Jav321 域名。
 
+### JavLibrary / LibreDMM / Madouqu 刮削探测修正（详情页直连 + 新版解析兼容）
+
+- JavLibrary：原站 `https://javlibrary.com/cn` 有 CF 墙，刮削探测 2 次 30s/45s 均超时；探测改打镜像详情页 `https://f101w.com/cn/javli6qwtu.html`（`DEFAULT_SITE_URLS[JAVLIBRARY]` 改为 `https://f101w.com`，`SPECIAL_CHECK_PATHS` 改为 `/cn/javli6qwtu.html`，`probe_url` 复用 `appoint_url` 分支跳过 `SSNI-647` 搜索直打详情页）。
+- LibreDMM（现 LibreFanza）：`www` 探测 `https://www.libredmm.com/movies/IPX-535` 报「未获取到 title」——站点已换新版 LibreFanza 版式（`h1` 只剩番号、标题移到 `h2.detail-title`、封面 `div.detail-artwork`、演职员 `dl+metadata-tags`、演员 `article.card h3`），旧 xpath 全取空；`libredmm.py` 与 `shared_fields.libredmm_detail_image` 加新版兼容（旧版照常通过）。
+- Madouqu：`?s=` 搜索经代理超时（探测 2 次 30s/45s 均失败），探测改打详情页 `https://madouqu.shop/video/mdx0216/`（`MADOUQU` 新增 `probe_url`）；新版主题（搜索 `article.resource-card a.cover-link`、详情 `header.entry-header h1`/`div.entry-content`/`a.category-label`）搜索与详情解析同步兼容。
+- 测试：`test_libredmm` + `test_madouqu` 12 项、`test_network_check` 全量 115 项、`field_crawl_retry`/`javlibrary_mirror`/`custom_site_url` 55 项通过。
+
+### LibreDMM 改名 LibreFanza（域名不变）
+
+- 站点已更名为 LibreFanza（页面标题/站点头图；`Scraper` 站点说明列原本就写「LibreFanza，DMM/FANZA 开源镜像」）：`Website.LIBREDMM` → `Website.LIBREFANZA`，值 `"LibreDMM"` → `"LibreFanza"`；旧值经 `enums._missing_` 与 `migrations._SITE_RENAMES` 映射兼容（`LibreDMM`/`libredmm` 均可解析），域名 `libredmm.com` 不变。
+- 爬虫类 `LibreDMMCrawler` → `LibreFanzaCrawler`（模块 `libredmm.py` 保留）；界面按钮「补全LibreDMM链接」→「补全LibreFanza链接」；`Features`、`Scraper`、`User_Guide`、`default_config.json`（33 处）同步；`Changelog` 历史条目保留原名。
+- 测试：相关 299 项通过（含 Qt 分组联动、配置迁移、演员库工具）。
+
 ## 2026-11-05
 
 ### 新增「获取视频时长」开关（OpenCV 兜底写 NFO）
