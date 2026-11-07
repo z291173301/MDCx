@@ -186,8 +186,8 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
 ```
 
 - `requires-python` 固定 `>=3.15`（3.15 是当前唯一构建目标），不带 upper bound。
-- **依赖升级同步军规**（真源顺序：`uv.lock` > `pyproject.toml` > `requirements.txt`）：
-  1. 本机（`.venv`，`uv sync --locked` 之后的状态）某个包做了**升级**，`pyproject.toml` 与 `requirements.txt` 里对应包的版本下限必须同步上调到已安装版本；**降级不用理会**（不下调下限）。
+- **依赖升级同步军规**（真源顺序：`uv.lock` > `pyproject.toml` > `requirements.txt`；`pyproject.toml` 与 `requirements.txt` 不一致时，以 `pyproject.toml` 为准修改 `requirements.txt`，例外 cap 除外）：
+  1. `pyproject.toml` 的版本要与本机保持一致：本机（`.venv`，`uv sync --locked` 之后的状态）某个包做了**升级**，`pyproject.toml` 与 `requirements.txt` 里对应包的版本下限必须同步上调到已安装版本；**降级不用理会**（不下调下限）。
   2. 标准流程：`uv lock --upgrade-package <pkg>` → `uv sync --locked` 验证 → 同步 `requirements.txt` 镜像行 → 若涉及 cp315 wheel 起步包，同步更新 `tests/test_py314_dependency_floors.py` 的声明/锁定元组/文档 → ruff 走 `python -m scripts.sync_ruff_version`（自动同步三处声明点）→ 跑通 floors/sync 相关测试。
   3. 例外 cap 保持不动：`pyqt6<6.12`（上游 .pyi 语法问题，见 `requirements.txt` 注释）、`ruff<0.18`（由同步脚本按 lock 自动推导 upper bound）。
 （3.15 是当前唯一构建目标），不带 upper bound。
