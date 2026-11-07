@@ -91,6 +91,25 @@ set BROWSER_POOL_SIZE=2
 rem point camoufox-js at the bundled Camoufox to avoid online download
 set CAMOUFOX_INSTALL_DIR=%~dp0.cache\camoufox
 
+rem GeoIP DB preflight: camoufox-js downloads GeoLite2-City.mmdb via api.github.com
+rem when it is missing, and that endpoint is rate-limited/blocked in CN, which aborts
+rem pool init (startup failed: Failed to fetch releases ... P3TERX/GeoLite.mmdb).
+rem The portable zip bundles the DB (see package-trawl.yml), so a missing file here
+rem means a bad extract - fail fast with a clear message instead of a cryptic stack.
+del "%CAMOUFOX_INSTALL_DIR%\GeoLite2-City.mmdb.*.download" >nul 2>&1
+if not exist "%CAMOUFOX_INSTALL_DIR%\GeoLite2-City.mmdb" (
+    rem fallback: accept a manually placed copy next to the scripts
+    if exist "%~dp0GeoLite2-City.mmdb" copy /y "%~dp0GeoLite2-City.mmdb" "%CAMOUFOX_INSTALL_DIR%\GeoLite2-City.mmdb" >nul
+    if not exist "%CAMOUFOX_INSTALL_DIR%\GeoLite2-City.mmdb" if exist "%~dp0geoip\GeoLite2-City.mmdb" copy /y "%~dp0geoip\GeoLite2-City.mmdb" "%CAMOUFOX_INSTALL_DIR%\GeoLite2-City.mmdb" >nul
+)
+if not exist "%CAMOUFOX_INSTALL_DIR%\GeoLite2-City.mmdb" (
+    echo [ERROR] 缺少 GeoIP 数据库: %CAMOUFOX_INSTALL_DIR%\GeoLite2-City.mmdb
+    echo [ERROR] 请手动下载后放入 .cache\camoufox\ 目录再启动:
+    echo [ERROR]   https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-City.mmdb
+    pause
+    exit /b 1
+)
+
 rem bundled Redis: auto-start for TRAWL session cache (Tier 2 fast-path)
 rem locate redis-server.exe: support both redis\redis-server.exe and redis\Redis-*\redis-server.exe layouts
 set "REDIS_EXE="

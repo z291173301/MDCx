@@ -110,6 +110,13 @@ A:
    bunx camoufox-js fetch
    ```
 
+### Q: 启动失败，提示 "Failed to fetch releases ... P3TERX/GeoLite.mmdb"？
+A: 包内 `.cache/camoufox/GeoLite2-City.mmdb` 缺失或被杀毒软件误删，启动脚本现在会直接报错而不是重试崩溃。手动下载后放入 `.cache/camoufox/` 目录即可：
+```
+https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-City.mmdb
+```
+（约 50MB，放入后应与 `.cache/camoufox/camoufox.exe` 同目录）
+
 ### Q: 端口 8191 被占用？
 A: 编辑 `.env` 文件，修改：
 ```
