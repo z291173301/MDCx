@@ -62,17 +62,11 @@ jobs:
           python -c 'import sys; print(sys.version); assert sys.version_info[:2] == (3, 15), f"expected 3.15, got {sys.version_info[:2]}"'
 
       # Linux 上 import 链（scripts.fetch_sr_tools → mdcx.core.super_resolution →
-      # mdcx.signals/resources → PyQt6）需要 Qt 系统库；av 包（pyav/pyav）源码编译
-      # 需要 FFmpeg 开发库（libavformat-dev/libavcodec-dev 等）与 pkg-config。
+      # mdcx.signals/resources → PyQt6）需要 GL/字体/xcb 等运行库，与打包工作流
+      # 共用同一个复合 Action；系统 Qt6 与 FFmpeg 开发库都不再需要。
       - name: Install Linux system dependencies
         if: matrix.build == 'linux'
-        shell: bash
-        run: |
-          sudo apt-get update -y && sudo apt-get install -y \
-            libglib2.0-0 libegl1 libgl1 libfontconfig1 \
-            pkg-config libavformat-dev libavcodec-dev libavdevice-dev \
-            libavutil-dev libavfilter-dev libswscale-dev libswresample-dev \
-            libxml2-dev libxslt1-dev libxslt-dev python3-dev zlib1g-dev gcc
+        uses: ./.github/actions/install-linux-deps
 
       # PyYAML 至今没有 cp315 wheel（6.0.3 只发到 cp314），3.15 下只能源码编译
       # （Windows runner 要 MSVC、Linux 要 gcc + Cython）。工作流级
@@ -82,7 +76,9 @@ jobs:
       - name: Install locked dependencies
         shell: bash
         run: |
-          uv sync --all-extras --dev
+          # 用 --locked 而不是重新解析：保证 av 走 cp312-abi3 wheel（自带 FFmpeg），
+          # 不会在无 FFmpeg 开发库的 runner 上退回源码编译。
+          uv sync --locked --all-extras --dev
           VENV_PY="$PWD/.venv/bin/python"
           [ -x "$VENV_PY" ] || VENV_PY="$PWD/.venv/Scripts/python.exe"
           "$VENV_PY" -c "import yaml; print('pyyaml', yaml.__version__, 'libyaml', yaml.__with_libyaml__)"

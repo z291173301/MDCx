@@ -1,0 +1,60 @@
+name: Cleanup successful workflow
+
+# 定时清理本仓库 Actions 里“成功完成”的运行记录：
+# 只删 conclusion=success 的，失败 / 取消 / 进行中的一律保留；
+# 默认成功记录全删（RETAIN_COUNT=0）。注意：GitHub 不允许删除“正在运行中”
+# 的记录，所以本次运行自身的记录删不掉，它会在下一次定时/手动运行时被删掉。
+# 如果想每个 workflow 留最新几条用于调试，把 RETAIN_COUNT 改成对应数字。
+#
+# 触发方式：
+#   1. schedule 每天 UTC 02:00 自动跑；
+#   2. workflow_dispatch 手动跑。
+#
+# 需要 actions:write 权限（删运行记录用），用默认 GITHUB_TOKEN 即可。
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # 每个 workflow 保留最新的几条成功记录；0 就是成功记录全删
+      RETAIN_COUNT: "0"
+    steps:
+      - name: Delete old successful runs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          tmp="$(mktemp -d)"
+          # 取全部已完成的运行，只留成功的，按 workflow 分组、时间倒序，
+          # 每组跳过最新的 $RETAIN_COUNT 条，剩下的记下来删
+          gh api --paginate "repos/${REPO}/actions/runs?status=completed&per_page=100" \
+            --jq '.workflow_runs[] | select(.conclusion == "success") | [.workflow_id, .id, .created_at] | @tsv' \
+            | sort -t "$(printf '\t')" -k1,1 -k3,3r \
+            | awk -F'\t' -v keep="$RETAIN_COUNT" '{ if (++n[$1] > keep) print $2 }' \
+            > "$tmp/delete.txt"
+
+          total="$(wc -l < "$tmp/delete.txt" | tr -d ' ')"
+          echo "待删除的成功记录：$total 条（每 workflow 保留最新 $RETAIN_COUNT 条）"
+          if [ "$total" -eq 0 ]; then
+            echo "无需清理。"
+            exit 0
+          fi
+
+          while IFS= read -r run_id; do
+            [ -n "$run_id" ] || continue
+            gh api -X DELETE "repos/${REPO}/actions/runs/${run_id}" --silent
+            echo "已删除运行记录：$run_id"
+          done < "$tmp/delete.txt"
+          echo "清理完成，共删除 $total 条。"

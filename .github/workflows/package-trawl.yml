@@ -63,9 +63,9 @@ jobs:
           # 提升 Tier3/4（及 meta-refresh）页面导航超时上限 (30s -> 90s)，改善挑战页稳定性。
           # 补丁是手写的，上游 tier 代码一旦重构就会失效：v1.8.0 已把 goto 逻辑从 3.ts/4.ts
           # 挪进 tiers/browser.ts，旧的补丁会 git apply --check 失败。
-          # trawl-apply-patch.ps1 先尝试 git apply，失败后自动按规则改写 tier 源码，
+          # goto-apply-patch.ps1 先尝试 git apply，失败后自动按规则改写 tier 源码，
           # 因此本步骤只报告结果，绝不让构建在这里失败。
-          pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/trawl-apply-patch.ps1 -SrcDir "trawl-src"
+          pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/goto-apply-patch.ps1 -SrcDir "trawl-src"
           # 补丁只是增强项，原版 TRAWL 仍可运行，所以显式吞掉一切非零退出码。
           exit 0
 
@@ -143,18 +143,20 @@ jobs:
           $CacheDir = "$HOME\.cache\camoufox"
           $GeoIPFile = Join-Path $CacheDir "GeoLite2-City.mmdb"
           $GeoIPUrl = "https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-City.mmdb"
-          $MinBytes = 50000000
-          
-          Write-Host "检查/下载 GeoIP 数据库 ..."
-          Invoke-WebRequest -Uri $GeoIPUrl -OutFile "GeoLite2-City.mmdb.tmp"
-          $ActualSize = (Get-Item "GeoLite2-City.mmdb.tmp").Length
-          if ($ActualSize -lt $MinBytes) {
-            Write-Host "[WARN] GeoLite2-City.mmdb 只有 $ActualSize 字节（低于 $MinBytes），可能下载不完整，跳过替换"
-            Remove-Item "GeoLite2-City.mmdb.tmp" -Force -ErrorAction SilentlyContinue
-          } else {
-            Move-Item "GeoLite2-City.mmdb.tmp" $GeoIPFile -Force
-            Write-Host "GeoIP 数据库已更新到 $GeoIPFile ($ActualSize 字节)"
+          $MinBytes = 45000000
+          # 直链下载不走 api.github.com（匿名配额易被限流）；curl 断点续传 + 重试
+          New-Item -ItemType Directory -Force -Path $CacheDir | Out-Null
+          curl.exe -fSL --retry 3 --retry-all-errors -C - --max-time 600 -o $GeoIPFile $GeoIPUrl
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "[ERROR] GeoIP 数据库下载失败，中止打包，避免产出启动即崩的包"
+            exit 1
           }
+          $ActualSize = (Get-Item $GeoIPFile).Length
+          if ($ActualSize -lt $MinBytes) {
+            Write-Host "[ERROR] GeoLite2-City.mmdb 只有 $ActualSize 字节（低于 $MinBytes），下载不完整，中止打包"
+            exit 1
+          }
+          Write-Host ("GeoIP 数据库就绪: $GeoIPFile ({0:N0} 字节)" -f $ActualSize)
 
       - name: Download Redis for Windows
         shell: pwsh
@@ -178,16 +180,19 @@ jobs:
           Copy-Item -Path "trawl-src\*" -Destination $PACKAGE -Recurse -Force
           Copy-Item "trawl-src\.env.example" "$PACKAGE\.env" -Force
           
-          # 复制启动脚本
-          Copy-Item "scripts\windows\start-trawl.bat" $PACKAGE
-          Copy-Item "scripts\windows\start-trawl.vbs" $PACKAGE
+          # 复制启动/关闭脚本
+          Copy-Item "scripts\windows\trawl-start.bat" $PACKAGE
+          Copy-Item "scripts\windows\trawl-start.vbs" $PACKAGE
+          Copy-Item "scripts\windows\trawl-close.bat" $PACKAGE
+          Copy-Item "scripts\windows\trawl-close.vbs" $PACKAGE
+          Copy-Item "scripts\windows\trawl-uninstall.bat" $PACKAGE
           Copy-Item "scripts\windows\download-bun.bat" $PACKAGE
           Copy-Item "scripts\windows\README.md" $PACKAGE
           Copy-Item "scripts\windows\USAGE.md" $PACKAGE
-          # 复制补丁文件：start-trawl.bat 运行时对单独 clone 的源码兜底应用
-          Copy-Item "scripts\windows\trawl-goto-timeout.patch" $PACKAGE
-          # 复制补丁应用脚本：start-trawl.bat 运行时调用它完成上述兜底
-          Copy-Item "scripts\windows\trawl-apply-patch.ps1" $PACKAGE
+          # 复制补丁文件：trawl-start.bat 运行时对单独 clone 的源码兜底应用
+          Copy-Item "scripts\windows\goto-timeout.patch" $PACKAGE
+          # 复制补丁应用脚本：trawl-start.bat 运行时调用它完成上述兜底
+          Copy-Item "scripts\windows\goto-apply-patch.ps1" $PACKAGE
           
           # 打包 Bun 运行时
           $BunVersion = bun --version
@@ -198,7 +203,7 @@ jobs:
           Expand-Archive -Path "bun.zip" -DestinationPath "$PACKAGE\bun" -Force
           Remove-Item "bun.zip" -Force
           # 扁平化：bun-windows-x64.zip 解压后是 bun-windows-x64\bun.exe，
-          # 提到 bun/ 根目录，与 start-trawl.bat 的 bun\bun.exe 检测路径一致
+          # 提到 bun/ 根目录，与 trawl-start.bat 的 bun\bun.exe 检测路径一致
           $NestedBun = Get-ChildItem -Path "$PACKAGE\bun\bun-windows-*\bun.exe" -ErrorAction SilentlyContinue
           if ($NestedBun) {
             Move-Item $NestedBun.FullName "$PACKAGE\bun\bun.exe" -Force
@@ -206,11 +211,11 @@ jobs:
             Write-Host "已扁平化 Bun 目录结构"
           }
           
-          # 复制 Redis 到包内，由 start-trawl.bat 自动启动
+          # 复制 Redis 到包内，由 trawl-start.bat 自动启动
           New-Item -ItemType Directory -Force -Path "$PACKAGE\redis" | Out-Null
           Copy-Item -Path "redis-dist\*" -Destination "$PACKAGE\redis\" -Recurse -Force
           # 扁平化：Redis-x.y.z-Windows-x64-msys2.zip 解压后是 Redis-x.y.z-Windows-x64-msys2\redis-server.exe，
-          # 提到 redis/ 根目录，与 start-trawl.bat 的 redis\redis-server.exe 检测路径一致
+          # 提到 redis/ 根目录，与 trawl-start.bat 的 redis\redis-server.exe 检测路径一致
           $NestedRedis = Get-ChildItem -Path "$PACKAGE\redis\Redis-*\redis-server.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($NestedRedis) {
             $RedisDir = $NestedRedis.DirectoryName
@@ -220,17 +225,27 @@ jobs:
           }
           Write-Host "已包含 Redis"
           
-          # 复制缓存的 Camoufox 到包内，并由 start-trawl.bat 的 CAMOUFOX_INSTALL_DIR 指向
+          # 复制缓存的 Camoufox 到包内，并由 trawl-start.bat 的 CAMOUFOX_INSTALL_DIR 指向
           $CamoufoxCache = "$HOME\.cache\camoufox"
           if (Test-Path $CamoufoxCache) {
             New-Item -ItemType Directory -Force -Path "$PACKAGE\.cache\camoufox" | Out-Null
             Copy-Item -Path "$CamoufoxCache\*" -Destination "$PACKAGE\.cache\camoufox\" -Recurse -Force
+            # 中断下载的残留（GeoLite2-City.mmdb.<pid>.download）不要打进包
+            Get-ChildItem -Path "$PACKAGE\.cache\camoufox" -Filter "*.download" -Force -ErrorAction SilentlyContinue | Remove-Item -Force
+            # GeoIP 数据库必须随包：缺失会导致启动时走 api.github.com 在线下载并限流崩溃
+            $PkgGeoIP = Join-Path "$PACKAGE\.cache\camoufox" "GeoLite2-City.mmdb"
+            if (-not (Test-Path $PkgGeoIP) -or ((Get-Item $PkgGeoIP).Length -lt 45000000)) {
+              Write-Host "[ERROR] 包内缺少完整的 GeoLite2-City.mmdb，中止打包"
+              exit 1
+            }
+            # camoufox-js 校验 version.json 存在且版本受支持才直接使用本地浏览器；
+            # 重写为无 BOM UTF-8，避免 JSON.parse 被 BOM 字符打断
             [IO.File]::WriteAllText(
               (Join-Path "$PACKAGE\.cache\camoufox" "version.json"),
               '{"version":"152.0.4","release":"beta.30"}',
               (New-Object System.Text.UTF8Encoding($false))
             )
-            Write-Host "已包含 Camoufox 缓存"
+            Write-Host ("已包含 Camoufox 缓存（含 GeoIP 数据库 {0:N0} 字节）" -f (Get-Item $PkgGeoIP).Length)
           } else {
             Write-Host "[WARN] 未找到 Camoufox 缓存，便携包将不含浏览器"
           }
@@ -280,7 +295,7 @@ jobs:
             
             ### 使用方法
             1. 解压到任意目录（如 `C:\Tools\trawl`）
-            2. 双击 `start-trawl.bat` 启动
+            2. 双击 `trawl-start.bat` 启动
             3. 等待浏览器预热 (约 1-2 分钟)
             4. 配置 MDCx: 设置 → 网络 → TRAWL 服务填 `http://localhost:8191`（不要填 `/v1`，MDCx 自动协议适配）
             
