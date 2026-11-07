@@ -206,7 +206,7 @@ Official·Dahlia     有码：仅限有码              有码                  
 DMM               有码：仅限有码              有码+素人
 DMM_API           有码：仅限有码              有码                                https://api.dmm.com
 Official·Faleno     有码：仅限有码              有码                                https://faleno.jp                       FNS-165
-FC2               FC2：FC2官网                无码+素人+FC2                       https://adult.contents.fc2.com          FC2-4680562
+FC2               FC2：FC2官网                无码+素人+FC2                       https://adult.contents.fc2.com          FC2-5003460
 FC2PPVDB          FC2：FC2网站                素人+FC2                            https://fc2cmadb.com                    FC2-4988506
 FreeJavBT         有码：仅限有码              有码+无码+FC2+欧美                  https://freejavbt.com
 Getchu            综合：有码+游戏+视频        有码（另有里番/同人/书籍/动漫）     http://getchu.com                       AIV
