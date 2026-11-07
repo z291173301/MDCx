@@ -99,6 +99,14 @@
 - 打包工作流（`package-trawl.yml`）：GeoIP 改用 `curl` 断点续传 + 重试（45MB 下限，与 Dockerfile 同口径），失败或不完整直接中止打包；打进包前校验库完整，并剔除 `*.download` 残留。
 - `scripts/windows/trawl-start.bat`：启动前预检库存在（支持放包根目录/`geoip/` 手动兜底），缺失时中文报错并给出下载链接；`USAGE.md` 补 FAQ。
 
+### TRAWL 便携包一键彻底删除（目录“文件删光却删不掉”的终结）
+
+- 根因（2026-11-07 实测）：空目录删不掉报“另一个程序正在使用”（`rd` exit 32），`handle64` 查到 7 个本机 MCP 服务进程 + 资源管理器各持该目录句柄；杀掉 MCP 进程后 `rd` 即成功。另实测明确两条边界：PowerShell/CMD 光 `cd` 进去不断句柄删得掉，删不掉的都是真文件句柄（跑着的进程、资源管理器已开文件夹窗口）；`node_modules` 超 260 字符长路径资源管理器删不动。
+- 新增 `scripts/windows/trawl-uninstall.bat`（已进打包 zip）：复制自身到 TEMP 后脱离启动 worker 再立刻退出（实测：子进程结束后父进程再读原文件必报“找不到指定路径”，所以启动器绝不等 worker；另 `cmd /c "prog" args "more"` 多引号会被剥掉首尾引号，worker 启动必须用 `cmd /d /s /c ""prog" args"` 外层包一对引号；新文件必须 CRLF，LF 换行会被 CMD 拼行乱执行）。
+- worker 四步：停进程（trawl 的 bun 按命令行过滤、`camoufox.exe` 按名、`plugin-container/firefox` 按命令行含 camoufox 过滤以免误杀用户 Firefox、Redis 只认 :6380、8191/8192/6380 端口白名单兜底，逻辑全部内联不依赖 trawl-close.bat）→ attrib 去只读/隐藏/系统 → robocopy 空目录镜像压平长路径 + `rmdir /S/Q`（3 次重试）→ 仍占用则注册重启删除（需管理员），失败给中文指引。
+- 沙盒实测：只读 + 728 字符深路径一次删光；独占文件句柄 + 非管理员走重试→报错→保留目录分支；TEMP 副本自删；GBK 控制台下中文注释会报几行无害的乱码错误（逻辑行全英文不受影响，真机双击走 65001 无此问题）。
+- `USAGE.md` 补“删不掉/卸载”FAQ。
+
 ## 2026-11-06
 
 ### 官网站改名与单体行调序
