@@ -26,10 +26,15 @@
 | 8 | **配置层反向依赖 CF 绕过层**（第二轮） | `config/migrations.py`、`core/network_check.py` 运行时 `from ..cf_bypass.trawl_adapter import normalize_trawl_url`，只读配置时把 `httpx` 一起拖进来 | ✅ **已修复** |
 | 9 | **停机判定散落 7 份**（第二轮） | `signal.stop or Flags.stop_requested` 在 `emby_actor_manager.py` / `emby_actor_info.py` / `emby_actor_image.py` / `actor_db_tool.py` 各写一遍 | ✅ **已修复** |
 | 10 | **演员管理窗口 UI / 数据 / 服务三层同文件 + 20 处重复**（第二轮） | `tools/emby_actor_manager_ui.py` 5,310 行；`_center_on_screen` 6 份、头像来源分派 3 份、config 持久化样板 8 份；`ActorDetailDialog._run_sync` 绕过整套线程框架 | ✅ **已修复**（见 3.6） |
+| 11 | **纯判定叶子住在控制器包里**（第三轮） | `classify_*_login_state` 住 `controllers/.../cookie_checks.py`，被 `core/network_check.py` 反向依赖 | ✅ **已修复**（见 6.2） |
+| 12 | **站点字段解析叶子住在爬虫包里**（第三轮） | `crawlers/base/shared_fields.py` 被 `tools/actor_sources.py` 顶层引用，每次 import 拖入全量爬虫包 | ✅ **已修复**（见 6.2） |
+| 13 | **授权闸门住在控制器包里**（第三轮） | `controllers/.../premium_gate.py` 被 `tools/emby_actor_manager_ui.py` 反向依赖 | ✅ **已修复**（见 6.2） |
+| 14 | **纯算法引擎住在核心业务层**（第三轮） | `core/similar.py`（零项目内依赖）被 `views/similar_window.py` 反向依赖 | ✅ **已修复**（见 6.2） |
 
 **结果：分层倒置从 5 处降到 0 处**（`core→tools`、`base→core`、`crawlers→core`、
 `config→crawlers`、`views↔controllers`）；第二轮再消掉 `views/tools→controllers`
-与 `config→cf_bypass` 两条边；
+与 `config→cf_bypass` 两条边；**第三轮再消掉 `core→controllers`、
+`tools→controllers`、`tools→crawlers`（顶层部分）、`views→core` 四条边**（见 6.1/6.2）；
 **Qt 传染源从 1 个全局总线收窄为 0 个（除 `core/scraper.py` 一处刻意保留外，见下）——
 实测 32 个被探测模块中 31 个已完全不含 PyQt6**；
 **主窗口从 12,596 行单体拆成 1 个 717 行的类装配器 + 28 个按职责命名的 mixin，
@@ -484,3 +489,82 @@ D15 目录行、D18 线程框架），其余逐条记录了**为什么不合并*
 18. **第二轮新增的中立模块**（`mdcx/ui_theme.py`、`mdcx/utils/cf_url.py`、
     `mdcx/utils/task_stop.py`）均**保留了原路径的同名再导出**，
     因为测试与历史调用方都从旧路径 import。改名 = 破坏兼容。
+19. **搬家前先扫被搬文件里的相对导入深度**：`shared_fields.py` 内藏一句函数级
+    `from ...number import`（在 `crawlers/base/` 下合法，搬到 `utils/` 就越界）。
+    搬家脚本只改调用方时抓不到它 —— 本轮全量测试当场抓获 8 个失败。
+    修法：搬入新家的一律改绝对导入（`from mdcx.number import`），与深度无关。
+20. **含 monkeypatch 目标的模块搬家时，测试的补丁路径必须同步重指向**：
+    `test_site_disabled.py` 把补丁打在 `controllers...premium_gate.premium_denied`
+    上，搬家后实现已不在该模块，补丁打空 → 全量当场抓获。断言一律不动，
+    只改补丁/导入的目标路径（同第一轮 §3.5 的"重指向"口径）。
+21. **私有名不能靠 `import *` 再导出**：`tests/core/test_similar.py` 直接
+    `from mdcx.core.similar import _score_proximity`，星号 shim 导不出下划线名字。
+    兼容 shim 一律显式名单 + `__all__`（`__all__` 可含下划线名）。
+22. **isort 把 `..` 排在 `.` 前面**：跨包下沉后 `from ..utils.x import` 必须排到
+    `from .base import` 之前（ruff I001）。用 `ruff check --fix` 修，
+    但路径参数必须显式列出本次 touched 的文件（约束 4）。
+
+---
+
+## 六、第三轮复查与解耦（2026-11-08）
+
+审计脚本：`audit3.py`（AST 全量解析相对导入并正确折算层级；区分
+顶层导入 / 函数内延迟导入 / `TYPE_CHECKING`；中立叶子
+`log_console/manual/consts/number/gen/crawler_registry/web_async/crawler/
+browser/network_fingerprint/llm/image/signals/ui_hooks/ui_theme/cf_bypass`
+不计边）。结论：顶层硬倒置剩 3 处（`root/crawler.py→crawlers` 外观门面、
+`models→config.enums` 无环菱形、`views→utils.window_center` 第二轮设计），
+均有无环/无负载的实测依据，接受现状；其余全部消除或为带守卫的延迟导入。
+
+### 6.1 四组下沉（全部行为等价，逐字节搬运 + 原路径再导出）
+
+| # | 搬运 | 消掉的边 | 手法 |
+|---|---|---|---|
+| 1 | `cookie_checks.py` 的登录态判定 → `mdcx/utils/cookie_state.py`（新，纯函数零依赖） | `core→controllers`（`network_check` 两处运行时导入） | `_has_marker` + 3 组 marker 常量 + 3 个 `classify_*` 原样搬走；`cookie_checks` 改同名再导出，测试零改动；`network_check` 改从 `utils` 导入 |
+| 2 | `crawlers/base/shared_fields.py` → `mdcx/utils/shared_fields.py` | `tools→crawlers`（`actor_sources` 顶层 16 处） | `git mv` + 19 个爬虫文件 `from .base.shared_fields` → `from ..utils.shared_fields`（字节替换，行尾不动）+ `ruff --fix` 重排 import；旧路径星号 shim；内部一句 `...number` 改绝对导入 |
+| 3 | `controllers/.../premium_gate.py` → `mdcx/tools/premium_gate.py` | `tools→controllers`（`actor_manager` 函数内导入） | 384 行逐字搬（其依赖全中立）；`license_ui` 顶层与 `site_priority_dialog` 3 处改 `...tools`；旧路径显式名单 shim；4 个测试文件的补丁/导入目标重指向实现所在地 |
+| 4 | `core/similar.py` → `mdcx/utils/similar.py` | `views→core`（`similar_window` 顶层导入） | `git mv`；`similar_window` 改 `..utils`；旧路径显式名单 shim（含 `_score_proximity`）；两份 similar 测试零改动 |
+
+副作用收益：`tools/actor_sources` 等 20 个模块不再触发
+`crawlers/__init__.py`（40 个爬虫类 + `config.models`）的导入；
+`core/network_check` 不再触碰 controllers 包。
+
+### 6.2 等价性证据
+
+- 身份断言：`cookie_checks.classify_* is cookie_state.classify_*`、
+  `shim.premium_denied is tools.premium_gate.premium_denied`、
+  `shim.SimilarIndex is utils.similar.SimilarIndex`、
+  `shim.clean_duration is utils.shared_fields.clean_duration`，全过。
+- 测试：全量 `pytest tests/ -m "not network and not integration"` EXIT=0；
+  4 个测试文件仅重指向补丁/导入目标，断言一字未动；
+  `tests/core/test_similar.py` 等走旧路径的用例靠 shim 零改动通过。
+- `mypy mdcx/` 错误数 0 → 0（零增减）；`ruff check` / `ruff format --check`
+  在全部 touched 文件上干净（`views/similar_window.py` 本就是 19 个
+  格式特例之一，只改一行导入，未动格式）。
+
+### 6.3 刻意不动的（逐条判断，不是遗漏）
+
+| 编号 | 内容 | 不动的理由 |
+|---|---|---|
+| R1 | `root/crawler.py → crawlers.base`（顶层） | 外观门面；`git grep` 确认 crawlers 内无一处反向引用 `mdcx.crawler`，无环 |
+| R2 | `models/model_types.py → config.enums`（顶层） | 无环菱形（`config.enums` 只依赖 stdlib + 注册表）；枚举顺序被测试冻结，搬家风险大于分类收益 |
+| R3 | `views → utils.window_center / qt_cursor / qt_text` | 三者零项目内导入的纯 Qt 叶子；window_center 是第二轮 deliberate 的放置 |
+| R4 | `config → core` 系列函数内延迟导入（`resources.py` 4 处） | 目标是 tmdb/amazon 重型模块，无处可下沉；带守卫、无加载时循环 |
+| R5 | `crawlers/site_fields → core.network_check`（函数内 + try 守卫 + 注释） | 同 R4；注释已写明"避免 crawlers↔core 循环导入" |
+| R6 | `web_async / cf_bypass_hosts → crawlers`（函数内 + 守卫） | 要彻底消需给 `crawler_registry` 加"类提供者"钩子；fallback 语义变化有行为风险，列入 6.4 |
+| R7 | `views/donate_window → tools.bill_import`（函数内 + try 守卫） | `bill_import` 顶部仅 stdlib、无 Qt 的纯数据模块；守卫针对可选 openpyxl；纯分类学问题 |
+| R8 | `tools → crawlers` 剩余函数内导入（javdb_app/dmm_api/theporndb 类） | 爬虫类是框架本体，无法下沉；全部延迟、无加载时循环 |
+| R9 | `core/scraper.py → tools`（2 处延迟） | 第一轮已立项接受（§二.11），跨线程排队语义承重 |
+| R10 | `models → config.enums` 之外：`image.py` 顶层 Qt、`config/resources` 函数内 Qt、`scraper` Qt 代理 | 前两轮已论证接受（§二.3/二.4/§二.11 与 3.1），本轮复测无新增 |
+
+### 6.4 后续（尚未实施）
+
+- **P1 — `tools/emby_actor_manager_ui.py` 回涨到 7,194 行**（第二轮收官 4,709 行；
+  之后 license/闸门系列特性直接追加进 UI 文件）。建议下一轮把新增的闸门调用
+  点收敛到 `premium_gate` 的统一入口，UI 文件只留装配。
+- **P2 — 给 `crawler_registry` 加"爬虫类提供者"钩子**，一举消掉 R6 的两条
+  延迟边（`web_async` 的已知域名映射、`cf_bypass_hosts` 的已知站点域名）。
+  难点：crawlers 未导入时 provider 为空的降级语义必须与现状逐条对齐，
+  需先给这两个函数补"provider 为空"的用例再动手。
+- 本轮审计脚本放 `C:\Users\ZhouHan\AppData\Local\Temp\opencode\audit3.py`
+ （工作区外），下轮复查可直接重跑。
