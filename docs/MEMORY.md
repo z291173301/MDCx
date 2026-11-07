@@ -141,7 +141,7 @@
 
 ## 站点与网络
 
-- 各站探测番号与收录依据见爬虫类注释；javdb 仅搜 FC2 时需要 Cookie。
+- 各站探测番号与收录依据见爬虫类注释；JavDB 仅 FC2 系列需要 Cookie。
 - 站点 API 坑：missav_api 的 Recombee 仅 POST；DMM Affiliate v3 必需 site/service/floor 且 keyword 用 content_id 形态；madouqu 域名动态维护（24h 缓存）；madou_club 番号无横杠；parsel `Selector.get()` 纯 JSON 返回 dict（解析兼容 str/dict/Selector 三态）。
 - **当前注册爬虫 73 个**（`docs/Features.md` 同步）；数字开头模块名（`7mmtv.py`）用 `importlib.import_module` 加载。
 - 站点收录边界：AVEntertainments 只在无码组；Getchu 大陆 IP 过不了 CF 故从六组移除；Official·有码 29 站只在有码组、无码五站只在无码组。
@@ -156,10 +156,10 @@
 - 站点域名优先级与删站属产品取舍，查证给方案不擅动；删站影响面 = 注册表 + Website 枚举 + 默认 proxy 列表 + `migrations.py` 清洗 + UI 列表。
 - **站点默认地址一律不带 `www.`，唯一例外 Official·MGStage**（2026-10-24 定规）：`base_url_()` 默认值、AIO `fallback_domain`、`DEFAULT_SITE_URLS` 都不加，自定义网址也不再自动补 www。改默认地址一并核对 `docs/Scraper.md` 两张表。
 - **失效域名直接删，不留兜底**（2026-10-24）：删到只剩一个地址的站点（7mmtv / IQQTV / freejavbt）连镜像轮换一起删。
-- **JavBus 四条线路、一个地址一次**：`www.javbus.com` → `www.dmmsee.casa` → `www.javsee.cyou` → `www.cdnbus.bond`，由 `_MULTI_ADDRESS_SITE_TARGETS` 派发，爬虫内部不再自建轮换。JavDB 默认 `javdb580.com`、第 2/4 次回退 `javdb.com`。
+- **JavBus 四条线路、一个地址一次**：`www.javbus.com` → `www.dmmsee.casa` → `www.javsee.cyou` → `www.cdnbus.bond`，由 `_MULTI_ADDRESS_SITE_TARGETS` 派发，爬虫内部不再自建轮换。JavDB 爬虫内部默认 `javdb580.com`、自动轮询 573/574/575 镜像。
 - 「当前网站」下拉网址列显示一律去 www（`init._display_site_url`，只改显示）；新增配置 `last_custom_website`，交互中只置脏标记、`exit_app` 时落盘（别在交互里 `manager.save()`）。
 - 带语言段的入口地址不能直接当前缀拼：`base/web.py::site_root()` 先收敛成 `scheme://host`；missav 默认地址固定带 `/dm247/cn`，不带会被 302 到英文页。
-- javdb 三源：javdb（网页）/ javdb_api（镜像站）/ javdb_app（App API，免 CF 最稳）；thejavdb 与 javdb 无关。App 签名见 `docs/Javdb_App_Signature.md`，排障锚点 = 三主机同时 4xx 或 InvalidSignature；搜索 limit ≤ 50，分页须 `movie_sort_by=release`。
+- JavDB 两源：javdb（网页/镜像站轮询，与旧 JavDB_API 同实现）/ javdb_app（App API，免 CF 最稳）；thejavdb 与 javdb 无关。App 签名见 `docs/Javdb_App_Signature.md`，排障锚点 = 三主机同时 4xx 或 InvalidSignature；搜索 limit ≤ 50，分页须 `movie_sort_by=release`。
 - javdb 图源无水印体系：`tp.spfcas.com` 是 App 专用（单字节 XOR），`c0.jdbstatic.com` 带水印；解密集中在 `base/web.py`。加密流尺寸探测 (0,0) 属预期。
 - **ThePornDB 的 401 与 403 不是一回事**（2026-10-30 实测）：401 = Token 不存在/失效；403 `This action is unauthorized.` = Token 已通过验证但没该接口权限（粘贴了网页登录令牌、旧 Token 被重置、账号无哈希直查权限）。403 绝不能提示「检查网络或代理」，也不能中断刮削（哈希直查 403 就退到标题搜索）。判定与文案只在 `mdcx/utils/theporndb_token.py`，三处（设置页检测、检测网络页、刮削爬虫）共用。
 - **ThePornDB 接口基址是 `api.theporndb.net`**（用户 2026-10-30 确认，勿再改成主域 `/api`）。主域 `/api` 只是 `API_BASE_FALLBACK`：仅在子域连接层失败、或 403 但响应体不是本站 JSON（Cloudflare 挑战页）时由 `with_fallback_base()` 兜底重试一次；真 403 JSON 与 404 不重试。

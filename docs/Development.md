@@ -90,7 +90,7 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 
 - JavDB 系用共享 helper `extract_javdb_score()`：拼接文本 + 正则，兼容中文「分」、英文 points、整数分、`8.5, 120人`，无标记数字不抓。
 - JavLibrary 先 strip 空白再去括号并校验数字，另用 review 块括号数字兜底。
-- 非零评分追加来源站点后缀（`8.5(Javlibrary)`、`4.2(Javdb)`），站点取 `field_sources[SCORE]`，标签首字母大写（`javdb_api` → `Javdb_api`）。
+- 非零评分追加来源站点后缀（`8.5(Javlibrary)`、`4.2(Javdb)`），站点取 `field_sources[SCORE]`，标签首字母大写（`javdb` → `Javdb`）。
 - 数字消费统一走 `mdcx/utils.parse_score_number()`：NFO 只写数字、命名模板保留原文、相似推荐先去括号。
 
 ### 3.5 Amazon 图片
@@ -146,7 +146,7 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 - **CF Bypass** 走 `mdcx/cf_bypass/trawl_adapter.py`（TRAWL `/scrape` 或 FlareSolverr `/v1`）；JavLibrary 额外支持 Selenium+Edge（`selenium_adapter.py`）→ Playwright+Edge（`playwright_adapter.py`，async 原生，`channel="msedge"`，goto 失败 tenacity 重放 1 次）；`cf_selenium_bypass` 默认开启。内置 CF Bypass（cloakbrowser + cf_bypasser）已于 v2.0.6 移除。
 - **代理路由**：按「走代理网站」域名，默认 38 域（amazon.co.jp、m.media-amazon.com、xcity.jp、minnano-av.com、avbase.net、javbus.com、javdb.com、javlibrary.com、r18.dev、mgstage.com、prestige-av.com、seesaawiki.jp、avsox.click、avsox.com、avmoo.shop、avmoo.com、avheat.shop、avheat.com、heyzo.com、caribbeancom.com、1pondo.tv、pacopacomama.com、10musume.com、mywife.cc、github.com、raw.githubusercontent.com、google.com、missav.ws、missav.live、aventertainments.com、javfree.me、7mmtv.sx、getchu.com、dl.getchu.com、jav321.com、hbox.jp）。
 - **TRAWL/FlareSolverr 适配层**：对外暴露 cf_bypasser 三端点 `/cookies` `/html` `/mirror`；trawl 走原生 `/scrape`（响应无 `responseHeaders`/`body`，适配层走 html 回退）；flaresolverr 走 POST `/v1`（`cmd=request.get/post`），响应头从 `solution.headers` 还原；配置 `cf_bypass_trawl_url` + `cf_bypass_trawl_backend`（默认 trawl）；`AsyncWebClient` 自动拉起 `TrawlAdapterServer`（随机端口 + uvicorn 子进程）；回环 https 经 `normalize_trawl_url` 降回 http（否则 60s 探活失败永久禁用）；`is_proxy_host` 名单写主域时同站动态镜像自动跟随走代理，直连白名单优先。
-- **动态域名**：`base/web.py::get_aio_domain(site)` 解析 `tellme.pw/{site}` 的 `__AIO_SITE_URLS__`，1 天缓存、三站互兜；`get_javlibrary_domain()` 抓 github.com/javlibcom 主页 `rel="nofollow me"` 链接，失败回退已知镜像。
+- **动态域名**：`base/web.py::get_aio_domain(site)` 解析 `tellme.pw/{site}` 的 `__AIO_SITE_URLS__`，1 天缓存、三站互兜；`get_javlibrary_domain()` 认 zlibz.com 发布的地址图（sha256 查表）得到当前中文地址，失败回退已知镜像。
 - **网络检测**（`core/network_check.py`）：检测项由 `check_urls()` 动态生成；API 类爬虫走真实刮削探测 `_probe_crawler_by_run`；探针番号优先级 `NetworkCheckSpec.probe_number` > 爬虫 `probe_number` 类属性 > 全局 `SCRAPE_PROBE_NUMBER`（默认 SSNI-647）；Official·有码 29 站与无码五站各有独立 `Website`、各带本站探测番号（`official_sites.py::OFFICIAL_SITE_SPECS`、`official_uncensored.py::UNCENSORED_OFFICIAL_SITES`）；`_DETERMINISTIC_PROBE_MARKERS` 命中即首次定论，其余按 `SCRAPE_PROBE_ATTEMPT_TIMEOUTS`（30s→45s）递进重试；终局说明只在两档都真超时时写「均超时」，站点可达但番号不存在单独出提示不计故障；结果持久化到 `userdata/network_check_cache.json`（`merge_site_check_cache` / `load_site_check_cache`），各站以站点值为键，同一站点多条结果只在本轮内取最差。
 
 ---

@@ -4,6 +4,14 @@
 
 ## 2026-11-07
 
+### JavDB / JavLibrary 双站合并（网页版与 API/APP 通道二合一）
+
+- 同一站点只留一个入口：`JavDB` 网页版逻辑删除，原 `JavDB_API`（javdb580/573/574/575 多镜像轮询 + 全走代理判定）改名接管 `JavDB`；`JavLibrary` 网页版逻辑删除，原 `Javlibrary_APP`（zlibz.com 地址图认图 + 默认中文页 /cn）改名接管 `JavLibrary`。`JavDB_APP`（移动端 API 通道）保持不动。
+- 存量配置自动归一：旧 `JavDB_API`/`Javlibrary·镜像`/`Javlibrary_APP` 等写法经枚举 `_missing_` 别名与 `_SITE_RENAMES` 迁移继续可读；`_MIRROR_SITE_TARGETS` 删 `JavLibrary` 镜像项（单站直连）、`SITE_GROUPS` 删 JavLibrary 联动组（JavDB 组保留三站中的两站）。
+- 注册站点 73→71：各类型默认名单（有码 57、无码 18、个摄 11、欧美 9、国产 9、动漫 5）与 `default_config.json`、帮助文案、提示文案同步；演员来源链 `JavDB_API`/`Javlibrary_APP` 条目并入 `JavDB`/`JavLibrary`。
+- 文档同步：`docs/Scraper.md`、`docs/Features.md`、`docs/User_Guide.md`、`docs/Configuration.md`、`docs/Development.md`、`docs/MEMORY.md`、`README.md` 现状描述行与 wiki FAQ 第 15 条更新；历史 Changelog 条目不动。
+- 测试：`tests/crawlers/test_javdb.py`（原 API 用例改名）、`tests/test_javlibrary.py`（原 APP 用例改名）、`test_network_check.py` 探测收敛用例改写单站、`test_site_group_linkage.py`（联动组 7→6）、`test_site_source_copy_menu.py`（71 站/57 组）、`test_site_default_urls.py`（默认地址 f101w.com/cn）等全量同步，全量测试通过。
+
 ### Hbox 探测改走固定详情页内容校验（不再误报超时）
 
 - 连通性对 Hbox 详情页做内容校验：检测地址本身就是详情页（`/cid/709085`），200 但无 `gtmSetItemList` 作品 JSON（丢 Cookie / 节点 IP 被限制时回的 age_check 空壳）直接判 WARNING「详情页未返回作品数据，请更换代理节点后重试」，不再先报「连接正常」再让固定链接探测去撞「详情页未找到作品数据」。探测本身仍是固定链接直连（`probe_url`），从不走番号搜索（Hbox 不支持番号搜索）。
