@@ -20,6 +20,13 @@
 
 ## 2026-11-07
 
+### 刮削字段表导出：文件名带时分秒+列宽更新+隐藏空白列
+
+- 文件名改为 `刮削字段表 YYYY-MM-DD HH-MM-SS.xlsx`（`default_export_filename`，时分秒用短横线，Windows 文件名禁用冒号）。
+- 列宽（Excel 显示值）：网站 17.88、番号 24、链接地址 45，其余 13 列（性质/女演员/…/发行）8.22；写入值仍 +0.78 补偿缩水。
+- 数据区之外（Q 列起至 XFD）的空白列整段隐藏，用户只看到 A-P 共 16 列。
+- 测试：`tests/test_site_fields_export.py` 列宽断言同步新值，新增 Q 列隐藏段覆盖到 XFD 断言与文件名正则断言；35 项全过。
+
 ### 18+年龄门统一模块+MGStage探测复用真实抓取路径（年龄确认页首轮即定论）
 
 - 根因：MGStage真实刮削经`_fetch_search/_get_page_text`（adcCookie+命中即点「はい（アダルトへ）」），但网络检测刮削探测走raw`client.request`+`_parse_search_page`，兜底永远走不到；adc失效即抛「adcCookie未生效」，且该串不在确定性标记内，被当瞬时故障白等45s/60s两档。
