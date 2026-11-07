@@ -198,7 +198,7 @@ MDCx 刮削网站类型汇总表
 7mmtv             综合：有码+无码+素人+FC2    有码+无码+素人+FC2+国产             https://7mmtv.sx
 Airav.cc          有码：仅限有码              有码+无码+素人                      https://airav.io
 AVBase            聚合：有码+素人             有码+素人                           https://avbase.net
-AVEntertainments  无码：仅限无码              无码（该站只有无码番号）            https://aventertainments.com            TRG-095
+AVEntertainments  无码：仅限无码              无码（该站只有无码番号）            https://aventertainments.com            GLDV-006
 AVheat            欧美：欧美番号              欧美                                https://avheat.shop/cn                  Men.26.08.17
 AVMOO             有码：仅限有码              有码                                https://avmoo.shop/cn
 AVSOX             无码：仅限无码              无码                                https://avsox.click/cn                  081826_100
