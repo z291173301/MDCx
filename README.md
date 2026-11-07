@@ -26,8 +26,6 @@
 
 <img width="1560" height="1641" alt="image" src="https://github.com/user-attachments/assets/bea77952-e13a-45b3-b4ca-12001ddc5873" />
 
-![image](https://github.com/user-attachments/assets/6e4a9ab3-8c28-4714-af0e-be41d5e71e67)
-
 ## MDCx 是什么
 
 MDCx是一个桌面工具，自动从47个网站抓取视频文件的元数据（标题、演员、封面、简介等），生成标准的.nfo文件和整理好的文件夹，给Emby、Jellyfin、Kodi这类媒体服务器直接用。
