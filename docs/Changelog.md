@@ -4,10 +4,11 @@
 
 ## 2026-11-08
 
-### 检测网络页筛选项分组更名+置顶
+### 检测网络页分组行置顶+改名
 
-- 分组行 `Official·pixelated`→`有码官网34站`、`Official·uncensored`→`无码官网5站`，均移到下拉最上方（原来钉在 `Missav_API` 下方）。
-- 测试：`test_network_check`＋`test_ui_structure` 全过；offscreen 实测置顶+勾选展开 34 站正常。
+- `Official·pixelated`、`Official·uncensored` 移到下拉最上方（原来钉在 `Missav_API` 下方）。
+- 改名：`Official·pixelated 官网：有码34站`、`Official·uncensored 官网：无码5站`。
+- 测试：`test_network_check`＋`test_ui_structure` 全过；offscreen 实测置顶与分组展开正常。
 
 ### 检测网络页筛选文案去空格
 
