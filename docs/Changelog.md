@@ -4,6 +4,12 @@
 
 ## 2026-11-07
 
+### 刮削探测超时阶梯 30s/45s → 45s/60s（慢代理下 JavLibrary 不再误报站点无效）
+
+- 单站刮削探测轮内两档由 30s/45s 放宽到 45s/60s：JavLibrary 一次探测要串行打 JP 详情页 + CN 详情页（外加 DMM 高清封面升级），慢代理下单请求 ~20s、两次详情就 40s+，旧阶梯两档吃满后误报「站点无效」。连通性检测本身不受影响（仍是单请求短超时）。
+- 同步更新注释与展示文案（`SCRAPE_PROBE_ATTEMPT_TIMEOUTS`、`scrape_probe_ladder_text()` 自动输出 `45s/60s`）；历史 Changelog 条目里的旧阶梯数字不动。
+- 测试：`test_network_check.py` 阶梯断言（45.0/60.0、单档回退、展示文本）与「均超时/均失败」终局文案同步，`test_network_check_official_probe.py` 同步。
+
 ### JavDB / JavLibrary 双站合并（网页版与 API/APP 通道二合一）
 
 - 同一站点只留一个入口：`JavDB` 网页版逻辑删除，原 `JavDB_API`（javdb580/573/574/575 多镜像轮询 + 全走代理判定）改名接管 `JavDB`；`JavLibrary` 网页版逻辑删除，原 `Javlibrary_APP`（zlibz.com 地址图认图 + 默认中文页 /cn）改名接管 `JavLibrary`。`JavDB_APP`（移动端 API 通道）保持不动。
