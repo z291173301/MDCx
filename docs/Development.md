@@ -135,7 +135,7 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 - `DomainRotator`（`utils/domain_rotate.py`）：镜像轮询，声明 `_domains` 类属性，已接 javbus(7)/freejavbt/xcity；`_init_rotator(domains, custom_url)` 支持自定义 URL 优先。
 - `AioSiteCrawler`（`crawlers/aio_site.py`）：用于 Vue SPA + JSON API，重写 `_run`，`_generate_search_url`/`_parse_search_page` 抛 `NotImplementedError`；avmoo/avsox/avheat 共享该基类。
 - `check_urls()` 返回检测 URL 列表；动态域名站覆写（avmoo/avheat/avsox 用 `get_aio_domain`，javlibrary 用 `get_javlibrary_domain`）。
-- **18+年龄门统一模块**（`crawlers/base/age_gate.py`）：五站成人Cookie常量（MGStage`adc=1`/Hbox`age_check_ok=true`/DMM`age_check_done=1`/GetchuDL`adult_check_flag=1`/JavBus`age=verified`片段）+`is_age_gate_page`（MGStage年齢認証/Getchu年齢認証ページ/JavBus年龄验证三站特征并集）+`extract_adult_entry_url`（只回成人入口，剧场版/未成年分支永不返回）+`follow_adult_entry`（命中即点选重取一次，无链接/重取失败原样交回）。MGStage的`_get_page_text`经它兜底，JavBus的POST确认+验证码层保留站内实现（验证码需用户去真实浏览器过一遍）。
+- **18+年龄门统一模块**（`crawlers/base/age_gate.py`）：五站成人Cookie常量（MGStage`adc=1`/Hbox`age_check_ok=true`/DMM`age_check_done=1`/GetchuDL`adult_check_flag=1`/JavBus`age=verified`片段）+`is_age_gate_page`（MGStage年齢認証/Getchu年齢認証ページ/JavBus年龄验证三站特征并集+Hbox门壳`page":"/age_check`+`/age_check?redirect=`）+`extract_adult_entry_url`（只回成人入口，剧场版/未成年分支永不返回；Hbox门页无链接，返回None属预期）+`follow_adult_entry`（命中即点选重取一次，无链接/重取失败原样交回）+`is_hbox_age_gate_shell`（落地URL含`/age_check`或命中门壳标记，供连通性与Hbox爬虫先确诊）。MGStage的`_get_page_text`经它兜底，Hbox的`_fetch_detail`先认门壳直抛年龄验证错误（非门壳才3次重试），JavBus的POST确认+验证码层保留站内实现（验证码需用户去真实浏览器过一遍）。
 
 ---
 

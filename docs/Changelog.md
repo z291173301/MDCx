@@ -2,6 +2,16 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-11-08
+
+### Hbox年龄门壳确诊：门壳首轮即定论，不再无脑重打+模糊报换节点
+
+- 根因（2026-11-08 实测确诊）：用户 Hbox 行 200 三连空壳，`age_check_ok=true` 带上后直连实测 200/114KB 含作品 JSON，机制本身没坏；无 Cookie 实测 302→`/age_check`，门页是约 4KB 的 Next.js SPA 空壳（无 title、无一句日文、无链接/表单，唯一信号是`__NEXT_DATA__`里的`"page":"/age_check"`与落地 URL）。用户命中的正是该门壳=年龄验证未通过（Cookie 未生效），不是 IP 封禁（Hbox 无封禁页形态、同代理其余站全通）、不是站点挂、不是番号下架。
+- 统一模块补盲：`AGE_GATE_MARKERS`新增`page":"/age_check`+`/age_check?redirect=`（门页独有，真详情页不含）；新增`is_hbox_age_gate_shell(text,final_url)`（落地 URL 含`/age_check`或命中上两标记）；门页无可点成人链接（18+是 JS 按钮写 Cookie），`extract_adult_entry_url`返回 None 属预期，Cookie 是唯一入口。
+- 连通性确诊+省重试：`_classify_http_result`的 HBOX 分支先认门壳→WARNING「年龄验证未通过：详情页被跳到/age_check（age_check_ok Cookie 未生效），请检查代理是否透传 Cookie，仍不行再更换节点后重试」（含「年龄验证」，确定性首轮即定论）；`_retry_hbox_empty_shell`首响/重试命中门壳即停（省 2 个无用请求），只有认不出的非门壳（截断/抖动）才保留 2 次重试与原「多次重试」文案。
+- 真实刮削同口径：`HboxCrawler._fetch_detail`循环内先认门壳→直接抛「Hbox 年龄验证未通过……」（探测经`_probe_crawler_by_run`原样带出，确定性首轮即定论）；非门壳保持 3 次重试与原错误。
+- 测试：`test_age_gate.py`新增门壳识别/无入口/Cookie 唯一入口/确定性判定用例；`test_hbox.py`新增门壳直抛（仅 1 次请求）用例；`test_network_check.py`的门壳判定用例改断为「年龄验证」，新增连通性门壳不重试（calls==1）用例；旧`<html>age_check</html>`非门壳用例行为不变。
+
 ## 2026-11-07
 
 ### 18+年龄门统一模块+MGStage探测复用真实抓取路径（年龄确认页首轮即定论）

@@ -166,6 +166,7 @@
 - **ThePornDB 的「站点检测」行打主站 `https://theporndb.net`**（用户 2026-10-30）：API 子域没有根路由，`GET https://api.theporndb.net/` 回 404，拿它当连通性检测地址必然误报。站点行固定主站首页（不取 `base_url_()`／自定义 URL）且 `crawl_probe=False`；「接口/Token 能不能用」仍归「账号/API」组的「ThePornDB Token」项（`api.theporndb.net/scenes/hash/…`）。两条路的基址各司其职，不要合并成一个常量。
 - **18+年龄门一律选成人入口**（2026-11-07用户定规，MGStage误报根因）：凡遇「18岁以上/はい（アダルトへ）/すすむ/確認」一律点成人入口，绝不进「いいえ/MGSシアター/未成年/否」分支。实现只在`mdcx/crawlers/base/age_gate.py`（判定`is_age_gate_page`+提取`extract_adult_entry_url`+点选`follow_adult_entry`+五站成人Cookie常量），各站只调模块不得自写一套（MGStage旧私有判定已改为别名，Hbox/DMM/GetchuDL/JavBus的Cookie同源，Getchu主站「すすむ」同口径，JavBus的POST确认+验证码层保留站内实现）。
 - **刮削探测必须复用真实抓取路径**（2026-11-07与上条同因）：`_probe_crawler_capability`对带`_fetch_search`的爬虫一律经`asyncio.wait_for(crawler._fetch_search)`探测（含各站年龄门兜底），不得另起raw`client.request`绕过；无`_fetch_search`的最小替身才回退raw路径。仍过不去的年龄确认页（年龄确认页/年龄认证/年龄验证/adcCookie/AgeVerification，含JavBus验证码层）是确定性结论，首轮即定论，不走45s/60s递进。
+- **Hbox门壳先确诊再定论**（2026-11-08实测）：Hbox无Cookie回302→`/age_check`，门页是约4KB的Next.jsSPA空壳（无文本无链接，唯一信号是`__NEXT_DATA__`里的`"page":"/age_check"`与落地URL），Cookie是唯一成人入口。连通性/真实刮削先经`is_hbox_age_gate_shell`认门壳→直接报「年龄验证未通过（age_check_okCookie未生效）」首轮定论，不重试；只有认不出的非门壳（截断/抖动）才走Hbox专属重试。不得把门壳笼统报成「节点IP被限制」让用户盲目换节点。
 
 ## Windows 打包与发布
 
