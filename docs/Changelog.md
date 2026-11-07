@@ -93,6 +93,12 @@
 - 使用说明/提示/文档同步：帮助有码·无码名单改为收拢态聚合形态、官方网站段改为 34 站（含 MyWife 番号规则注）、MyWifes 行删除；`tips.py` 有码行改为 34 家官网（含 MyWife）、官方路由前缀 322 个（含 `MyWife No.1230`）；`docs/Features.md` 同步（有码组 59 站、34 站官网、322 前缀、八个分组标题）。
 - 测试：`test_type_site_scrape_rows`（19 行表/双 spacer/几何/间隙）、`test_website_single_official_rows`（39 站/聚合行/徽标）、`test_site_combo_tooltips`（MyWife 新文案）、`test_site_source_type_groups`（聚合 34 站/单体新名/官方归属）、`test_site_source_copy_menu`（有码 59 站）、`test_official_aggregate`/`test_official_disabled_scope`/`test_official_uncensored_split_migration`（39/34 计数/v3 标记）、`test_ui_structure`、`test_config_conversion`、`test_file_crawler_runtime` 全量同步；另修复两处历史红灯（聚合入口无爬虫属设计、`validate_crawler_registry` 以 `_AGGREGATE_WEBSITES` 豁免；品牌站可用性用例按展开态断言收拢默认值）。
 
+### TRAWL 便携包 GeoIP 数据库随包（启动不再在线下载）
+
+- 根因：包内 `.cache/camoufox/GeoLite2-City.mmdb` 缺失（仅留 1MB 中断残留），`camoufox-js` 在启动时走 `api.github.com` 查 `P3TERX/GeoLite.mmdb` 的 release，匿名配额被限流（403）后浏览器池初始化失败（`startup failed: Failed to fetch releases ...`）；直链下载（`github.com/.../latest/download/...`）不走 API，不受影响。
+- 打包工作流（`package-trawl.yml`）：GeoIP 改用 `curl` 断点续传 + 重试（45MB 下限，与 Dockerfile 同口径），失败或不完整直接中止打包；打进包前校验库完整，并剔除 `*.download` 残留。
+- `scripts/windows/trawl-start.bat`：启动前预检库存在（支持放包根目录/`geoip/` 手动兜底），缺失时中文报错并给出下载链接；`USAGE.md` 补 FAQ。
+
 ## 2026-11-06
 
 ### 官网站改名与单体行调序
