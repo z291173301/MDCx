@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  # 锁定 3.15：与 build-py315.yml / ci.yaml 同口径（python-version + UV_PYTHON 双保险）。
+  # 锁定 3.15：与 build-py315.yml / CI Pipeline.yaml 同口径（python-version + UV_PYTHON 双保险）。
   # 依赖已全部换成有 cp315 wheel 的版本，只剩 PyYAML 没有 cp315 wheel（见安装步骤）。
   UV_PYTHON: "3.15"
   # PyYAML 至今没有 cp315 wheel：置 0 让它跳过 `yaml._yaml` C 扩展，从 sdist 直接
