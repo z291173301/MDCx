@@ -4,6 +4,13 @@
 
 ## 2026-11-07
 
+### 18+年龄门统一模块+MGStage探测复用真实抓取路径（年龄确认页首轮即定论）
+
+- 根因：MGStage真实刮削经`_fetch_search/_get_page_text`（adcCookie+命中即点「はい（アダルトへ）」），但网络检测刮削探测走raw`client.request`+`_parse_search_page`，兜底永远走不到；adc失效即抛「adcCookie未生效」，且该串不在确定性标记内，被当瞬时故障白等45s/60s两档。
+- 新增`mdcx/crawlers/base/age_gate.py`：五站成人Cookie常量+`is_age_gate_page`/`extract_adult_entry_url`/`follow_adult_entry`（一律选18+/成人入口，绝不进剧场版/未成年分支）；MGStage旧私有判定改为模块别名，Hbox/DMM/GetchuDL/JavBus的Cookie同源，Getchu主站「すすむ」同口径，JavBus的POST确认+验证码层保留站内实现。
+- 探测改走真实路径：带`_fetch_search`的爬虫经`asyncio.wait_for(crawler._fetch_search)`探测（超时仍报「刮削探测超时」保阶梯语义），无该方法的最小替身回退raw请求；年龄确认页系特征（年龄确认页/年龄认证/年龄验证/adcCookie/AgeVerification，含JavBus验证码层）列入确定性结论，首轮即定论；MGStage年龄门报错改为「自动点选成人入口后仍被拦截，请更换节点后重试」。
+- 测试：新增`tests/crawlers/test_age_gate.py`（三站判定/成人入口二选一/Cookie同源/点选跟随/探测走`_fetch_search`/确定性判定）；`test_mgstage.py`回归通过；`test_network_check.py`的7mmtv真爬虫用例补`get_text`（真实客户端本就有，旧raw探测用例不受影响）。
+
 ### Getchu 探测不再撞 DL 搜索 403（探测改打详情页直连 + 403 首轮即定论）
 
 - 根因（2026-11-07 实测）：`dl.getchu.com/search/search_list.php` 被站方全网段封锁，任意参数/会话/Referer 均回空体 HTTP 403（无 cf-ray，非 Cloudflare 挑战）；同站首页·详情页·`/search/circle.php`·`ranking.php` 均 200，`getchu.com` 主站搜索/详情页正常。旧探测用 `probe_number=AIV` 走真实刮削，主站搜索一抖动就回退撞上必 403 的 DL 接口，白等 45s/60s 两档后报「站点无效」。
