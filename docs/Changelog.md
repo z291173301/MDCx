@@ -4,6 +4,12 @@
 
 ## 2026-11-07
 
+### 存量超时配置自动升级 30s → 45s；JavLibrary 真实刮削只走 CN
+
+- 存量配置自动升级：加载时 `timeout` 恰好等于旧出厂值 30 的自动改为 45（用户手动改过的值原样保留），独立标记 `request_timeout_45_migrated` 保证只跑一次，`config_version` 保持 2；迁移警告带 `[迁移]` 前缀。
+- JavLibrary 真实刮削只走 CN：CN 与 JP 是同一份数据的不同语言版，`_run` 不再串行打 JP 详情页（字段配了繁中偏好时走 TW，其余一律 CN）；指定网址的非 CN 语言段自动换成目标语言段。`probe_only` 标记随之删除（探测与真实已同路径）。`originaltitle`/`originalplot` 取 CN 页标题/简介。
+- 测试：新增 `tests/test_request_timeout_migration.py`（旧值升级/手改保留/幂等），JavLibrary 用例改写为 CN 单语（搜索 + CN 详情各一次）。
+
 ### 超时默认 30s → 45s；JavLibrary 探测只打 CN 详情页
 
 - 软件设置-网络-超时时间默认由 30s 改为 45s：进度条上限同步拉到 45（范围 3~45），出厂模板与配置默认值同步；存量配置保持原值不变。
