@@ -17,31 +17,16 @@ title TRAWL - Close
 
 rem ============================================================
 rem  trawl-close.bat
-rem  一键关闭 start-trawl.bat 启动的全部进程：
+rem  一键关闭 trawl-start.bat 启动的全部进程：
 rem    1) TRAWL API      - bun.exe 运行 apps\api\src\index.ts (端口 8191，MITM 8192)
 rem    2) Camoufox 浏览器 - .cache\camoufox\camoufox.exe 及其子进程
 rem                        (plugin-container.exe / private_browsing.exe / nmhproxy.exe)
 rem    3) 内置 Redis      - redis\redis-server.exe (端口 6380)
-rem  需要管理员权限：若当前不是管理员，会自动请求提权后重新运行自己。
+rem  不需要管理员权限：自己的进程自己就能结束。只有端口确实没清掉、
+rem  且当前不是管理员时，才在最后请求提权再跑一次。
 rem  由 trawl-close.vbs 以隐藏窗口 + 提权方式调用时，请带 hidden 参数
 rem  （跳过末尾 pause，避免隐藏窗口卡住不退出）。
 rem ============================================================
-
-rem ---------- 管理员权限自检，未提权则 relaunch ----------
-net session >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [INFO] 需要管理员权限，正在请求提权...
-    if "%~1"=="" (
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
-    ) else (
-        powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -ArgumentList '%*' -Verb RunAs"
-    )
-    if errorlevel 1 (
-        echo [WARN] 提权失败或 UAC 已取消。请右键本脚本选择“以管理员身份运行”。
-        if /i not "%~1"=="hidden" pause
-    )
-    exit /b
-)
 
 cd /d "%~dp0"
 
@@ -89,6 +74,28 @@ call :CheckPort 8191 "API"
 call :CheckPort 8192 "MITM"
 call :CheckPort 6380 "Redis"
 echo.
+rem ---------- 按需提权：平时自己的进程自己就能关，不弹 UAC；只有端口确实没清掉、
+rem ---------- 且当前不是管理员时，才请求提权再跑一次（跨用户/系统级残留才需要）。
+set "STILL_BLOCKED=0"
+netstat -ano | findstr /R /C:":8191 .*LISTENING" >nul 2>&1 && set "STILL_BLOCKED=1"
+netstat -ano | findstr /R /C:":8192 .*LISTENING" >nul 2>&1 && set "STILL_BLOCKED=1"
+netstat -ano | findstr /R /C:":6380 .*LISTENING" >nul 2>&1 && set "STILL_BLOCKED=1"
+if "%STILL_BLOCKED%"=="0" goto :FinishClose
+net session >nul 2>&1
+if %errorlevel%==0 goto :FinishClose
+echo [INFO] 部分端口仍被占用，正在请求管理员权限后重试...
+if "%~1"=="" (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+) else (
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath '%~f0' -ArgumentList '%*' -Verb RunAs"
+)
+if errorlevel 1 (
+    echo [WARN] 提权失败或 UAC 已取消。请右键本脚本选择“以管理员身份运行”。
+    if /i not "%~1"=="hidden" pause
+)
+endlocal
+exit /b 0
+:FinishClose
 echo [DONE] 关闭流程执行完毕。如端口仍被占用，请用 netstat -ano ^| findstr :端口 查看 PID 后手动处理。
 if /i "%~1"=="hidden" (
     endlocal
