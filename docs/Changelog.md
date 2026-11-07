@@ -18,6 +18,12 @@
 - 真实刮削同口径：`HboxCrawler._fetch_detail`循环内先认门壳→直接抛「Hbox 年龄验证未通过……」（探测经`_probe_crawler_by_run`原样带出，确定性首轮即定论）；非门壳保持 3 次重试与原错误。
 - 测试：`test_age_gate.py`新增门壳识别/无入口/Cookie 唯一入口/确定性判定用例；`test_hbox.py`新增门壳直抛（仅 1 次请求）用例；`test_network_check.py`的门壳判定用例改断为「年龄验证」，新增连通性门壳不重试（calls==1）用例；旧`<html>age_check</html>`非门壳用例行为不变。
 
+### 刮削字段表：逐站审计修正4个字段旗+2条番号级链接
+
+- 71 站 × 13 字段全量对照代码审计：DMM_API 简介（`dmm_api.py:316-317` 字面空串）、HEYZO 系列/详情图（`uncensored/base.py:485,491` 字面空）、LibreFanza 系列（`get_series` 恒空）4 格由 ✅ 改 ❌，以 `_SITE_FIELD_OFF` 精确扣除表实现（带 file:line 证据注释）；JavFree 简介有 blockquote 解析，维持 ✅。
+- 番号级链接实测修正 2 条：Faleno 含未编码空格（InvalidURL，加 `quote` 编码）、Xcity `/result/` 在默认 host 404（改用同文件 200 的 `/api/search`）；FC2 全站 `/article/` 404 系本机网络环境问题、pattern 与代码一致，不动。
+- 测试：`tests/test_site_fields_export.py` 新增 4❌+JavFree✅ 锁定断言，Xcity/Faleno 链接断言同步；35 项全过。
+
 ## 2026-11-07
 
 ### 刮削字段表导出：文件名带时分秒+列宽更新+隐藏空白列
