@@ -4,6 +4,14 @@
 
 ## 2026-11-07
 
+### Getchu 探测不再撞 DL 搜索 403（探测改打详情页直连 + 403 首轮即定论）
+
+- 根因（2026-11-07 实测）：`dl.getchu.com/search/search_list.php` 被站方全网段封锁，任意参数/会话/Referer 均回空体 HTTP 403（无 cf-ray，非 Cloudflare 挑战）；同站首页·详情页·`/search/circle.php`·`ranking.php` 均 200，`getchu.com` 主站搜索/详情页正常。旧探测用 `probe_number=AIV` 走真实刮削，主站搜索一抖动就回退撞上必 403 的 DL 接口，白等 45s/60s 两档后报「站点无效」。
+- 探测改打已知 AIV 详情页直连：GETCHU 检测项新增 `probe_url=https://www.getchu.com/item/1300711/?gc=gc`（JavLibrary/Hbox 同模式：跳过搜索、走 appoint_url 真实刮削），不再依赖主站搜索结果数与已死的 DL 搜索接口。
+- `HTTP 403` 列入探测确定性结论：源站明确拒绝，同出口 IP 重试只是把同一次拒绝再问一遍，首轮即定论（CF 挑战类 403 已由「被 Cloudflare 拦截」覆盖，不受影响）。
+- DL 关键词搜索撞 403 时报错直说：`getchu_dl` 明确提示「DL站搜索接口被站方拦截……DL作品请用 DLID/ITEM 编号或详情页URL直刮」（详情页直连正常），不再是笼统「请求错误」。
+- 测试：`test_getchu.py` 新增 DL 搜索 403 文案用例；`test_network_check.py` 新增 GETCHU 检测项 `probe_url` 用例，403 终局用例改用 502 做瞬时错误（403 已走不到两档）；`test_network_check_official_probe.py` 确定性列表新增 DL 搜索 403 用例。
+
 ### Hbox 间歇性空壳自动重试（连通性/探测/刮削三层）
 
 - 连通性 200 空壳（无 `gtmSetItemList` 的 age_check 壳）原地址自动再打至多 2 次（间隔 1s/2s），命中作品 JSON 即判 OK；打满仍是空壳才判 WARNING，文案改为「详情页多次重试后仍未返回作品数据……」，不再让用户为单次抖动手动换节点重测。
