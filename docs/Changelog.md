@@ -4,6 +4,12 @@
 
 ## 2026-11-08
 
+### 修复 Windows 打包版启动时 curl_cffi 的 _wrapper 加载失败
+
+- 根因：`curl_cffi 0.17` 的 abi3/abi3t wheel 让 `_wrapper.pyd` 导入 `python3t.dll`；PyInstaller 收集到的是自由线程版 `python3t.dll`/`python315t.dll`，与包内 GIL 版 `python315.dll` 不匹配，缺 `python315t.dll` 时报 `ImportError: DLL load failed while importing _wrapper`。
+- 修复：`scripts/build.py` 在 Windows 构建时优先使用 Python 自带的 `abi3t-compat/python3t.dll`；发行版没有该目录时用 `python3.dll` 复制生成等价兼容层。spec 在 `Analysis` 后剔除自由线程版 DLL，并把兼容层放到包根目录。
+- 测试：`tests/test_build_script.py` 新增 4 项回归；Windows 本地完整构建并启动验证通过。
+
 ### 检测网络页汇总按实际渲染用满宽度
 
 - 根因：只靠 `horizontalAdvance` 预估，在回退字体下与实测不符 + 末字符粒度，`...` 左侧能剩几十 px。
