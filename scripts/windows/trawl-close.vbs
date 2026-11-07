@@ -1,4 +1,4 @@
-﻿' ============================================================
+' ============================================================
 '  trawl-close.vbs
 '  Launch trawl-close.bat elevated (administrator) with a
 '  completely HIDDEN console window - no CMD window appears.

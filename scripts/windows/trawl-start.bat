@@ -94,8 +94,8 @@ set CAMOUFOX_INSTALL_DIR=%~dp0.cache\camoufox
 rem GeoIP DB preflight: camoufox-js downloads GeoLite2-City.mmdb via api.github.com
 rem when it is missing, and that endpoint is rate-limited/blocked in CN, which aborts
 rem pool init (startup failed: Failed to fetch releases ... P3TERX/GeoLite.mmdb).
-rem The portable zip bundles the DB (see package-trawl.yml), so a missing file here
-rem means a bad extract - fail fast with a clear message instead of a cryptic stack.
+rem The portable zip bundles the DB, so a missing file here means a bad extract -
+rem fail fast with a clear message instead of a cryptic stack.
 del "%CAMOUFOX_INSTALL_DIR%\GeoLite2-City.mmdb.*.download" >nul 2>&1
 if not exist "%CAMOUFOX_INSTALL_DIR%\GeoLite2-City.mmdb" (
     rem fallback: accept a manually placed copy next to the scripts
