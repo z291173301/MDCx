@@ -33,7 +33,7 @@
 
 .PARAMETER PatchFile
     Path to the .patch file. Defaults to
-    `<SrcDir>\..\scripts\windows\trawl-goto-timeout.patch`.
+    `<SrcDir>\..\scripts\windows\goto-timeout.patch`.
 
 .PARAMETER SearchRoots
     Sub-directories of SrcDir to scan for the rule-based fallback. The tier
@@ -49,10 +49,10 @@
     Defaults to `30_000`.
 
 .EXAMPLE
-    .\trawl-apply-patch.ps1 -SrcDir trawl-src
+    .\goto-apply-patch.ps1 -SrcDir trawl-src
 
 .EXAMPLE
-    powershell -File trawl-apply-patch.ps1 -SrcDir "%CD%\src" -PatchFile "%CD%\trawl-goto-timeout.patch"
+    powershell -File goto-apply-patch.ps1 -SrcDir "%CD%\src" -PatchFile "%CD%\goto-timeout.patch"
 #>
 [CmdletBinding()]
 param(
@@ -99,7 +99,7 @@ if ($PatchFile) {
     $patch = Resolve-FullPath -Path $PatchFile -Base $invocationDir
 }
 else {
-    $patch = Join-Path (Split-Path -Parent $src) "scripts\windows\trawl-goto-timeout.patch"
+    $patch = Join-Path (Split-Path -Parent $src) "scripts\windows\goto-timeout.patch"
 }
 
 # ---------------------------------------------------------------------------

@@ -15,7 +15,7 @@ Set shellApp = CreateObject("Shell.Application")
 
 ' Use this script's own location to find the batch file
 scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
-batPath = fso.BuildPath(scriptDir, "start-trawl.bat")
+batPath = fso.BuildPath(scriptDir, "trawl-start.bat")
 
 If Not fso.FileExists(batPath) Then
     MsgBox "start-trawl.bat not found. Put this script in the same folder as start-trawl.bat.", _

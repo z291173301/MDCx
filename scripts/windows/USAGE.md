@@ -55,14 +55,14 @@ cd C:\Tools\trawl-portable-1.4.0-windows
 
 ### 内置补丁（自动生效）
 
-便携包源码打包时已应用 `trawl-goto-timeout.patch`，把 TRAWL Tier3/4 的页面加载
+便携包源码打包时已应用 `goto-timeout.patch`，把 TRAWL Tier3/4 的页面加载
 超时上限从 30s 提升到 90s，改善 JS 渲染站点（如 lulubar 搜索页）的挑战通过率。
-`start-trawl.bat` 启动时还会调用 `trawl-apply-patch.ps1`，对未应用补丁的源码
+`start-trawl.bat` 启动时还会调用 `goto-apply-patch.ps1`，对未应用补丁的源码
 （如用户单独 clone 的源码）兜底应用；已应用或无法应用时自动跳过。
 
-补丁由 `trawl-apply-patch.ps1` 统一处理，它是尽力而为的，不会因补丁失败而中断启动：
+补丁由 `goto-apply-patch.ps1` 统一处理，它是尽力而为的，不会因补丁失败而中断启动：
 
-1. 先用 `git apply` 精确应用 `trawl-goto-timeout.patch`。
+1. 先用 `git apply` 精确应用 `goto-timeout.patch`。
 2. 上游一旦重构 tier 代码导致补丁不适用（v1.8.0 已把 goto 逻辑从 `3.ts`/`4.ts`
    挪进 `tiers/browser.ts`，旧补丁会失效），就自动改为按规则改写 tier 源码中所有
    `Math.min(..., 30_000)` 形式的页面导航超时上限。
@@ -135,8 +135,8 @@ BROWSER_POOL_SIZE=1
 trawl-portable-1.5.0-windows/
 ├── start-trawl.bat          # 启动脚本
 ├── download-bun.bat         # Bun 下载脚本
-├── trawl-goto-timeout.patch # 稳定性补丁（Tier3/4 超时 30s→90s）
-├── trawl-apply-patch.ps1    # 补丁应用脚本（git apply + 规则兜底，尽力而为）
+├── goto-timeout.patch # 稳定性补丁（Tier3/4 超时 30s→90s）
+├── goto-apply-patch.ps1    # 补丁应用脚本（git apply + 规则兜底，尽力而为）
 ├── README.md                # 本说明
 ├── .env                     # 配置文件
 ├── .env.example             # 配置示例

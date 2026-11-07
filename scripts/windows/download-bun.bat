@@ -45,7 +45,7 @@ powershell -Command "Expand-Archive -Path 'bun.zip' -DestinationPath '.' -Force"
 del bun.zip
 
 :: 扁平化：bun-windows-x64.zip 解压后是 bun-windows-x64\bun.exe，
-:: 提到 bun/ 根目录，与 start-trawl.bat 的 bun\bun.exe 检测路径一致
+:: 提到 bun/ 根目录，与 trawl-start.bat 的 bun\bun.exe 检测路径一致
 if not exist "bun.exe" (
     for /d %%D in ("bun-windows-*") do (
         if exist "%%D\bun.exe" move "%%D\bun.exe" "." >nul 2>&1
@@ -62,5 +62,5 @@ if exist "bun.exe" (
 )
 
 echo.
-echo 现在可以运行 start-trawl.bat 启动服务
+echo 现在可以运行 trawl-start.bat 启动服务
 pause
