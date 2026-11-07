@@ -4,6 +4,13 @@
 
 ## 2026-11-07
 
+### Hbox 间歇性空壳自动重试（连通性/探测/刮削三层）
+
+- 连通性 200 空壳（无 `gtmSetItemList` 的 age_check 壳）原地址自动再打至多 2 次（间隔 1s/2s），命中作品 JSON 即判 OK；打满仍是空壳才判 WARNING，文案改为「详情页多次重试后仍未返回作品数据……」，不再让用户为单次抖动手动换节点重测。
+- 刮削探测对 Hbox 网开一面：`_is_transient_probe_result` 新增站点参数，Hbox 的「详情页未找到作品数据」「没有获取到作品标题」视为瞬时性、走满 45s/60s 两档（其它站仍首探即定论）；终局如实报「均失败，<根因>」。
+- 真实刮削同补：`HboxCrawler._fetch_detail` 覆写为空壳重试（共 3 次，命中 `gtmSetItemList` 即停），打满仍是空壳才交由解析层报原错误；年龄确认 Cookie 发送逻辑不变。
+- 测试：`test_network_check.py` 新增空壳重试转 OK / 三连空壳仍 WARNING（3 次请求、文案含多次重试）用例，Hbox 探测用例同步为两档重试终局「均失败」；`tests/crawlers/test_hbox.py` 新增详情页首空壳后成功 / 三连空壳保原错误用例。
+
 ### 存量超时配置自动升级 30s → 45s；JavLibrary 真实刮削只走 CN
 
 - 存量配置自动升级：加载时 `timeout` 恰好等于旧出厂值 30 的自动改为 45（用户手动改过的值原样保留），独立标记 `request_timeout_45_migrated` 保证只跑一次，`config_version` 保持 2；迁移警告带 `[迁移]` 前缀。
