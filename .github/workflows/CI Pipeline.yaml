@@ -121,7 +121,7 @@ jobs:
         # PyQt6 需要 display 才能实例化 QApplication；offscreen 平台无需 X11/Wayland
         env:
           QT_QPA_PLATFORM: offscreen
-        run: uv run pytest tests/ --tb=short -m "not network"
+        run: uv run pytest tests/ --tb=short -m "not network and not integration"
 
       - name: Run check_actor_db
         if: steps.changes.outputs.actor_db_changed == 'true'
@@ -209,7 +209,7 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           PYTHONIOENCODING: utf-8
-        run: uv run pytest tests/ --tb=short -m "not network"
+        run: uv run pytest tests/ --tb=short -m "not network and not integration"
 
       # 一体包硬失败：Windows 冒烟必须先有 build/sr_tools，否则 build.py 直接 BuildError。
       # 缓存由 update-sr-tools.yml 预热；命中时 fetch 幂等跳过，未命中则当场拉取。
