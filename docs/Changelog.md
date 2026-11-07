@@ -4,6 +4,12 @@
 
 ## 2026-11-08
 
+### FC2偶发「未进入影片详情页」：单次毛刺内部重打+报错带页面指纹
+
+- 根因：`Fc2Crawler._run` 单次 `get_text` 后即用 `isDetailPage`（`items_article_wrapper` + `userInfo` 双标记）定论；代理抖动/截断偶发回 200 非详情页时直接抛光秃秃的「未进入影片详情页」，网络检测两次45s/60s都在问同一毛刺，无从判断是真删号还是单次抖动。
+- 修复：非详情页且非确诊下架（`isNotFoundPage` 仍首轮即定论，不浪费重打）时等待 2s 后原地址重打一次，恢复即走正常解析；仍失败才抛错，且错误携带页面指纹（`describe_fc2_page`：标题/正文长度/`wrapper`·`userInfo`有无/Cloudflare·代理错误页提示），口径沿用 `crawlers.base.base._page_fingerprint`。该串不含确定性标记，探测仍走瞬时重试，两档后终局如实带出指纹。
+- 测试：`tests/crawlers/test_fc2.py` 新增持续非详情页（2 次请求、报错含指纹）/单次毛刺自愈/下架页不重试/拦截页提示用例。
+
 ### Hbox年龄门壳确诊：门壳首轮即定论，不再无脑重打+模糊报换节点
 
 - 根因（2026-11-08 实测确诊）：用户 Hbox 行 200 三连空壳，`age_check_ok=true` 带上后直连实测 200/114KB 含作品 JSON，机制本身没坏；无 Cookie 实测 302→`/age_check`，门页是约 4KB 的 Next.js SPA 空壳（无 title、无一句日文、无链接/表单，唯一信号是`__NEXT_DATA__`里的`"page":"/age_check"`与落地 URL）。用户命中的正是该门壳=年龄验证未通过（Cookie 未生效），不是 IP 封禁（Hbox 无封禁页形态、同代理其余站全通）、不是站点挂、不是番号下架。
