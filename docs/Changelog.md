@@ -24,6 +24,12 @@
 - 番号级链接实测修正 2 条：Faleno 含未编码空格（InvalidURL，加 `quote` 编码）、Xcity `/result/` 在默认 host 404（改用同文件 200 的 `/api/search`）；FC2 全站 `/article/` 404 系本机网络环境问题、pattern 与代码一致，不动。
 - 测试：`tests/test_site_fields_export.py` 新增 4❌+JavFree✅ 锁定断言，Xcity/Faleno 链接断言同步；35 项全过。
 
+### 设置-高级「导出字段」审计修复：补扩展名+防重入+空目录回退
+
+- 漏洞/错误：`export_site_fields_xlsx` 不补 `.xlsx`，非原生保存对话框（或用户删掉扩展名）会写出无扩展名文件；在导出（含 0.4s 静态收集）跑 GUI 线程期间连击会弹出两个保存对话框、第二次悄悄覆盖第一次；视频刮削目录为空串时保存对话框默认路径落到 CWD。
+- 修复：后端统一落到 `.xlsx`（无后缀追加、错后缀替换、`.XLSX` 大小写保留）；UI 加 `_exporting_site_fields` 防重入标志（try/finally 必复位）；空目录回退到用户 home。
+- 测试：`tests/test_site_fields_export.py` 新增扩展名归一化用例（无后缀/大写/错后缀）；5 项全过，`ruff`/`mypy` 全绿。
+
 ## 2026-11-07
 
 ### 刮削字段表导出：文件名带时分秒+列宽更新+隐藏空白列
