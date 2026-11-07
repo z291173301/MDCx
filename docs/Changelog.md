@@ -93,6 +93,13 @@
 - 使用说明/提示/文档同步：帮助有码·无码名单改为收拢态聚合形态、官方网站段改为 34 站（含 MyWife 番号规则注）、MyWifes 行删除；`tips.py` 有码行改为 34 家官网（含 MyWife）、官方路由前缀 322 个（含 `MyWife No.1230`）；`docs/Features.md` 同步（有码组 59 站、34 站官网、322 前缀、八个分组标题）。
 - 测试：`test_type_site_scrape_rows`（19 行表/双 spacer/几何/间隙）、`test_website_single_official_rows`（39 站/聚合行/徽标）、`test_site_combo_tooltips`（MyWife 新文案）、`test_site_source_type_groups`（聚合 34 站/单体新名/官方归属）、`test_site_source_copy_menu`（有码 59 站）、`test_official_aggregate`/`test_official_disabled_scope`/`test_official_uncensored_split_migration`（39/34 计数/v3 标记）、`test_ui_structure`、`test_config_conversion`、`test_file_crawler_runtime` 全量同步；另修复两处历史红灯（聚合入口无爬虫属设计、`validate_crawler_registry` 以 `_AGGREGATE_WEBSITES` 豁免；品牌站可用性用例按展开态断言收拢默认值）。
 
+### 公开仓打包失败：workflow 不同步 + close.bat 去强制提权
+
+- 线上打包失败（`Copy-Item scripts\windows\start-trawl.bat` 不存在）：开发仓 61e7ab1 早已改名，但公开仓跑的是自己那份旧 workflow，而 `sync-trawl-scripts.yml` 只同步 `scripts/windows/**` 不管 workflow 文件——实测公开仓 main 仍是旧版（还引用已删除的 start-trawl.bat/vbs）。本地没错，错的是公开仓掉队。
+- 新增 `.github/workflows/sync-package-workflow.yml`：push 触及 `package-trawl.yml` 或手动 dispatch 时，把该单个文件同步到公开仓（同并发组防推送顶掉）。注意：历史欠账需先去 Dev Actions 手动跑一次该 workflow（选 main），之后自动跟随。
+- `trawl-close.bat` 去掉启动时强制提权：自己的进程自己就能关（无管理员实测全 OK、exit 0，不弹 UAC）；只有端口确实没清掉且当前非管理员时，才在最后请求提权再跑一次。残留的 start-trawl 注释顺手改名。
+- `trawl-start.vbs` 注释/MsgBox 里残留的 start-trawl 字样同步改名（执行路径早就是 trawl-start.bat）。
+
 ### TRAWL 便携包 GeoIP 数据库随包（启动不再在线下载）
 
 - 根因：包内 `.cache/camoufox/GeoLite2-City.mmdb` 缺失（仅留 1MB 中断残留），`camoufox-js` 在启动时走 `api.github.com` 查 `P3TERX/GeoLite.mmdb` 的 release，匿名配额被限流（403）后浏览器池初始化失败（`startup failed: Failed to fetch releases ...`）；直链下载（`github.com/.../latest/download/...`）不走 API，不受影响。
