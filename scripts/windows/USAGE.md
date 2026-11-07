@@ -117,6 +117,12 @@ https://github.com/P3TERX/GeoLite.mmdb/releases/latest/download/GeoLite2-City.mm
 ```
 （约 50MB，放入后应与 `.cache/camoufox/camoufox.exe` 同目录）
 
+### Q: 不用了，怎么彻底删除整个目录？文件删光了但目录删不掉？
+A: 双击 `trawl-uninstall.bat`（一键停服并删除整个目录：先停 API/Camoufox/Redis，
+再清只读属性，用 robocopy 镜像对付 node_modules 超长路径；仍被占用时注册重启删除）。
+手动删注意两点：先跑 `trawl-close.bat` 停掉隐藏的 Redis/API 进程，并关闭指向该目录的
+资源管理器窗口和终端（它们占着目录句柄，空目录也删不掉）。
+
 ### Q: 端口 8191 被占用？
 A: 编辑 `.env` 文件，修改：
 ```
