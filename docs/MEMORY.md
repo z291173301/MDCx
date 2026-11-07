@@ -29,8 +29,8 @@
 - `ruff check` 过 ≠ `ruff format --check` 过；改了 .py 必须 `ruff format` 落地。格式化要用仓库锁定版 ruff，**`uv.lock` 是唯一版本来源**：`pyproject.toml` / `requirements.txt` / `uv.lock` 根 specifier 由 `python -m scripts.sync_ruff_version` 自动同步（`--check` 只校验；`scripts/check.py` 检测到漂移会自动改写并拦截，提交后再重跑）。升版流程：先升级 `uv.lock` 的 ruff → 跑同步脚本 → 全量 format + check；`tests/test_ruff_version_sync.py` 锁死。
 - `scripts/` 也在 check 范围内。`check.py` 的 ALWAYS 段 = `ruff format --check` → `ruff check` → `mypy mdcx/` → `check_thread_safety`（**不含 pytest**）；要全量门禁显式加 `--with-tests`：`"C:/Program Files/Python315/python.exe" scripts/check.py --skip-hook-install --with-tests`。
 - `check_ui_layout` 已移出门禁，只作手工诊断：`-m scripts.check_ui_layout`。xlsx 校验按路径跳过（`check_actor_db` / `check_info_db` 只在对应出厂库或校验脚本有改动时跑）。
-- `ci.yaml` 的 `on:` 只有 `pull_request: branches: [main]`，**直推 main 不触发 CI**；门禁靠「PR + 本地自检」两道。
-- Linux 构建依赖统一走 `.github/actions/install-linux-deps`（`build-py315.yml` / `ci.yaml` / `update-sr-tools.yml` 三处共用）：**不装系统 Qt6、不装 FFmpeg 开发库**（Qt 来自 pyqt6-qt6 wheel，FFmpeg 来自 av 的 abi3 wheel），且必须带 `--no-install-recommends`。三处各复制一份大清单会退回「149 个包 / 123MB / 几分钟」的老路。
+- `CI Pipeline.yaml` 的 `on:` 只有 `pull_request: branches: [main]`，**直推 main 不触发 CI**；门禁靠「PR + 本地自检」两道。
+- Linux 构建依赖统一走 `.github/actions/install-linux-deps`（`build-py315.yml` / `CI Pipeline.yaml` / `update-sr-tools.yml` 三处共用）：**不装系统 Qt6、不装 FFmpeg 开发库**（Qt 来自 pyqt6-qt6 wheel，FFmpeg 来自 av 的 abi3 wheel），且必须带 `--no-install-recommends`。三处各复制一份大清单会退回「149 个包 / 123MB / 几分钟」的老路。
 - `git add -- <具体文件>`，绝不用 `git add -A`；提交前看 `git status` 的未跟踪文件，运行残留不得入库。
 - **不改不是自己改的文件**（并行会话可能同时改本仓库）；暂存区里有别人的改动时，用 `git commit -- <自己的文件>` 只提交自己的。
 - 提交信息不要手写 `Co-authored-by`（`prepare-commit-msg` 会无条件追加）。

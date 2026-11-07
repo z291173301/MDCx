@@ -174,19 +174,24 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 
 ## 8. 依赖
 
-核心：PyQt6 6.11.0、httpx、curl-cffi>=0.15.0、lxml + parsel + beautifulsoup4、Pillow + opencv-contrib-python-headless、Jinja2、openpyxl、uvicorn。
+核心：PyQt6 6.11.0、httpx、curl-cffi>=0.17.0、lxml + parsel + beautifulsoup4、Pillow + opencv-contrib-python-headless、Jinja2、openpyxl、uvicorn。
 
 **cp315 wheel 下限清单**（改依赖务必守住）：
 
 ```
 aiohttp>=3.14.5      av>=19.0.2          lxml>=6.1.3
 pillow>=13.0.0       numpy>=2.5.4        pyinstaller>=6.22.3,<7
-aiofiles>=25.1.0     cffi>=2.1.1         jiter>=0.17.0
-markupsafe>=3.0.4    pydantic-core>=2.50.1  PyQt6-sip>=13.13.0
+aiofiles>=25.1.0     cffi>=2.1.1         jiter>=0.19.0
+markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
 ```
 
 - `requires-python` 固定 `>=3.15`（3.15 是当前唯一构建目标），不带 upper bound。
-- 131 个锁包里 129 个有 wheel，唯一例外 pyyaml（无 cp315 wheel），靠 `PYYAML_FORCE_LIBYAML=0` 出纯 Python wheel。
+- **依赖升级同步军规**（真源顺序：`uv.lock` > `pyproject.toml` > `requirements.txt`）：
+  1. 本机（`.venv`，`uv sync --locked` 之后的状态）某个包做了**升级**，`pyproject.toml` 与 `requirements.txt` 里对应包的版本下限必须同步上调到已安装版本；**降级不用理会**（不下调下限）。
+  2. 标准流程：`uv lock --upgrade-package <pkg>` → `uv sync --locked` 验证 → 同步 `requirements.txt` 镜像行 → 若涉及 cp315 wheel 起步包，同步更新 `tests/test_py314_dependency_floors.py` 的声明/锁定元组/文档 → ruff 走 `python -m scripts.sync_ruff_version`（自动同步三处声明点）→ 跑通 floors/sync 相关测试。
+  3. 例外 cap 保持不动：`pyqt6<6.12`（上游 .pyi 语法问题，见 `requirements.txt` 注释）、`ruff<0.18`（由同步脚本按 lock 自动推导 upper bound）。
+（3.15 是当前唯一构建目标），不带 upper bound。
+- 124 个锁包里 120 个有 wheel（mdcx 自身除外；sdist-only：oshash/pyyaml/zhconv），其中 pyyaml 无 cp315 wheel，靠 `PYYAML_FORCE_LIBYAML=0` 出纯 Python wheel。
 - ruff 版本以 `uv.lock` 为唯一来源。升级 ruff 后运行 `python -m scripts.sync_ruff_version`，自动同步 `pyproject.toml`（`ruff>=X,<Y`）、`requirements.txt`（`ruff>=X`）和 `uv.lock` 根 metadata 的 specifier；`--check` 只校验不改文件。`scripts/check.py` 发现漂移会自动同步并以非 0 退出，提交同步结果后重跑即可。标准升级流程：`uv lock --upgrade-package ruff` → 同步脚本 → 全量 format/check；`tests/test_ruff_version_sync.py` 钉死一致性。
 
 ---
@@ -196,7 +201,7 @@ markupsafe>=3.0.4    pydantic-core>=2.50.1  PyQt6-sip>=13.13.0
 - pytest + pytest-asyncio；标记 `network`（默认跳过）、`integration`（默认跳过）。
 - 命令：`uv run pytest tests/`；离线子集 `uv run pytest tests/ --tb=short -m "not network" -x`。
 - CI 分工：Linux 跑 ruff/mypy/完整离线测试/数据库检查/线程安全检查；Windows（`windows-2025`）跑同一组离线 pytest + PyInstaller 冒烟构建；Release 在 macOS/Windows/Ubuntu 分别构建 DMG/EXE/Linux 单文件。
-- `ci.yaml` **只监听 `pull_request`（目标 main），不监听 push** → 直推 main 无 CI 门禁，改为两道：提交前 `uv run quick-check`，推送前 `uv run check --skip-hook-install`（守卫 `tests/test_ci_workflow_triggers.py`）。
+- `CI Pipeline.yaml` **只监听 `pull_request`（目标 main），不监听 push** → 直推 main 无 CI 门禁，改为两道：提交前 `uv run quick-check`，推送前 `uv run check --skip-hook-install`（守卫 `tests/test_ci_workflow_triggers.py`）。
 - 主要测试文件：
   - `tests/test_ui_structure.py`：groupBox 不重叠、无负间距、objectName 唯一、`MDCx.py` 与 `.ui` 同步（pyuic6 重编译 + ruff format 后与仓库版逐字节比对）。
   - `tests/test_actor_clean.py`、`tests/test_check_actor_db.py`（jp 重复/tmdbid 重复/url 错配/孤儿 hyperlink）。
