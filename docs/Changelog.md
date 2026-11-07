@@ -4,6 +4,12 @@
 
 ## 2026-11-08
 
+### 检测网络页筛选勾选符 √→✅
+
+- 勾选态改存自定义 role、✅/🔶/⬜ 直接画进选项文本（view 自带复选框画的是系统 √，且 combo 自带样式表时 view.setStyle 会被吃掉）；半选分组行显示 🔶。
+- 附带修：PyQt6 `CheckState` 非 IntEnum，`int()` 抛 TypeError，读取函数改为透传枚举。
+- 测试：`test_network_check`＋`test_ui_structure` 全过；offscreen 实测 toggle 空→71（✅）→空（⬜）正常。
+
 ### 检测网络页分组行置顶+改名
 
 - `Official·pixelated`、`Official·uncensored` 移到下拉最上方（原来钉在 `Missav_API` 下方）。
