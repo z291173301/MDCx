@@ -4,6 +4,12 @@
 
 ## 2026-11-08
 
+### 有码全站兼容下划线分隔符写法
+
+- 原因：用户文件名常把 `SSNI-647` 写成 `SSNI_647`，有码爬虫用原番号拼搜索 URL / 比对结果时会失败；无码站严格区分 `_` 与 `-`，不做归一。
+- 改动：`file_crawler.py` 新增模块级纯函数 `normalize_censored_separator`（三道门：无下划线 / 目标为无码官网 5 站 / 原形或归一形判无码则原样返回，否则 `_` 全换 `-`），在 `_call_crawler` 的 `short_number` 替换之后对入站番号归一；`finally` 恢复与缓存键逻辑不动，不额外重试。
+- 测试：新增 `tests/test_number_separator_compat.py` 4 项（有码转横杠 / 无变化 / 无码形不变 / 无码官网目标站不变），全过。
+
 ### MGStage 兼容 stripped 写法：ONEZ-***/ONEZ_*** 自动补 013 前缀
 
 - 原因：用户文件名常删掉前面数字记成 `ONEZ-209`，此时直拼 `product_detail/ONEZ-209/` 在 mgstage 站不存在（canonical 形是 `013ONEZ-209`）。
