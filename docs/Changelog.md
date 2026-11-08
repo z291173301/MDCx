@@ -4,6 +4,12 @@
 
 ## 2026-11-08
 
+### MGStage 兼容 stripped 写法：ONEZ-***/ONEZ_*** 自动补 013 前缀
+
+- 原因：用户文件名常删掉前面数字记成 `ONEZ-209`，此时直拼 `product_detail/ONEZ-209/` 在 mgstage 站不存在（canonical 形是 `013ONEZ-209`）。
+- 改动：`mgstage.py` 新增 `_id_prefixed_variants`，按 `_MGSTAGE_SERIES_MAP` 的 id 把 `ONEZ-***/ONEZ_***` 补成 `013ONEZ-209`（`LUXU→259LUXU` 等同机制泛化）；变体追加在候选末尾，原有行为不变。
+- 测试：新增 `tests/test_mgstage_candidates.py` 4 项，全过。
+
 ### 导出路由按钮 + 官网路由番号表导出
 
 - 改动：设置-高级-高级功能新增「导出路由」按钮（与「导出字段」同一竖线，锚定 row8「当停止刮削时」行中线；row9 不可用其实测右端「无」单选框正好压在按钮下方）。新增 `mdcx/crawlers/site_routes.py`：反转 `OFFICIAL_PREFIX_SITES` + `BRAND_PREFIX_SITES` + 无码别名 + MGStage 素人系列，收集 39 家官网路由前缀导出 `官网路由番号.xlsx`（2 列，列宽 17.88/187，C 列起隐藏，首行 + A/B 列冻结，超长站多行 + A 列合并居中）。
