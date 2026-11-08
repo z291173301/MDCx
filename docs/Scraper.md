@@ -73,6 +73,7 @@ MDCx 刮削网站类型汇总表
     Missav_API    https://missav.live/dm79/cn  Missav 接口实现（fourhoi.com）
     R18_API       https://r18.dev               日系有码元数据库 + Database dumps API，前缀表锁定日系厂牌
     R18.dev       https://r18.dev               网页版详情页（静态 HTML，id=ure00013 直连），与 R18_API 同站成对
+    TheJavDB      https://thejavdb.net          thejavdb.net 网页版（静态 HTML field 栏），与 TheJavDB_API 同站成对
     TheJavDB_API  https://thejavdb.net          thejavdb.net 网页版，取数走它自己的免 CF 接口
 
 ================================================================================================================
@@ -265,6 +266,7 @@ Official·Pacopacomama 官网：无码无码                                    
 Official·Prestige   聚合：有码+素人             有码+素人                      https://prestige-av.com         ABW-130
 R18_API           有码：仅限有码              有码                             https://r18.dev                 SSNI-360
 R18.dev           有码：仅限有码              有码                             https://r18.dev                 URE-013
+TheJavDB          有码：仅限有码              有码                             https://thejavdb.net            SAVR-1211
 TheJavDB_API      有码：仅限有码              有码                             https://thejavdb.net
 ThepornDB         欧美：欧美番号              无码+欧美                        https://api.theporndb.net
 Xcity             有码：仅限有码              有码                             https://tc.xcity.jp             ABF-050
