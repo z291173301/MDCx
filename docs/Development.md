@@ -63,6 +63,8 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 | `core/face_crop.py` | OpenCV YuNet ONNX 人脸检测，裁 2:3 海报 |
 | `core/mosaic.py` | `normalize_mosaic()` 归一为 有码/无码/无码破解/流出/无码流出/国产 |
 
+**番号格式纪律：FC2/个摄番号必须兼容 `FC2-` 与 `FC2-PPV-` 两种写法（2026-11-15 用户定规，细则见 `docs/MEMORY.md` 通用纪律）。** 归一公共件是 `utils/shared_fields.py::fc2_digits`（fc2/fc2ppvdb 同源）与 `javdb_number_key`（FC2PPV 折叠成 FC2）；涉及 FC2/个摄的爬虫（fc2、fc2ppvdb、javfree、7mmtv、missav、javbus、javdb/javdb_app、iqqtv、javlibrary 等）输入侧双写都要识别，输出统一标准短形 `FC2-{digits}`；站侧只认 PPV 形的（javfree 搜索、7mmtv 标题、missav 详情 slug `fc2-ppv-*`）在生成关键词/URL 时自行映射。
+
 ### 3.1 分离模式开关口径
 
 配置项：`separate_reuse_metadata`、`separate_overwrite_meta`（默认 False）。

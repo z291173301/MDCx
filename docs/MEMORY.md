@@ -158,7 +158,7 @@
 - **失效域名直接删，不留兜底**（2026-10-24）：删到只剩一个地址的站点（7mmtv / IQQTV / freejavbt）连镜像轮换一起删。
 - **JavBus 四条线路、一个地址一次**：`www.javbus.com` → `www.dmmsee.casa` → `www.javsee.cyou` → `www.cdnbus.bond`，由 `_MULTI_ADDRESS_SITE_TARGETS` 派发，爬虫内部不再自建轮换。JavDB 爬虫内部默认 `javdb580.com`、自动轮询 573/574/575 镜像。
 - 「当前网站」下拉网址列显示一律去 www（`init._display_site_url`，只改显示）；新增配置 `last_custom_website`，交互中只置脏标记、`exit_app` 时落盘（别在交互里 `manager.save()`）。
-- 带语言段的入口地址不能直接当前缀拼：`base/web.py::site_root()` 先收敛成 `scheme://host`；missav 默认地址固定带 `/dm247/cn`，不带会被 302 到英文页。
+- 带语言段的入口地址不能直接当前缀拼：`base/web.py::site_root()` 先收敛成 `scheme://host`；missav 默认地址固定带 `/dm79/cn`（2026-11-15 实测 canonical，原 dm247 已轮换），不带会被 302 到英文页。
 - JavDB 两源：javdb（网页/镜像站轮询，与旧 JavDB_API 同实现）/ javdb_app（App API，免 CF 最稳）；thejavdb 与 javdb 无关。App 签名见 `docs/Javdb_App_Signature.md`，排障锚点 = 三主机同时 4xx 或 InvalidSignature；搜索 limit ≤ 50，分页须 `movie_sort_by=release`。
 - javdb 图源无水印体系：`tp.spfcas.com` 是 App 专用（单字节 XOR），`c0.jdbstatic.com` 带水印；解密集中在 `base/web.py`。加密流尺寸探测 (0,0) 属预期。
 - **ThePornDB 的 401 与 403 不是一回事**（2026-10-30 实测）：401 = Token 不存在/失效；403 `This action is unauthorized.` = Token 已通过验证但没该接口权限（粘贴了网页登录令牌、旧 Token 被重置、账号无哈希直查权限）。403 绝不能提示「检查网络或代理」，也不能中断刮削（哈希直查 403 就退到标题搜索）。判定与文案只在 `mdcx/utils/theporndb_token.py`，三处（设置页检测、检测网络页、刮削爬虫）共用。
@@ -212,6 +212,7 @@
 - 长时间任务：后台终端 + checkpoint 断点续传 + 分批落盘 + wrapper 45-50 分钟自重启；进度看落盘文件，不看终端日志（stdout 全缓冲可能 0 字节）。
 - 功能移除类需求先调研证据（活跃度、共享依赖、移除成本）；用户转述与代码证据矛盾时以代码为准。
 - **共用功能/方法必须单独成文件或函数（2026-10-27 用户定规）**：同一段逻辑出现第二处（或预见会出现）就抽出来，跨模块/体量大时抽独立文件（`core/file_association.py`、`tools/emby_actor_ui_kit.py`、`tools/emby_actor_source_catalog.py` 是现成范式）；旧入口保留薄封装转调，改共用实现前 grep 全部调用点，并留回归测试。
+- **FC2/个摄番号必须兼容 `FC2-` 与 `FC2-PPV-` 两种写法（2026-11-15 用户定规）**：涉及 FC2/个摄的刮削器，输入侧两种前缀都要识别、输出统一归一为标准短形 `FC2-{digits}`（`utils/shared_fields.py::fc2_digits` 是归一公共件，`javdb_number_key` 把 `FC2PPV` 折叠成 `FC2`）；站侧要求 PPV 形的（javfree 搜索、7mmtv 标题、missav 详情 slug `fc2-ppv-*`）在生成搜索关键词/URL 时自行映射，绝不能因输入写法不同而搜不到。改任何 FC2 判定前闭眼兼容双写，别再写 `update("FC2-", "FC2-PPV ")` 这类会叠成 `FC2-PPV PPV-` 的替换（7mmtv.get_real_url 2026-11-15 修的真 bug）。
 - **刮削模式值全表**（2026-10-23 起）：1 正常 / 2 分离 / 3 视频 / 4 更新 / 5 读取 / 6 整理 / 7 补全。改动模式必须同步：`config/extend.py` 常量与 `is_xxx_mode()`、`load_config.py` / `save_config.py` 的 `mode_mapping` 与 radio 映射、`MDCx.ui` 单选项与说明、`core/file.py` 的模式元组、`base/file.py::get_movie_list`、`core/scraper.py` 的续刮排除与扫描排除、`init.py` 提示词、软件内使用说明。
 
 ## 日亚 ASIN 数据库
