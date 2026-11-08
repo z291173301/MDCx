@@ -209,8 +209,8 @@ Official·Faleno     有码：仅限有码              有码                  
 FC2               FC2：FC2官网                无码+素人+FC2                    https://adult.contents.fc2.com  FC2-5003460
 FC2PPVDB          FC2：FC2网站                素人+FC2                         https://fc2cmadb.com            FC2-4988506
 FreeJavBT         有码：仅限有码              有码+无码+FC2+欧美               https://freejavbt.com
-Getchu            综合：有码+游戏+视频        有码（另有里番/同人/书籍/动漫）  http://getchu.com               AIV
-Hbox              综合：有码+动漫/里番        有码+动漫/里番                   https://hbox.jp                 FTHTD-227
+Getchu            综合：有码+游戏+视频        有码（另有里番/同人/书籍/动漫）  http://getchu.com               TMAI-10
+Hbox              综合：有码+动漫/里番        有码+动漫/里番                   https://hbox.jp                 FNS-266
 IQQTV             综合：有码+无码+素人+国产   有码+无码+素人+欧美+国产         https://iqqr1.org/cn
 JavBus            综合：有码+无码             有码+无码+FC2+欧美               https://www.javbus.com
 JavDay            综合：有码+无码+国产        有码+无码+国产                   https://javday.app
