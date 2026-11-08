@@ -4,6 +4,26 @@
 
 ## 2026-11-08
 
+### 导出路由按钮 + 官网路由番号表导出
+
+- 改动：设置-高级-高级功能新增「导出路由」按钮（与「导出字段」同一竖线，锚定 row8「当停止刮削时」行中线；row9 不可用其实测右端「无」单选框正好压在按钮下方）。新增 `mdcx/crawlers/site_routes.py`：反转 `OFFICIAL_PREFIX_SITES` + `BRAND_PREFIX_SITES` + 无码别名 + MGStage 素人系列，收集 39 家官网路由前缀导出 `官网路由番号.xlsx`（2 列，列宽 17.88/187，C 列起隐藏，首行 + A/B 列冻结，超长站多行 + A 列合并居中）。
+- 测试：`tests/test_site_routes_export.py` 新增 3 项回归，全过。
+
+### MGStage 路由前缀修正：ONEZ 只属于 Prestige，自家是 013ONEZ
+
+- 原因：`ONEZ-xxxx` 在 mgstage 站内搜不到；MGStage 详情页实测存在的是 `013ONEZ-209` 这类纯数字头形（`get_number_letters` 取头为 `013ONEZ`，与 Prestige 的 `ONEZ` 是不同前缀）。
+- 改动：`BRAND_PREFIX_SITES` 加 `013ONEZ → MGStage` 品牌锁；`site_routes.py` 的 MGStage 系列跳过 `onez`（保留其余 7 个 + 品牌锁的 013ONEZ）。
+- 测试：路由回归更新 MGStage 期望值 + ONEZ 双边归属断言，全过。
+
+### HEYZO 加入无码别名表
+
+- 改动：`DIGIT_PREFIX_ALIASES` 加 `"heyzo": "heyzo"`（heyzo-xxxx 另有 `HEYZO_RE` 直驱，加别名项无路由副作用）；`site_routes.py` 别名源映射同步加 heyzo 条目，删冗余的显式 `_add`。
+- 测试：别名值域全覆盖断言继续全过。
+
+### 导出字段提示文案去空格
+
+- 改动：`site_fields_ui.py` 导出成功提示中文括号间去空格（已按当前代码重新收集{n}个站点字段并保存到）。
+
 ### 人脸裁剪：模型目录不可写时跳过不抛异常
 
 - 改动：`_face_model_path` 的建目录在 `try` 之外，userdata 只读时直接抛异常；现捕获后返 `None`，调用方回退居中裁剪。模型缺失时的生成链路不变（内置释放→下载），写入失败各环节本就返 `False`。
