@@ -4,6 +4,11 @@
 
 ## 2026-11-08
 
+### 依赖瘦身第二轮：移除 dateparser（含 pytz/regex/tzlocal）
+
+- 原因：`dateparser` 只是日期归一化的慢路备选，正则快路 + `dateutil` 已覆盖全部测试形态（含 `Nov 7, 2024`），留着只占体积。
+- 改动：`field_parse.normalize_release_date` 删 `dateparser` 分支，仅保留正则 + `dateutil`；`pyproject`/`requirements`/`uv.lock` 同步；本机已 `pip uninstall dateparser tzlocal regex pytz`（`python-dateutil` 为直接依赖，保留）。
+
 ### 依赖瘦身：移除 yt-dlp / trafilatura（含 babel），Windows 包体积回落
 
 - 原因：11 月 7 日新增的 13 个依赖把 Windows 一体包从 272MB 推到 321MB；其中 `babel`（30MB，经 `trafilatura→courlan` 带入）与 `yt-dlp`（20MB）最重，且都只是失败即跳过的兜底链路。
