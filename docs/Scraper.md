@@ -131,7 +131,8 @@ MDCx 刮削网站类型汇总表
     JavDB_APP     https://apidd.czssdgz.com     JavDB App 接口镜像（apidd.*），内容集同 JavDB
     Missav        https://missav.live/dm247/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
     Missav_API    https://missav.live/dm247/cn  Missav 接口实现（fourhoi.com）
-    ThepornDB     https://api.theporndb.net    API 子域 api.theporndb.net（主域 /api 为备用基址，子域不通时自动兜底）。欧美 scenes/movies 库（登录墙）
+    ThepornDB     https://theporndb.net        网页版：需网页账号登录（sanctum），站内 scenes/movies 搜索
+    ThepornDB_API https://api.theporndb.net    API 子域 api.theporndb.net（主域 /api 为备用基址，子域不通时自动兜底）。欧美 scenes/movies 库（需 API Token）
 
 ================================================================================================================
 【国产传媒】  合计 9 站   （官网 2 + 第三方 7）
@@ -264,7 +265,8 @@ Official·Pacopacomama 官网：无码无码https://pacopacomama.com    pacopaco
 Official·Prestige   聚合：有码+素人             有码+素人                           https://prestige-av.com                 ABW-130
 R18.dev           有码：仅限有码              有码                                https://r18.dev
 TheJavDB          有码：仅限有码              有码                                https://thejavdb.net
-ThepornDB         欧美：欧美番号              无码+欧美                           https://api.theporndb.net
+ThepornDB         聚合：欧美番号                无码+欧美                           https://theporndb.net
+ThepornDB_API     欧美：欧美番号              无码+欧美                           https://api.theporndb.net
 Xcity             有码：仅限有码              有码                                https://tc.xcity.jp                     ABF-050
 
   ↑ 「MDCx 站点说明」列是爬虫 `description` 的原样文案（`+` 连写能力），界面上显示时
@@ -297,7 +299,7 @@ Xcity             有码：仅限有码              有码                     
     DMM  ⇄  DMM_API  ⇄  LibreFanza
     Missav  ⇄  Missav_API
     FC2  ⇄  FC2PPVDB
-    ThepornDB  ⇄  AVheat
+    ThepornDB  ⇄  ThepornDB_API  ⇄  AVheat
     JavDB  ⇄  JavDB_APP
     Madou.club  ⇄  Madouqu      （同一份麻豆系国产数据的两条路：Madou.club 的条目有番号
                                 也有标题名，Madouqu 只有标题名，故 Madou.club 排在前面）

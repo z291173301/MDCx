@@ -89,7 +89,8 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | JavDay | javday.app | 综合：有码+无码+国产 |
 | JavFree | javfree.me | 综合：有码+FC2 |
 | 7mmtv | 7mmtv.sx | 综合：有码+无码+素人+FC2 |
-| ThepornDB | api.theporndb.net | 欧美：欧美番号 |
+| ThepornDB | theporndb.net | 聚合：欧美番号 |
+| ThepornDB_API | api.theporndb.net | 欧美：欧美番号 |
 | Jav321 | www.jav321.com | 综合：有码+动漫 |
 | Hbox | hbox.jp | 综合：有码+动漫/里番 |
 
@@ -98,7 +99,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 - **本表「说明」列是爬虫自己的文案原样**（用 `+` 连写能力）；**界面上显示时一律归一成 `/`**（`_site_description()` 里换掉），且下拉框显示文本、「可用网站」候选区悬停提示两处都改用**现算的类型名单**（`综合：有码/无码/欧美/传媒` 这类，与下表的旧文案不一定逐字一致——名单才准；名单里不写「动漫」「个摄」，但「短剧」照常显示）。
 - **Official 有码 34 站**：29 家片商官网（各有自己的 `Website` 枚举、爬虫与官网基址）加上改名的 `Official·Dahlia`、`Official·Faleno`、`Official·MGStage`、`Official·Prestige`、`Official·MyWifes`（五站同属 `OFFICIAL_YOUMA_SITES`，与其它官网站同等对待），番号前缀在刮削分类时直接锁定对应官网单站（如 SSIS 走 `Official·S1`、JUL 走 `Official·Madonna`、ABW 走 `Official·Prestige`、`MyWife No.1230` 走 `Official·MyWifes`，共 322 个前缀；`DLDSS` 走 `Official·Dahlia`，`FNS`/`FLN`/`JIMMY` 走 `Official·Faleno`）；前缀表维护在 `crawlers/official_sites.py`。各站网络检测各占一行、各用各的探测番号，可单独启用/禁用，互不影响；默认只进有码番号组。「编辑网站」可用网站候选区里 34 站聚合成一行「有码官网」显示（拖入/双击即展开为 34 个成员），5 个无码站聚合成一行「无码官网」显示，其后另起 `Official` / `Official·uncensored` 两个单体行。
 - **JavDB_APP**：APK 逆向签名直连，封面/海报/剧照走 App CDN 无水印原图，签名失效自动诊断，详见 [Javdb_App_Signature.md](Javdb_App_Signature.md)。
-- **ThepornDB**：站点默认地址是 API 子域 `api.theporndb.net`（爬虫与 Token 都走它），但网络检测里那条 `ThepornDB` 站点行打的是主站首页 `https://theporndb.net`——API 子域没有根路由，`GET https://api.theporndb.net/` 会回 404，不能拿来判站点通不通。接口能不能用看「账号/API」组的「ThePornDB Token」项。
+- **ThepornDB**（网页版，`theporndb.net`，需登录）：网络检测里 `ThepornDB` 站点行打主站首页；刮削优先用 Cookie，Cookie 为空才用账号密码登录。**ThepornDB_API**（`api.theporndb.net`，需 API Token）：站点连通性由「账号/API」组的「ThePornDB Token」项覆盖（API 子域没有根路由，不单独建站点行）。
 
 > 注意：JavDB、JavDB_APP、Missav_API、R18.dev、TheJavDB 这五条是免 CF 通道，稳定性好，建议优先选用。
 
