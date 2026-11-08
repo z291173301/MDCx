@@ -20,7 +20,7 @@ MDCx 刮削网站类型汇总表
     DMM                                                 FANZA/DMM 本体。有码主体，站内含「素人」品牌区（SOD はめちゃん 等）
     DMM_API                https://api.dmm.com         FANZA 官方 Web API（api.dmm.com）
     Official·Faleno        https://faleno.jp           Faleno 厂牌官网。FNS/FLN/JIMMY 前缀自动锁定本站
-    LibreFanza             https://libredmm.com        DMM/FANZA 开源镜像
+    LibreDMM               https://www.libredmm.com    DMM/FANZA 开源镜像
     Official·MGStage       https://www.mgstage.com     MGS 厂牌官网。菜单含 素人ホイホイ / はめちゃん。/ SODクリエイト
     Official·S1            https://s1s1s1.com          有码片商官网。番号前缀自动锁定本站
     Official·Moodyz        https://moodyz.com          有码片商官网。番号前缀自动锁定本站
@@ -219,7 +219,7 @@ JavDB_APP         综合：有码+无码+动漫         有码+无码+FC2+欧美
 JavFree           综合：有码+FC2              有码+无码+FC2                    https://javfree.me              SSNI-647
 JavLibrary        有码：仅限有码              有码                             https://f101w.com/cn
 Jav321            综合：有码+动漫              有码+动漫                       https://www.jav321.com          SNOS-460
-LibreFanza          有码：仅限有码              有码                           https://libredmm.com            IPX-535
+LibreDMM            有码：仅限有码              有码                           https://www.libredmm.com        IPX-535
 Lulubar           综合：仅限有码              有码+无码+素人+欧美+国产         https://lulubar.co              IPZZ-547
 Madou.club        国产：麻豆番号              国产                             https://madou.club              MDX0236
 Madouqu           国产：仅限国产              国产                             https://madouqu.shop            MDX0216
@@ -285,7 +285,7 @@ Xcity             有码：仅限有码              有码                     
     Official·V-AV            Official·To-satsu      Official·Bibian       Official·Honnaka
     Official·Rookie       Official·Nanpa        Official·Hajimekikaku Official·HHH
     Official·10Musume     Official·1Pondo       Official·Caribbeancom Official·HEYZO
-    Official·Pacopacomama LibreFanza              Official·MGStage        Official·Prestige
+    Official·Pacopacomama LibreDMM              Official·MGStage      Official·Prestige
     AVBase                JavDB                 JavBus                IQQTV
     FreeJavBT             Missav                AVSOX                 AVMOO
     FC2                   FC2PPVDB
@@ -294,7 +294,7 @@ Xcity             有码：仅限有码              有码                     
       想让某站被优先请求，必须改本表，或在 classify_scrape_task 里用 website= 强制单站。
 
 ■ 联动组   SITE_GROUPS（同组同开同关，UI 上勾一个自动带动全组）
-    DMM  ⇄  DMM_API  ⇄  LibreFanza
+    DMM  ⇄  DMM_API  ⇄  LibreDMM
     Missav  ⇄  Missav_API
     FC2  ⇄  FC2PPVDB
     ThepornDB  ⇄  AVheat
