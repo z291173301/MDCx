@@ -4,6 +4,12 @@
 
 ## 2026-11-08
 
+### 依赖瘦身：移除 yt-dlp / trafilatura（含 babel），Windows 包体积回落
+
+- 原因：11 月 7 日新增的 13 个依赖把 Windows 一体包从 272MB 推到 321MB；其中 `babel`（30MB，经 `trafilatura→courlan` 带入）与 `yt-dlp`（20MB）最重，且都只是失败即跳过的兜底链路。
+- 改动：删 `yt-dlp`，`resolve_with_ytdlp` 保留签名恒返 `None`（播放页 trailer 不再抢救，直链/m3u8 不受影响）；删 `trafilatura`（连带 `courlan`/`babel`/`htmldate`/`justext`/`tld` 出 lock），`extract_main_text` 保留签名恒返 `""`（简介回退退化为 selectolax 快路）；`pyproject`/`requirements`/`uv.lock` 同步。
+- 测试：`tests/test_new_deps_helpers.py` 同步改为 stub 断言；`test_py314_dependency_floors` 全过。
+
 ### 修复 Windows 打包版启动时 curl_cffi 的 _wrapper 加载失败
 
 - 根因：`curl_cffi 0.17` 的 abi3/abi3t wheel 让 `_wrapper.pyd` 导入 `python3t.dll`；PyInstaller 收集到的是自由线程版 `python3t.dll`/`python315t.dll`，与包内 GIL 版 `python315.dll` 不匹配，缺 `python315t.dll` 时报 `ImportError: DLL load failed while importing _wrapper`。
