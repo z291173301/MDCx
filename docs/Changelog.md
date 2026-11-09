@@ -2,6 +2,15 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-11-09
+
+### 刮削探测搜索优先、直连为例外（用户定规）
+
+- 改动：12 站探测改走番号搜索（IQQTV/MMTV/AIRAV_CC/AVBase/DMM/JavDB/JavDay/Getchu/LibreDMM/Lulubar/FreeJavBT/Madouqu）：`network_check` 删直达分支 + GETCHU 独立分支，`site_fields.DIRECT_PROBE_SITES` 23→11，探针链接改搜索模板；其中 IQQTV/AIRAV_CC/JavLibrary/Getchu/LibreDMM/FreeJavBT 六站补 `_generate_search_url`/`_parse_search_page`（Getchu 另加 euc-jp `_fetch_search`），其余七站爬虫搜索链已完整只改配置层。
+- 例外（搜索落不到详情页才直连，`test_probe_mode_matches_network_check_probe_urls` 钉死两集合相等）：Hbox、Jav321、Madou.club、FC2、AVEntertainments、AVheat/AVMOO/AVSOX、R18.dev 网页版、TheJavDB 网页版、JavLibrary（搜索页常年被 CF 墙挡）。
+- 纪律：`docs/MEMORY.md` 新增「刮削探测搜索优先、直连为例外」条。
+- 测试：6 站新增搜索探测单测 + 3 站探针链接单测改搜索 + export/ network_check 断言同步，全量测试与 ruff 全过。
+
 ## 2026-11-08
 
 ### 导出路由/导出字段：完成后不再弹提示窗
