@@ -4,6 +4,11 @@
 
 ## 2026-11-09
 
+### 检测网络筛选框「查看JSON」按钮（用户指定）
+
+- 改动：多选下拉框 ThepornDB / DMM_API 行右侧画「查看JSON」按钮（`controllers/main_window/json_view.py` 新文件：取数目标 + 弹窗；`init.py` delegate 绘制 + 点击命中，点中只弹窗不切换勾选，弹窗加宽容纳按钮，tooltip 说明；`signals.py` 新增 `json_view` 信号 + `NetCheckMixin.show_json_view_dialog` 主线程槽）。点一下：ThepornDB 用当前 Token 发探测同款 `jav/<uuid>` 请求（无 Token 直接提示去设置里填），DMM_API 用当前 api_id/affiliate_id 发探测同款 ItemList 请求；返回体格式化（ensure_ascii=False、超长截断）弹窗展示，可复制地址与 JSON。凭据只进请求头/内存：弹窗不显示 token、不落盘、不进报告不进 xlsx（沿 DMM_API 导出口径）。
+- 测试：新增 `tests/test_net_filter_json_view.py` 10 项（按钮归属/缺凭据文案/两站目标与探测同款/格式化截断/按钮几何/下拉装配+tooltip/delegate 双态绘制/弹窗复制）；相关 208 项全过 + ruff/mypy 全过。
+
 ### ThePornDB 补 JAV 支持 + 探测改 ALDN-494 JSON 详情（用户指定）
 
 - 原因：用户把网页地址 `theporndb.net/jav/…` 填进「链接地址」无数据；实测 API 返回确认当前刮削器 5 处与 API 不一致：无 appoint 时 JAV 永远 Miss（只查 scenes/movies）、`/jav/` 地址被 scenes/movies 各打一遍、external_id 误拼成 `/scenes/<slug>`（404）、导演丢失（API 给 `directors` 数组、代码只读单数 `director`）、番号派生成 `TakaraEizo.25.08.09` 而非 `ALDN-494`。
