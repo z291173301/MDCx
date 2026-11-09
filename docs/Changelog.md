@@ -4,6 +4,12 @@
 
 ## 2026-11-09
 
+### 全站探测直达详情页 + 方式列直连改名（用户定规）
+
+- 改动：纪律升级为“所有站点探测必须落到详情页真实刮削”：搜索优先但搜索必须能解析出详情链，否则改直连；已直连 23 站（用户实测搜索不可用）不动。12 站（IQQTV/7mmtv/Airav.cc/AVBase/DMM/JavDB/JavDay/Getchu/LibreDMM/Lulubar/FreeJavBT/Madouqu）改回用户指定的详情 `probe_url` 直连，Getchu 探针号 TMAI-10 → AIV-10（详情 `/item/1300711/`）。
+- 改名：刮削字段表“方式”列 `直探` → `直连`（`site_fields._DIRECT_MODE`、export 断言与纪律注释同步）。
+- 纪律：`docs/MEMORY.md`「刮削探测全站直达详情页」条重写；23 站直连例外清单见该条。
+
 ### 刮削探测搜索优先、直连为例外（用户定规）
 
 - 改动：12 站探测改走番号搜索（IQQTV/MMTV/AIRAV_CC/AVBase/DMM/JavDB/JavDay/Getchu/LibreDMM/Lulubar/FreeJavBT/Madouqu）：`network_check` 删直达分支 + GETCHU 独立分支，`site_fields.DIRECT_PROBE_SITES` 23→11，探针链接改搜索模板；其中 IQQTV/AIRAV_CC/JavLibrary/Getchu/LibreDMM/FreeJavBT 六站补 `_generate_search_url`/`_parse_search_page`（Getchu 另加 euc-jp `_fetch_search`），其余七站爬虫搜索链已完整只改配置层。
