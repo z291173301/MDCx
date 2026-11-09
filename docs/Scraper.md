@@ -213,7 +213,7 @@ FC2CMADB          FC2：FC2网站                素人+FC2                     
 FreeJavBT         有码：仅限有码              有码+无码+FC2+欧美               https://freejavbt.com
 Getchu            综合：有码+游戏+视频        有码（另有里番/同人/书籍/动漫）  http://getchu.com               TMAI-10
 Hbox              综合：有码+动漫/里番        有码+动漫/里番                   https://hbox.jp                 FNS-266
-IQQTV             综合：有码+无码+素人+国产   有码+无码+素人+欧美+国产         https://iqqtv.net/cn               SSNI-647
+IQQTV             综合：有码+无码+素人+国产   有码+无码+素人+欧美+国产         https://iqqtv.net/cn               IDPC-002
 JavBus            综合：有码+无码             有码+无码+FC2+欧美               https://www.javbus.com
 JavDay            综合：有码+无码+国产        有码+无码+国产                   https://javday.app
 JavDB             综合：有码+无码+动漫         有码+无码+FC2+欧美+动漫         https://javdb580.com
