@@ -4,6 +4,14 @@
 
 ## 2026-11-09
 
+### ThePornDB 补 JAV 支持 + 探测改 ALDN-494 JSON 详情（用户指定）
+
+- 原因：用户把网页地址 `theporndb.net/jav/…` 填进「链接地址」无数据；实测 API 返回确认当前刮削器 5 处与 API 不一致：无 appoint 时 JAV 永远 Miss（只查 scenes/movies）、`/jav/` 地址被 scenes/movies 各打一遍、external_id 误拼成 `/scenes/<slug>`（404）、导演丢失（API 给 `directors` 数组、代码只读单数 `director`）、番号派生成 `TakaraEizo.25.08.09` 而非 `ALDN-494`。
+- 改动（三文件分工）：主刮削器 `crawlers/theporndb.py` 新增 `jav` 类型（详情直查种类识别、JAV 番号 `external_id` 精确匹配 + jav 优先搜索、详情解析认 `directors` 数组与 `external_id` 番号、appoint 地址先按 Run Query 规则拆分）；新增 `crawlers/theporndb_direct.py`（详情页 Run Query 等价直查：拆地址→拼详情 URL→取 JSON）；新增 `crawlers/theporndb_lookup.py`（番号→网页地址：`/jav?parse=` API 搜索优先、`/{kind}?search=` 站内搜索兜底）；常规全灭后自动走「反查地址→详情直查」最后一搏。
+- 探测：网络检测 `ThepornDB` 站点行改打 ALDN-494 的 JSON 详情地址 `https://api.theporndb.net/jav/568c12b8-756f-4d01-bb6c-cdc9d7382451`（浏览器可访问，Run Query 同款），`probe_url` 走 appoint_url 真实刮削，连通性与探测带 Bearer Token；番号/uuid 单一来源 `ThepornDBCrawler.probe_number`/`probe_uuid`（取代 2026-10-30 主站首页打法）。`site_fields` 探针链接同步（探针号直达 JSON 详情、其余走 jav 搜索），`DIRECT_PROBE_SITES` + ThepornDB（24 站）。
+- 文档：`docs/Scraper.md` ThepornDB 行补 JAV、`docs/Features.md` ThepornDB 条、`docs/MEMORY.md` 站点检测条 + 直连例外清单（23→24）同步。
+- 测试：新增 `tests/crawlers/test_theporndb_jav.py` 13 项（地址拆分/详情直取/API 搜索认领/登录墙返回 None/详情解析/精确匹配/网页直连单请求/文件搜索 jav 命中）；`test_network_check`（JSON 详情探测）`test_site_fields_export`（探针链接/直连集合）断言同步；相关 167 项全过。
+
 ### Missav 探针切 DLDSS-570 + 默认地址去 dm 段（用户指定）
 
 - 改动：Missav 网页/API 共用探针番号 `DLDSS-570`（详情 `https://missav.live/cn/dldss-570`）：`MissavCrawler` 新增 `probe_number`（旧全局回退 SSNI-647 废弃），`MissavApiCrawler.probe_number` 由 SSNI-520 切换；两站默认地址 `https://missav.live/dm79/cn` → `https://missav.live/cn`（dm 段每片轮换，请求时站点 302 到当片 canonical，`_ensure_cn_detail_url` 双向兼容）。
