@@ -158,7 +158,7 @@
 - **失效域名直接删，不留兜底**（2026-10-24）：删到只剩一个地址的站点（7mmtv / IQQTV / freejavbt）连镜像轮换一起删。
 - **JavBus 四条线路、一个地址一次**：`www.javbus.com` → `www.dmmsee.casa` → `www.javsee.cyou` → `www.cdnbus.bond`，由 `_MULTI_ADDRESS_SITE_TARGETS` 派发，爬虫内部不再自建轮换。JavDB 爬虫内部默认 `javdb580.com`、自动轮询 573/574/575 镜像。
 - 「当前网站」下拉网址列显示一律去 www（`init._display_site_url`，只改显示）；新增配置 `last_custom_website`，交互中只置脏标记、`exit_app` 时落盘（别在交互里 `manager.save()`）。
-- 带语言段的入口地址不能直接当前缀拼：`base/web.py::site_root()` 先收敛成 `scheme://host`；missav 默认地址固定带 `/dm79/cn`（2026-11-15 实测 canonical，原 dm247 已轮换），不带会被 302 到英文页。
+- 带语言段的入口地址不能直接当前缀拼：`base/web.py::site_root()` 先收敛成 `scheme://host`；missav 默认地址为 `https://missav.live/cn`（2026-11-09 用户指定去掉每片轮换的 dm 段，请求时站点 302 到当片 `/dmXX/cn/` canonical；旧 `/dm79/cn` 硬编码已废弃），不带语言段会被 302 到英文页。
 - JavDB 两源：javdb（网页/镜像站轮询，与旧 JavDB_API 同实现）/ javdb_app（App API，免 CF 最稳）；thejavdb 与 javdb 无关。App 签名见 `docs/Javdb_App_Signature.md`，排障锚点 = 三主机同时 4xx 或 InvalidSignature；搜索 limit ≤ 50，分页须 `movie_sort_by=release`。
 - javdb 图源无水印体系：`tp.spfcas.com` 是 App 专用（单字节 XOR），`c0.jdbstatic.com` 带水印；解密集中在 `base/web.py`。加密流尺寸探测 (0,0) 属预期。
 - **ThePornDB 的 401 与 403 不是一回事**（2026-10-30 实测）：401 = Token 不存在/失效；403 `This action is unauthorized.` = Token 已通过验证但没该接口权限（粘贴了网页登录令牌、旧 Token 被重置、账号无哈希直查权限）。403 绝不能提示「检查网络或代理」，也不能中断刮削（哈希直查 403 就退到标题搜索）。判定与文案只在 `mdcx/utils/theporndb_token.py`，三处（设置页检测、检测网络页、刮削爬虫）共用。

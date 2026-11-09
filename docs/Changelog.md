@@ -4,6 +4,13 @@
 
 ## 2026-11-09
 
+### Missav 探针切 DLDSS-570 + 默认地址去 dm 段（用户指定）
+
+- 改动：Missav 网页/API 共用探针番号 `DLDSS-570`（详情 `https://missav.live/cn/dldss-570`）：`MissavCrawler` 新增 `probe_number`（旧全局回退 SSNI-647 废弃），`MissavApiCrawler.probe_number` 由 SSNI-520 切换；两站默认地址 `https://missav.live/dm79/cn` → `https://missav.live/cn`（dm 段每片轮换，请求时站点 302 到当片 canonical，`_ensure_cn_detail_url` 双向兼容）。
+- 刮削修正（FSDSS-437 MHTML 备档 `dm26/cn/fsdss-437-uncensored-leak` 核对）：`TAG_FALLBACK_LABELS` 补简繁混排「标籤」；`_is_search_result_detail_href` 放行 `/cn/{番号}` 与规范三段 `/dmXX/cn/{番号}`（旧口径连 canonical 都误杀）。
+- 链接同步：`site_fields.number_link` 两站探针号直达新详情地址；`docs/Scraper.md` 两表 + `docs/MEMORY.md` 默认地址条同步。
+- 测试：`test_missav` 默认基址/探针/链接/`_is_search_result_detail_href` 钉板更新（dm79 canonical 解析保留回归），`test_site_fields_export`、`test_network_check` 探针断言同步，全过 + ruff 全过。
+
 ### 全站探测直达详情页 + 方式列直连改名（用户定规）
 
 - 改动：纪律升级为“所有站点探测必须落到详情页真实刮削”：搜索优先但搜索必须能解析出详情链，否则改直连；已直连 23 站（用户实测搜索不可用）不动。12 站（IQQTV/7mmtv/Airav.cc/AVBase/DMM/JavDB/JavDay/Getchu/LibreDMM/Lulubar/FreeJavBT/Madouqu）改回用户指定的详情 `probe_url` 直连，Getchu 探针号 TMAI-10 → AIV-10（详情 `/item/1300711/`）。

@@ -69,8 +69,8 @@ MDCx 刮削网站类型汇总表
     JavLibrary    https://f101w.com/cn          zlibz.com 公布的 JavLibrary 镜像（无 CF 墙，默认中文页 /cn）
     Jav321        https://www.jav321.com        DMM 系聚合站：出演者=演员、メーカー=片商，封面/剧照走 pics.dmm.co.jp
     Lulubar       https://lulubar.co            lulubar.co。HTML 关键词命中 有码/无码/欧美/素人/国产
-    Missav        https://missav.live/dm79/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
-    Missav_API    https://missav.live/dm79/cn  Missav 接口实现（fourhoi.com）
+    Missav        https://missav.live/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
+    Missav_API    https://missav.live/cn  Missav 接口实现（fourhoi.com）
     R18_API       https://r18.dev               日系有码元数据库 + Database dumps API，前缀表锁定日系厂牌
     R18.dev       https://r18.dev               网页版详情页（静态 HTML，id=ure00013 直连），与 R18_API 同站成对
     TheJavDB      https://thejavdb.net          thejavdb.net 网页版（静态 HTML field 栏），与 TheJavDB_API 同站成对
@@ -98,8 +98,8 @@ MDCx 刮削网站类型汇总表
     JavDB_APP         https://apidd.czssdgz.com     JavDB App 接口镜像（apidd.*），内容集同 JavDB
     JavFree           https://javfree.me            菜单 Censored…Uncensored / FC2 / Caribbeancom / 1pondo / Heyzo / 10musume
     Lulubar           https://lulubar.co            lulubar.co。HTML 关键词命中 有码/无码/欧美/素人/国产
-    Missav            https://missav.live/dm79/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
-    Missav_API        https://missav.live/dm79/cn  Missav 接口实现（fourhoi.com）
+    Missav            https://missav.live/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
+    Missav_API        https://missav.live/cn  Missav 接口实现（fourhoi.com）
 
 ================================================================================================================
 【个摄番号】  合计 11 站   （官网 2 + 第三方 9）
@@ -116,8 +116,8 @@ MDCx 刮削网站类型汇总表
     JavDB       https://javdb580.com          默认走 580 镜像（580/573/574/575 自动轮询）；Tags: Censored/Uncensored/Western/FC2/Anime；Makers 含「麻豆傳媒映畫」
     JavDB_APP   https://apidd.czssdgz.com     JavDB App 接口镜像（apidd.*），内容集同 JavDB
     JavFree     https://javfree.me            菜单 Censored…Uncensored / FC2 / Caribbeancom / 1pondo / Heyzo / 10musume
-    Missav      https://missav.live/dm79/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
-    Missav_API  https://missav.live/dm79/cn  Missav 接口实现（fourhoi.com）
+    Missav      https://missav.live/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
+    Missav_API  https://missav.live/cn  Missav 接口实现（fourhoi.com）
 
 ================================================================================================================
 【欧美视频】  合计 9 站   （官网 1 + 第三方 8）
@@ -131,8 +131,8 @@ MDCx 刮削网站类型汇总表
     JavBus      https://www.javbus.com        四条线路轮流：www.javbus.com → www.dmmsee.casa → www.javsee.cyou → www.cdnbus.bond
     JavDB       https://javdb580.com          默认走 580 镜像（580/573/574/575 自动轮询）；Tags: Censored/Uncensored/Western/FC2/Anime；Makers 含「麻豆傳媒映畫」
     JavDB_APP   https://apidd.czssdgz.com     JavDB App 接口镜像（apidd.*），内容集同 JavDB
-    Missav      https://missav.live/dm79/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
-    Missav_API  https://missav.live/dm79/cn  Missav 接口实现（fourhoi.com）
+    Missav      https://missav.live/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
+    Missav_API  https://missav.live/cn  Missav 接口实现（fourhoi.com）
     ThepornDB   https://api.theporndb.net     API 子域 api.theporndb.net（主域 /api 为备用基址，子域不通时自动兜底）。欧美 scenes/movies 库（登录墙）
 
 ================================================================================================================
@@ -148,8 +148,8 @@ MDCx 刮削网站类型汇总表
     JavBus      https://www.javbus.com        四条线路轮流：www.javbus.com → www.dmmsee.casa → www.javsee.cyou → www.cdnbus.bond
     JavDB       https://javdb580.com          默认走 580 镜像（580/573/574/575 自动轮询）；Tags: Censored/Uncensored/Western/FC2/Anime；Makers 含「麻豆傳媒映畫」
     JavDB_APP   https://apidd.czssdgz.com     JavDB App 接口镜像（apidd.*），内容集同 JavDB
-    Missav      https://missav.live/dm79/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
-    Missav_API  https://missav.live/dm79/cn  Missav 接口实现（fourhoi.com）
+    Missav      https://missav.live/cn  混合：有码 + 无码 + 素人（IPBZ-023 / INMR-029 等 IP 女優流出）
+    Missav_API  https://missav.live/cn  Missav 接口实现（fourhoi.com）
 
 ================================================================================================================
 【国产短剧（原「素人番号」组）】  合计 1 站   （第三方 1）
@@ -226,8 +226,8 @@ Lulubar           综合：仅限有码              有码+无码+素人+欧美
 Madou.club        国产：麻豆番号              国产                             https://madou.club              MD-332
 Madouqu           国产：仅限国产              国产                             https://madouqu.shop            MDX0216
 Official·MGStage    聚合：有码+素人             有码+素人                      https://www.mgstage.com         ABF-389
-Missav            综合：有码+无码             有码+无码+素人                   https://missav.live/dm79/cn
-Missav_API        综合：有码+无码             有码+无码+素人                   https://missav.live/dm79/cn     SSNI-520
+Missav            综合：有码+无码             有码+无码+素人                   https://missav.live/cn
+Missav_API        综合：有码+无码             有码+无码+素人                   https://missav.live/cn     DLDSS-570
 MyWife            有码：MyWife                不进任何类型组（单独指定）       https://mywife.cc               mywife-2306
 Official·S1           官网：有码·S1                有码                        https://s1s1s1.com              SSNI-647
 Official·Moodyz       官网：有码·Moodyz            有码                        https://moodyz.com              MIDV-001
