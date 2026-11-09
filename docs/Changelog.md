@@ -8,7 +8,8 @@
 
 - 改动：多选下拉框 ThepornDB / DMM_API 行右侧画「查看JSON」按钮（`controllers/main_window/json_view.py` 新文件：取数目标 + 弹窗；`init.py` delegate 绘制 + 点击命中，点中只弹窗不切换勾选，弹窗加宽容纳按钮，tooltip 说明；`signals.py` 新增 `json_view` 信号 + `NetCheckMixin.show_json_view_dialog` 主线程槽）。点一下：ThepornDB 用当前 Token 发探测同款 `jav/<uuid>` 请求（无 Token 直接提示去设置里填），DMM_API 用当前 api_id/affiliate_id 发探测同款 ItemList 请求；返回体格式化（ensure_ascii=False、超长截断）弹窗展示，可复制地址与 JSON。凭据只进请求头/内存：弹窗不显示 token、不落盘、不进报告不进 xlsx（沿 DMM_API 导出口径）。
 - 弹窗增强：最大化/最小化按钮可用；「复制JSON」与「关闭」之间加「翻译字段」按钮——调用「软件设置」-「翻译」里用户勾选的翻译引擎（多引擎随机、无配置逐个跳过，全灭给文案），字段名批量一次请求（`_`/`-`转空格好翻），只重命名字典键、值一个字符不动，同层译名碰撞回退原文，非完整 JSON（失败/截断）时按钮禁用；再点「还原字段」切回原文。
-- 测试：`tests/test_net_filter_json_view.py` 16 项（按钮归属/缺凭据文案/两站目标与探测同款/格式化截断/按钮几何/下拉装配+tooltip/delegate 双态绘制/弹窗复制 + 字段收集排序/重命名碰撞回退/无引擎恒等/弹窗最大化最小化与翻译还原切换/非 JSON 禁用/失败回包复位）；相关 208 项全过 + ruff/mypy 全过。
+- 测试：`tests/test_net_filter_json_view.py` 16→26 项（新增：6 站全员有按钮、TheJavDB_API/R18_API/JavDB_APP/Missav_API 目标与探测同款〈JavDB_APP 基址走 `_configured_or_default_url`、Missav_API 为 POST+Recombee 签名体〉、双按钮几何左右关系、6 站 tooltip/delegate 双按钮、字体+1、非模态登记与释放、浏览器落临时文件+打开发送、POST 走 post_json_sync、缺 Token 点浏览器只提示）；相关 208+167 项全过 + ruff/mypy 全过。
+- 扩展（用户指定）：支持站点 2→6（账号/API 组 JSON 全员：+ TheJavDB_API/JavDB_APP/Missav_API/R18_API，取数目标均为探测同款；Missav_API 经新增 `base/web_sync.post_json_sync` 发 POST）；「查看JSON」右侧加「浏览器」按钮（点中同样拉探测同款、不直接开 URL——ThepornDB 等 Bearer 头地址浏览器直接开会 401，故落系统临时 `.json` 再用系统浏览器打开）；弹窗改非模态（`track_modeless_dialog` 登记防回收+关窗摘掉，与主窗口互不阻塞、可多窗并存，parent 改 None）；正文等宽字体与地址行各加大一号。
 
 ### ThePornDB 补 JAV 支持 + 探测改 ALDN-494 JSON 详情（用户指定）
 
