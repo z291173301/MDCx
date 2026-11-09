@@ -285,7 +285,7 @@ main_window.py      717 行   ← 只剩：导入、_NET_SEP_* 常量、类声�
 | `logs.py` | 日志页 | 18 |
 | `scrape_cache.py` | 刮削缓存表格 | 9 |
 | `net_check.py` | 网络检测与报告 | 13 |
-| `cookie_checks.py` | FC2PPVDB / JavBus / JavDb Cookie 检测 | 4 |
+| `cookie_checks.py` | FC2CMADB / JavBus / JavDb Cookie 检测 | 4 |
 | `actor_db.py` | 演员库工具按钮 | 20 |
 | `actor_info.py` | 演员信息/图片按钮 | 6 |
 | `success_list.py` | 成功列表 + `show_scrape_info` | 4 |

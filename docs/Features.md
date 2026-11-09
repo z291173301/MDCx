@@ -83,7 +83,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | AVheat | avheat.shop | 欧美：欧美番号 |
 | Airav.cc | airav.cc | 有码：仅限有码 |
 | FC2 | fc2.com | FC2：FC2官网 |
-| FC2PPVDB | fc2cmadb.com | FC2：FC2网站 |
+| FC2CMADB | fc2cmadb.com | FC2：FC2网站 |
 | Madouqu | madouqu.com | 国产：仅限国产 |
 | Madou.club | madou.club | 国产：麻豆番号 |
 | Lulubar | lulubar.net | 综合：仅限有码 |
@@ -110,7 +110,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 |------|-----------|
 | **有码番号**（59） | DMM、DMM_API、LibreDMM、Official·Dahlia、Official·Faleno、Official·MGStage、Official·Prestige、Official·MyWifes、Official·S1、Official·Moodyz、Official·Madonna、Official·Wanz、Official·Ideapocket、Official·Kirakira、Official·E-Body、Official·Bi、Official·Premium、Official·Miman、Official·Tameikegoro、Official·Fitch、Official·Kawaii、Official·Befree、Official·Muku、Official·Attackers、Official·MKO、Official·Dasdas、Official·MVG、Official·Opera、Official·Oppai、Official·V-AV、Official·To-satsu、Official·Bibian、Official·Honnaka、Official·Rookie、Official·Nanpa、Official·Hajimekikaku、Official·HHH、AVBase、AVMOO、JavDB、JavDB_APP、JavBus、Jav321、JavDay、JavFree、Hbox、7mmtv、Airav.cc、FreeJavBT、IQQTV、Lulubar、Missav、Missav_API、R18_API、R18.dev、Xcity、TheJavDB、TheJavDB_API、JavLibrary |
 | **无码番号**（18） | AVSOX、AVEntertainments、Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama、JavDB、JavDB_APP、JavBus、JavFree、7mmtv、Airav.cc、FreeJavBT、IQQTV、Lulubar、Missav、Missav_API |
-| **个摄番号**（11） | FC2、FC2PPVDB、AVSOX、JavDB、JavDB_APP、JavBus、JavFree、7mmtv、IQQTV、Missav、Missav_API |
+| **个摄番号**（11） | FC2、FC2CMADB、AVSOX、JavDB、JavDB_APP、JavBus、JavFree、7mmtv、IQQTV、Missav、Missav_API |
 | **欧美视频**（9） | ThepornDB、AVheat、JavDB、JavDB_APP、JavBus、7mmtv、Missav、Missav_API、IQQTV |
 | **国产传媒**（9） | Madou.club、Madouqu、JavDB、JavDB_APP、JavBus、7mmtv、IQQTV、Missav、Missav_API |
 | **国产短剧**（1） | JavDay |
@@ -130,7 +130,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 - **无码专属**：AVEntertainments、AVSOX、Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama
 - **综合（有码+无码）**：JavBus、JavDB、JavDB_APP、Missav、Missav_API、JavDay、JavFree、IQQTV、7mmtv
 - **素人作品（2.6.0 起按有码刮削）**：7mmtv、AVBase、DMM、DMM_API、IQQTV、JavBus、JavDB、Official·MGStage、Missav、Missav_API、Official·Prestige、Official·Dahlia、Official·Faleno
-- **FC2**：7mmtv、FC2、FC2PPVDB、JavDB、JavFree
+- **FC2**：7mmtv、FC2、FC2CMADB、JavDB、JavFree
 - **欧美**：AVheat、ThepornDB
 - **国产**：IQQTV、JavDay、Madou.club、Madouqu
 

@@ -110,7 +110,7 @@ MDCx 刮削网站类型汇总表
   ── 第三方 / 聚合站 (9) ──
     7mmtv       https://7mmtv.sx              导航 有碼AV/無碼AV/素人AV/無碼破解/國產影片；FC2 前缀单独判定
     AVSOX       https://avsox.click/cn        avsox.click。与 avmoo/avheat 同 tellme.pw AIO 平台，纯无码
-    FC2PPVDB    https://fc2cmadb.com          fc2cmadb.com。FC2 目录站，卖家名多为素人（マスクde本物素人 等）
+    FC2CMADB    https://fc2cmadb.com          fc2cmadb.com。FC2 目录站，卖家名多为素人（マスクde本物素人 等）
     IQQTV       https://iqqtv.net/cn          iqqtv.net。导航 日本/獨家/國產/無碼/歐美；识别 1pondo 系前缀
     JavBus      https://www.javbus.com        四条线路轮流：www.javbus.com → www.dmmsee.casa → www.javsee.cyou → www.cdnbus.bond
     JavDB       https://javdb580.com          默认走 580 镜像（580/573/574/575 自动轮询）；Tags: Censored/Uncensored/Western/FC2/Anime；Makers 含「麻豆傳媒映畫」
@@ -209,7 +209,7 @@ DMM               有码：仅限有码              有码+素人
 DMM_API           有码：仅限有码              有码                             https://api.dmm.com
 Official·Faleno     有码：仅限有码              有码                           https://faleno.jp               FNS-165
 FC2               FC2：FC2官网                无码+素人+FC2                    https://adult.contents.fc2.com  FC2-5003460
-FC2PPVDB          FC2：FC2网站                素人+FC2                         https://fc2cmadb.com            FC2-4988506
+FC2CMADB          FC2：FC2网站                素人+FC2                         https://fc2cmadb.com            FC2-4988506
 FreeJavBT         有码：仅限有码              有码+无码+FC2+欧美               https://freejavbt.com
 Getchu            综合：有码+游戏+视频        有码（另有里番/同人/书籍/动漫）  http://getchu.com               TMAI-10
 Hbox              综合：有码+动漫/里番        有码+动漫/里番                   https://hbox.jp                 FNS-266
@@ -292,7 +292,7 @@ Xcity             有码：仅限有码              有码                     
     Official·Pacopacomama LibreDMM              Official·MGStage      Official·Prestige
     AVBase                JavDB                 JavBus                IQQTV
     FreeJavBT             Missav                AVSOX                 AVMOO
-    FC2                   FC2PPVDB
+    FC2                   FC2CMADB
 
     ！ classification.sites 只是白名单过滤器，实际请求顺序取自各字段的 site_prority；
       想让某站被优先请求，必须改本表，或在 classify_scrape_task 里用 website= 强制单站。
@@ -300,7 +300,7 @@ Xcity             有码：仅限有码              有码                     
 ■ 联动组   SITE_GROUPS（同组同开同关，UI 上勾一个自动带动全组）
     DMM  ⇄  DMM_API  ⇄  LibreDMM
     Missav  ⇄  Missav_API
-    FC2  ⇄  FC2PPVDB
+    FC2  ⇄  FC2CMADB
     ThepornDB  ⇄  AVheat
     JavDB  ⇄  JavDB_APP
     Madou.club  ⇄  Madouqu      （同一份麻豆系国产数据的两条路：Madou.club 的条目有番号
