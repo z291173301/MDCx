@@ -7,7 +7,8 @@
 ### 检测网络筛选框「查看JSON」按钮（用户指定）
 
 - 改动：多选下拉框 ThepornDB / DMM_API 行右侧画「查看JSON」按钮（`controllers/main_window/json_view.py` 新文件：取数目标 + 弹窗；`init.py` delegate 绘制 + 点击命中，点中只弹窗不切换勾选，弹窗加宽容纳按钮，tooltip 说明；`signals.py` 新增 `json_view` 信号 + `NetCheckMixin.show_json_view_dialog` 主线程槽）。点一下：ThepornDB 用当前 Token 发探测同款 `jav/<uuid>` 请求（无 Token 直接提示去设置里填），DMM_API 用当前 api_id/affiliate_id 发探测同款 ItemList 请求；返回体格式化（ensure_ascii=False、超长截断）弹窗展示，可复制地址与 JSON。凭据只进请求头/内存：弹窗不显示 token、不落盘、不进报告不进 xlsx（沿 DMM_API 导出口径）。
-- 测试：新增 `tests/test_net_filter_json_view.py` 10 项（按钮归属/缺凭据文案/两站目标与探测同款/格式化截断/按钮几何/下拉装配+tooltip/delegate 双态绘制/弹窗复制）；相关 208 项全过 + ruff/mypy 全过。
+- 弹窗增强：最大化/最小化按钮可用；「复制JSON」与「关闭」之间加「翻译字段」按钮——调用「软件设置」-「翻译」里用户勾选的翻译引擎（多引擎随机、无配置逐个跳过，全灭给文案），字段名批量一次请求（`_`/`-`转空格好翻），只重命名字典键、值一个字符不动，同层译名碰撞回退原文，非完整 JSON（失败/截断）时按钮禁用；再点「还原字段」切回原文。
+- 测试：`tests/test_net_filter_json_view.py` 16 项（按钮归属/缺凭据文案/两站目标与探测同款/格式化截断/按钮几何/下拉装配+tooltip/delegate 双态绘制/弹窗复制 + 字段收集排序/重命名碰撞回退/无引擎恒等/弹窗最大化最小化与翻译还原切换/非 JSON 禁用/失败回包复位）；相关 208 项全过 + ruff/mypy 全过。
 
 ### ThePornDB 补 JAV 支持 + 探测改 ALDN-494 JSON 详情（用户指定）
 
