@@ -4,6 +4,14 @@
 
 ## 2026-11-10
 
+### 启用/禁用站点改为七类同步（用户指定）
+
+- 问题：在有码番号启用 Xcity 后，个摄/欧美/国产传媒/国产短剧/动漫里番仍显示禁用——此前禁用名单按八类各存一份，Xcity 只从有码名单移除。
+- 改动：有码/无码/个摄/欧美/国产传媒/国产短剧/动漫里番七类统一读写 `website_disabled`，任一类型启用/禁用即同步到其余六类；官方网站继续独用 `website_official_disabled`，保持独立。
+- 迁移：新增 `shared_disabled_scope_migrated`，一次性移除旧六份 `website_*_disabled` 分类型名单（以主名单为准，不并回主名单），并删除 `per_type_disabled_scope_migrated`；`disabled_scope_for`、`_is_site_disabled`、编辑窗口提示与文档同步。
+- 审查修复：自动分类单站直调 `_call_specific_crawler` 原先未传 `scraping_type`，官网单站会被共享名单并集误判禁用；现按当前类型查对应名单，官网自动路由不受共享名单影响。
+- 测试：`tests/test_official_disabled_scope.py` 改为七类共享断言 + 旧分域移除/幂等/官方独立迁移用例；`tests/test_file_crawler_runtime.py` 新增官网自动路由与共享名单隔离的回归用例。
+
 ### 依赖同步：本机已装版本回写 pyproject/requirements/uv.lock（用户指定）
 
 - 比对：本机 Python 3.15 全局环境 125 个包与 `uv.lock` 的 108 包逐条核对，直接依赖只有两处落后——`openai` 3.46.0→3.48.0、`typer` 0.28.0→0.29.0；其余差异全在传递依赖。
