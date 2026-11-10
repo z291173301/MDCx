@@ -133,7 +133,7 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 - `CrawlerData` 25 个可选字段，默认 `NOT_SUPPORT`。
 - `register_crawler()` 注册到 `crawler_registry`，站点下拉由注册表动态生成。
 - **加新爬虫 6 步**：新建文件 → 继承基类 → 实现 `site`/`base_url_`/`new_context`/`_generate_search_url`/`_parse_search_page`/`_parse_detail_page` → 可选 `post_process` → `Website` 枚举加值 → `crawlers/__init__.py` 导入注册。
-- 下拉能力文案短词规则（严格执行）：当前网站/指定网站下拉能力文案用短词（有码番号→有码、无码番号→无码、个摄视频→个摄、欧美视频→欧美、国产传媒→国产、国产短剧→短剧、动漫里番→动漫），与候选区悬停全称解耦；类型刮削、指定网站、当前网站三者独立互不影响。
+- 下拉能力文案短词规则（严格执行）：当前网站/指定网站下拉能力文案用短词（有码番号→有码、无码番号→无码、个摄番号→个摄、欧美番号→欧美、国产传媒→国产、国产短剧→短剧、动漫里番→动漫），与候选区悬停全称解耦；类型刮削、指定网站、当前网站三者独立互不影响。
 - `DomainRotator`（`utils/domain_rotate.py`）：镜像轮询，声明 `_domains` 类属性，已接 javbus(7)/freejavbt/xcity；`_init_rotator(domains, custom_url)` 支持自定义 URL 优先。
 - `AioSiteCrawler`（`crawlers/aio_site.py`）：用于 Vue SPA + JSON API，重写 `_run`，`_generate_search_url`/`_parse_search_page` 抛 `NotImplementedError`；avmoo/avsox/avheat 共享该基类。
 - `check_urls()` 返回检测 URL 列表；动态域名站覆写（avmoo/avheat/avsox 用 `get_aio_domain`，javlibrary 用 `get_javlibrary_domain`）。
