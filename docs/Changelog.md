@@ -2,7 +2,16 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
-## 2026-11-09
+## 2026-11-10
+
+### 依赖同步：本机已装版本回写 pyproject/requirements/uv.lock（用户指定）
+
+- 比对：本机 Python 3.15 全局环境 125 个包与 `uv.lock` 的 108 包逐条核对，直接依赖只有两处落后——`openai` 3.46.0→3.48.0、`typer` 0.28.0→0.29.0；其余差异全在传递依赖。
+- 改动：`pyproject.toml` / `requirements.txt` 下限同步抬到 `openai>=3.48.0`、`typer>=0.29.0`；`uv lock --upgrade` 刷新 `uv.lock`：anyio 4.16.0、certifi 2026.10.23、click 8.5.1、filelock 4.2.10、multidict 7.2.1、mypy-extensions 1.2.0、nodeenv 1.12.0、platformdirs 4.14.5、pycparser 3.12、pyinstaller-hooks-contrib 2026.10、python-discovery 1.9.5、soupsieve 4.0.1（3.x→4.x，随 beautifulsoup4）、typing-inspection 0.4.5、virtualenv 21.15.6、w3lib 2.6.0、types-webencodings 0.6.0.20261104；新增 `frostwork` 0.2.2（`w3lib` 2.6.0 新增依赖，parsel 传递）。
+- PyQt6 不升：`uv lock --upgrade` 会拉到 6.12.0，但 6.12 桩文件写成 `def f(..., *args: int, /)`，mypy 2.4 报 16 条 `'/' parameter must appear before '*' parameter`，pre-push 门禁整片失败；`requirements.txt` 早有 `<6.12` 与原因注释，本次给 `pyproject.toml` 补同一上限，锁回 `pyqt6` 6.11.0 / `pyqt6-qt6` 6.11.2。
+- 版本：`LOCAL_VERSION` 20261109 → 20261110（changelog 首段日期同步）。
+- 校验：`uv lock --check` 通过；`python -m pip check` 对项目依赖无冲突（仅报全局环境里已从本项目移除的 `trafilatura`/`htmldate` 残留缺 `dateparser`，与项目依赖无关）；全量 pytest 通过。
+- 测试：`tests/conftest.py` 的 `_DummySignals` 补 `json_view` 桩——「查看JSON」提交新增信号时漏配，`tests/test_version_check_notify.py` 4 项在夹具初始化即 `AttributeError`，补桩后恢复通过。
 
 ### 检测网络筛选框「查看JSON」按钮（用户指定）
 
