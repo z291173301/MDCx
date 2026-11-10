@@ -24,18 +24,18 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | 爬虫名 | 数据源 | 说明 |
 |--------|-------|------|
 | DMM | dmm.co.jp | 有码：仅限有码 |
-| DMM_API | DMM 官方 Affiliate API | 有码：仅限有码 |
-| TheJavDB_API | api.thejavdb.net | 有码：仅限有码 |
+| DMM_JSON | DMM 官方 Affiliate API | 有码：仅限有码 |
+| TheJavDB_JSON | api.thejavdb.net | 有码：仅限有码 |
 | TheJavDB | thejavdb.net | 有码：仅限有码 |
 | JavDB | javdb580.com（580/573/574/575 自动轮询） | 综合：有码+无码+动漫 |
-| JavDB_APP | JavDB 移动端 API | 综合：有码+无码+动漫 |
+| JavDB_JSON | JavDB 移动端 API | 综合：有码+无码+动漫 |
 | JavBus | javbus.com | 综合：有码+无码 |
 | JavLibrary | f101w.com（zlibz.com 公布的镜像，默认中文页 /cn） | 有码：仅限有码 |
 | Missav | missav.ws | 综合：有码+无码 |
-| Missav_API | Recombee API | 综合：有码+无码 |
+| Missav_JSON | Recombee API | 综合：有码+无码 |
 | Official·MGStage | mgstage.com | 聚合：有码+素人 |
 | Official·Prestige | prestige-av.com | 聚合：有码+素人 |
-| R18_API | r18.dev | 有码：仅限有码 |
+| R18_JSON | r18.dev | 有码：仅限有码 |
 | R18.dev | r18.dev | 有码：仅限有码 |
 | Official·S1 | s1s1s1.com | 官网：有码·S1 |
 | Official·Moodyz | moodyz.com | 官网：有码·Moodyz |
@@ -91,7 +91,7 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | JavDay | javday.app | 综合：有码+无码+国产 |
 | JavFree | javfree.me | 综合：有码+FC2 |
 | 7mmtv | 7mmtv.sx | 综合：有码+无码+素人+FC2 |
-| ThepornDB | api.theporndb.net | 欧美：欧美番号 |
+| ThepornDB_JSON | api.theporndb.net | 欧美：欧美番号 |
 | Jav321 | www.jav321.com | 综合：有码+动漫 |
 | Hbox | hbox.jp | 综合：有码+动漫/里番 |
 
@@ -99,46 +99,46 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 
 - **本表「说明」列是爬虫自己的文案原样**（用 `+` 连写能力）；**界面上显示时一律归一成 `/`**（`_site_description()` 里换掉），且下拉框显示文本、「可用网站」候选区悬停提示两处都改用**现算的类型名单**（`综合：有码/无码/欧美/传媒` 这类，与下表的旧文案不一定逐字一致——名单才准；名单里不写「动漫」「个摄」，但「短剧」照常显示）。
 - **Official 有码 34 站**：29 家片商官网（各有自己的 `Website` 枚举、爬虫与官网基址）加上改名的 `Official·Dahlia`、`Official·Faleno`、`Official·MGStage`、`Official·Prestige`、`Official·MyWifes`（五站同属 `OFFICIAL_YOUMA_SITES`，与其它官网站同等对待），番号前缀在刮削分类时直接锁定对应官网单站（如 SSIS 走 `Official·S1`、JUL 走 `Official·Madonna`、ABW 走 `Official·Prestige`、`MyWife No.1230` 走 `Official·MyWifes`，共 322 个前缀；`DLDSS` 走 `Official·Dahlia`，`FNS`/`FLN`/`JIMMY` 走 `Official·Faleno`）；前缀表维护在 `crawlers/official_sites.py`。各站网络检测各占一行、各用各的探测番号，可单独启用/禁用，互不影响；默认只进有码番号组。「编辑网站」可用网站候选区里 34 站聚合成一行「有码官网」显示（拖入/双击即展开为 34 个成员），5 个无码站聚合成一行「无码官网」显示，其后另起 `Official` / `Official·uncensored` 两个单体行。
-- **JavDB_APP**：APK 逆向签名直连，封面/海报/剧照走 App CDN 无水印原图，签名失效自动诊断，详见 [Javdb_App_Signature.md](Javdb_App_Signature.md)。
-- **ThepornDB**：站点默认地址是 API 子域 `api.theporndb.net`（爬虫与 Token 都走它）；网络检测里那条 `ThepornDB` 站点行打的是 ALDN-494 的 JSON 详情地址 `https://api.theporndb.net/jav/568c12b8-756f-4d01-bb6c-cdc9d7382451`（用户 2026-11-09 指定，浏览器可访问，详情页 Run Query 打的同一地址），`probe_url` 走 appoint_url 真实刮削。接口能不能用另看「账号/API」组的「ThePornDB Token」项。筛选框账号/API 组 6 站（ThepornDB/DMM_API/TheJavDB_API/JavDB_APP/Missav_API/R18_API）行右侧有「查看JSON」+「浏览器」双按钮：「查看JSON」用当前凭据拉一次探测同款请求、非模态弹窗展示格式化 JSON（与主窗口互不阻塞，可多窗并存，正文/地址字体累计 +2，含复制/翻译字段）；「浏览器」把同款 JSON 落系统临时 `.json` 文件、用系统浏览器打开（带鉴权头的地址浏览器直接开会 401，故统一走临时文件，7 天前陈文件自动清）。弹窗宽度右缘对齐全选/全不选按钮右缘（窗口缩放跟着走，内容更长时按内容撑开）。
+- **JavDB_JSON**：APK 逆向签名直连，封面/海报/剧照走 App CDN 无水印原图，签名失效自动诊断，详见 [Javdb_App_Signature.md](Javdb_App_Signature.md)。
+- **ThepornDB_JSON**：站点默认地址是 API 子域 `api.theporndb.net`（爬虫与 Token 都走它）；网络检测里那条 `ThepornDB_JSON` 站点行打的是 ALDN-494 的 JSON 详情地址 `https://api.theporndb.net/jav/568c12b8-756f-4d01-bb6c-cdc9d7382451`（用户 2026-11-09 指定，浏览器可访问，详情页 Run Query 打的同一地址），`probe_url` 走 appoint_url 真实刮削。接口能不能用另看「账号/API」组的「ThePornDB Token」项。筛选框账号/API 组 6 站（ThepornDB_JSON/DMM_JSON/TheJavDB_JSON/JavDB_JSON/Missav_JSON/R18_JSON）行右侧有「查看JSON」+「浏览器」双按钮：「查看JSON」用当前凭据拉一次探测同款请求、非模态弹窗展示格式化 JSON（与主窗口互不阻塞，可多窗并存，正文/地址字体累计 +2，含复制/翻译字段）；「浏览器」把同款 JSON 落系统临时 `.json` 文件、用系统浏览器打开（带鉴权头的地址浏览器直接开会 401，故统一走临时文件，7 天前陈文件自动清）。弹窗宽度右缘对齐全选/全不选按钮右缘（窗口缩放跟着走，内容更长时按内容撑开）。
 
-> 注意：JavDB、JavDB_APP、Missav_API、R18_API、TheJavDB_API 这五条是免 CF 通道，稳定性好，建议优先选用。
+> 注意：JavDB、JavDB_JSON、Missav_JSON、R18_JSON、TheJavDB_JSON 这五条是免 CF 通道，稳定性好，建议优先选用。
 
 **各类型默认网站源**（即「设置→刮削网站 → 类型刮削网站」七组默认名单，按组内先后即优先级递减）：
 
 | 类型 | 默认网站源 |
 |------|-----------|
-| **有码番号**（60） | Official·Attackers、Official·Befree、Official·Bi、Official·Bibian、Official·Dahlia、Official·Dasdas、Official·E-Body、Official·Faleno、Official·Fitch、Official·Hajimekikaku、Official·HHH、Official·Honnaka、Official·Ideapocket、Official·Kawaii、Official·Kirakira、Official·Madonna、Official·MGStage、Official·Miman、Official·MKO、Official·Moodyz、Official·Muku、Official·MVG、Official·MyWifes、Official·Nanpa、Official·Opera、Official·Oppai、Official·Premium、Official·Prestige、Official·Rookie、Official·S1S1S1、Official·Tameikegoro、Official·To-satsu、Official·V-AV、Official·Wanz、DMM_API、JavDB_APP、Missav_API、R18_API、TheJavDB_API、DMM、LibreDMM、7mmtv、Airav.cc、AVBase、AVMOO、FreeJavBT、Getchu、Hbox、IQQTV、Jav321、JavBus、JavDay、JavDB、JavFree、JavLibrary、Lulubar、Missav、R18.dev、TheJavDB、Xcity |
-| **无码番号**（21） | Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama、JavDB_APP、Missav_API、TheJavDB_API、7mmtv、Airav.cc、AVEntertainments、AVSOX、FreeJavBT、IQQTV、JavBus、JavDay、JavDB、JavFree、Lulubar、Missav、TheJavDB |
-| **个摄番号**（16） | FC2、FC2CMADB、JavDB_APP、Missav_API、TheJavDB_API、7mmtv、Airav.cc、AVSOX、FreeJavBT、IQQTV、JavBus、JavDB、JavFree、Lulubar、Missav、TheJavDB |
-| **欧美番号**（11） | ThepornDB、JavDB_APP、Missav_API、AVheat、7mmtv、IQQTV、FreeJavBT、JavBus、JavDB、Lulubar、Missav |
-| **国产传媒**（11） | JavDB_APP、Missav_API、7mmtv、FreeJavBT、IQQTV、JavBus、JavDay、JavDB、Madou.club、Madouqu、Missav |
+| **有码番号**（62） | Official·Attackers、Official·Befree、Official·Bi、Official·Bibian、Official·Dahlia、Official·Dasdas、Official·E-Body、Official·Faleno、Official·Fitch、Official·Hajimekikaku、Official·HHH、Official·Honnaka、Official·Ideapocket、Official·Kawaii、Official·Kirakira、Official·Madonna、Official·MGStage、Official·Miman、Official·MKO、Official·Moodyz、Official·Muku、Official·MVG、Official·MyWifes、Official·Nanpa、Official·Opera、Official·Oppai、Official·Premium、Official·Prestige、Official·Rookie、Official·S1S1S1、Official·Tameikegoro、Official·To-satsu、Official·V-AV、Official·Wanz、DMM_JSON、JavDB_JSON、Missav_JSON、R18_JSON、TheJavDB_JSON、Prestige_JSON、DMM、LibreDMM、7mmtv、Airav.cc、AVBase、AVMOO、AVMOO_JSON、FreeJavBT、Getchu、Hbox、IQQTV、Jav321、JavBus、JavDay、JavDB、JavFree、JavLibrary、Lulubar、Missav、R18.dev、TheJavDB、Xcity |
+| **无码番号**（24） | Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama、JavDB_JSON、Missav_JSON、Official·1Pondo_JSON、Official·Pacopacomama_JSON、Official·10Musume_JSON、AVSOX_JSON、7mmtv、Airav.cc、AVEntertainments、AVSOX、FreeJavBT、IQQTV、JavBus、JavDay、JavDB、JavFree、Lulubar、Missav、TheJavDB |
+| **个摄番号**（17） | FC2、FC2CMADB、FC2CMADB_JSON、JavDB_JSON、Missav_JSON、AVSOX_JSON、7mmtv、Airav.cc、AVSOX、FreeJavBT、IQQTV、JavBus、JavDB、JavFree、Lulubar、Missav、TheJavDB |
+| **欧美番号**（12） | ThepornDB_JSON、JavDB_JSON、Missav_JSON、AVheat、AVHeat_JSON、7mmtv、IQQTV、FreeJavBT、JavBus、JavDB、Lulubar、Missav |
+| **国产传媒**（11） | JavDB_JSON、Missav_JSON、7mmtv、FreeJavBT、IQQTV、JavBus、JavDay、JavDB、Madou.club、Madouqu、Missav |
 | **国产短剧**（2） | JavDay、Lulubar |
-| **动漫里番**（6） | Getchu、Hbox、Jav321、JavDB、JavDB_APP、IQQTV |
+| **动漫里番**（6） | JavDB_JSON、Getchu、Jav321、JavDB、Hbox、IQQTV |
 
-> 组内站点顺序（组内先后即优先级递减，2026-11-10 用户口径）：有码番号组按 Official、DMM_API、JavDB_APP、Missav_API、R18_API、TheJavDB_API、DMM、LibreDMM，其余 A-Z；无码番号组按 Official、JavDB_APP、Missav_API、TheJavDB_API，其余 A-Z（TheJavDB 网页版也在该组）；个摄番号组按 FC2、FC2CMADB、JavDB_APP、Missav_API、TheJavDB_API，其余 A-Z（TheJavDB 网页版也在该组，另含 JavFree、Lulubar）；欧美番号组按 ThepornDB、JavDB_APP、Missav_API、AVheat，其余 A-Z（FreeJavBT 紧随 IQQTV）；国产传媒组按 JavDB_APP、Missav_API，其余 A-Z；国产短剧组全组 A-Z；动漫里番组 Getchu、Hbox、Jav321、JavDB 按 A-Z，JavDB_APP 后接 IQQTV。双击分组标题加入启用网站时同样按这份组内顺序。
+> 组内站点顺序（组内先后即优先级递减，2026-11-10 用户口径）：有码番号组按 Official、DMM_JSON、JavDB_JSON、Missav_JSON、R18_JSON、TheJavDB_JSON、Prestige_JSON、DMM、LibreDMM，其余 A-Z；无码番号组按 Official、JavDB_JSON、Missav_JSON、Official·1Pondo_JSON、Official·Pacopacomama_JSON、Official·10Musume_JSON、AVSOX_JSON，其余 A-Z（TheJavDB 网页版也在该组）；个摄番号组按 FC2、FC2CMADB、FC2CMADB_JSON、JavDB_JSON、Missav_JSON、AVSOX_JSON，其余 A-Z（TheJavDB 网页版也在该组，另含 JavFree、Lulubar）；欧美番号组按 ThepornDB_JSON、JavDB_JSON、Missav_JSON、AVheat、AVHeat_JSON，其余 A-Z（FreeJavBT 紧随 IQQTV）；国产传媒组按 JavDB_JSON、Missav_JSON，其余 A-Z；国产短剧组全组 A-Z；动漫里番组按 JavDB_JSON、Getchu、Jav321、JavDB，其余 A-Z（Hbox、IQQTV）。双击分组标题加入启用网站时同样按这份组内顺序。
 > **「国产短剧」组挂 `JavDay` + `Lulubar` 两站**（原「素人番号」组 28 站全部移除，配置字段名仍是 `website_suren`）：国产短剧条目**本身没有番号**，JavDay 只给站内随机 ID（`/videos/Gb5WuoJw/`），文件名也是千奇百怪没有统一格式，既**不能按路径或文件名自动识别**，别的站又全靠番号查——查不到就是查不到，留在组里只会给每条影片白挂一次请求。故这一组只在**「锁定刮削类型」选「国产短剧」**时才生效（走 JavDay 的站内搜索页按剧名找页面，或用户手动指定页面），程序不做任何 DUANJU 自动识别；**以前的素人番号（`SIRO-`、`LUXU-` 等）全部按有码刮削**，它们是有码厂牌的正规番号。
 > **34 家 `Official·...` 有码官网只出现在有码番号组，五个无码官网只出现在无码番号组**，国产传媒、欧美番号、个摄番号、国产短剧四组都不含它们——34 站按番号前缀锁定对应官网，对国产/欧美/个摄番号没有收录；五个无码官网只收无码番号，短剧又没有番号可路由，加进去只会给每条影片白挂一次无效请求。`Official·Dahlia`、`Official·Faleno` 是早年从 Official 拆出的有码厂牌独立站（现已改名并入 `Official` 聚合行），`Official·MyWifes`（舞ワイフ，人妻・熟女・3P 素人系列）同样并入该聚合行（同属 `OFFICIAL_YOUMA_SITES`）、只随**有码番号**一组走（`MyWife No.1230` 按前缀直调 Official·MyWifes 单站）。34 家有码官网与五个无码官网各自独立启用/禁用，禁用其中一个不会影响其他站。
 > **AVEntertainments 只在无码番号一组**（2.5.6 起从有码番号、素人番号两组移除）：该站是正規無修正 DVD 販売/配信的商城，只收录无码番号，有码厂牌的番号查不到条目——放在有码番号、素人番号两组里只会给每条影片白挂一次请求，故只保留在无码番号组。爬虫本身不变（它仍在「编辑网站」候选区里可选，只是不被这两组默认勾选）。
 > **`Official·MyWifes` 已并入 `Official` 有码官网组**：MyWife（舞ワイフ）是「人妻・熟女・3P」素人系列，与其它官网同逻辑——番号形如 `MyWife No.1230`，`mdcx/core/file_crawler.py` 按前缀直调 `Website.MYWIFE` 单站，归属 OFFICIAL 类型（字段优先级走官方组配置）。「网站偏好 → 指定网站」下拉里 Official·MyWifes 已合并进 `Official` 聚合行（选中聚合即按前缀自动路由，仍可刮 Official·MyWifes）；「网络 → 网站设置 → 当前网站」下拉保留 `Official·MyWifes` 独立行（地址 mywife.cc）；存量 `website_single=MyWife` 偏好由迁移收拢到聚合。类型刮削网站的独立 MyWifes 行已删除。故 `Config().website_youma` 收拢态为 `Official` 聚合、展开态含 Official·MyWifes；`Config().website_suren` 里同样没有它。
 > **`JavLibrary` 二合一**：原站 `javlibrary.com` 对中国大陆 IP 常年挂 Cloudflare 墙（要过 JS challenge，触发 Selenium 兜底），`zlibz.com` 公布的镜像（当前 `f101w.com/cn`）没有这层墙。两者同一份数据、页面结构一致，故合并为**单站 `JavLibrary`**（默认走无墙镜像、默认抓**中文页 `/cn`**；站点地址从 `https://zlibz.com/` 右上角公布的那张图里认，`mdcx/base/web.py` 的 `get_javlibrary_domain()`，带 24 小时缓存；有用户自定义网址时按用户填的走）。旧配置里的 `JavLibrary` 与 `Javlibrary_APP` 写法都自动归一到 `JavLibrary`，`SITE_GROUPS` 联动组同步删除。
 > **镜像地址是「认图」而不是「读字」**：`zlibz.com` 主页把地址排成一张 `text.gif` 位图挂在右上角，HTML 里**没有任何文字形式的地址**（`/text.txt`、`/domain.txt` 之类端点全部 404），GIF 内部也没有注释块可读，页面上那张二维码图只解出 `http://zlibz.com` 本身。所以程序取到那张图后用**内容 sha256 查表**（`_JAVLIBRARY_APP_IMAGE_HASHES`）认出它对应哪个地址；**换了图（表里没有的哈希）就退回「依次探测已知镜像域名列表」，再不行用列表首个**（`www.f101w.com/cn`）。也就是说官网换域名时程序仍能工作，但新地址要等表里补一条哈希才会被直接认出来。
-> **同一份名单也是「编辑网站」对话框里「可用网站」候选区的分组依据**（`TYPE_DEFAULT_SITES` 一个常量两处用，界面与默认行为不会漂）：打开「设置→刮削网站 → 类型刮削网站 → 编辑网站」，左侧候选区**开头就是八个加粗的分组标题**——`官方 ｜ 有码 ｜ 无码 ｜ 个摄 ｜ 欧美 ｜ 传媒 ｜ 短剧 ｜ 动漫`（**短名**，只在这一处用短名：八个 chip 必须挤在同一行，带「番号」三字会顶到框宽；`个摄`/`传媒` 是 2.6.0 起按用户口径改的称呼，与设置页的「个摄番号」「国产传媒」同义），**紧接着是两个聚合行「有码官网」（34 家有码官网）、「无码官网」（5 家无码官网），其后另起 `Official` / `Official·uncensored` 两个单体行**，从左到右排列，**紧接着右边就接着铺全部可用站点**。标题与其它站点一样是普通的一格，**底色不额外加深、只是文字加粗**，后面不留空白、也没有单独一行，所以首行看起来就是 `官方 有码 无码 个摄 欧美 传媒 短剧 动漫 7mmtv Airav.cc AVBase …`。**标题与聚合行之下是一份去重后的 A-Z 名单**（`7mmtv` 到 `Xcity`，39 家聚合站点只在聚合行里出现、A-Z 名单里不再单列），同一站点只出现一次（71 家注册站点全部有分组归属，没有「其他」分组标题）。站点行的悬停提示**只有一行 `<定位>：<类型名单>`**（如 7mmtv 为「综合：有码/无码/欧美/传媒」、AVSOX 为「无码：无码」、Madou.club 为「国产：麻豆」，冒号前的定性词沿用各站自己的定位说明——官网单站例外，统一用「官网：」（如「官网：有码」「官网：无码」）——冒号后的名单由 `TYPE_DEFAULT_SITES` 现算、**次序跟上面那八个标题的组序一致**——不再用爬虫 `description` 里那句写死的文案，那句会与实际默认名单对不上，7mmtv 说明里就没有欧美、国产；**名单里不写「动漫」「个摄」**，动漫与其它类型的片子混在一站时不必单列，个摄（即原来的 FC2 组）同属有码那一类；**「短剧」则照常显示**——它只有 JavDay + Lulubar 两站，但正因如此更需要看得见——候选区那八个 chip、设置页各行标签与默认名单不受影响）。分隔符统一用 `/` 而非顿号，省宽度、悬停框不易折行；原先的「类型：…」「联动：…」两行已整行删掉（第一行已把类型名单说全，后两行是同一件事的重复）。**同一行也拼进三个站点下拉框的选项显示文本**（下拉框的悬停提示按用户要求只保留「上次检测：…」，不再重复能力文案）。名单被隐空的站（`FC2`）改用它自己的定位说明一行。**双击某个标题即把该组全部网站按组内优先级顺序加入右侧「启用网站」列表**（组内顺序即上表的优先级顺序，联动组会自动补齐；**单击标题什么也不加**——八个标题挤在首行，顺手扫过必然挨个碰过去，一点就整组塞进去且无从撤销不是用户要的）；站点行的单击只是选中，加入靠双击站点或「添加选中」。右侧「启用网站」列表不受分组影响，顺序仍完全由用户拖拽决定。**两个列表都支持右键**：点站点复制该站名，**点某个标题复制它自己那一份名单**（如「有码」得 60 站，点「个摄」得 16 站、「动漫」得 6 站，互不相等；点聚合行复制它的成员名单（如「有码官网」得 34 站），点空白处复制整张列表（逗号分隔，与对话框上方输入框同格式，可直接粘回去比对或增删）。候选区的右键菜单**最下方**另有「加入列表：启用网站」（与双击同一套逻辑）：点标题加入整组、点站点加入那一个、点空白处加入当前选中的那些；「启用网站」列表与「字段优先级」那几行没有这一项。**右键站点时，菜单最上方还会先列「启用站点：X」「禁用站点：X」两条**（在「复制站点：X」之上）：已禁用时「启用站点」可点、「禁用站点」置灰，未禁用时反过来；点一下立即生效，候选区与右侧「启用网站」列表里该站同步变灰，悬停提示追加「已禁用：自动刮削、网络检测、图片兜底跳过；指定网站/单文件/重新刮削仍可用」，但仍可选中、拖拽与移除。禁用状态分域存放：有码/无码/个摄/欧美/国产传媒/国产短剧/动漫里番七类共用一份名单（默认都是空列表即全部启用），任一类型启用/禁用即七类同步；官方网站单独一份名单、不受影响——在有码里禁用某站会同步到其余六类，官方网站弹窗里看到的仍是原状；在非官方类型里右键禁用聚合行即整组禁用/启用（含 Dahlia/Faleno/Prestige/MGStage 四个改名站与 Official·MyWifes）每次启用/禁用后立即写入配置，不需要再点「保存」；点「取消」也不会回滚已经切换的禁用状态。被禁用的站不会进入自动刮削、网络检测与图片兜底；但用户明确指定该站时（指定网站模式、单文件、重新刮削）不受禁用名单影响，仍会正常请求并返回结果。重新启用后恢复原来的优先级与字段来源。
+> **同一份名单也是「编辑网站」对话框里「可用网站」候选区的分组依据**（`TYPE_DEFAULT_SITES` 一个常量两处用，界面与默认行为不会漂）：打开「设置→刮削网站 → 类型刮削网站 → 编辑网站」，左侧候选区**开头就是八个加粗的分组标题**——`官方 ｜ 有码 ｜ 无码 ｜ 个摄 ｜ 欧美 ｜ 传媒 ｜ 短剧 ｜ 动漫`（**短名**，只在这一处用短名：八个 chip 必须挤在同一行，带「番号」三字会顶到框宽；`个摄`/`传媒` 是 2.6.0 起按用户口径改的称呼，与设置页的「个摄番号」「国产传媒」同义），**紧接着是两个聚合行「有码官网」（34 家有码官网）、「无码官网」（5 家无码官网），其后另起 `Official` / `Official·uncensored` 两个单体行**，从左到右排列，**紧接着右边就接着铺全部可用站点**。标题与其它站点一样是普通的一格，**底色不额外加深、只是文字加粗**，后面不留空白、也没有单独一行，所以首行看起来就是 `官方 有码 无码 个摄 欧美 传媒 短剧 动漫 7mmtv Airav.cc AVBase …`。**标题与聚合行之下是一份去重后的 A-Z 名单**（`7mmtv` 到 `Xcity`，39 家聚合站点只在聚合行里出现、A-Z 名单里不再单列），同一站点只出现一次（81 家注册站点全部有分组归属，没有「其他」分组标题）。站点行的悬停提示**只有一行 `<定位>：<类型名单>`**（如 7mmtv 为「综合：有码/无码/欧美/传媒」、AVSOX 为「无码：无码」、Madou.club 为「国产：麻豆」，冒号前的定性词沿用各站自己的定位说明——官网单站例外，统一用「官网：」（如「官网：有码」「官网：无码」）——冒号后的名单由 `TYPE_DEFAULT_SITES` 现算、**次序跟上面那八个标题的组序一致**——不再用爬虫 `description` 里那句写死的文案，那句会与实际默认名单对不上，7mmtv 说明里就没有欧美、国产；**名单里不写「动漫」「个摄」**，动漫与其它类型的片子混在一站时不必单列，个摄（即原来的 FC2 组）同属有码那一类；**「短剧」则照常显示**——它只有 JavDay + Lulubar 两站，但正因如此更需要看得见——候选区那八个 chip、设置页各行标签与默认名单不受影响）。分隔符统一用 `/` 而非顿号，省宽度、悬停框不易折行；原先的「类型：…」「联动：…」两行已整行删掉（第一行已把类型名单说全，后两行是同一件事的重复）。**同一行也拼进三个站点下拉框的选项显示文本**（下拉框的悬停提示按用户要求只保留「上次检测：…」，不再重复能力文案）。名单被隐空的站（`FC2`）改用它自己的定位说明一行。**双击某个标题即把该组全部网站按组内优先级顺序加入右侧「启用网站」列表**（组内顺序即上表的优先级顺序，按标题自带的名单原样加入、不再触发组联动补齐，避免实际数量与标题提示不符；**单击标题什么也不加**——八个标题挤在首行，顺手扫过必然挨个碰过去，一点就整组塞进去且无从撤销不是用户要的）；站点行的单击只是选中，加入靠双击站点或「添加选中」。右侧「启用网站」列表不受分组影响，顺序仍完全由用户拖拽决定。**两个列表都支持右键**：点站点复制该站名，**点某个标题复制它自己那一份名单**（如「有码」得 62 站，点「个摄」得 17 站、「动漫」得 6 站，互不相等；点聚合行复制它的成员名单（如「有码官网」得 34 站），点空白处复制整张列表（逗号分隔，与对话框上方输入框同格式，可直接粘回去比对或增删）。候选区的右键菜单**最下方**另有「加入列表：启用网站」（与双击同一套逻辑）：点标题加入整组、点站点加入那一个、点空白处加入当前选中的那些；「启用网站」列表与「字段优先级」那几行没有这一项。**右键站点时，菜单最上方还会先列「启用站点：X」「禁用站点：X」两条**（在「复制站点：X」之上）：已禁用时「启用站点」可点、「禁用站点」置灰，未禁用时反过来；点一下立即生效，候选区与右侧「启用网站」列表里该站同步变灰，悬停提示追加「已禁用：自动刮削、网络检测、图片兜底跳过；指定网站/单文件/重新刮削仍可用」，但仍可选中、拖拽与移除。禁用状态分域存放：有码/无码/个摄/欧美/国产传媒/国产短剧/动漫里番七类共用一份名单（默认都是空列表即全部启用），任一类型启用/禁用即七类同步；官方网站单独一份名单、不受影响——在有码里禁用某站会同步到其余六类，官方网站弹窗里看到的仍是原状；在非官方类型里右键禁用聚合行即整组禁用/启用（含 Dahlia/Faleno/Prestige/MGStage 四个改名站与 Official·MyWifes）每次启用/禁用后立即写入配置，不需要再点「保存」；点「取消」也不会回滚已经切换的禁用状态。被禁用的站不会进入自动刮削、网络检测与图片兜底；但用户明确指定该站时（指定网站模式、单文件、重新刮削）不受禁用名单影响，仍会正常请求并返回结果。重新启用后恢复原来的优先级与字段来源。
 
-**各爬虫适用类型**（能力分类，统计的是该站实际能处理的番号类型，与上表「说明」列的定位标签不是同一维度，因此会出现 Getchu、AVBase 等同时出现在「仅限有码」与带「综合：」标签的站点里；与上面的默认名单也不必一一对应，默认名单只收「该站确实能查到该类型条目」的站。例外：按用户 2026-11-10 要求，`TheJavDB` / `TheJavDB_API` 虽仍按有码能力归类，也已加入无码番号、个摄番号默认名单）：
-- **仅限有码**：DMM、DMM_API、TheJavDB_API、TheJavDB、LibreDMM、R18_API、R18.dev、AVBase、Xcity、Official·Prestige、Official·MGStage、Getchu、JavLibrary、FreeJavBT、Lulubar、AVMOO、Airav.cc、Official·Dahlia、Official·Faleno、Official·S1、Official·Moodyz、Official·Madonna、Official·Wanz、Official·Ideapocket、Official·Kirakira、Official·E-Body、Official·Bi、Official·Premium、Official·Miman、Official·Tameikegoro、Official·Fitch、Official·Kawaii、Official·Befree、Official·Muku、Official·Attackers、Official·MKO、Official·Dasdas、Official·MVG、Official·Opera、Official·Oppai、Official·V-AV、Official·To-satsu、Official·Bibian、Official·Honnaka、Official·Rookie、Official·Nanpa、Official·Hajimekikaku、Official·HHH、Jav321、Hbox
-- **无码专属**：AVEntertainments、AVSOX、Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama
-- **综合（有码+无码）**：JavBus、JavDB、JavDB_APP、Missav、Missav_API、JavDay、JavFree、IQQTV、7mmtv
-- **素人作品（2.6.0 起按有码刮削）**：7mmtv、AVBase、DMM、DMM_API、IQQTV、JavBus、JavDB、Official·MGStage、Missav、Missav_API、Official·Prestige、Official·Dahlia、Official·Faleno
-- **FC2**：7mmtv、FC2、FC2CMADB、JavDB、JavFree
-- **欧美**：AVheat、ThepornDB
+**各爬虫适用类型**（能力分类，统计的是该站实际能处理的番号类型，与上表「说明」列的定位标签不是同一维度，因此会出现 Getchu、AVBase 等同时出现在「仅限有码」与带「综合：」标签的站点里；与上面的默认名单也不必一一对应，默认名单只收「该站确实能查到该类型条目」的站。例外：按用户 2026-11-10 要求，`TheJavDB` 虽仍按有码能力归类，也已加入无码番号、个摄番号默认名单；`TheJavDB_JSON` 只留在有码番号组）：
+- **仅限有码**：DMM、DMM_JSON、TheJavDB_JSON、TheJavDB、Prestige_JSON、LibreDMM、R18_JSON、R18.dev、AVBase、Xcity、Official·Prestige、Official·MGStage、Getchu、JavLibrary、FreeJavBT、Lulubar、AVMOO、AVMOO_JSON、Airav.cc、Official·Dahlia、Official·Faleno、Official·S1、Official·Moodyz、Official·Madonna、Official·Wanz、Official·Ideapocket、Official·Kirakira、Official·E-Body、Official·Bi、Official·Premium、Official·Miman、Official·Tameikegoro、Official·Fitch、Official·Kawaii、Official·Befree、Official·Muku、Official·Attackers、Official·MKO、Official·Dasdas、Official·MVG、Official·Opera、Official·Oppai、Official·V-AV、Official·To-satsu、Official·Bibian、Official·Honnaka、Official·Rookie、Official·Nanpa、Official·Hajimekikaku、Official·HHH、Jav321、Hbox
+- **无码专属**：AVEntertainments、AVSOX、AVSOX_JSON、Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama、Official·10Musume_JSON、Official·1Pondo_JSON、Official·Pacopacomama_JSON
+- **综合（有码+无码）**：JavBus、JavDB、JavDB_JSON、Missav、Missav_JSON、JavDay、JavFree、IQQTV、7mmtv
+- **素人作品（2.6.0 起按有码刮削）**：7mmtv、AVBase、DMM、DMM_JSON、IQQTV、JavBus、JavDB、Official·MGStage、Missav、Missav_JSON、Official·Prestige、Prestige_JSON、Official·Dahlia、Official·Faleno
+- **FC2**：7mmtv、FC2、FC2CMADB、FC2CMADB_JSON、JavDB、JavFree
+- **欧美**：AVheat、AVHeat_JSON、ThepornDB_JSON
 - **国产**：IQQTV、JavDay、Madou.club、Madouqu
 
 ### DMM 官方高清直链
 
 - 封面/海报统一走 DMM 官方 awsimgsrc CDN 高清直链（竖版 `ps` 通常 1032×1469，部分系列为 745×1081 等中尺寸档；横版 `pl` 通常 2184×1469），由 `mdcx/crawlers/dmm_direct.py` 的番号→DMM cid 前缀映射生成，内置静态前缀表覆盖约 110 个主流系列（含 `h_xxx`/数字特殊前缀与跨厂商附加前缀），并叠加学习表自动扩充未收录系列的前缀。升级时校验分辨率宽≥700 过滤 147×200 缩略图占位图，避免把海报覆盖成低清缩略图。
-- **LibreDMM / R18_API / JavBus / JavDB / JavDB API / JavDB App / DMM / DMM API / JavLibrary / AVBase** 十个爬虫在刮削时直接把返回的低清封面/海报升级为 DMM 高清（R18_API 的 `jacket_full_url` 是 pics.dmm.co.jp 低清且部分系列 cid 未补零，JavBus 是自家 CDN 低清镜像，DMM/AVBase 用域名替换 + dmm_direct 前缀表候选），无码番号自动跳过。
-- **JavDB 系图源无水印升级**：JavDB / JavDB API / JavDB App 三站产出/落回的 javdb 图床图片，下载时自动改走 JavDB App 专用 CDN `tp.spfcas.com` 无水印原图（加密流下载层透明解密），替代带 javdb 水印的网页版 CDN；App CDN 路径中段由 JavDB_APP 响应自动学习，失效时自动回退网页版。DMM 升级链覆盖不到的番号（无码/FC2/老片等）落回 javdb 图源时受益。
+- **LibreDMM / R18_JSON / JavBus / JavDB / JavDB_JSON / DMM / DMM_JSON / JavLibrary / AVBase** 九个爬虫在刮削时直接把返回的低清封面/海报升级为 DMM 高清（R18_JSON 的 `jacket_full_url` 是 pics.dmm.co.jp 低清且部分系列 cid 未补零，JavBus 是自家 CDN 低清镜像，DMM/AVBase 用域名替换 + dmm_direct 前缀表候选），无码番号自动跳过。
+- **JavDB 系图源无水印升级**：JavDB / JavDB_JSON 两站产出/落回的 javdb 图床图片，下载时自动改走 JavDB App 专用 CDN `tp.spfcas.com` 无水印原图（加密流下载层透明解密），替代带 javdb 水印的网页版 CDN；App CDN 路径中段由 JavDB_JSON 响应自动学习，失效时自动回退网页版。DMM 升级链覆盖不到的番号（无码/FC2/老片等）落回 javdb 图源时受益。
 - 开启「Poster 选优」（poster_auto_best）时，候选池自动注入 DMM 竖版高清候选，按尺寸自动胜过低清原图，其他爬虫也能受益。
 - DMM 图下载失败按「设置→网络→重试」次数（默认 3 次）自动重试，应对 awsimgsrc 偶发的连接抖动。
 

@@ -4,6 +4,22 @@
 
 ## 2026-11-10
 
+### 账号通道统一改名 JSON + 新增 7 个 JSON 站点与 Prestige 网页版
+
+- 改名：`DMM_API`→`DMM_JSON`、`TheJavDB_API`→`TheJavDB_JSON`、`JavDB_APP`→`JavDB_JSON`、`Missav_API`→`Missav_JSON`、`R18_API`→`R18_JSON`、`ThepornDB`→`ThepornDB_JSON`；新增 `AVMOO_JSON`、`AVSOX_JSON`、`AVHeat_JSON`、`FC2CMADB_JSON`、`Official·1Pondo_JSON`、`Official·Pacopacomama_JSON`、`Official·10Musume_JSON` 七个 JSON 站点。旧配置值由 `Website._missing_` 与 `config/migrations.py` 兼容迁移。
+- 新增：`Prestige_JSON`（Prestige 官网 JSON 通道）与 `crawlers/prestige_web.py`（网页版详情解析）；默认有码组在 `TheJavDB_JSON` 后加入 `Prestige_JSON`，无码/个摄/欧美组同步加入对应 JSON 站。
+- 默认名单：有码 62、无码 24、个摄 17、欧美 12、国产 11、短剧 2、动漫 6；`resources/config/default_config.json`、`TYPE_DEFAULT_SITES`、软件内使用说明与 `docs/Features.md` 同步。
+- 审查修复：模板补 `Prestige_JSON`；`migrations.py` 删除重复 `javdb_app` 键；`SITE_GROUPS` 合并 AVheat/AVHEAT_JSON 重复分组；`prestige.py` 定位说明改为「官网：有码+素人」；官方 JSON 站 www 默认地址加入白名单测试。
+- 校验：相关 pytest 通过；`ruff check` / `ruff format --check` 通过；全量 pytest 通过。
+
+### 无码番号/个摄番号组移除 TheJavDB_JSON（用户指定）
+
+- 改动：`TYPE_DEFAULT_SITES` 的 `WUMA`、`FC2` 两组默认名单移除 `TheJavDB_JSON`（TheJavDB 网页版仍保留），无码 21→20 站、个摄 16→15 站；`resources/config/default_config.json`、软件内使用说明、`docs/Features.md` 默认名单与 `test_site_source_type_groups` / `test_config_conversion` 期望名单同步。
+
+### 动漫里番默认排序调整（用户指定）
+
+- 改动：`TYPE_DEFAULT_SITES[DONGMAN]` 默认顺序改为 `JavDB_JSON、Getchu、Jav321、JavDB、Hbox、IQQTV`（前四站按用户指定置顶，其余 A-Z）；`resources/config/default_config.json`、软件内使用说明、提示文案、`docs/Features.md` 默认名单与 `test_site_source_type_groups` 期望名单同步。
+
 ### 启用/禁用站点改为七类同步（用户指定）
 
 - 问题：在有码番号启用 Xcity 后，个摄/欧美/国产传媒/国产短剧/动漫里番仍显示禁用——此前禁用名单按八类各存一份，Xcity 只从有码名单移除。
@@ -24,18 +40,18 @@
 
 ### 检测网络筛选框「查看JSON」按钮（用户指定）
 
-- 改动：多选下拉框 ThepornDB / DMM_API 行右侧画「查看JSON」按钮（`controllers/main_window/json_view.py` 新文件：取数目标 + 弹窗；`init.py` delegate 绘制 + 点击命中，点中只弹窗不切换勾选，弹窗加宽容纳按钮，tooltip 说明；`signals.py` 新增 `json_view` 信号 + `NetCheckMixin.show_json_view_dialog` 主线程槽）。点一下：ThepornDB 用当前 Token 发探测同款 `jav/<uuid>` 请求（无 Token 直接提示去设置里填），DMM_API 用当前 api_id/affiliate_id 发探测同款 ItemList 请求；返回体格式化（ensure_ascii=False、超长截断）弹窗展示，可复制地址与 JSON。凭据只进请求头/内存：弹窗不显示 token、不落盘、不进报告不进 xlsx（沿 DMM_API 导出口径）。
+- 改动：多选下拉框 ThepornDB_JSON / DMM_JSON 行右侧画「查看JSON」按钮（`controllers/main_window/json_view.py` 新文件：取数目标 + 弹窗；`init.py` delegate 绘制 + 点击命中，点中只弹窗不切换勾选，弹窗加宽容纳按钮，tooltip 说明；`signals.py` 新增 `json_view` 信号 + `NetCheckMixin.show_json_view_dialog` 主线程槽）。点一下：ThepornDB_JSON 用当前 Token 发探测同款 `jav/<uuid>` 请求（无 Token 直接提示去设置里填），DMM_JSON 用当前 api_id/affiliate_id 发探测同款 ItemList 请求；返回体格式化（ensure_ascii=False、超长截断）弹窗展示，可复制地址与 JSON。凭据只进请求头/内存：弹窗不显示 token、不落盘、不进报告不进 xlsx（沿 DMM_JSON 导出口径）。
 - 弹窗增强：最大化/最小化按钮可用；「复制JSON」与「关闭」之间加「翻译字段」按钮——调用「软件设置」-「翻译」里用户勾选的翻译引擎（多引擎随机、无配置逐个跳过，全灭给文案），字段名批量一次请求（`_`/`-`转空格好翻），只重命名字典键、值一个字符不动，同层译名碰撞回退原文，非完整 JSON（失败/截断）时按钮禁用；再点「还原字段」切回原文。
-- 测试：`tests/test_net_filter_json_view.py` 16→26→31 项（新增：6 站全员有按钮、TheJavDB_API/R18_API/JavDB_APP/Missav_API 目标与探测同款〈JavDB_APP 基址走 `_configured_or_default_url`、Missav_API 为 POST+Recombee 签名体〉、双按钮几何左右关系、6 站 tooltip/delegate 双按钮、字体+1、非模态登记与释放、浏览器落临时文件+打开发送、POST 走 post_json_sync、缺 Token 点浏览器只提示、弹窗右缘对齐按钮/无按钮回退、连点防重、临时文件清扫、格式化兜底、地址标签纯文本）；相关 208+167 项全过 + ruff/mypy 全过。
-- 扩展（用户指定）：支持站点 2→6（账号/API 组 JSON 全员：+ TheJavDB_API/JavDB_APP/Missav_API/R18_API，取数目标均为探测同款；Missav_API 经新增 `base/web_sync.post_json_sync` 发 POST）；「查看JSON」右侧加「浏览器」按钮（点中同样拉探测同款、不直接开 URL——ThepornDB 等 Bearer 头地址浏览器直接开会 401，故落系统临时 `.json` 再用系统浏览器打开）；弹窗改非模态（`track_modeless_dialog` 登记防回收+关窗摘掉，与主窗口互不阻塞、可多窗并存，parent 改 None）；正文等宽字体与地址行累计 +2（用户嫌小，两次加大）。
+- 测试：`tests/test_net_filter_json_view.py` 16→26→31 项（新增：6 站全员有按钮、TheJavDB_JSON/R18_JSON/JavDB_JSON/Missav_JSON 目标与探测同款〈JavDB_JSON 基址走 `_configured_or_default_url`、Missav_JSON 为 POST+Recombee 签名体〉、双按钮几何左右关系、6 站 tooltip/delegate 双按钮、字体+1、非模态登记与释放、浏览器落临时文件+打开发送、POST 走 post_json_sync、缺 Token 点浏览器只提示、弹窗右缘对齐按钮/无按钮回退、连点防重、临时文件清扫、格式化兜底、地址标签纯文本）；相关 208+167 项全过 + ruff/mypy 全过。
+- 扩展（用户指定）：支持站点 2→6（账号/API 组 JSON 全员：+ TheJavDB_JSON/JavDB_JSON/Missav_JSON/R18_JSON，取数目标均为探测同款；Missav_JSON 经新增 `base/web_sync.post_json_sync` 发 POST）；「查看JSON」右侧加「浏览器」按钮（点中同样拉探测同款、不直接开 URL——ThepornDB_JSON 等 Bearer 头地址浏览器直接开会 401，故落系统临时 `.json` 再用系统浏览器打开）；弹窗改非模态（`track_modeless_dialog` 登记防回收+关窗摘掉，与主窗口互不阻塞、可多窗并存，parent 改 None）；正文等宽字体与地址行累计 +2（用户嫌小，两次加大）。
 - 审查修复（用户指定全面审查）：弹窗右缘对齐全选/全不选按钮右缘（`init._layout_net_filter_popup`，resize 跟着走，上限 560，宽度不变不重设样式）；地址标签强制纯文本（QLabel 默认解析富文本，用户手填的 DMM api_id 含 `<>` 会被渲染）；连点防重（同站在飞时第二次只提示，不再起线程）；浏览器临时文件 7 天清扫；返回体格式化加兜底（工作线程永不裸奔）；DeepL 误报澄清（逐行复核：简介源语言检测本就按字段各自检测，6 引擎全兼容空标题，无需改）。
 
 ### ThePornDB 补 JAV 支持 + 探测改 ALDN-494 JSON 详情（用户指定）
 
 - 原因：用户把网页地址 `theporndb.net/jav/…` 填进「链接地址」无数据；实测 API 返回确认当前刮削器 5 处与 API 不一致：无 appoint 时 JAV 永远 Miss（只查 scenes/movies）、`/jav/` 地址被 scenes/movies 各打一遍、external_id 误拼成 `/scenes/<slug>`（404）、导演丢失（API 给 `directors` 数组、代码只读单数 `director`）、番号派生成 `TakaraEizo.25.08.09` 而非 `ALDN-494`。
 - 改动（三文件分工）：主刮削器 `crawlers/theporndb.py` 新增 `jav` 类型（详情直查种类识别、JAV 番号 `external_id` 精确匹配 + jav 优先搜索、详情解析认 `directors` 数组与 `external_id` 番号、appoint 地址先按 Run Query 规则拆分）；新增 `crawlers/theporndb_direct.py`（详情页 Run Query 等价直查：拆地址→拼详情 URL→取 JSON）；新增 `crawlers/theporndb_lookup.py`（番号→网页地址：`/jav?parse=` API 搜索优先、`/{kind}?search=` 站内搜索兜底）；常规全灭后自动走「反查地址→详情直查」最后一搏。
-- 探测：网络检测 `ThepornDB` 站点行改打 ALDN-494 的 JSON 详情地址 `https://api.theporndb.net/jav/568c12b8-756f-4d01-bb6c-cdc9d7382451`（浏览器可访问，Run Query 同款），`probe_url` 走 appoint_url 真实刮削，连通性与探测带 Bearer Token；番号/uuid 单一来源 `ThepornDBCrawler.probe_number`/`probe_uuid`（取代 2026-10-30 主站首页打法）。`site_fields` 探针链接同步（探针号直达 JSON 详情、其余走 jav 搜索），`DIRECT_PROBE_SITES` + ThepornDB（24 站）。
-- 文档：`docs/Scraper.md` ThepornDB 行补 JAV、`docs/Features.md` ThepornDB 条、`docs/MEMORY.md` 站点检测条 + 直连例外清单（23→24）同步。
+- 探测：网络检测 `ThepornDB_JSON` 站点行改打 ALDN-494 的 JSON 详情地址 `https://api.theporndb.net/jav/568c12b8-756f-4d01-bb6c-cdc9d7382451`（浏览器可访问，Run Query 同款），`probe_url` 走 appoint_url 真实刮削，连通性与探测带 Bearer Token；番号/uuid 单一来源 `ThepornDB_JSONCrawler.probe_number`/`probe_uuid`（取代 2026-10-30 主站首页打法）。`site_fields` 探针链接同步（探针号直达 JSON 详情、其余走 jav 搜索），`DIRECT_PROBE_SITES` + ThepornDB_JSON（24 站）。
+- 文档：`docs/Scraper.md` ThepornDB_JSON 行补 JAV、`docs/Features.md` ThepornDB_JSON 条、`docs/MEMORY.md` 站点检测条 + 直连例外清单（23→24）同步。
 - 测试：新增 `tests/crawlers/test_theporndb_jav.py` 13 项（地址拆分/详情直取/API 搜索认领/登录墙返回 None/详情解析/精确匹配/网页直连单请求/文件搜索 jav 命中）；`test_network_check`（JSON 详情探测）`test_site_fields_export`（探针链接/直连集合）断言同步；相关 167 项全过。
 
 ### Missav 探针切 DLDSS-570 + 默认地址去 dm 段（用户指定）
@@ -204,7 +220,7 @@
 
 ### 检测网络页分组行置顶+改名
 
-- `Official·pixelated`、`Official·uncensored` 移到下拉最上方（原来钉在 `Missav_API` 下方）。
+- `Official·pixelated`、`Official·uncensored` 移到下拉最上方（原来钉在 `Missav_JSON` 下方）。
 - 改名：`Official·pixelated 官网：有码34站`、`Official·uncensored 官网：无码5站`。
 - 测试：`test_network_check`＋`test_ui_structure` 全过；offscreen 实测置顶与分组展开正常。
 
@@ -236,7 +252,7 @@
 - 下拉选项按名称 A-Z（大小写不敏感）排序；框体与右侧按钮同高 40（`.ui` 设计值本就一致，`layout_master` 重定位时一并保高）。
 - 占位文本由「全部站点（下拉多选）」改为「下拉多选」。
 - 下拉右侧新增「全选」「全不选」按钮（各 70×40，右缘跟「重试失败项」左缘走、窄窗自适应）：全选勾选全部 71 站，全不选清空（清空=检测全部）。
-- 下拉新增两个分组行（钉在 `Missav_API` 下方）：`Official·pixelated`（有码官网 34 站全选）、`Official·uncensored`（无码官网 5 站全选）；勾选分组=勾选组内成员，成员半选时分组行显示半选态；取值时分组展开为成员站（伪选项本身不进检测项）；分组徽标按组内最差状态聚合。
+- 下拉新增两个分组行（钉在 `Missav_JSON` 下方）：`Official·pixelated`（有码官网 34 站全选）、`Official·uncensored`（无码官网 5 站全选）；勾选分组=勾选组内成员，成员半选时分组行显示半选态；取值时分组展开为成员站（伪选项本身不进检测项）；分组徽标按组内最差状态聚合。
 - 测试：`test_network_check.py` 122 项、`test_ui_structure.py` 全过；offscreen 实测 73 行（71 站+2 分组）、分组展开 34 站、全选 71 站。
 
 ### FC2偶发「未进入影片详情页」：单次毛刺内部重打+报错带页面指纹
@@ -255,7 +271,7 @@
 
 ### 刮削字段表：逐站审计修正4个字段旗+2条番号级链接
 
-- 71 站 × 13 字段全量对照代码审计：DMM_API 简介（`dmm_api.py:316-317` 字面空串）、HEYZO 系列/详情图（`uncensored/base.py:485,491` 字面空）、LibreFanza 系列（`get_series` 恒空）4 格由 ✅ 改 ❌，以 `_SITE_FIELD_OFF` 精确扣除表实现（带 file:line 证据注释）；JavFree 简介有 blockquote 解析，维持 ✅。
+- 71 站 × 13 字段全量对照代码审计：DMM_JSON 简介（`dmm_api.py:316-317` 字面空串）、HEYZO 系列/详情图（`uncensored/base.py:485,491` 字面空）、LibreFanza 系列（`get_series` 恒空）4 格由 ✅ 改 ❌，以 `_SITE_FIELD_OFF` 精确扣除表实现（带 file:line 证据注释）；JavFree 简介有 blockquote 解析，维持 ✅。
 - 番号级链接实测修正 2 条：Faleno 含未编码空格（InvalidURL，加 `quote` 编码）、Xcity `/result/` 在默认 host 404（改用同文件 200 的 `/api/search`）；FC2 全站 `/article/` 404 系本机网络环境问题、pattern 与代码一致，不动。
 - 测试：`tests/test_site_fields_export.py` 新增 4❌+JavFree✅ 锁定断言，Xcity/Faleno 链接断言同步；35 项全过。
 
@@ -316,7 +332,7 @@
 
 ### JavDB / JavLibrary 双站合并（网页版与 API/APP 通道二合一）
 
-- 同一站点只留一个入口：`JavDB` 网页版逻辑删除，原 `JavDB_API`（javdb580/573/574/575 多镜像轮询 + 全走代理判定）改名接管 `JavDB`；`JavLibrary` 网页版逻辑删除，原 `Javlibrary_APP`（zlibz.com 地址图认图 + 默认中文页 /cn）改名接管 `JavLibrary`。`JavDB_APP`（移动端 API 通道）保持不动。
+- 同一站点只留一个入口：`JavDB` 网页版逻辑删除，原 `JavDB_API`（javdb580/573/574/575 多镜像轮询 + 全走代理判定）改名接管 `JavDB`；`JavLibrary` 网页版逻辑删除，原 `Javlibrary_APP`（zlibz.com 地址图认图 + 默认中文页 /cn）改名接管 `JavLibrary`。`JavDB_JSON`（移动端 API 通道）保持不动。
 - 存量配置自动归一：旧 `JavDB_API`/`Javlibrary·镜像`/`Javlibrary_APP` 等写法经枚举 `_missing_` 别名与 `_SITE_RENAMES` 迁移继续可读；`_MIRROR_SITE_TARGETS` 删 `JavLibrary` 镜像项（单站直连）、`SITE_GROUPS` 删 JavLibrary 联动组（JavDB 组保留三站中的两站）。
 - 注册站点 73→71：各类型默认名单（有码 57、无码 18、个摄 11、欧美 9、国产 9、动漫 5）与 `default_config.json`、帮助文案、提示文案同步；演员来源链 `JavDB_API`/`Javlibrary_APP` 条目并入 `JavDB`/`JavLibrary`。
 - 文档同步：`docs/Scraper.md`、`docs/Features.md`、`docs/User_Guide.md`、`docs/Configuration.md`、`docs/Development.md`、`docs/MEMORY.md`、`README.md` 现状描述行与 wiki FAQ 第 15 条更新；历史 Changelog 条目不动。
@@ -445,7 +461,7 @@
 ### Jav321 进动漫组与有码组排序调整
 
 - 有码组默认顺序调整：`Jav321` 排到 `JavBus` 之后、`Hbox` 排到 `JavFree` 之后（`models.TYPE_DEFAULT_SITES`、`default_config.json`、`Features` 默认名单与 `test_site_source_type_groups` 期望名单同步）。
-- `Jav321` 加入动漫组：动漫组默认名单变为 `Getchu、Hbox、Jav321、JavDB、JavDB_API、JavDB_APP`（5→6 站），`description` 由「有码：仅限有码」改为「综合：有码+动漫」；详情页 `/video/h_xxx` 或 DMM 图床 `digital/video/h_xxx`（如 `h_1261amcp00261` 动漫页封面 `ps.jpg`/横版 `pl.jpg`/剧照 `jp-1.jpg`、`jp-2.jpg`）即判动漫，`mosaic` 返回「动漫」走动漫组，其余仍返回「有码」。
+- `Jav321` 加入动漫组：动漫组默认名单变为 `Getchu、Hbox、Jav321、JavDB、JavDB_API、JavDB_JSON`（5→6 站），`description` 由「有码：仅限有码」改为「综合：有码+动漫」；详情页 `/video/h_xxx` 或 DMM 图床 `digital/video/h_xxx`（如 `h_1261amcp00261` 动漫页封面 `ps.jpg`/横版 `pl.jpg`/剧照 `jp-1.jpg`、`jp-2.jpg`）即判动漫，`mosaic` 返回「动漫」走动漫组，其余仍返回「有码」。
 - 测试：`tests/crawlers/test_jav321.py` 新增动漫判定与动漫详情单测；动漫组复制计数 5→6 同步（`test_site_source_copy_menu`）；`Features`、`Scraper` 动漫名单与说明同步。
 
 ### 新增 Hbox 刮削站点（hbox.jp）
@@ -536,12 +552,12 @@
 
 ### ThePornDB 站点检测改打主站首页 `https://theporndb.net/`
 
-- 用户反馈：ThepornDB 的站点网络检测要用 `https://theporndb.net/`；打 `https://api.theporndb.net/` 会报 HTTP 404。
+- 用户反馈：ThepornDB_JSON 的站点网络检测要用 `https://theporndb.net/`；打 `https://api.theporndb.net/` 会报 HTTP 404。
 - 原因：API 子域**没有根路由**——`GET https://api.theporndb.net/` 本来就 404，拿它当「站点通不通」的检测地址必然误报红点。此前该站直接从「站点检测」组里跳过，检测页只剩「账号/API」组的一条 Token 项，站点本身可不可达反而看不出来。
 - `mdcx/utils/theporndb_token.py` 新增 `WEB_BASE = "https://theporndb.net"`（主站基址，`TOKEN_PAGE` 由它拼出），与 `API_BASE` 各司其职。
-- `mdcx/core/network_check.py::_build_site_specs()`：ThepornDB 不再整站跳过，改为产出一条「站点检测」项 `ThepornDB → https://theporndb.net`；不走 `base_url_()`／用户自定义 URL（那两者都是 API 子域），也不跑爬虫刮削探测（探测打的是 API、还要 Token）。
-- `NetworkCheckSpec` 新增 `crawl_probe: bool = True`：连通后是否再用爬虫实探「能不能刮」。仅 ThepornDB 站点行置 `False`，其余站点默认行为不变；探测条件相应加 `and spec.crawl_probe`。
-- 职责划分：站点行判「主站能不能上」（200 → 连接正常），接口/Token 能不能用仍由「ThePornDB Token」项（`api.theporndb.net/scenes/hash/…`）判定，两条结果都带 `site=ThepornDB`，缓存按「本轮最差」聚合回标网站设置下拉。
+- `mdcx/core/network_check.py::_build_site_specs()`：ThepornDB_JSON 不再整站跳过，改为产出一条「站点检测」项 `ThepornDB_JSON → https://theporndb.net`；不走 `base_url_()`／用户自定义 URL（那两者都是 API 子域），也不跑爬虫刮削探测（探测打的是 API、还要 Token）。
+- `NetworkCheckSpec` 新增 `crawl_probe: bool = True`：连通后是否再用爬虫实探「能不能刮」。仅 ThepornDB_JSON 站点行置 `False`，其余站点默认行为不变；探测条件相应加 `and spec.crawl_probe`。
+- 职责划分：站点行判「主站能不能上」（200 → 连接正常），接口/Token 能不能用仍由「ThePornDB Token」项（`api.theporndb.net/scenes/hash/…`）判定，两条结果都带 `site=ThepornDB_JSON`，缓存按「本轮最差」聚合回标网站设置下拉。
 - 测试：`tests/test_network_check.py::test_theporndb_site_spec_probes_main_site_not_api_root`。
 
 ### ThePornDB 接口基址回到 `api.theporndb.net`（主域 `/api` 降为备用）
@@ -749,7 +765,7 @@
 
 ### 「检查演员缺失番号」改为多站点汇总 + 归一化对比 + Excel 输出
 
-- 站点链按类型固定（有码 DMM→DMM_API→LibreDMM→JavDB→JavDB_API→JavDB_APP→Javlibrary_APP→JavLibrary→JavBus，无码 / FC2 / 欧美 / 国产 / 动漫各有定稿链），顺序即优先级。
+- 站点链按类型固定（有码 DMM→DMM_JSON→LibreDMM→JavDB→JavDB_API→JavDB_JSON→Javlibrary_APP→JavLibrary→JavBus，无码 / FC2 / 欧美 / 国产 / 动漫各有定稿链），顺序即优先级。
 - `tools/actor_sources.py` 重写为「站点注册表 + 归一化」：`ssis00006` / `SSIS-006` 先 `normalize_key()` 折叠再比对，`display_number()` 还原展示。
 - 同域名组串行、跨域名并发，每站最多 2 次请求；演员名先经 JavDB 演员库解析日文原名再查。
 - 输出 `演员名.xlsx`（番号 / 网站 / 链接地址），日志只留命中与缺失统计。
