@@ -2,6 +2,18 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-11-11
+### 新增 JavFree/AVBase/Madouqu/Hbox 四个 JSON 通道（用户指定）
+- 新增：`JavFree_JSON`（WordPress REST `/wp-json/wp/v2/posts`，探针 SSNI-391）、`AVBase_JSON`（详情页 `__NEXT_DATA__`，探针 SNOS-540）、`Madouqu_JSON`（WordPress REST + 分类/标签接口，探针 MTH-0119）、`Hbox_JSON`（详情页内联 `gtmSetItemList`，探针 NHDTC-252/cid 702258）四个独立刮削器（`mdcx/crawlers/*_json.py`，均只读 JSON、不解析网页正文）与网络检测探测器；`JSON_VIEW_SITES` 14→18 站，「查看JSON/浏览器」同款取数（AVBase/Hbox 取详情页抠内嵌 JSON）。
+- 联动组：新增 `JavFree ⇄ JavFree_JSON`、`AVBase ⇄ AVBase_JSON`、`Madou.club ⇄ Madouqu ⇄ Madouqu_JSON`；`WEB_TO_JSON_SITE` 同步三对，`_call_specific_crawler` 失败自动回退网页版。
+- 默认名单：JavFree_JSON 进有码/无码/个摄、AVBase_JSON 进有码、Madouqu_JSON 进国产传媒、Hbox_JSON 进有码/动漫（初始按指定位置插入，当日稍后按新口径重排为 Official 置顶 + JSON 站 A-Z，见下条）；`resources/config/default_config.json`、软件内使用说明、`docs/Features.md`、`docs/Scraper.md` 同步。
+- 审查修复：JavFree 简介泄漏进ジャンル（blockquote 首段解析字段、后续段为简介）、Madouqu/Hbox/JavFree/AVBase 取数与番号交叉校验、AVBase 预告片空串不再拼出站根。
+- 校验：四探针真实跑通 + 网络检测四项 OK + 相关 pytest 通过；`ruff check` / `ruff format --check` 通过。
+### 类型默认名单改 Official 置顶 + JSON 站 A-Z（用户指定）
+- 改动：有码/无码/个摄/欧美/国产传媒五组统一为 Official 聚合置顶（无码为 Official·uncensored 聚合）、组内全部 JSON 站 A-Z、其余站 A-Z；欧美组 ThepornDB_JSON 置顶例外保留。`TYPE_DEFAULT_SITES`、`resources/config/default_config.json`、软件内使用说明、`docs/Features.md`、相关测试期望同步。
+### 指定网站 Official 聚合调整 + 聚合 JSON 优先补齐（用户指定）
+- 改动：指定网站下拉 `Prestige_JSON` 并入 `Official` 聚合（不再单列，存量偏好由迁移收拢），新增 `Official·uncensored` 选项（5 家无码官网 + 3 家 JSON 版）；聚合无命中前缀回退改为 JSON 版排最前；单站路径 JSON 有数据但部分字段缺失时，由对应网页版只补空字段（标题/番号以 JSON 为准，番号对不上不补；仅 Official / Official·uncensored 体系生效）。
+- 测试：`tests/test_website_single_official_rows.py`、`tests/test_file_crawler_runtime.py` 新增聚合选项与补齐用例；相关 pytest 通过。
 ## 2026-11-10
 
 ### 账号通道统一改名 JSON + 新增 7 个 JSON 站点与 Prestige 网页版
