@@ -50,7 +50,15 @@
 - GitHub：直连 TLS 被 reset、5915 代理 502，**Clash 7897 可用**（命令见上）。推送报 schannel「server closed abruptly」先查是否已推上去。
 - pytest 成功时 conftest 的 `pytest_sessionfinish` 会 `os._exit(0)` 丢弃 stdout，**判定只认退出码**，要细节加 `--junitxml`。
 - 沙箱陷阱：①直接调系统 python 触发 stdout 捕获异常 → 命令内 `> file 2>&1` 落盘再读；②中文 Windows 子进程默认 GBK，控制台乱码只影响显示；③用 `-m ruff` / `-m mypy` 走当前解释器。
-- PowerShell 7.6.7 在 `C:\Program Files\PowerShell\7\pwsh.exe`（曾因 `AppCompatFlags\Layers` 的 RUNASADMIN 报 740，已清除；再报 740 先查这层，别用 `-Verb RunAs`）。5.1 的 `Set-Content -Encoding utf8NoBOM` 不可用；中文 commit message 一律写文件后 `git commit -F <file>`。仓库无 bash（`bash` 命令不存在）。
+- PowerShell 7.6.7 在 `C:\Program Files\PowerShell\7\pwsh.exe`（曾因 `AppCompatFlags\Layers` 的 RUNASADMIN 报 740，已清除；再报 740 先查这层，别用 `-Verb RunAs`）。5.1 的 `Set-Content -Encoding utf8NoBOM` 不可用；中文 commit message 一律写文件后 `git commit -F <file>`。仓库无 bash（`bash` 命令不存在。
+
+# 来自 .workbuddy-ai/memory/MEMORY.md 的补充笔记
+
+- 本机已装 uv（0.13.7），`.venv` 可用；改 `pyproject.toml` 依赖后必须重跑 `uv lock` 并提交 `uv.lock`，否则 CI 的 `uv sync --locked` 会回退重新解析。
+- 联网固定走 `http://127.0.0.1:7897`：用户级环境变量、`~/.bashrc`/`~/.bash_profile`、git 全局 `http.proxy`/`https.proxy` 均已设为该地址（2026-11-11）。WorkBuddy 工具进程会注入动态端口（9187/2903）覆盖 shell 变量，但 git 走全局 config 不受影响；非 git 的联网命令仍需显式 `HTTP_PROXY=... HTTPS_PROXY=...` 指定。
+- pre-push 门禁（`.githooks/pre-push` → `uv run check --skip-hook-install`）：ruff format --check / ruff check / mypy mdcx/ / check_thread_safety；默认不跑 pytest。钩子失败应修底层问题，不要用 `--no-verify` 或 `SKIP_PRE_PUSH` 绕过。
+- **Python 版本坑**：项目锁 3.15，系统 PATH 上的 `python` 却是 3.13.14；检查语法/运行脚本一律用 `.venv/Scripts/python.exe`。PEP 758（3.14+）起 `except A, B:` 合法，全库约 158 处无括号写法均合法（3.15 编译全库 768 个 .py 零错误）。ruff 0.16～0.17 在 target py314/py315 下会把 `except (A, B):` 规范化成无括号，**不是 bug**，无「修复版」可换；只有把 target-version 降到 py313 才会保留括号（与项目定位冲突）。用 3.13 检查会误报 SyntaxError。
+- PyInstaller 打包：`scripts/build.py` 用 `--collect-all <包>` 收集延迟导入 + 非 .py 数据；playwright 的 driver（node.exe + package/cli.js，约 110MB）必须显式收集，否则打包版「保存HTML」不可用。
 
 ## 议题定性
 
