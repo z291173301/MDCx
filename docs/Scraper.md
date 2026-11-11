@@ -246,6 +246,7 @@ Official·MGStage    聚合：有码+素人             有码+素人           
 Missav            综合：有码+无码             有码+无码+素人                   https://missav.live/cn
 Missav_JSON        综合：有码+无码             有码+无码+素人                   https://missav.live/cn     START-659
 MyWife            有码：MyWife                不进任何类型组（单独指定）       https://mywife.cc               mywife-2306
+MyWife_JSON       官网：MyWifes               有码                             https://mywife.jp               mywife-2318
 Official·S1           官网：有码·S1                有码                        https://s1s1s1.com              SSNI-647
 Official·Moodyz       官网：有码·Moodyz            有码                        https://moodyz.com              MIDV-001
 Official·Madonna      官网：有码·Madonna           有码                        https://www.madonna-av.com      JUL-001
@@ -322,6 +323,7 @@ Xcity             有码：仅限有码              有码                     
     AVBase  ⇄  AVBase_JSON
     ThepornDB_JSON  ⇄  AVheat
     JavDB  ⇄  JavDB_JSON
+    Official·MyWifes  ⇄  Official·MyWife_JSON
     Madou.club  ⇄  Madouqu  ⇄  Madouqu_JSON
                                 （同一份麻豆系国产数据的三条路：Madou.club 的条目有番号
                                 也有标题名，Madouqu/Madouqu_JSON 只有标题名，故 Madou.club 排在前面）

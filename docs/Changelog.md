@@ -3,6 +3,11 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-11
+### 新增 MyWife_JSON 官网 JSON 通道（用户指定）
+- 新增：`Official·MyWife_JSON`（mywife.jp WordPress REST `/wp-json/wp/v2/posts?search={model号}` 定位 + mywife.cc 详情页补全封面/剧照/预告/权威番号，探针 mywife-2318 ↔ 文章《【舞ワイフ】10/22配信 菊池 環奈》/model 2318）独立刮削器与网络检测探测器（账号/API 组，WP REST 同款搜索地址）；与网页版 `Official·MyWifes`（探针 mywife-2306）相互独立、互不影响。
+- 联动组：新增 `Official·MyWifes ⇄ Official·MyWife_JSON`；`WEB_TO_JSON_SITE` 同步，MyWife 系列番号优先走 JSON（搜 model 号），JSON 搜不到或字段缺失时回退网页版兜底/补全（`Official·uncensored` 体系同口径）。
+- 接入：有码官网组（JSON 版 2 站 + 网页 34 站 = 36 站，JSON 在前）/ 官方网站可用网站 / 检测网络下拉 / 当前网站下拉 / 指定网站 `Official` 聚合（A-Z 自动就位）；`Official·pixelated` 展示行与 `Official` 收拢、`Official·uncensored`（5 网页 + 3 JSON）口径不变；有码番号默认名单在 `Missav_JSON` 后加入 `Official·MyWife_JSON`；`JSON_VIEW_SITES` 18→19 站（WordPress rendered 自动转 HTML）。
+- 校验：探针页 REST 实测 + 相关 pytest 通过。
 ### 新增 JavFree/AVBase/Madouqu/Hbox 四个 JSON 通道（用户指定）
 - 新增：`JavFree_JSON`（WordPress REST `/wp-json/wp/v2/posts`，探针 SSNI-391）、`AVBase_JSON`（详情页 `__NEXT_DATA__`，探针 SNOS-540）、`Madouqu_JSON`（WordPress REST + 分类/标签接口，探针 MTH-0119）、`Hbox_JSON`（详情页内联 `gtmSetItemList`，探针 NHDTC-252/cid 702258）四个独立刮削器（`mdcx/crawlers/*_json.py`，均只读 JSON、不解析网页正文）与网络检测探测器；`JSON_VIEW_SITES` 14→18 站，「查看JSON/浏览器」同款取数（AVBase/Hbox 取详情页抠内嵌 JSON）。
 - 联动组：新增 `JavFree ⇄ JavFree_JSON`、`AVBase ⇄ AVBase_JSON`、`Madou.club ⇄ Madouqu ⇄ Madouqu_JSON`；`WEB_TO_JSON_SITE` 同步三对，`_call_specific_crawler` 失败自动回退网页版。
