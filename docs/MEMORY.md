@@ -155,6 +155,7 @@
 - 站点收录边界：AVEntertainments 只在无码组；Getchu 大陆 IP 过不了 CF 故从六组移除；Official·有码 29 站只在有码组、无码五站只在无码组。
 - **类型默认名单排序**（2026-11-18 用户口径）：有码/无码/个摄/欧美/国产传媒五组统一 Official 聚合置顶（无码为 Official·uncensored 聚合）、组内全部 JSON 站 A-Z、其余站 A-Z；唯一例外欧美组 ThepornDB_JSON 置顶。实现只在 `models.TYPE_DEFAULT_SITES` 一处排序，其它名单（`default_config.json`、使用说明、`docs/Features.md`、测试期望）全部同源跟随。
 - **官网聚合 JSON 优先**（2026-11-18 用户口径）：`Official`（MyWife_JSON/PRESTIGE_JSON + 34 有码站）与 `Official·uncensored`（3 家 JSON + 5 网页站）都先打 JSON 版；指定网站下拉 `Prestige_JSON` 已并入 `Official`（不再单列，存量偏好迁移收拢），新增 `Official·uncensored` 选项；单站路径 JSON 有数据但部分字段缺失时由对应网页版只补空字段（标题/番号以 JSON 为准，番号对不上不补；仅官网体系 JSON 站生效，其它 JSON 通道保持原行为）。
+- **指定网站聚合行徽标**（2026-11-11）：`Official` / `Official·uncensored` 不是真实站点、没有自己的检测键，状态圆圈按成员站检测结果聚合（成员名单与刮削展开同源 `OFFICIAL_CENSORED_GROUP_SITES` / `OFFICIAL_UNCENSORED_GROUP_SITES`）：成员同色→该色、颜色不一→黄、没测过→无圈，与检测网络筛选框分组行同规则；悬停取成员里最新一次检测时间。实现 `init._aggregate_site_check_entry`，初始填充与检测后刷新共用 `_site_check_entry` 取条目。
 - **联动站点组规则**（2026-11 用户定规；实现唯一来源 `models.SITE_GROUPS` + `models.WEB_TO_JSON_SITE`，界面在「编辑网站」弹窗）：
   1. **定义**：同一数据源的多条访问通道（网页版 / JSON 通道 / 官方 API / 移动端 APP / 镜像站）登记为一个联动组，组内站点互为替代、算同一份数据。
   2. **加入补齐**：在「可用网站（按类型分组）」里加入组内任一站点，同组其余站点一并加入（`expand_site_groups`，候选区里没有的成员不补）。

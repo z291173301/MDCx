@@ -3,6 +3,11 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-11
+### Xcity_JSON 归位 JSON 段 + Official·JSON 全员核对 + 指定网站聚合行徽标（用户指定）
+- 顺序：有码番号组默认名单里 `Xcity_JSON` 从网页段队尾移回 JSON 段队尾（`TheJavDB_JSON` 之后、`7mmtv` 之前），与「全部 JSON 站 A-Z」口径一致；双击分组标题加入启用网站（从左到右优先级递减）同序。`TYPE_DEFAULT_SITES`、`resources/config/default_config.json`、软件内使用说明、`docs/Features.md` 与相关测试期望同步。
+- 核对：全部 26 个已注册 `***_JSON` 刮削器与检测网络下拉 `Official·JSON` 组成员逐一比对，无遗漏；新增回归测试钉死「注册 JSON 刮削器 ⇄ 组成员」双向包含，以后新增通道漏登记立刻红。
+- 徽标：指定网站下拉 `Official` / `Official·uncensored` 聚合行原先没有检测键、状态圆圈一直空白；现按成员站检测结果聚合显示红/黄/绿（成员与刮削展开同源：有码 36 站、无码 10 站；成员同色→该色、颜色不一→黄、没测过→无圈，与检测网络筛选框分组行同规则），悬停提示取成员里最新一次检测时间；初始填充与检测后刷新两条路径都生效。
+- 校验：`tests/test_website_single_official_rows.py` 新增聚合行徽标用例、`tests/test_net_filter_html_group.py` 新增 JSON 组全员回归；全量 pytest 通过，ruff / mypy / 线程安全门禁通过。
 ### 新增四个独立 JSON 刮削器/探测器 + Xcity 改名 Xcity_JSON（用户指定）
 - 新增：`LibreDMM_JSON`（官网 `/movies/{番号}.json` 明细，探针 SNOS-038）、`FC2_JSON`（`/api/v2/videos/{番号}/sample` + 详情页 JSON-LD，探针 4992761）、`7mmtv_JSON`（详情页内联 JSON-LD VideoObject，探针 MIDV-744）、`Airav_JSON`（同款 JSON-LD，探针 SNOS-421）四个独立刮削器（`mdcx/crawlers/*_json.py`，共用 `json_ld.py` 纯文本提取，不复用网页版 DOM 解析）与网络检测探测器；连通性地址与刮削探测地址同源，番号由各爬虫 `probe_number` 单一提供。
 - 链接地址：LibreDMM_JSON / FC2_JSON 有浏览器可直接打开查看的独立 JSON 文件地址，字段表「链接地址」与「查看JSON」都用它们；7mmtv_JSON / Airav_JSON / Xcity_JSON 无独立 JSON 端点，链接地址用可直接打开的网页/API 地址（7mmtv / Airav 的「查看JSON」从该页抠出内嵌 JSON-LD 展示）。
