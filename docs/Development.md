@@ -139,6 +139,23 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 - `check_urls()` 返回检测 URL 列表；动态域名站覆写（avmoo/avheat/avsox 用 `get_aio_domain`，javlibrary 用 `get_javlibrary_domain`）。
 - **18+年龄门统一模块**（`crawlers/base/age_gate.py`）：五站成人Cookie常量（MGStage`adc=1`/Hbox`age_check_ok=true`/DMM`age_check_done=1`/GetchuDL`adult_check_flag=1`/JavBus`age=verified`片段）+`is_age_gate_page`（MGStage年齢認証/Getchu年齢認証ページ/JavBus年龄验证三站特征并集+Hbox门壳`page":"/age_check`+`/age_check?redirect=`）+`extract_adult_entry_url`（只回成人入口，剧场版/未成年分支永不返回；Hbox门页无链接，返回None属预期）+`follow_adult_entry`（命中即点选重取一次，无链接/重取失败原样交回）+`is_hbox_age_gate_shell`（落地URL含`/age_check`或命中门壳标记，供连通性与Hbox爬虫先确诊）。MGStage的`_get_page_text`经它兜底，Hbox的`_fetch_detail`先认门壳直抛年龄验证错误（非门壳才3次重试），JavBus的POST确认+验证码层保留站内实现（验证码需用户去真实浏览器过一遍）。
 
+### 4.1 联动站点组（网页版 ⇄ JSON 通道）
+
+同一数据源的多条访问通道登记为一个**联动组**，组内站点互为替代。实现唯一来源是 `config/models.py`：`SITE_GROUPS`（组成员，顺序即组内顺序）+ `WEB_TO_JSON_SITE`（JSON 优先方向，反转得 `JSON_TO_WEB_SITE`）；界面侧在「软件设置-刮削网站-类型刮削网站-编辑网站」弹窗。
+
+规则（改联动行为只改这两张表，不要在 UI 层另写判断）：
+
+1. **定义**：网页版 / JSON 通道 / 官方 API / 移动端 APP / 镜像站，只要读的是同一份数据，就登记为一组。
+2. **加入补齐**：在「可用网站（按类型分组）」加入组内任一站点，同组其余站点一并加入（`expand_site_groups`；候选区没有的成员不补，避免加进无法刮削的站）。
+3. **移除不复活**：加入后可在「启用网站」手动移除单个站点，移除结果原样保存，不会被自动加回。
+4. **排序独立**：启用列表（从左到右优先级递减）里的手动排序对组内站点相互独立，移动一个不带动其余。
+5. **移除只删选中项**：一次只删选中的那几个，不连带同组站点。
+6. **JSON 优先 + 网页版兜底**：组内同时有网页版与 JSON 版时，`WEB_TO_JSON_SITE` 指定 JSON 版优先（`core/file_crawler.py::_prefer_json_site`），JSON 不可用或字段缺失时按 `JSON_TO_WEB_SITE` 回退网页版补齐。
+7. **一站一组**：`_SITE_GROUP_OF` 由 `SITE_GROUPS` 派生、后写覆盖先写，同一站点只能登记在一个组里（LibreDMM 因此挂在 DMM 组、FC2 与 FC2CMADB 同组）。
+8. **边界**：联动只作用于「编辑网站」的加入/移除，不改类型默认名单 `TYPE_DEFAULT_SITES`、不改检测网络的分组行与勾选展开。
+
+新增一组时同步三处：`SITE_GROUPS` 加元组、`WEB_TO_JSON_SITE` 加映射（有 JSON 版时）、`tests/test_site_group_linkage.py` 的期望清单。当前 21 组见 `docs/MEMORY.md`「联动站点组规则」。
+
 ---
 
 ## 5. 网络层

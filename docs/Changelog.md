@@ -15,8 +15,8 @@
 - 兼容：MyWife / MyWife_JSON 的权威番号 `MyWife No.1687` 与 `MyWife 1687` / `MyWife-1687` / `MyWife_1687` 三种简写等价、不区分大小写，统一归一为 `Mywife No.1687`；两个爬虫按展示号经 seesaawiki 映射或 mywife.jp 搜索（JSON 版另支持 WP REST 展示号主帖）定位正确的 model 详情页，不再把展示号当 model 编号拼 `/teigaku/model/no/1687`；结果 number 固定写权威番号，不回写 model 号或被详情页串号带偏。网络检测探针 `mywife-2306` / `mywife-2318` 仍走 model 号通道。
 - 校验：新增 `tests/test_mywife_authority_number.py`、`tests/test_net_filter_html_group.py`；ruff format / ruff check / mypy / 线程安全 / 全量 pytest（退出码 0）通过。
 ### 新增 MyWife_JSON 官网 JSON 通道（用户指定）
-- 新增：`Official·MyWife_JSON`（mywife.jp WordPress REST `/wp-json/wp/v2/posts?search={model号}` 定位 + mywife.cc 详情页补全封面/剧照/预告/权威番号，探针 mywife-2318 ↔ 文章《【舞ワイフ】10/22配信 菊池 環奈》/model 2318）独立刮削器与网络检测探测器（账号/API 组，WP REST 同款搜索地址）；与网页版 `Official·MyWifes`（探针 mywife-2306）相互独立、互不影响。
-- 联动组：新增 `Official·MyWifes ⇄ Official·MyWife_JSON`；`WEB_TO_JSON_SITE` 同步，MyWife 系列番号优先走 JSON（搜 model 号），JSON 搜不到或字段缺失时回退网页版兜底/补全（`Official·uncensored` 体系同口径）。
+- 新增：`Official·MyWife_JSON`（mywife.jp WordPress REST `/wp-json/wp/v2/posts?search={model号}` 定位 + mywife.cc 详情页补全封面/剧照/预告/权威番号，探针 mywife-2318 ↔ 文章《【舞ワイフ】10/22配信 菊池 環奈》/model 2318）独立刮削器与网络检测探测器（账号/API 组，WP REST 同款搜索地址）；与网页版 `Official·MyWife`（探针 mywife-2306）相互独立、互不影响。
+- 联动组：新增 `Official·MyWife ⇄ Official·MyWife_JSON`；`WEB_TO_JSON_SITE` 同步，MyWife 系列番号优先走 JSON（搜 model 号），JSON 搜不到或字段缺失时回退网页版兜底/补全（`Official·uncensored` 体系同口径）。
 - 接入：有码官网组（JSON 版 2 站 + 网页 34 站 = 36 站，JSON 在前）/ 官方网站可用网站 / 检测网络下拉 / 当前网站下拉 / 指定网站 `Official` 聚合（A-Z 自动就位）；`Official·pixelated` 展示行与 `Official` 收拢、`Official·uncensored`（5 网页 + 3 JSON）口径不变；有码番号默认名单在 `Missav_JSON` 后加入 `Official·MyWife_JSON`；`JSON_VIEW_SITES` 18→19 站（WordPress rendered 自动转 HTML）。
 - 校验：探针页 REST 实测 + 相关 pytest 通过。
 ### 新增 JavFree/AVBase/Madouqu/Hbox 四个 JSON 通道（用户指定）
@@ -385,10 +385,10 @@
 - `Website.OFFICIAL` 值由 `Official` 改为 `Official·censored`：旧值经枚举 `_missing_` 别名与 `_SITE_RENAMES` 迁移继续可读，存量配置自动归一；`resources/config/default_config.json` 20 处同步；可用网站（按类型分组）与启用网站展示同步新名。
 - MyWife 并入有码官网组：`OFFICIAL_SITES` 38→39 站（有码 33→34 = 29 独立站 + Dahlia/Faleno/Prestige/MGStage 四个改名站 + MyWife，无码仍 5 站）；`TYPE_DEFAULT_SITES[YOUMA]` 加入 MyWife，能力文案为「有码：官方/有码」；73 家注册站点至此全部分组归属，无标题末组清空。
 - 路由与其它官网同逻辑：`resolve_official_aggregate_site` 首查 mywife 文本（`MyWife No.1230` 直调 MyWife 单站），`classify_scrape_task` 中 mywife 路径/番号归属 OFFICIAL 类型并锁定 MyWife；指定网站 `Official·censored` 聚合按番号前缀路由到 39 站之一，无命中前缀回退 39 站并发。
-- 删除软件设置-刮削网站-类型刮削网站 MyWifes 行：`label_322`/`label_323` 及块间 spacer 移除，锁定类型两行上移（19/20→17/18），声明几何回收 57px（`layoutWidget_6` 619→562、`groupBox_80` 689→632、`groupBox_35` y 1088→1031、content 2218→2161，底部留白仍 130），`MDCx.py` 由 pyuic6 重编译（同步测试通过）。
+- 删除软件设置-刮削网站-类型刮削网站 MyWife 行：`label_322`/`label_323` 及块间 spacer 移除，锁定类型两行上移（19/20→17/18），声明几何回收 57px（`layoutWidget_6` 619→562、`groupBox_80` 689→632、`groupBox_35` y 1088→1031、content 2218→2161，底部留白仍 130），`MDCx.py` 由 pyuic6 重编译（同步测试通过）。
 - 指定网站下拉：39 家官网单站（38 家 `Official·` + MyWife）合并为一行 `Official·censored`，网络页「当前网站」仍保留 39 单站；存量 `website_single=MyWife` 由迁移收拢到聚合（`official_aggregate_collapse_migrated` 升为 v3，旧 `Official` 值同样归一，MyWife 番号仍按前缀自动路由可达）。
 - 禁用名单 censored 组定义加入 MyWife（34/5 全量展开，旧 `Official` 值继续整组生效）；官方字段重置/字段行存 39 单站注释同步。
-- 使用说明/提示/文档同步：帮助有码·无码名单改为收拢态聚合形态、官方网站段改为 34 站（含 MyWife 番号规则注）、MyWifes 行删除；`tips.py` 有码行改为 34 家官网（含 MyWife）、官方路由前缀 322 个（含 `MyWife No.1230`）；`docs/Features.md` 同步（有码组 59 站、34 站官网、322 前缀、八个分组标题）。
+- 使用说明/提示/文档同步：帮助有码·无码名单改为收拢态聚合形态、官方网站段改为 34 站（含 MyWife 番号规则注）、MyWife 行删除；`tips.py` 有码行改为 34 家官网（含 MyWife）、官方路由前缀 322 个（含 `MyWife No.1230`）；`docs/Features.md` 同步（有码组 59 站、34 站官网、322 前缀、八个分组标题）。
 - 测试：`test_type_site_scrape_rows`（19 行表/双 spacer/几何/间隙）、`test_website_single_official_rows`（39 站/聚合行/徽标）、`test_site_combo_tooltips`（MyWife 新文案）、`test_site_source_type_groups`（聚合 34 站/单体新名/官方归属）、`test_site_source_copy_menu`（有码 59 站）、`test_official_aggregate`/`test_official_disabled_scope`/`test_official_uncensored_split_migration`（39/34 计数/v3 标记）、`test_ui_structure`、`test_config_conversion`、`test_file_crawler_runtime` 全量同步；另修复两处历史红灯（聚合入口无爬虫属设计、`validate_crawler_registry` 以 `_AGGREGATE_WEBSITES` 豁免；品牌站可用性用例按展开态断言收拢默认值）。
 
 ### 公开仓打包失败：workflow 不同步 + close.bat 去强制提权

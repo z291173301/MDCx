@@ -155,6 +155,16 @@
 - 站点收录边界：AVEntertainments 只在无码组；Getchu 大陆 IP 过不了 CF 故从六组移除；Official·有码 29 站只在有码组、无码五站只在无码组。
 - **类型默认名单排序**（2026-11-18 用户口径）：有码/无码/个摄/欧美/国产传媒五组统一 Official 聚合置顶（无码为 Official·uncensored 聚合）、组内全部 JSON 站 A-Z、其余站 A-Z；唯一例外欧美组 ThepornDB_JSON 置顶。实现只在 `models.TYPE_DEFAULT_SITES` 一处排序，其它名单（`default_config.json`、使用说明、`docs/Features.md`、测试期望）全部同源跟随。
 - **官网聚合 JSON 优先**（2026-11-18 用户口径）：`Official`（MyWife_JSON/PRESTIGE_JSON + 34 有码站）与 `Official·uncensored`（3 家 JSON + 5 网页站）都先打 JSON 版；指定网站下拉 `Prestige_JSON` 已并入 `Official`（不再单列，存量偏好迁移收拢），新增 `Official·uncensored` 选项；单站路径 JSON 有数据但部分字段缺失时由对应网页版只补空字段（标题/番号以 JSON 为准，番号对不上不补；仅官网体系 JSON 站生效，其它 JSON 通道保持原行为）。
+- **联动站点组规则**（2026-11 用户定规；实现唯一来源 `models.SITE_GROUPS` + `models.WEB_TO_JSON_SITE`，界面在「编辑网站」弹窗）：
+  1. **定义**：同一数据源的多条访问通道（网页版 / JSON 通道 / 官方 API / 移动端 APP / 镜像站）登记为一个联动组，组内站点互为替代、算同一份数据。
+  2. **加入补齐**：在「可用网站（按类型分组）」里加入组内任一站点，同组其余站点一并加入（`expand_site_groups`，候选区里没有的成员不补）。
+  3. **移除不复活**：加入后可在「启用网站」手动移除单个站点，移除结果原样保存，不会被再次自动加回。
+  4. **排序独立**：启用列表（从左到右优先级递减）里的手动排序对组内站点相互独立，移动一个不带动其余。
+  5. **移除只删选中项**：一次只删选中的那几个，不连带同组站点。
+  6. **JSON 优先 + 网页版兜底**：组内同时有网页版与 JSON 版时，`WEB_TO_JSON_SITE` 指定 JSON 版优先（`file_crawler._prefer_json_site`），JSON 不可用或字段缺失时按 `JSON_TO_WEB_SITE` 回退网页版。
+  7. **一站一组**：`_SITE_GROUP_OF` 由 `SITE_GROUPS` 派生、后写覆盖先写，同一站点只能登记在一个组里（LibreDMM 因此挂在 DMM 组、FC2 与 FC2CMADB 同组）。
+  8. **边界**：联动只作用于「编辑网站」的加入/移除，不改类型默认名单 `TYPE_DEFAULT_SITES`、不改检测网络的分组行与勾选展开。
+  当前 21 组：DMM⇄DMM_JSON⇄LibreDMM⇄LibreDMM_JSON、FC2⇄FC2_JSON⇄FC2CMADB⇄FC2CMADB_JSON、7mmtv⇄7mmtv_JSON、Airav.cc⇄Airav_JSON、Official·HEYZO⇄HEYZO_JSON、Official·Caribbeancom⇄Caribbeancom_JSON、Missav⇄Missav_JSON、AVMOO⇄AVMOO_JSON、AVSOX⇄AVSOX_JSON、JavFree⇄JavFree_JSON、AVBase⇄AVBase_JSON、Official·1Pondo⇄1Pondo_JSON、Official·Pacopacomama⇄Pacopacomama_JSON、Official·10Musume⇄10Musume_JSON、ThepornDB_JSON⇄AVheat⇄AVHeat_JSON、JavDB⇄JavDB_JSON、Madou.club⇄Madouqu⇄Madouqu_JSON、Official·Prestige⇄Prestige_JSON、Official·MyWife⇄MyWife_JSON、R18.dev⇄R18_JSON、TheJavDB⇄TheJavDB_JSON。
 - 「素人番号」已改名「国产短剧」（枚举值/字段名仍是 `SUREN` / `website_suren`），默认名单为 JavDay + Lulubar；短剧无番号格式，只有锁定类型才走这一组。
 - 七组名 = 有码番号/无码番号/个摄番号/欧美番号/国产传媒/国产短剧/动漫里番；下拉八项多一个「自动判断」。组名与下拉文案、chip 短名、`PALETTE_GROUP_TYPES` 组序同源；下拉下标↔值映射读 `FixedScrapingType.dropdown_values()`（顺序源 `dropdown_order()`，不能写成类体常量——Enum 会报 TypeError）。
 - 下拉能力文案与候选区悬停解耦（严格执行）：候选区悬停用全称（有码番号/无码番号/个摄番号/欧美番号/国产传媒/国产短剧/动漫里番），当前网站/指定网站下拉用短词（有码/无码/个摄/欧美/国产/短剧/动漫）防挤压右侧地址列；类型刮削、指定网站、当前网站三者显示互不影响，改一处不联动另一处。
