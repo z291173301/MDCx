@@ -3,6 +3,13 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-11
+### 新增四个独立 JSON 刮削器/探测器 + Xcity 改名 Xcity_JSON（用户指定）
+- 新增：`LibreDMM_JSON`（官网 `/movies/{番号}.json` 明细，探针 SNOS-038）、`FC2_JSON`（`/api/v2/videos/{番号}/sample` + 详情页 JSON-LD，探针 4992761）、`7mmtv_JSON`（详情页内联 JSON-LD VideoObject，探针 MIDV-744）、`Airav_JSON`（同款 JSON-LD，探针 SNOS-421）四个独立刮削器（`mdcx/crawlers/*_json.py`，共用 `json_ld.py` 纯文本提取，不复用网页版 DOM 解析）与网络检测探测器；连通性地址与刮削探测地址同源，番号由各爬虫 `probe_number` 单一提供。
+- 链接地址：LibreDMM_JSON / FC2_JSON 有浏览器可直接打开查看的独立 JSON 文件地址，字段表「链接地址」与「查看JSON」都用它们；7mmtv_JSON / Airav_JSON / Xcity_JSON 无独立 JSON 端点，链接地址用可直接打开的网页/API 地址（7mmtv / Airav 的「查看JSON」从该页抠出内嵌 JSON-LD 展示）。
+- 分组：`LibreDMM_JSON` 进有码、`FC2_JSON` 进个摄、`7mmtv_JSON` / `Airav_JSON` 进有码/无码/个摄/欧美四组，全部按「JSON 站 A-Z 置顶」的现有规则排序；四个新站均不进官方网站组；「可用网站（按类型分组）」与「启用网站」同步。
+- 下拉与按钮：四个新站进检测网络下拉、`软件设置-网络-网站设置-当前网站` 下拉；仅 `LibreDMM_JSON` / `FC2_JSON` 进 `软件设置-刮削网站-指定网站-网站偏好` 下拉。四站检测网络行右侧均带「查看JSON」+「浏览器」双按钮（取数与探测同款），`Official·JSON` 组同步纳入。
+- 改名：软件界面上的 `Xcity` 全部改为 `Xcity_JSON`（检测网络/指定网站/当前网站下拉、可用网站（按类型分组）、启用网站、使用说明、默认配置模板），枚举成员 `Website.XCITY_JSON`；旧值 `Xcity` / `xcity` 由 `_missing_` 与 `migrations.py` 归一。检测网络行右侧「保存HTML」改为「查看JSON」（tc 子域 `/api/search?q=ABF050` 返回 JSON，浏览器可直接打开），`Xcity_JSON` 从 `Official·HTML` 组移入 `Official·JSON` 组。
+- 校验：新增 `tests/crawlers/test_json_channels_2026_11.py`；全量 pytest 通过（含默认名单、字段表、下拉按钮、使用说明、迁移等钉板同步）；ruff / mypy / 线程安全门禁通过。
 ### 检测网络下拉 Official·HTML 聚合 + MyWife 权威番号兼容（用户指定）
 - 新增：`Official·HTML` 分组行置于检测网络下拉第一位，组内=全部 67 个网页刮削器（已注册站点扣掉 19 个 JSON 通道，A-Z）；勾选=一次选中全部网页站，行右侧「保存HTML」批量导出组内全部 MHTML，「浏览器」逐个打开各站链接地址。`Official·JSON` 顺延第二位，组内 19 站改为 A-Z，`Official·MyWife_JSON` 按字母归位；`Official·pixelated`/`Official·uncensored` 顺序不变。
 - 兼容：MyWife / MyWife_JSON 的权威番号 `MyWife No.1687` 与 `MyWife 1687` / `MyWife-1687` / `MyWife_1687` 三种简写等价、不区分大小写，统一归一为 `Mywife No.1687`；两个爬虫按展示号经 seesaawiki 映射或 mywife.jp 搜索（JSON 版另支持 WP REST 展示号主帖）定位正确的 model 详情页，不再把展示号当 model 编号拼 `/teigaku/model/no/1687`；结果 number 固定写权威番号，不回写 model 号或被详情页串号带偏。网络检测探针 `mywife-2306` / `mywife-2318` 仍走 model 号通道。
