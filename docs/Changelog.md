@@ -3,6 +3,10 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-11
+### 检测网络下拉 Official·HTML 聚合 + MyWife 权威番号兼容（用户指定）
+- 新增：`Official·HTML` 分组行置于检测网络下拉第一位，组内=全部 67 个网页刮削器（已注册站点扣掉 19 个 JSON 通道，A-Z）；勾选=一次选中全部网页站，行右侧「保存HTML」批量导出组内全部 MHTML，「浏览器」逐个打开各站链接地址。`Official·JSON` 顺延第二位，组内 19 站改为 A-Z，`Official·MyWife_JSON` 按字母归位；`Official·pixelated`/`Official·uncensored` 顺序不变。
+- 兼容：MyWife / MyWife_JSON 的权威番号 `MyWife No.1687` 与 `MyWife 1687` / `MyWife-1687` / `MyWife_1687` 三种简写等价、不区分大小写，统一归一为 `Mywife No.1687`；两个爬虫按展示号经 seesaawiki 映射或 mywife.jp 搜索（JSON 版另支持 WP REST 展示号主帖）定位正确的 model 详情页，不再把展示号当 model 编号拼 `/teigaku/model/no/1687`；结果 number 固定写权威番号，不回写 model 号或被详情页串号带偏。网络检测探针 `mywife-2306` / `mywife-2318` 仍走 model 号通道。
+- 校验：新增 `tests/test_mywife_authority_number.py`、`tests/test_net_filter_html_group.py`；ruff format / ruff check / mypy / 线程安全 / 全量 pytest（退出码 0）通过。
 ### 新增 MyWife_JSON 官网 JSON 通道（用户指定）
 - 新增：`Official·MyWife_JSON`（mywife.jp WordPress REST `/wp-json/wp/v2/posts?search={model号}` 定位 + mywife.cc 详情页补全封面/剧照/预告/权威番号，探针 mywife-2318 ↔ 文章《【舞ワイフ】10/22配信 菊池 環奈》/model 2318）独立刮削器与网络检测探测器（账号/API 组，WP REST 同款搜索地址）；与网页版 `Official·MyWifes`（探针 mywife-2306）相互独立、互不影响。
 - 联动组：新增 `Official·MyWifes ⇄ Official·MyWife_JSON`；`WEB_TO_JSON_SITE` 同步，MyWife 系列番号优先走 JSON（搜 model 号），JSON 搜不到或字段缺失时回退网页版兜底/补全（`Official·uncensored` 体系同口径）。
