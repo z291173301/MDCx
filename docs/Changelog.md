@@ -2,6 +2,12 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-11-13
+### Official·pixelated 聚合只保留有码官网 + NO_PROXY 兼容基线 + 版本号更新（用户指定）
+- 指定网站 `Official`（显示名 Official·pixelated）聚合只含 34 家有码官网 + MyWife_JSON/Prestige_JSON：能力文案「官网：有码/无码」改为「官网：有码」；前缀路由与多站兜底都按有码官网组过滤，无码官网及对应 JSON 归 `Official·uncensored`（`file_crawler._crawl` 指定网站分支、`init._site_combo_caption`）。
+- NO_PROXY 兼容基线：新增 `mdcx/proxy_compat.py`，`mdcx/__init__.py` 导入即调用——宿主机代理工具写入 NO_PROXY/no_proxy 的 `[::1]` 等带方括号条目归一成无方括号 `::1`（httpx 0.28 不认带方括号 IPv6，生成非法挂载键 `all://*[::1]`，任何 trust_env 客户端构造即抛 `InvalidURL: Invalid port`）。Emby 直连、trawl 适配层、网络时间校验等全部 httpx 客户端创建点进程级修复，不再依赖测试桩；新增 `tests/test_proxy_compat.py` 回归。
+- 版本号：`LOCAL_VERSION` 20261111 → 20261113。
+- 纪律：`docs/MEMORY.md` 写入「界面没有要求的不要自作主张修改」严规——只改需求明确点名的界面部位，未点名的一律不动。
 ## 2026-11-12
 ### 界面 Official· 前缀收敛到三个下拉 + 网络检测官网文案还原与弹窗宽度钉死（用户指定）
 - 三个下拉保留 Official·：指定网站下拉 `Official` 聚合显示名改为 `Official·pixelated`（`_SITE_DISPLAY_ALIASES`，UserRole/存盘仍为 `Official`），与 `Official·uncensored` 并列；网络检测下拉、当前网站下拉的 Official·pixelated/Official·uncensored 选项保留。
