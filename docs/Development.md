@@ -124,6 +124,17 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 
 配置升级见 `config/migrations.py::_migrate_read_mode_options` / `_migrate_nfo_merge_strategy`（每次加载都跑，幂等）。
 
+### 3.8 NFO 写入保真（2026-11-12 用户定规）
+
+**NFO 写入值保持从站点刮削到的原值，不做修改不做替换。** 写出路径只做 XML 编码必需的两步：`utils/xml.py::escape_xml_text()`（实体幂等化 + XML 转义）与 `build_cdata()`（实体幂等化 + `]]>` 转义）；两者对同一份原值给出同一结果，读回来再写不会把 `&amp;` 越叠越长。
+
+- 已移除的改值点：`normalize_xml_text()` / `REP_WORD` / `XML_TEXT_FIELDS` 整体删除——它会删掉全角空格 `\u3000`、不换行空格 `\xa0`、盲文空位 `\u2800` 与 `<br/>`，并把 `・`→`·`、`“”`→`「」`、`...`→`…`；`core/nfo.py` 写入前 8 个字段的调用、`core/file_crawler.py::_deal_res()` 刮削后的同款清洗一并去掉；`<runtime>` 不再 `replace(" ", "")`。
+- 上游替换表只去「美观类」（2026-11-12 用户口径）：`manual.py::ALL_REP_WORD` 删掉 `・`→`·`、`“”‘’`→`「」`、`...`/`……`→`…`、`’s`→`'s`、`! `→`！`、全角字母/数字→半角、`\t`→空格；`TITLE_REP`（标题上下集/蓝光版标记剥离）整表删除，`core/utils.py::replace_word()` 不再剥标题。**保留**：HTML 实体解码（`&lt;`→`<`、`&hellip;`→`…` 等）、`&`→`＆` / `<`→`＜` / `>`→`＞`（防 Emby 读 NFO 误判）、`<br/>` 网页残留清理、`SPECIAL_WORD` 反和谐与半角片假名还原（`強●`→`強制`、`ﾒｲﾄﾞ`→`メイド`）、字段语言选简体时的 `CHINESE_REP_WORD` 用字归一。
+- 匹配键不在保真范围内：`utils.convert_half()`、`config/resources.py::_normalize_info_key()`、番号归一、标题匹配、搜索 query 里的全角转半角与去空格都是比较键，照旧。
+- 保留的两类不算改值：① **解码**——`normalize_linebreaks()` 只把爬虫转义过的 `\r\n` / 字面 `\n` / `<br>` 还原成真实换行；② **既有功能**——标题命名模板、`originaltitle`/`sorttitle` 的番号前缀与 CD 后缀、tag 模板（`系列: series`）、`outline_format` 的原文拼接与「由 X 提供翻译」、`OUTLINE_NO_CDATA` 单行化、评分量纲（`parse_score_number`）、日期归一、`N/A` 导演过滤、占位简介清理，都按配置生效。
+- 字段值也不在爬虫里单独删空格（`mgstage` / `prestige` 演员名，2026-11-12）。
+- 回归：`tests/test_nfo_write_escape.py::test_write_nfo_keeps_scraped_values_verbatim`、`tests/test_file_crawler_runtime.py::test_deal_res_keeps_scraped_text_verbatim`、`tests/test_field_value_fidelity.py`（美观类不再替换 / 解码与 Emby 兼容保留 / 反和谐保留）。
+
 ---
 
 ## 4. 爬虫框架
@@ -335,7 +346,9 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
 
 菜单项/提示词/状态提示/日志提示一律**不写空格、不写括号**（`（）` 与 `()` 都不行）。
 
-**日志与所有界面文字：不留多余空格，行首图标后保留一个空格**（用户 2026-10-28 定规）。日志出口统一经 `mdcx/utils/__init__.py::strip_log_spaces()` 洗一遍：`LogConsole.log_text()`、`LogConsole.add_log()`、`Signals.show_log_text()`、`LogPageMixin.show_log_text()` 以及 `add_html()` / `add_html_plain_text()` 都会删掉行内多余空格，但保留 `\n`、HTML 标签内部语法（如 `<font color="red">`）、每行行首图标后的一个空格（如 `🔐 授权状态：`）、版本标识 `MDCx YYYYMMDD` 中间的空格（如 `MDCx 20261027`）以及 HTTP 请求前缀中间的空格（如 `GET https://a.com`、`GET http://a.com`）；新写的日志与界面文案也不要主动加多余空格。
+**日志与所有界面文字：英文语境之间的空格照留，中文之间的空格不留，行首图标后保留一个空格**（用户 2026-10-28 定规，2026-11-12 修订口径）。日志出口统一经 `mdcx/utils/__init__.py::strip_log_spaces()` 洗一遍：`LogConsole.log_text()`、`LogConsole.add_log()`、`Signals.show_log_text()`、`LogPageMixin.show_log_text()` 以及 `add_html()` / `add_html_plain_text()` 把行内连续空白（空格 / Tab / 全角空格）当成一段再判断——两侧都是半角可见字符（英文单词之间、单词与数字之间、英文标点之后）时留一个空格（`I Want Clips:Blacked Out Fm`、`Start time`、`HTTP 403`、`videos, Please`），只要有一侧是中文、全角标点或图标就删掉（`连接 Gfriends 网络` → `连接Gfriends网络`）；同时保留 `\n`、HTML 标签内部语法（如 `<font color="red">`）、双引号里的原文（响应体/引用）、每行行首图标后的一个空格（如 `🔐 授权状态：`）、URL 与紧随其后的「失败」之间的空格，以及源码里本来就写漏空格的固定搭配（`MDCx 20261027`、`GET https://a.com`、`CF Bypass`、`HTTP 403 body=`）；新写的日志与界面文案仍不要主动加多余空格。
+
+**刮削到的字段值按站点实际值走，不单独删空格、不做字符替换**（用户 2026-11-12 定规）。2026-11-12 起 `mgstage` / `prestige` / `prestige_web` 的演员名不再 `replace(" ", "")`（`prestige_web::_split_names` 只按 `[,、，]` 分隔、不按空白切开名字），`美月 さくら` 这类带空格的姓名按实际保留；标题/简介/系列/片商/发行写入 NFO 前也不再过 `normalize_xml_text()` 的字符清洗（细则见 §3.8）。番号归一、标题匹配、搜索 query 那类临时比较键里的去空格属匹配逻辑，不在本条范围内。
 
 - 正例：`复制本组：30个站点`、`复制列表：45个站点`、`已启用：12个站点`。
 - 反例：`复制本组：30 个站点`、`复制本组「有码」（30个站点）`、`已启用（12 个站点）`。

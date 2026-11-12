@@ -2,6 +2,23 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-11-12
+### NFO 写入值保持站点刮削原值（用户指定）
+- 定规：NFO 写入值保持从站点刮削到的原值，不做修改不做替换；写出只做 XML 编码必需的转义。
+- 删除：`mdcx/utils/xml.py` 的 `normalize_xml_text()` / `REP_WORD` / `XML_TEXT_FIELDS`——它会删掉全角空格 `\u3000`、不换行空格 `\xa0`、盲文空位 `\u2800` 与 `<br/>`，并把 `・`→`·`、`“”`→`「」`、`...`→`…`；`mdcx/core/nfo.py` 写入前 8 个字段（title / originaltitle / outline / originalplot / series / studio / publisher / release）的调用，以及 `mdcx/core/file_crawler.py::_deal_res()` 刮削后对同一批字段的清洗，一并去掉。
+- 时长：`<runtime>` 不再 `replace(" ", "")`，`120 分钟` 这类值按原样写出。
+- 上游替换表只去美观类（用户二轮口径）：`mdcx/manual.py::ALL_REP_WORD` 删掉 `・`→`·`、`“”‘’`→`「」`、`...`/`……`→`…`、`’s`→`'s`、`! `→`！`、全角字母/数字→半角、`\t`→空格；`TITLE_REP`（标题「第一集/第二集/上集/下集/Part.1 (HD)/蓝光版」剥离）整表删除，`mdcx/core/utils.py::replace_word()` 不再剥标题。**保留**：HTML 实体解码、`&`→`＆` / `<`→`＜` / `>`→`＞`（防 Emby 读 NFO 误判）、`<br/>` 网页残留清理、`replace_special_word()` 的反和谐与半角片假名还原（`強●`→`強制`、`ﾒｲﾄﾞ`→`メイド`）、字段语言选简体时的 `CHINESE_REP_WORD` 用字归一；`convert_half()` / `_normalize_info_key()` 等匹配键照旧。
+- 编码收敛：实体幂等化抽成 `_reverse_entities()`，由 `escape_xml_text()` 与 `build_cdata()` 共用——CDATA 与普通文本两条写出路径对同一份原值给出同一结果，读回再写不会把 `&amp;` 越叠越长（`tests/test_nfo_write_escape.py` 原有三条用例不改即通过）。
+- 保留：`normalize_linebreaks()` 只把爬虫转义过的 `\r\n` / 字面 `\n` / `<br>` 还原成真实换行（解码，不改内容）；标题命名模板、`originaltitle`/`sorttitle` 的番号前缀与 CD 后缀、tag 模板、`outline_format` 原文拼接与「由 X 提供翻译」、`OUTLINE_NO_CDATA` 单行化、评分量纲、日期归一、`N/A` 导演过滤、占位简介清理等既有功能按配置照旧。
+- 测试：新增 `tests/test_nfo_write_escape.py::test_write_nfo_keeps_scraped_values_verbatim`（全角空格 / NBSP / `・` / `“”` / `...` / 带空格时长 / 带空格演员名逐项钉死）、`tests/test_file_crawler_runtime.py::test_deal_res_keeps_scraped_text_verbatim` 与 `tests/test_field_value_fidelity.py`（美观类不再替换 / 实体解码与 Emby 兼容保留 / 反和谐保留）；ruff check / ruff format / mypy / 线程安全门禁通过。
+- 文档：`docs/Development.md` 新增 §3.8「NFO 写入保真」，`docs/MEMORY.md` 同步定规。
+### 日志空格规则改为「英文语境之间保留」+ 演员名按实际值（用户指定）
+- 现象：欧美站点显示名在日志里被压成 `IWantClips:BlackedOutFm`，实际刮到的是 `I Want Clips:Blacked Out Fm`；同批受害的还有 `Starttime:2026-10-2812:19:18`、`Searchingallvideos,Pleasewait...`、`Find10movies`、`更新时间:2026-10-2023:24:48`。
+- 改动：`mdcx/utils/__init__.py::strip_log_spaces()` 由「除换行外全删空格，再按白名单补回」改成「行内连续空白（空格 / Tab / 全角空格）当成一段，两侧都是半角可见字符（字母、数字、半角标点）时留一个空格，否则整段删掉」；新增 `_strip_line_gaps()` 与 `_next_visible_char()`，原 `_restore_kept_gaps()` / `_restore_leading_icon_gap()` 退居只补两类情况——源码里本来写漏空格的固定搭配（`MDCx 20261027`、`GET https://…`、`CF Bypass`、`HTTP 403 body=`）与行首图标、URL 后接「失败」。判断只看可见字符，HTML 标签（`<a href="…">`）与双引号内的原文一律不动，三道日志出口清洗结果一致（幂等）。
+- 保留原样的一面：中文之间、中文与英文/数字之间的空格仍按 2026-10-28 观感删掉（`连接 Gfriends 网络` → `连接Gfriends网络`、`128 个文件` → `128个文件`）；检测网络页等宽表格仍走 `add_html_plain_text(keep_spaces=True)` 不受影响。
+- 字段值：`mdcx/crawlers/mgstage.py` 与 `mdcx/crawlers/prestige.py` 的演员名不再 `replace(" ", "")`，`美月 さくら` 这类姓名按站点实际值写入 NFO 与显示；番号归一、标题匹配、搜索 query 里的临时去空格属匹配逻辑，保持不变。补修 `mdcx/crawlers/prestige_web.py::_split_names()`（网页版漏网）：原按 `[,、，\s]+` 切分还对每项 `replace(" ", "")`，会把 `美月 さくら` 切成两段并删名字内部空格；改为只按 `[,、，]+` 分隔、保留内部空格（`_row_value` 已把各链接文本用逗号拼好），演员 / 导演 / 标签同口径。
+- 测试：新增 `tests/test_log_left_align.py::test_strip_log_spaces_keeps_gaps_between_english_words`、`::test_strip_log_spaces_keeps_gaps_inside_file_and_scraped_values`、`tests/crawlers/test_prestige.py::test_prestige_web_split_names_keeps_internal_spaces`；同步「站点可达但: GET https://…」「Start time: …」「movie name.mp4」等期望与 `tests/crawlers/test_prestige.py` 演员名期望；全量 pytest 除 `tests/test_emby_respx.py`（3 项）、`tests/test_trawl_adapter.py`（2 项）外全部通过，这 5 项在改动前的 HEAD 提交上同样失败（respx / 传输层环境问题），与本次无关。
+- 文档：`docs/Development.md` §10.9 与 `docs/MEMORY.md` 的日志空格定规按新口径同步。
 ## 2026-11-11
 ### Xcity_JSON 归位 JSON 段 + Official·JSON 全员核对 + 指定网站聚合行徽标（用户指定）
 - 顺序：有码番号组默认名单里 `Xcity_JSON` 从网页段队尾移回 JSON 段队尾（`TheJavDB_JSON` 之后、`7mmtv` 之前），与「全部 JSON 站 A-Z」口径一致；双击分组标题加入启用网站（从左到右优先级递减）同序。`TYPE_DEFAULT_SITES`、`resources/config/default_config.json`、软件内使用说明、`docs/Features.md` 与相关测试期望同步。
