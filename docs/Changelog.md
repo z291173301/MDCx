@@ -3,6 +3,19 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-12
+### 界面 Official· 前缀收敛到三个下拉 + 网络检测官网文案还原与弹窗宽度钉死（用户指定）
+- 三个下拉保留 Official·：指定网站下拉 `Official` 聚合显示名改为 `Official·pixelated`（`_SITE_DISPLAY_ALIASES`，UserRole/存盘仍为 `Official`），与 `Official·uncensored` 并列；网络检测下拉、当前网站下拉的 Official·pixelated/Official·uncensored 选项保留。
+- 其余界面去 Official·：缩略图/封面图下方的图片来源标签（`image.py` 预览 msg）、字段来源/站点摘要日志（`core/utils.py::show_result`）、评分来源后缀（`_deal_res`）、刮削路由/回退/补齐日志（`file_crawler._display_site`）、检测日志站点前缀（`log_console.with_site_prefix`）一律显示 Moodyz 而非 Official·Moodyz。
+- 网络检测文案还原：官网单站定位说明统一「官网：有码」/「官网：无码」——删除 3d71804a 引入的「官网：有码·Attackers/·Kawaii…」站点后缀（29 独立站 + Prestige 网页版），无码「官网：无码（JSON API）」「官网：无码（详情页内嵌 JSON-LD）」「官网：无码（详情页内嵌 microdata）」去括号（1Pondo/10Musume/Pacopacomama/HEYZO/Caribbeancom JSON 通道）；Dahlia/Faleno/MGStage/MyWife/MyWife_JSON 旧式说明同步归一。
+- 弹窗宽度钉死：`_layout_net_filter_popup` 删除按最长选项撑宽的分支，右缘恒等于全选/全不选按钮右缘（找不到按钮退化为框体宽，上限 560），改提示词不再改变弹窗宽度。
+- 校验：新增 `tests/test_official_display_rules.py`（定位说明/显示别名/日志前缀/评分后缀/图片来源标签）、弹窗宽度钉死用例；`tests/test_official_aggregate.py`、`test_site_source_type_groups.py`、`test_site_source_copy_menu.py`、`test_website_single_official_rows.py`、`test_ui_structure.py`、迁移测试等同步新口径；`docs/Features.md`、`docs/Scraper.md` 站点说明列同步；ruff / mypy / 线程安全门禁通过。
+### 官网路由无条件优先 + 类型名单/编辑网站剔除官网组 + 自动判断级联兜底（用户指定）
+- 无条件优先：番号前缀命中官网路由番号表即先刮对应官网及其 JSON 版，**锁定有码/无码与自动判断同口径**（锁定分支新增 `resolve_official_aggregate_site` 前置判断）；官网被禁用/无结果/字段不全再由该类型启用网站补齐，回退不再以「启用名单含官网组」为前提（`mdcx/core/file_crawler.py`）。官网主调用的禁用判定恒走官方域（`website_official_disabled`），锁定有码/无码时不被共享禁用名单覆盖。
+- 级联兜底：自动判断下官网前缀番号经官网+有码/无码组都刮削不到数据时，依次按 **国产传媒→国产短剧→个摄番号→欧美番号** 启用网站刮削（部分前缀与有码/无码重复，尤其国产传媒），首个有数据的阶段即最终结果；有码番号先补无码组、无码番号先补有码组；锁定类型不级联（`_official_route_cascade`）。
+- 剔除官网组：`TYPE_DEFAULT_SITES` 有码组移除 34 有码官网 + MyWife_JSON/Prestige_JSON、无码组移除 5 网页站 + 5 JSON 版（`Official`/`Official·uncensored` 聚合不再进类型名单）；「编辑网站」可用网站候选区与启用网站不再摆官网聚合行与官网单站（`site_priority_dialog._open_site_editor` 过滤官网成员、`_setup_site_list` 删聚合行，`Official·pixelated` 展示名常量删除）；官网单站只在「官方网站」源窗口编辑，指定网站下拉、检测网络分组、禁用名单、全局字段优先级保留官网值。`resources/config/default_config.json`、软件内使用说明、`docs/Features.md` 同步。
+- 迁移：新增 `_migrate_official_groups_removed`（标记键 `official_groups_removed_migrated`，config_version 仍为 2）：七类类型名单与非官方类型字段优先级里的官网聚合/单站（含 JSON 版与改名前旧值）统一剔除；官方网站源、指定网站、禁用名单、全局字段优先级不动。
+- 测试修复：`tests/test_emby_respx.py`（3 项）与 `tests/test_trawl_adapter.py`（2 项）的预存失败根因为宿主机代理配置（NO_PROXY 含 `[::1]`）与 httpx 0.28 trust_env 不兼容，客户端构造抛 `InvalidURL: Invalid port`；两文件新增 autouse fixture 置空 `httpx._utils.getproxies`（含 Windows 注册表回退），测试不再依赖宿主机代理环境，5 项全部修复而非删除。
+- 校验：新增 `tests/test_official_groups_removed_migration.py`、锁定有码/无码官网优先与级联兜底用例；`tests/test_file_crawler_runtime.py` 旧「无官网组不回退」用例改为新口径；ruff / mypy / 线程安全门禁通过。
 ### 官网路由回退剔除官网组 + FC2/MyWife 文件名首位路由 + 图片官网档限定对应官网（用户指定）
 - 路由回退：番号前缀命中官网路由番号表（「路由列表」导出同源）先刮对应官网及其 JSON 版（JSON 优先、网页版回退/补齐不变）；官网被禁用、无结果或字段不全时，兜底名单**剔除整个官网组**——有码番号剔 `Official·pixelated`、无码番号剔 `Official·uncensored`（组内站点与已请求的对应官网同源，同样拿不到数据），直接从 7mmtv_JSON 及之后的启用网站按序补齐；剔除后无其它站点则不再回退（`mdcx/core/file_crawler.py::_official_route_fallback_classification`）。启用名单不含官网组时仍保持单站锁定、失败不回退的旧行为。
 - 首位路由：FC2/FC2-/FC2-PPV/FC2PPV 仅当位于**文件名首位**才自动路由个摄番号组刮削字段下载图片；MyWife 仅当位于文件名首位才路由官网 MyWife/MyWife_JSON；均不区分大小写、`-`/`_` 通用，含在文件名中间不再命中（`mdcx/core/file_crawler.py::_name_starts_with`，无文件名时退回番号首位判断）。
