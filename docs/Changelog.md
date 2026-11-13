@@ -3,6 +3,14 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-13
+### NFO 字段页间距收紧 + CDATA 标记左移（用户指定）
+- 间距：「标题末尾写入分集信息」上移后留下的空行，让标题/原标题/分集信息 与 简介/原简介 之间多出约三行汉字高的空白。删除 `gridLayout_40` 的 row 1 两个 item（空左标签 `label_209`、`horizontalLayout_121` / `label_393`），行高归零；实测标题行→简介行间距 80px → 42px（控件高 19px，视觉空白约 23px ≈ 一行汉字高度），最小化/最大化两态一致、回到窄态幂等。
+- CDATA：删除「简介不写入 CDATA 标记」前的 20px 空白占位 `label_394`，复选框左缘与「简介(outline)」严格同列（`dx=0`）；只改 x，仍留在简介的下一行（`dy=42`），该操作不移动简介自身。
+- 校验：`test_window_state_matrix.py::test_nfo_title_cd_aligned_with_originaltitle` 扩展三态断言（空行清除、两处间距、CDATA 同列与行位）；全量 pytest 与 ruff / mypy / 线程安全门禁通过。
+### NFO 分集信息复选框只上移一行（用户指定）
+- 「标题末尾写入分集信息」从 `gridLayout_40` 的 row 1（`horizontalLayout_121`）改为 `layoutWidget_10` 的绝对定位子控件，只把 y 上移一行到与「原标题(originaltitle)」水平对齐，左右位置保持上一轮的 `opl.x()` 不变；原标题、原简介及其它字段位置全部不动。
+- `_sync_nfo_title_plot_align` 末尾按实测坐标 `setGeometry(opl.x(), ot.y(), ...)` 钉位，最小化 / 最大化 / 回到最小化三态 `dy(cd,ot)=0`、`dx(cd,opl)=0` 且幂等；当时 `horizontalLayout_121` 暂留空占位 `label_393` 撑住行高（下一节按用户要求删除该空行以收紧间距）。
+- 校验：`test_window_state_matrix.py::test_nfo_title_cd_aligned_with_originaltitle` 三态回归；全量 pytest 与 ruff / mypy / 线程安全门禁通过。
 ### 分集信息覆盖补齐 + 绿提示可选中 + NFO 分集开关归位（用户指定）
 - 文案：「排序标题名」说明改为「指在nfo中的排序标题(sorttitle)，默认与视频标题名一致，留空则与标题相同」。
 - 分集字符识别：`core/file.py` 把 `get_file_info_v2` 内联的识别抽成 `_match_cd_index` / `_match_explicit_cd_index` / `format_cd_part` / `detect_cd_part`，格式仍由「设置-命名-分集命名规则」的 `cd_name` 决定（-cd1 / -CD1 / -1），视频文件名继续沿用；新增指定番号、软链接/STRM 原身名两个辅助候选（只认 -cdN/-partN/-hdN，避免番号尾部数字误判）。`nfo_library._make_file_info` 不再把 `cd_part` 写死为空，改从 NFO / 同名视频文件名识别，NFO 库表单编辑保存不再丢分集信息。
