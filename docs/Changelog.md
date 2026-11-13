@@ -3,6 +3,12 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-13
+### 分集信息覆盖补齐 + 绿提示可选中 + NFO 分集开关归位（用户指定）
+- 文案：「排序标题名」说明改为「指在nfo中的排序标题(sorttitle)，默认与视频标题名一致，留空则与标题相同」。
+- 分集字符识别：`core/file.py` 把 `get_file_info_v2` 内联的识别抽成 `_match_cd_index` / `_match_explicit_cd_index` / `format_cd_part` / `detect_cd_part`，格式仍由「设置-命名-分集命名规则」的 `cd_name` 决定（-cd1 / -CD1 / -1），视频文件名继续沿用；新增指定番号、软链接/STRM 原身名两个辅助候选（只认 -cdN/-partN/-hdN，避免番号尾部数字误判）。`nfo_library._make_file_info` 不再把 `cd_part` 写死为空，改从 NFO / 同名视频文件名识别，NFO 库表单编辑保存不再丢分集信息。
+- 标题分集口径不变：`<title>` / `<sorttitle>` 继续由 NFO 页「标题末尾写入分集信息」开关控制，格式保持「空格 + 去掉横线后大写」（如 ` CD1`），不改成分集文件名的 `-CD1`；抽出 `nfo.title_cd_suffix()` 供两个字段共用，编辑 NFO 窗口 `title_override` 所见即所得保存时也补齐后缀，反复保存不叠加。
+- 界面：软件工具页 13 处绿色提示词补 `TextSelectableByMouse`（信息管理页 / NFO 编辑页 4 处原本已可选中）；设置-NFO-写入NFO的字段里「标题末尾写入分集信息」归位到「原简介(originalplot)」正上方，`_sync_nfo_title_plot_align` 按实测位移加宽 row 1 空白占位，最小化/最大化两态精确同列、原简介位置不变。
+- 校验：新增 `tests/test_cd_part_naming.py`、`test_ui_structure.py::test_non_settings_green_hints_are_selectable`、`test_window_state_matrix.py::test_nfo_title_cd_sits_above_originalplot`；ruff / mypy / 线程安全门禁与全量 pytest 通过。
 ### NFO 排序标题名独立设置（用户指定）
 - 新增配置 `naming_sorttitle`（设置-命名-视频命名规则-排序标题名）：输入框排在「视频标题名」下方、「防屏蔽字符」上方，标签/输入框与上下两行同列对齐并附说明文字；`MDCx.ui` 改后由 pyuic6 重编译 `MDCx.py`（ruff format 整理），`load_config`/`save_config` 同步读写，`resources/config/default_config.json`、根目录 `default.json`、`config/v1.py` 补齐字段。
 - 默认值与旧配置升级：`Config.naming_sorttitle` 默认与 `naming_media`（视频标题名，即 NFO `<title>` 模板）一致；`migrations._migrate_sorttitle_template` 在老配置缺键时复制用户现有 `naming_media`（取 Jinja2 转换后的值），显式设置过（含留空）的不覆盖，升级后 `<sorttitle>` 与 `<title>` 立即统一。
