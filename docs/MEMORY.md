@@ -199,7 +199,7 @@
 - **Hbox门壳先确诊再定论**（2026-11-08实测）：Hbox无Cookie回302→`/age_check`，门页是约4KB的Next.jsSPA空壳（无文本无链接，唯一信号是`__NEXT_DATA__`里的`"page":"/age_check"`与落地URL），Cookie是唯一成人入口。连通性/真实刮削先经`is_hbox_age_gate_shell`认门壳→直接报「年龄验证未通过（age_check_okCookie未生效）」首轮定论，不重试；只有认不出的非门壳（截断/抖动）才走Hbox专属重试。不得把门壳笼统报成「节点IP被限制」让用户盲目换节点。
 - **JavDB 预告片登录态走 preview_url 接口**（2026-11-09 线上 JS 实锤）：新版详情页 `<video>` 无 `<source>`，前端 `movie-detail#startPreview` 对 `data-url`（`/v/{id}/preview_url`）发 GET（Cookie + `X-CSRF-Token`）取 JSON 并用其 `url` 字段播流（见线上 `packs/js/app-*.js`：`.then(t=>t.ok?t.json():…).then(t=>this.prepareStream(e,t.url))`）。`javdb._parse_detail_page` 在详情无预告片且配了 Cookie 时按同款口径补取（`_fetch_preview_stream`，best-effort，失败不影响主流程）；回包解析兼容 JSON `url` → 递归找 http 串 → 全文 `.mp4/.m3u8` 正则；未配 Cookie 不请求（匿名调只回登录页）。
 
-- **JSON 通道「浏览器」按钮只打开 http:// 或 https:// 地址**（2026-11-13 用户定规）：对 FC2_JSON / AVBase_JSON / 7mmtv_JSON 等站点，浏览器按钮直接打开目标网页/接口地址（`http(s)://...`），不落临时文件；「查看JSON」仍展示合并后的完整字段。实现统一在 `json_view.request_json_browser` 的站点分支里，新增 JSON 站点默认也走临时文件，除非明确加入该分支。
+- **JSON 通道「浏览器」按钮只打开 http:// 或 https:// 地址**（2026-11-13 用户定规）：对 FC2_JSON / AVBase_JSON / 7mmtv_JSON 等站点，浏览器按钮直接打开目标网页/接口地址（`http(s)://...`），不落临时文件；「查看JSON」仍展示合并后的完整字段。实现统一在 `json_view.request_json_browser` 的站点分支里，新增 JSON 站点默认也走临时文件，除非明确加入该分支。分支里的站点名必须写 `Website` 枚举的 **value**（`Hbox_JSON`，不是枚举名 `HBOX_JSON`）：写错大小写不报错，只会静默退回临时文件（2026-11-13 修 Hbox_JSON 时踩到）。
 
 - **JSON 刮削器字段必须与对应网页版对齐**（2026-11-13 用户定规）：JSON 通道的刮削结果与「查看JSON」展示都必须包含网页版刮削器已有或可获取的全部字段；凡网页版能取到、而 JSON 通道未返回的字段，必须修改代码从详情页 DOM 或网页版同款解析逻辑获取并补充到 JSON（FC2 的演员/标签/发行/时长/publisher/extrafanart，7mmtv 的 runtime/release 等），新增 JSON 通道时先对比网页版与 JSON 版字段矩阵，把缺失字段在刮削与查看 JSON 两条链路一并补全，避免“网站 JSON 没返回”就缺字段。浏览器按钮仍只打开 http(s) 地址（见上条）。
 
