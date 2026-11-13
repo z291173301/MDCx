@@ -3,6 +3,12 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-13
+### FC2_JSON 查看JSON 字段补全 + JSON 浏览器按钮直开 http(s) 地址（用户指定）
+- FC2_JSON 查看JSON 字段全空：文章页不带 fc2 Cookie 时站点回「登录 FC2」空壳页（14KB），演员/标签/发行日/时长/剧照/厂商一个都抠不到，只剩 sample 接口的 path/poster/code。`json_view._fetch_payload` 的 FC2 分支补传配置项 `fc2` 的 Cookie（与刮削器 `FC2JsonCrawler._get_cookies` 同源），sample 与文章页两次请求都带 Cookie 后，ld+json 的标题/简介/评分/品牌/图片/sku 与 DOM 的演员/标签/发行日/时长/厂商/剧照全部补齐。
+- 浏览器按钮直开地址：JavDB_JSON / Madouqu_JSON / Official·1Pondo_JSON / Official·Caribbeancom_JSON / Official·HEYZO_JSON / Official·MyWife_JSON / Official·Pacopacomama_JSON / Prestige_JSON / TheJavDB_JSON / Xcity_JSON / R18_JSON（另含同族的 JavFree_JSON / Official·10Musume_JSON，及原有的 FC2/FC2CMADB/AVBase/7mmtv/Airav/LibreDMM/DMM/Hbox）改为直接打开目标 http(s) 地址，不再落临时 json 文件；站点名统一写 `Website` 枚举的 value。
+- 仍走临时文件的只剩两类：ThepornDB_JSON（接口只认 Authorization 头，URL 带上 token 一律 401）与 AVMOO/AVSOX/AVHeat_JSON（只收 POST，浏览器只会发 GET）；Missav_JSON 仍开详情页。
+- 现象收口：`file:///…/Temp/mdcx-DMM_JSON-xxxx.json` 是浏览器按钮早先落临时文件的地址，临时文件会被浏览器会话恢复——下次浏览器启动又自动打开那个标签页，看着像软件无缘无故弹窗。改成直开 http(s) 后不再产生这类文件。
+- 校验：扩展 `tests/test_net_filter_json_view.py`（21 站直开断言、4 站仍走临时文件线程、FC2 两次请求必须带 Cookie）；ruff format / ruff check / mypy 通过。
 ### NFO 字段页间距收紧 + CDATA 标记左移（用户指定）
 - 间距：「标题末尾写入分集信息」上移后留下的空行，让标题/原标题/分集信息 与 简介/原简介 之间多出约三行汉字高的空白。删除 `gridLayout_40` 的 row 1 两个 item（空左标签 `label_209`、`horizontalLayout_121` / `label_393`），行高归零；实测标题行→简介行间距 80px → 42px（控件高 19px，视觉空白约 23px ≈ 一行汉字高度），最小化/最大化两态一致、回到窄态幂等。
 - CDATA：删除「简介不写入 CDATA 标记」前的 20px 空白占位 `label_394`，复选框左缘与「简介(outline)」严格同列（`dx=0`）；只改 x，仍留在简介的下一行（`dy=42`），该操作不移动简介自身。
