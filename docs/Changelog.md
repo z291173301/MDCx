@@ -3,6 +3,12 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-13
+### NFO 排序标题名独立设置（用户指定）
+- 新增配置 `naming_sorttitle`（设置-命名-视频命名规则-排序标题名）：输入框排在「视频标题名」下方、「防屏蔽字符」上方，标签/输入框与上下两行同列对齐并附说明文字；`MDCx.ui` 改后由 pyuic6 重编译 `MDCx.py`（ruff format 整理），`load_config`/`save_config` 同步读写，`resources/config/default_config.json`、根目录 `default.json`、`config/v1.py` 补齐字段。
+- 默认值与旧配置升级：`Config.naming_sorttitle` 默认与 `naming_media`（视频标题名，即 NFO `<title>` 模板）一致；`migrations._migrate_sorttitle_template` 在老配置缺键时复制用户现有 `naming_media`（取 Jinja2 转换后的值），显式设置过（含留空）的不覆盖，升级后 `<sorttitle>` 与 `<title>` 立即统一。
+- `<sorttitle>` 改模板渲染：`core/nfo.py` 删除写死的「番号 + 原标题 / CD 后缀」分支，新增 `nfo_sorttitle_template()` 与 `build_nfo_sorttitle()`，复用 `build_nfo_title()` 的字段上下文、幂等还原与分集后缀；模板留空回退 `<title>` 最终值，编辑 NFO 窗口 `title_override` 的所见即所得同样共用；`NfoInclude.SORTTITLE` 开关、`<originaltitle>` 番号前缀照旧。
+- 效果：`VIXEN_100301-NAOMI_2160P.nfo` 的 `<title>` 为 `VIXEN 2016-08-27 Wanna Bet?`，升级后 `<sorttitle>` 同值，不再是 `100301-NAOMI Wanna Bet?`，Emby 按标题排序不再错乱。
+- 校验：新增 `tests/test_nfo_sorttitle.py`（默认值 / 迁移 / 独立模板 / 空模板回退 / NFO 写出 / 界面行列对齐，10 项）；`tests/test_ui_structure.py` 绿提示计数 156→157、`tests/conftest.py` 桩补字段；ruff format/check、mypy、线程安全门禁与全量 pytest 通过。
 ### Official·pixelated 聚合只保留有码官网 + NO_PROXY 兼容基线 + 版本号更新（用户指定）
 - 指定网站 `Official`（显示名 Official·pixelated）聚合只含 34 家有码官网 + MyWife_JSON/Prestige_JSON：能力文案「官网：有码/无码」改为「官网：有码」；前缀路由与多站兜底都按有码官网组过滤，无码官网及对应 JSON 归 `Official·uncensored`（`file_crawler._crawl` 指定网站分支、`init._site_combo_caption`）。
 - NO_PROXY 兼容基线：新增 `mdcx/proxy_compat.py`，`mdcx/__init__.py` 导入即调用——宿主机代理工具写入 NO_PROXY/no_proxy 的 `[::1]` 等带方括号条目归一成无方括号 `::1`（httpx 0.28 不认带方括号 IPv6，生成非法挂载键 `all://*[::1]`，任何 trust_env 客户端构造即抛 `InvalidURL: Invalid port`）。Emby 直连、trawl 适配层、网络时间校验等全部 httpx 客户端创建点进程级修复，不再依赖测试桩；新增 `tests/test_proxy_compat.py` 回归。
