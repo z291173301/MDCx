@@ -201,7 +201,7 @@
 
 - **JSON 通道「浏览器」按钮只打开 http:// 或 https:// 地址**（2026-11-13 用户定规）：对 FC2_JSON / AVBase_JSON / 7mmtv_JSON 等站点，浏览器按钮直接打开目标网页/接口地址（`http(s)://...`），不落临时文件；「查看JSON」仍展示合并后的完整字段。实现统一在 `json_view.request_json_browser` 的站点分支里，新增 JSON 站点默认也走临时文件，除非明确加入该分支。
 
-- **「查看JSON」必须展示刮削器最终写入的全部字段**（2026-11-13 用户定规）：凡网页版刮削器能取到、而 JSON 通道未返回的字段，必须在 `_fetch_payload` / `build_view_payload` 中从详情页 DOM 或网页版同款解析逻辑补全后再展示（FC2 的演员/标签/发行/时长/publisher/extrafanart，7mmtv 的 runtime/release 等）；新增 JSON 通道时先对比网页版与 JSON 版字段矩阵，把 JSON 缺失字段在查看 JSON 链路补全，避免“网站 JSON 没返回”就缺字段。浏览器按钮仍只打开 http(s) 地址（见上条）。
+- **JSON 刮削器字段必须与对应网页版对齐**（2026-11-13 用户定规）：JSON 通道的刮削结果与「查看JSON」展示都必须包含网页版刮削器已有或可获取的全部字段；凡网页版能取到、而 JSON 通道未返回的字段，必须修改代码从详情页 DOM 或网页版同款解析逻辑获取并补充到 JSON（FC2 的演员/标签/发行/时长/publisher/extrafanart，7mmtv 的 runtime/release 等），新增 JSON 通道时先对比网页版与 JSON 版字段矩阵，把缺失字段在刮削与查看 JSON 两条链路一并补全，避免“网站 JSON 没返回”就缺字段。浏览器按钮仍只打开 http(s) 地址（见上条）。
 
 ## Windows 打包与发布
 
