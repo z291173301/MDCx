@@ -2,7 +2,28 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
-## 2026-11-14
+## 2026-11-15
+### 版本 v3.0 + 欧美番号 Top3 排序固定 + 配置模型 v1→v2（用户指定）
+- **版本号**：`LOCAL_VERSION` 20261114 → 20261115；`VERSION_NAME` 固定为 `v3.0`，此后不再随发版递增。
+- **欧美番号 Top3 固定**：OUMEI 组内 ThepornDB_JSON / AVHEAT_JSON / JAVDB_JSON 三个固定置顶，其余 JSON 刮削器 A-Z 排在 Top3 之后，网页站点 A-Z 排在最后；`DEFAULT_FIELD_SITE_PRIORITY` 欧美字段优先级、`site_priority_dialog` 编辑网站/字段优先级对话框同源排序；既有 `Official·uncensored` 体系不变。
+- **配置模型 v1→v2**：`mdcx/config/v1.py` 改名 `v2.py`，`CONFIG_KEYWORDS` / `Config` / 类型分组常量全部迁入；`config/manager.py` / `config/models.py` 同步引用更新；迁移流程已测通，存量配置无感升级。
+- **校验**：`tests/test_config_conversion.py` / `tests/test_v1_website_key_migration.py` 基线期望同步；全量 pytest / ruff / mypy 通过。
+
+### 「显示网页站点」开关 + 启用刮削兜底 + 官方网站字段优先级修复（用户指定）
+- **开关**：`软件设置-高级-高级功能` 新增两个开关——「显示网页站点」（控制所有站点下拉框、编辑网站弹窗、字段优先级对话框、检测网络下拉、当前网站下拉、指定网站偏好的网页版选项可见性）与「启用刮削兜底」（控制 JSON 版失败/字段缺失时是否回退对应网页版）；`site_priority_dialog` 按 `AIO_JSON_WEB_FALLBACK` 映射表在编辑网站/字段优先级的可用网站列表中自动追加当前启用 JSON 站点的网页版；`layout_master._sync_advanced_page_toggles` 统一管理可见性切换后所有下拉框/lineEdit 刷新。
+- **官网字段优先级修复**：「官方网站源」的字段优先级对话框此前因 `type_sites` 构建逻辑与普通类型不同，隐藏网页版在开关关闭时仍出现、开启时又缺失；现同源用 `AIO_JSON_WEB_FALLBACK` 驱动；`_open_site_editor` / `_setup_site_list` 过滤逻辑与其余组严格对齐，修复按钮点击无响应静默失败问题（函数体内局部 import 标记为局部变量导致 UnboundLocalError）。
+- **默认名单/字段优先级**：`TYPE_DEFAULT_SITES` / `DEFAULT_FIELD_SITE_PRIORITY` 五组（YOUMA/WUMA/FC2/OUMEI/GUOCHAN）按「JSON 站 A-Z 置顶、网页站 A-Z 排后」重排；`resources/config/default_config.json`、软件内使用说明、`docs/Features.md` 同步。
+- **校验**：新增 `tests/test_official_json_fallback_2026_11.py`（18 例）；既有 13 个断言官网可见行号、检测项含无码官网的测试期望同步；ruff check / mypy / 全量 pytest 通过。
+
+### 高级功能区域 6 按钮均匀对齐 + 底部间距精修 + 反馈循环根除（用户指定）
+- **6 按钮 center 均匀分布**：网站列表 / 生成授权 / 生成私钥 / 设备编号 / 导入账单 / 路由列表全部锚点 `row 13`（设备编号按钮 `even_button_centers` 废弃），相邻按钮垂直间距严格统一 35.6px，视觉均匀对齐；`路由列表` 按钮与「显示网页站点」开关水平严格对齐，开关位置不变。
+- **底部间距精修**：原底部边界与「显示字段内容信息到调试模式」底部间距偏大；动态计算并反复 `bump minimumHeight` 形成反馈循环（每次高度调整触发 QGridLayout 重排→锚点位置变化→下一轮基于新位置再算高度→递增漂移），切换「显示网页站点」开关时所有 UI 元素上下偏移、路由列表底部被裁剪。修复三件套：① 删除错误的 `isVisibleTo` 可见性判断（QStackedWidget 多页层级永远返回 false，导致对齐逻辑不执行）；② 在 QGridLayout 第 16 行设 6px 固定最小高度 + 第 15 行 stretch=0 / 第 16 行 stretch=1 的静态 spacer，替代动态高度调整；③ `host.minimumHeight` 在首次运行时一次性缓存、后续不再重算。实测底部间距精确 5px，与调试模式底部间距完全一致；开关反复切换无任何漂移。
+- **代码审查修复**：`layout_master._sync_advanced_page_scale_combo_align` 遗漏的一处 `host.isVisibleTo(self) and content.isVisibleTo(self)` 组合判断改为与其余 9 处一致的空值检查风格；`isVisibleTo` 在 Qt 容器层级中常因 QStackedWidget 多页结构永远返回 false，全仓已统一清除。
+- **校验**：`tests/test_window_state_matrix.py` 扩展三态断言（空行清除、间距、CDATA 同列与行位）；新增 7 个高级页对齐测试；ruff format / ruff check / mypy / 线程安全门禁 / 全量 pytest 通过。
+
+### UI 文案微调（proxy 相关标签 i18n）
+- 「CF Bypass代理」→「CF Bypass 代理」；「使用代理」说明文字去除外层引号与多余空格；`mdcx/views/MDCx.ui` 与编译产物 `MDCx.py` 同步更新。
+
 ### 七家官网网页刮削器改为「界面隐藏 + JSON 优先兜底」（用户指定）
 - **界面隐藏，能力保留**：10Musume / 1Pondo / Caribbeancom / HEYZO / MyWife / Pacopacomama / Prestige 七个网页爬虫覆写 `hidden_in_ui() -> True`（五个无码官网统一写在共享基类），从站点下拉框、类型分组候选区、编辑网站弹窗、设置页官网行、提示页全部移除；爬虫类本身一行不动，核心刮削、探测番号、封面/海报/剧照下载能力完整保留，`include_hidden=True` 全量注册表仍含七站。
 - **导出字段表保留**：`collect_site_rows` 继续用 `include_hidden=True`，导出的刮削字段表仍如实列出七行（网站/性质/探测番号/链接/方式/封面/详情图等列不变）。
