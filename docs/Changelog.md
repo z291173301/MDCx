@@ -3,6 +3,21 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-14
+### 修复「浏览器莫名打开 file:///.../mdcx-DMM_JSON-*.json」
+- **根因**：`json_view._browser_in_thread`（写系统 Temp 临时 .json 再 `webbrowser.open(file://...)`）虽已无生产调用者，但 `tests/test_net_filter_json_view.py` 仍直接调用它。跑全量 pytest 时会在 `%TEMP%` 生成 `mdcx-DMM_JSON-*.json` 并真的拉起系统浏览器；`file://` 标签页还会被浏览器会话恢复，下次启动又自动打开。
+- **代码收口**：删除 `_browser_in_thread` / `_sweep_stale_browser_tmp` / `NamedTemporaryFile` / 临时文件常量 / 已失效的 `_JSON_BROWSER_DIRECT_SITES` 名单；新增 `_open_http_url()` 统一收口 `request_json_browser` 的全部打开动作，非 `http(s)` 一律拒绝并提示。`init._open_safe_url` 补同样的 scheme gate，日志里的 `file://` 链接也不再递给系统浏览器。
+- **测试**：删除两个直接调废弃函数的用例与临时文件清扫用例；`test_converted_body_keeps_readable_layout` 改为直接验证阅读态排版；新增 `test_browser_path_never_creates_temp_json`（断言模块已无落盘符号、打开的全是 http(s)、Temp 里 `mdcx-*.json` 数量不变）；直开/特殊站点两组参数化用例补「全为 http(s)」断言。
+- **残留**：系统 Temp 里修复前生成的 2 个 `mdcx-DMM_JSON-*.json` 属历史垃圾，代码中已无任何路径会再产生；浏览器里已恢复的标签页需在浏览器侧关闭。
+
+### 隐藏 AVMOO / AVSOX / AVheat 三对网页版爬虫 + JSON 优先网页兜底（用户指定）
+- **界面隐藏**：三个网页爬虫覆写 `hidden_in_ui() -> True`，从所有下拉框、类型分组候选区、字段优先级对话框、静态说明文案中移除；`get_registered_crawler_sites()` 默认过滤，配置合法值全集仍用 `include_hidden=True`（兜底站可被内部调用）。三个爬虫类只新增隐藏标记，核心刮削、探测、下载图片能力全部保留。
+- **导出字段表保留**：`collect_site_rows` / `unregistered_sites` 用 `include_hidden=True`，导出的刮削字段表仍包含 AVMOO / AVSOX / AVheat 三行。
+- **刮削链路**：`AIO_JSON_WEB_FALLBACK` 统一驱动三对配对；完整刮削不在并发预取里白打网页版，改由 `_call_specific_crawler` 在对应 JSON 通道失败/无数据时回退网页版、有数据但字段缺失时只补齐空字段（含封面/海报/剧照）；速度优先模式把隐藏网页版紧跟在各自 JSON 之后，JSON 成功即短路。
+- **网络检测**：`_build_site_specs` 用默认注册表视图 + `AIO_WEB_FALLBACK_SITES` 显式二次拦截，三网页版不生成检测项，三个 JSON 通道正常检测。
+- **两个工具**：「检查演员缺失番号」按 `_order_aio_sources` 整理成 JSON 在前、网页版 `fallback_for` 在后，同域名组内串行且 JSON 查到即短路；「单文件刮削」输入网址命中三网页版域名时由 `_prefer_json_site` 升级为对应 JSON 版，失败/字段不全再回退网页版。
+- **配置迁移补齐**：`_WEB_SITE_TO_JSON_SITE` 补上三对映射（含大小写别名），迁移标记升到 `web_to_json_migrated_v2` 让跑过 v1 的存量配置重跑；`_migrate_field_config_sites_with_rewrite` 补处理 `site_prority` 键。`website_*` / `field_configs` / `type_field_configs` 里的网页版值一律归一为 JSON 版，`site_configs` 保持不动（网页版兜底的自定义网址仍可用），避免设置页输入框把三个隐藏站名原样显示出来。
+- **校验**：全量 pytest（排除 network/integration）、ruff format --check、ruff check、mypy、线程安全检查全部通过；配置迁移新增 2 个回归用例，另同步 4 个既有迁移测试的期望基线。
+
 ### 隐藏四对网页版爬虫 + JSON 优先网页兜底（用户指定）
 - **界面隐藏**：Airav.cc / Missav / R18.dev / TheJavDB 四对网页版爬虫（加上 MADOUQU / HBOX / LIBREDMM 共 7 个）实现 `hidden_in_ui() -> True`，从站点下拉框、类型分组候选区、网络检测列表中移除；核心刮削、探测、图片下载功能全部保留，仍作为 JSON 版的兜底通道。
 - **刮削层兜底**：`file_crawler._call_specific_crawler` 实现 JSON 优先策略——优先从 Airav_JSON / Missav_JSON / R18_JSON / TheJavDB_JSON 刮削，失败或字段不全时回退到对应网页版（Airav.cc / Missav / R18.dev / TheJavDB）补齐；`WEB_TO_JSON_SITE` + `AIO_JSON_WEB_FALLBACK` 映射表驱动类型分组追加隐藏网页版到末尾兜底。
