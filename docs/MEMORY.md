@@ -10,7 +10,7 @@
 - **界面没有要求的不要自作主张修改**（2026-11-13 用户严规）：只改需求明确点名的界面部位（控件、文案、宽度、对齐、配色、字号等），没点名的一律不动——即使觉得「更一致」「顺手可优化」也不许改，下拉框/弹窗宽度与选项文案尤其不许擅自变动。认为确有必要改的，先说明理由征得同意再动手。
 - **日志与界面文字：英文语境之间的空格照留，中文之间的空格不留，图标后保留一个空格**（2026-10-28 用户定规，2026-11-12 修订口径）：所有可见文字（日志窗口、日志文件、详情日志、弹窗、按钮、菜单、标签等）里的连续空格 / Tab / 全角空格算一段，**两侧都是半角可见字符（英文字母、数字、半角标点）时留一个空格**——英文单词之间 `I Want Clips:Blacked Out Fm`、单词与数字之间 `Start time` / `HTTP 403`、英文标点之后 `videos, Please` 都必须留；**只要有一侧是中文、全角标点或图标就删掉**（`连接 Gfriends 网络` → `连接Gfriends网络`），数字与汉字仍紧贴（如「10个站点」），需要停顿用冒号或顿号。另外保留空格的几处：每行行首的图标与文字之间（「🔐 授权状态：」「📂 程序目录：」）、版本标识 `MDCx YYYYMMDD`（不得压成「MDCx20261027」）、HTTP 请求前缀 `GET http(s)://`（不得压成 `GEThttps://a.com`）、产品名 `CF Bypass` / `CloudFlare Bypass`（不得压成 `CFBypass`）、URL 被 `add_html()` 包成 `<a href="…">` 后同样成立；以及 2026-10-30 定规的四处——诊断串的 `HTTP 403`、`403 body=`、URL 与「失败」之间（`…fa735 失败：`）、双引号内的原文（响应体/引用，如 `body={"message":"This action is unauthorized."}`）。后几组只补「源码里本来就写漏空格」的情况，全部幂等；出口由 `utils.strip_log_spaces()` 兜底，新文案仍不要主动加多余空格。**例外：检测网络页的检测报告**（2026-10-30 用户定规）——那是等宽表格，列间连续空格就是排版本身，`show_net_info()` 走 `add_html_plain_text(keep_spaces=True)` 保留原样，不要给它套空格清洗。**刮削到的字段值按站点实际值走，不单独删空格**（2026-11-12 用户定规）：`mgstage` / `prestige` / `prestige_web` 的演员名不再 `replace(" ", "")`（prestige_web 的 `_split_names` 也只按 `[,、，]` 分隔、不按空白切开），`美月 さくら` 这类姓名按实际保留；番号归一、标题匹配、搜索 query 里的临时去空格属匹配逻辑，不在此列。
 - **NFO 写入值保持站点刮削到的原值，不做修改不做替换**（2026-11-12 用户定规）：写 NFO 只做 XML 编码必需的两步——`utils/xml.py::escape_xml_text()`（实体幂等化 + 转义）与 `build_cdata()`（实体幂等化 + `]]>` 转义），字符一个不动。全角空格 `\u3000`、不换行空格 `\xa0`、`・`、`“”`、`...` 一律原样写出，`<runtime>` 不再去空格；`normalize_xml_text()` / `REP_WORD` / `XML_TEXT_FIELDS` 已删除，`core/nfo.py` 写入前与 `core/file_crawler.py::_deal_res()` 刮削后的字符清洗都不再做。**上游替换表只去美观类**（同日用户口径）：`manual.py::ALL_REP_WORD` 不再做 `・`→`·`、`“”‘’`→`「」`、`...`/`……`→`…`、`’s`→`'s`、`! `→`！`、全角字母数字→半角、`\t`→空格，`TITLE_REP` 标题上下集/蓝光版剥离整表删除；**保留** HTML 实体解码、`&`→`＆` / `<`→`＜` / `>`→`＞`（防 Emby 读 NFO 误判）、`<br/>` 残留清理、`SPECIAL_WORD` 反和谐与半角片假名还原、简体字段用字归一。匹配键（`convert_half`、`_normalize_info_key`、番号归一、标题匹配、搜索 query）不在保真范围内。**不算改值的两类要保留**：① 解码——`normalize_linebreaks()` 把爬虫转义过的 `\r\n` / 字面 `\n` / `<br>` 还原成真实换行；② 既有功能——标题命名模板、番号前缀与 CD 后缀、tag 模板、简介原文拼接与「由 X 提供翻译」、`OUTLINE_NO_CDATA` 单行化、评分量纲、日期归一、`N/A` 导演过滤、占位简介清理。细则见 `docs/Development.md` §3.8。
-- **记忆只写这一个文件**：`D:\@Data\MDCx\DADA\MEMORY.md`。不要另建 `.workbuddy-ai/memory/` 之类的旁路记忆文件（用户 2026-10-23 要求）。本文件不受 150 行限制，只记可复用做法，不记一次性事实。
+- **记忆只写这一个文件**：`docs/MEMORY.md`。不要另建 `.workbuddy-ai/memory/` 之类的旁路记忆文件（用户 2026-10-23 要求）。本文件不受 150 行限制，只记可复用做法，不记一次性事实。
 - **大模型输出只给改动片段**（2026-10-27 定规）：默认只返回修改后的片段，不重复输出全文；新建文件、用户明确要求全文、或只给片段会产生歧义时才输出全文。
 - 改动前先说明「改什么、为什么」；遇到值得记的内容主动记入，不用等提醒；直接在当前分支操作，不擅自建分支。
 - **授权/未授权文案只有三个落点**：弹窗正文 `premium_gate.premium_message()`（`<功能名>功能需要获取授权后才能使用`，句末不带句号）、额度用完正文 `premium_gate.premium_quota_message()`、状态日志 `guard.describe()`（未授权只给原因，不套「未授权（…）」）。功能名由 `premium_gate.GUARDED_ACTIONS` / `_license_gate(action)` 传入，改文案只改这几处。
@@ -202,6 +202,16 @@
 - **JSON 通道「浏览器」按钮只打开 http:// 或 https:// 地址**（2026-11-13 用户定规）：对 FC2_JSON / AVBase_JSON / 7mmtv_JSON 等站点，浏览器按钮直接打开目标网页/接口地址（`http(s)://...`），不落临时文件；「查看JSON」仍展示合并后的完整字段。实现统一在 `json_view.request_json_browser` 的站点分支里，新增 JSON 站点默认也走临时文件，除非明确加入该分支。分支里的站点名必须写 `Website` 枚举的 **value**（`Hbox_JSON`，不是枚举名 `HBOX_JSON`）：写错大小写不报错，只会静默退回临时文件（2026-11-13 修 Hbox_JSON 时踩到）。分支成员清单在 `json_view._JSON_BROWSER_DIRECT_SITES`（2026-11-13 起 21 站）。**临时文件只留给浏览器打不开原始数据的两类**：ThepornDB_JSON（接口只认 Authorization 头，URL 带 token 一律 401）与 AVMOO/AVSOX/AVHeat_JSON（只收 POST，浏览器只会发 GET）；Missav_JSON 开详情页。**临时文件会被浏览器会话恢复**——下次浏览器启动自动又打开那个 `file:///…/mdcx-xxx-xxxx.json` 标签页，看着像软件无缘无故弹窗，所以新增 JSON 站点一律直开 http(s)，别再落临时文件。
 
 - **JSON 刮削器字段必须与对应网页版对齐**（2026-11-13 用户定规）：JSON 通道的刮削结果与「查看JSON」展示都必须包含网页版刮削器已有或可获取的全部字段；凡网页版能取到、而 JSON 通道未返回的字段，必须修改代码从详情页 DOM 或网页版同款解析逻辑获取并补充到 JSON（FC2 的演员/标签/发行/时长/publisher/extrafanart，7mmtv 的 runtime/release 等），新增 JSON 通道时先对比网页版与 JSON 版字段矩阵，把缺失字段在刮削与查看 JSON 两条链路一并补全，避免“网站 JSON 没返回”就缺字段。浏览器按钮仍只打开 http(s) 地址（见上条）。
+
+### 无码官网爬虫硬约束与约定（2026-11-14 从 Trae project_memory 合并）
+
+- Heyzo 相关爬虫必须使用 **HEYZO-3669** 作为官方站点探测番号，使用 **HEYZO-3980** 作为 Heyzo_JSON 探测番号，对应网页地址分别为 `https://www.heyzo.com/movie/3669` 和 `https://www.heyzo.com/movie/3980`
+- Heyzo 爬虫采用 **API 优先、HTML SPA DOM 回退** 的策略获取元数据，优先调用 `https://www.heyzo.com/api/v1/movie/{movie_seq}` 端点获取结构化数据
+- Heyzo 时长转换规则：将 HH:MM:SS 格式的时长转换为整数分钟，**秒数 ≥ 30 则进 1 分钟**，最低保底为 1 分钟，优先使用 `download.whole` 数组的 `duration` 字段，`movie_files` 数组的 ISO 格式时长作为回退
+- 直接解析 heyzo SPA 页面 DOM 无法获取 runtime 字段，该字段仅在前端播放器渲染后才会显示，无法从页面源码中提取
+- 所有 JSON 版刮削器与对应的网页版刮削器必须**完全解耦**：JSON 版不得依赖对应网页版的 DOM 辅助函数，网页版也不得依赖对应 JSON 版的工具函数，所有跨配对依赖的逻辑必须在各自文件内另行实现，保持字段口径完全一致
+- **7 对官网爬虫彻底解耦（2026-11-14 达成）**：10Musume/10Musume_JSON、1Pondo/1Pondo_JSON、Pacopacomama/Pacopacomama_JSON、HEYZO/HEYZO_JSON、MyWife/MyWife_JSON、Prestige/Prestige_JSON、Caribbeancom/Caribbeancom_JSON 之间字段获取完全独立、互不影响，JSON 版与网页版各自持有完整的 DOM/API 解析逻辑副本，无任何跨配对 import 依赖。JSON 版若缺失网页版已获取的字段（如 Caribbeancom_JSON 初始缺 series/extrafanart/trailer），必须在 JSON 文件内独立实现获取逻辑，绝不 import 网页版函数；反之网页版亦然
+
 
 ## Windows 打包与发布
 

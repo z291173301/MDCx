@@ -2,6 +2,16 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-11-14
+### 隐藏四对网页版爬虫 + JSON 优先网页兜底（用户指定）
+- **界面隐藏**：Airav.cc / Missav / R18.dev / TheJavDB 四对网页版爬虫（加上 MADOUQU / HBOX / LIBREDMM 共 7 个）实现 `hidden_in_ui() -> True`，从站点下拉框、类型分组候选区、网络检测列表中移除；核心刮削、探测、图片下载功能全部保留，仍作为 JSON 版的兜底通道。
+- **刮削层兜底**：`file_crawler._call_specific_crawler` 实现 JSON 优先策略——优先从 Airav_JSON / Missav_JSON / R18_JSON / TheJavDB_JSON 刮削，失败或字段不全时回退到对应网页版（Airav.cc / Missav / R18.dev / TheJavDB）补齐；`WEB_TO_JSON_SITE` + `AIO_JSON_WEB_FALLBACK` 映射表驱动类型分组追加隐藏网页版到末尾兜底。
+- **导出字段表保留**：`DIRECT_PROBE_SITES` 仍包含 R18.dev / TheJavDB / Airav.cc / Missav，`collect_site_rows` 用 `include_hidden=True` 导出隐藏网页版字段能力（直连/搜索方式、字段覆盖）。
+- **类型名单同步**：`TYPE_DEFAULT_SITES` 五组（YOUMA/WUMA/FC2/OUMEI/GUOCHAN）移除隐藏网页版；`DEFAULT_FIELD_SITE_PRIORITY` 同步移除，字段级兜底由 `_call_specific_crawler` 自动回退；`MDCx.ui` 使用说明、`MDCx.py` 编译字符串、`default_config.json` 模板、`MigrateConfig` 测试期望值全部同步。
+- **静态分析修复**：`site_fields._expr_support` 对空容器赋值 `data.xxx = []` 补正向强制开启集合 `_SITE_FIELD_ON`，修复 Missav_JSON 男演员字段静态分析遗漏（空列表 + `.append()` 模式）。
+- **网络检测排除**：`AIO_WEB_FALLBACK_SITES` 集合被网络检测构建逻辑显式跳过，隐藏网页版不生成检测项。
+- **校验**：全量 pytest 5341 passed（18 个类型分组 / 字段导出 / 网络检测 / 配置迁移测试全部回归）。
+
 ## 2026-11-13
 ### FC2_JSON 查看JSON 字段补全 + JSON 浏览器按钮直开 http(s) 地址（用户指定）
 - FC2_JSON 查看JSON 字段全空：文章页不带 fc2 Cookie 时站点回「登录 FC2」空壳页（14KB），演员/标签/发行日/时长/剧照/厂商一个都抠不到，只剩 sample 接口的 path/poster/code。`json_view._fetch_payload` 的 FC2 分支补传配置项 `fc2` 的 Cookie（与刮削器 `FC2JsonCrawler._get_cookies` 同源），sample 与文章页两次请求都带 Cookie 后，ld+json 的标题/简介/评分/品牌/图片/sku 与 DOM 的演员/标签/发行日/时长/厂商/剧照全部补齐。
