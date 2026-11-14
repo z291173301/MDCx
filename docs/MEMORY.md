@@ -210,7 +210,40 @@
 - Heyzo 时长转换规则：将 HH:MM:SS 格式的时长转换为整数分钟，**秒数 ≥ 30 则进 1 分钟**，最低保底为 1 分钟，优先使用 `download.whole` 数组的 `duration` 字段，`movie_files` 数组的 ISO 格式时长作为回退
 - 直接解析 heyzo SPA 页面 DOM 无法获取 runtime 字段，该字段仅在前端播放器渲染后才会显示，无法从页面源码中提取
 - 所有 JSON 版刮削器与对应的网页版刮削器必须**完全解耦**：JSON 版不得依赖对应网页版的 DOM 辅助函数，网页版也不得依赖对应 JSON 版的工具函数，所有跨配对依赖的逻辑必须在各自文件内另行实现，保持字段口径完全一致
-- **7 对官网爬虫彻底解耦（2026-11-14 达成）**：10Musume/10Musume_JSON、1Pondo/1Pondo_JSON、Pacopacomama/Pacopacomama_JSON、HEYZO/HEYZO_JSON、MyWife/MyWife_JSON、Prestige/Prestige_JSON、Caribbeancom/Caribbeancom_JSON 之间字段获取完全独立、互不影响，JSON 版与网页版各自持有完整的 DOM/API 解析逻辑副本，无任何跨配对 import 依赖。JSON 版若缺失网页版已获取的字段（如 Caribbeancom_JSON 初始缺 series/extrafanart/trailer），必须在 JSON 文件内独立实现获取逻辑，绝不 import 网页版函数；反之网页版亦然
+- **7 对官网爬虫彻底解耦（2026-11-14 达成）**：10Musume/10Musume_JSON、1Pondo/1Pondo_JSON、Pacopacomama/Pacopacomama_JSON、HEYZO/HEYZO_JSON、MyWife/MyWife_JSON、Prestige/Prestige_JSON、Caribbeancom/Caribbeancom_JSON 之间字段获取完全独立、互不影响，JSON 版与网页版各自持有完整的 DOM/API 解析逻辑副本，无任何跨配对 import 依赖。JSON 版若缺失网页版已获取的字段（如 Caribbeancom_JSON 初始缺 actors/release/runtime/tags/score/studio——因为站点 microdata 只有 name/description，其余全靠 DOM movie-spec），必须在 JSON 文件内独立实现获取逻辑，绝不 import 网页版函数；反之网页版亦然。
+
+### JSON/网页 刮削器配对解耦总原则（2026-11-14 用户严规，适用于全仓所有配对）
+
+每一对 `XXX` 网页刮削器 ↔ `XXX_JSON` 刮削器必须满足：
+
+1. **独立搜索番号**：各自实现自己的搜索逻辑，不走对方的搜索函数或复用对方的搜索入口 URL
+2. **独立获取字段**：每个爬虫文件内持有自己完整的解析逻辑——DOM 取值函数、API 端点拼接、时长归一、日期归一、演员名分割、URL 拼接等全部在本文件或通用 base 模块内声明，**绝不** `from .xxx_web import` / `from .xxx_json import` / `from .sites_official_uncensored.base import` 对方通道的取值辅助函数
+3. **独立下载图片**：封面 / poster / extrafanart 的 URL 拼接规则在各自文件内独立维护，图片下载走通用 web_sync 即可，但 URL 生成逻辑不复用对方实现
+4. **字段口径对齐**：JSON 版刮削结果的 **每个字段** 必须 ≥ 网页版能拿到的字段集合；反之亦然。网页版能从 DOM/API 抠到的字段，JSON 版必须能从自己的数据源（JSON API、DOM、固定规则）独立拿到；JSON 版能拿到的字段（如 HEYZO API 的正片时长），网页版也必须能从自己的数据源独立拿到（SPA DOM 回退）
+5. **查看JSON 按钮对齐**：每个 JSON 爬虫的 `build_view_payload` 函数（供「查看JSON」按钮展示）必须复刻爬虫同款取数路径——API 优先就走 API，API + DOM 合并就两个都调，DOM-only 就只走 DOM——展示的字段集合与爬虫刮削结果 **完全一致**，不得只展示 API 原始 JSON 而漏了爬虫额外补充的字段
+6. **互不影响**：一方改动（如改某个站点的 DOM 选择器、加新字段、换 API 端点）**绝不**影响另一方的运行结果；修改必须在各自文件内独立落地、分别测试
+
+**已验证彻底解耦的配对（import 零交叉）**：
+
+| 配对 | 状态 |
+|------|------|
+| Caribbeancom ↔ Caribbeancom_JSON | ✅ 完全解耦，JSON 版自实现全部 DOM movie-spec 取值 |
+| HEYZO ↔ HEYZO_JSON | ✅ 完全解耦，JSON 版自实现 API 优先 + SPA DOM 回退 |
+| 1Pondo ↔ 1Pondo_JSON | ✅ 完全解耦，JSON 版自实现 gallery 补充 extrafanart |
+| Pacopacomama ↔ Pacopacomama_JSON | ✅ 完全解耦 |
+| 10Musume ↔ 10Musume_JSON | ✅ 完全解耦 |
+| MyWife ↔ MyWife_JSON | ✅ 完全解耦 |
+| Prestige ↔ Prestige_JSON | ✅ 完全解耦 |
+| TheJavDB ↔ TheJavDB_JSON | ✅ 完全解耦 |
+| FC2 ↔ FC2_JSON | ✅ 完全解耦，JSON 版自实现 FC2 API + article widget 合并 |
+| LibreDMM ↔ LibreDMM_JSON | ✅ 完全解耦，JSON 版自实现 LibreDMM API + DOM 字段合并 |
+| 7mmtv ↔ 7mmtv_JSON | ✅ 完全解耦 |
+| Airav.cc ↔ Airav_JSON | ✅ 完全解耦 |
+| Missav ↔ Missav_JSON | ✅ 完全解耦 |
+| JavFree ↔ JavFree_JSON | ✅ 完全解耦 |
+| Madouqu ↔ Madouqu_JSON | ✅ 完全解耦 |
+
+**通用工具函数例外**：`iso8601_minutes`（时长归一）、`normalize_release`（日期归一）、`split_names`（演员分割）这类纯工具函数可以跨文件调用——只要调用的是**独立声明在某一方文件顶部、与该方网站无耦合**的函数。例如 `heyzo_json.iso8601_minutes` 是独立的 ISO-8601 → 分钟工具，`caribbeancom_json` 调它不构成配对耦合。
 
 
 ## Windows 打包与发布
