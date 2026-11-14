@@ -3,6 +3,16 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-14
+### 七家官网网页刮削器改为「界面隐藏 + JSON 优先兜底」（用户指定）
+- **界面隐藏，能力保留**：10Musume / 1Pondo / Caribbeancom / HEYZO / MyWife / Pacopacomama / Prestige 七个网页爬虫覆写 `hidden_in_ui() -> True`（五个无码官网统一写在共享基类），从站点下拉框、类型分组候选区、编辑网站弹窗、设置页官网行、提示页全部移除；爬虫类本身一行不动，核心刮削、探测番号、封面/海报/剧照下载能力完整保留，`include_hidden=True` 全量注册表仍含七站。
+- **导出字段表保留**：`collect_site_rows` 继续用 `include_hidden=True`，导出的刮削字段表仍如实列出七行（网站/性质/探测番号/链接/方式/封面/详情图等列不变）。
+- **JSON 优先、网页版兜底**：七对配对并入 `AIO_JSON_WEB_FALLBACK`（22 对统一驱动）。单站路径由 `_call_specific_crawler` 在 JSON 失败/无数据时整站回退网页版、有数据但字段缺失时 `_supplement_missing_fields` 只补空字段（含 thumb/poster/extrafanart，标题与番号以 JSON 为准）；完整/速度优先路径把名单里残留的网页版归一为配对 JSON 版，再由 `_with_aio_fallback` 追加网页版到优先级末尾，不进并发预取，只有该字段在 JSON 及其后所有站点都取不到时才真正请求。
+- **网络检测排除**：`_build_site_specs` 保持 `include_hidden=False` + `AIO_WEB_FALLBACK_SITES` 显式二次拦截，七网页版不生成检测项、不发探测请求；七个 JSON 版照常检测。
+- **工具 1 · 检查演员缺失番号**：`build_sources` 在「自动判断固定链」与「指定类型配置组」两条路径都追加七对官网链，`_order_aio_sources` 整理成 JSON 在前、网页版 `fallback_for` 在后，同域名组内 JSON 查到番号即短路，不再白打网页版。
+- **工具 2 · 单文件刮削**：输入七个官网域名时 `deal_url` 识别出网页版，`_get_site` 的 `_prefer_json_site` 升级为配对 JSON 版；JSON 失败/字段不全仍由单站路径回退网页版补齐。
+- **配置显示层**：`load_config` 把官网行里的隐藏网页版显示成各自 JSON 版短名，`save_config.get_official_sites` 与 `site_priority_dialog._open_site_editor` 过滤隐藏网页版，避免「全部添加」或手工输入把已隐藏的站名写回配置。
+- **校验**：新增 `tests/test_official_json_fallback_2026_11.py`（18 例，覆盖隐藏/字段表/映射/图片补齐/网络检测/查缺/单文件）；同步更新既有 13 个按旧口径断言官网 39 行可见、检测项含无码官网、查缺固定链精确值的测试期望；ruff check 全绿。
+
 ### 修复「浏览器莫名打开 file:///.../mdcx-DMM_JSON-*.json」
 - **根因**：`json_view._browser_in_thread`（写系统 Temp 临时 .json 再 `webbrowser.open(file://...)`）虽已无生产调用者，但 `tests/test_net_filter_json_view.py` 仍直接调用它。跑全量 pytest 时会在 `%TEMP%` 生成 `mdcx-DMM_JSON-*.json` 并真的拉起系统浏览器；`file://` 标签页还会被浏览器会话恢复，下次启动又自动打开。
 - **代码收口**：删除 `_browser_in_thread` / `_sweep_stale_browser_tmp` / `NamedTemporaryFile` / 临时文件常量 / 已失效的 `_JSON_BROWSER_DIRECT_SITES` 名单；新增 `_open_http_url()` 统一收口 `request_json_browser` 的全部打开动作，非 `http(s)` 一律拒绝并提示。`init._open_safe_url` 补同样的 scheme gate，日志里的 `file://` 链接也不再递给系统浏览器。
