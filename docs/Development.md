@@ -500,7 +500,7 @@ PyInstaller，入口 `main.py`。Linux 手动构建依赖见 `Install.md#linux-�
 `.github/workflows/build-py315.yml`（Build and Release Python3.15），三平台矩阵：macOS ARM64 / Windows x86_64 / Linux x86_64。
 
 - tag 为纯数字 `LOCAL_VERSION`。
-- **发布目标只有公开仓库**：默认 `z291173301/MDCx`，可用仓库变量 `MDCX_PUBLIC_REPO` 覆盖；目标分支默认 `main`，可用 `MDCX_PUBLIC_BRANCH` 覆盖。私有开发仓 `MDCx-Dev` **不创建 Release**，本仓库 `GITHUB_TOKEN` 只有 `contents: read`。
+- **发布目标只有公开仓库**：默认 `z291173301/MDCx`，可用仓库变量 `MDCX_PUBLIC_REPO` 覆盖；目标分支默认 `main`，可用 `MDCX_PUBLIC_BRANCH` 覆盖。私有开发仓 `MDCx-Beta` **不创建 Release**，本仓库 `GITHUB_TOKEN` 只有 `contents: read`。
 - 跨仓库写用 Secrets 里的 `MDCX_SYNC_TOKEN`（公开仓库 Contents: Read and write）。未配置时发布步骤直接报错，不会退回私有仓库。
 - 资产名 `MDCx-<tag>-<平台>-<架构>-<40位sha>.<ext>`（2026-10-22 起去掉展示版本号段；客户端只读 `tag_name` 不解析资产名，故零影响）。资产名同时写在本文档与 `tests/test_py315_release_workflow.py::_EXPECTED_ASSETS`，**三处同改**。
 - Release 标题 `MDCx <日期版本号>`，日期取自源码 `consts.py::LOCAL_VERSION`；补发旧 tag 时按 tag 取日期并告警。由 `test_asset_names_and_release_title` 与 `test_release_title_date_comes_from_source_code` 钉住。
