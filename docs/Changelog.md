@@ -3,10 +3,16 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-15
+### 网络检测页 MyWife 行补双按钮 + 下拉 70/67 + pixelated 组剔除 MyWife_JSON（用户指定）
+- **MyWife 网页版按钮接入**：网络检测页 `Official·MyWife` 行右侧补「保存HTML」+「浏览器」。`row_has_html_view()` 改用 `include_hidden=True` 全量注册表（与两个下拉的站点全集同源），一次接通按钮绘制、`sizeHint` 宽度、点击分发（`request_html_save` / `request_html_browser`）、`html_view_target()` 取数（链接地址 `https://mywife.cc/teigaku/model/no/2306`）；该行不是 JSON 站，`row_has_json_button()` 仍为 False，不与 `Official·MyWife_JSON` 的「查看JSON」通道冲突。`_batch_members()` 同步用全量注册表校验成员存在性，避免分组行标题 33 站却因开关关闭漏存隐藏网页版。
+- **开关控制三站（70→67）**：`_prefix_combo_site_values()` 改为以 `include_hidden=True` 全量注册表（70 站）为底；未勾选「显示网页站点」时减去 `DMM` / `JavDB` / `Official·MyWife` 得 67 站，勾选时 70 站，两态都按实际显示名严格 A-Z。「当前网站」与网络检测筛选下拉同源（后者另加四个置顶分组行 → 71/74 行）。本条取代同日上一版「MyWife 无条件显示」；指定网站、编辑网站候选区、类型名单、网络检测探测项仍各自按开关过滤。
+- **pixelated 组不再含 MyWife_JSON**：网络检测页 `Official·pixelated` 分组成员改为直接复用 `html_view._html_group_members()[HTML_GROUP_PIXELATED]`（33 家纯网页官网），行标题「官网：有码33站」，与右侧「保存HTML」批量成员、勾选展开三者同源，根除「点保存HTML 却撞上查看JSON」的冲突。`Official·MyWife_JSON` 仍在 `Official·JSON`（24 站）与独立单站行；刮削/字段层 `OFFICIAL_CENSORED_GROUP_SITES`（34 站）保持不变，指定网站 `Official` 聚合照旧覆盖全部有码官网。
+- **校验**：`tests/test_official_group_coverage.py` 重写为「两个有码官网名单」双轨断言，新增开关两态 67/70、MyWife 行 HTML 按钮/取数目标/delegate 绘制、33 站同源等用例；`tests/test_net_filter_html_group.py` 补分组标题/成员与 JSON 通道互斥，`tests/test_website_single_official_rows.py` 真实窗口断言三站显隐与行数；`development.md` 分组表/关键约束/成员来源同步。全量 pytest / ruff / mypy / 线程安全门禁通过。
+
 ### 官网分组全量核对 + 当前网站/网络检测下拉按显示名 A-Z 重排（用户指定）
-- **核对**：`Official·pixelated`（34 站＝33 家有码官网网页版 + 唯一的有码官网 JSON 版 `Official·MyWife_JSON`）与 `Official·uncensored`（4 家无码官网 JSON 版）收齐注册表全部 38 个官网成员，无遗漏；`Official·JSON` 含 MyWife_JSON 后仍是 24 站（与 24 个已注册 `***_JSON` 刮削器一一对应）；网络检测下拉与「当前网站」下拉都已有 `Official·MyWife_JSON` 单站行，网址 `https://mywife.jp/`。
+- **核对**：指定网站 `Official` 聚合（显示名 `Official·pixelated`，34 站＝33 家有码官网网页版 + 唯一的有码官网 JSON 版 `Official·MyWife_JSON`）与 `Official·uncensored`（4 家无码官网 JSON 版）收齐注册表全部 38 个官网成员，无遗漏（网络检测页同名分组行的后续口径见上一段）；`Official·JSON` 含 MyWife_JSON 后仍是 24 站（与 24 个已注册 `***_JSON` 刮削器一一对应）；网络检测下拉与「当前网站」下拉都已有 `Official·MyWife_JSON` 单站行，网址 `https://mywife.jp/`。
 - **排序**：两个保留 `Official·` 前缀的下拉改用「实际显示名」A-Z（`_net_display_sort_key`）。此前 5 个官方 JSON 站显示带前缀却按去前缀短名排序，被打散到 10/C/H/M/P 各段，视觉乱序且看起来像「少了某站」；改后与其它官网网页站一起归入 O 段，整列严格 A-Z，MyWife_JSON 在 O 段可直接找到。四个分组行仍按既定顺序置顶；「指定网站」「不走代理」下拉仍按去前缀展示名排序，不受影响。
-- **MyWife 网页版无条件可见**：`Official·MyWife`（hidden_in_ui=True）原本随「显示网页站点」开关关闭而从两个下拉消失；现由 `_PREFIX_COMBO_FORCED_SITES` + `_prefix_combo_site_values()` 强制并入这两个下拉（开关关 69 站 / 开 70 站，两态都含它且严格 A-Z，网页版 `https://mywife.cc/` 与 JSON 版 `https://mywife.jp/` 相邻）。指定网站、编辑网站候选区、类型名单仍按开关隐藏；网络检测的探测项也仍按 2026-11-15 既定口径排除隐藏网页版。
+- **MyWife 网页版显隐（同日后续需求已取代，见本节首段）**：当时由 `_PREFIX_COMBO_FORCED_SITES` + `_prefix_combo_site_values()` 强制并入两个下拉（开关关 69 站 / 开 70 站，两态都含它且严格 A-Z，网页版 `https://mywife.cc/` 与 JSON 版 `https://mywife.jp/` 相邻）；后续改为「未勾选开关时与 DMM/JavDB 一起隐藏，70→67 站」。指定网站、编辑网站候选区、类型名单仍按开关隐藏；网络检测的探测项也仍按 2026-11-15 既定口径排除隐藏网页版。
 - **同源化**：「保存HTML」批量成员从 `OFFICIAL_CENSORED_GROUP_SITES` 派生并剔除全部 JSON 通道（33 网页站），不再单独维护第二份名单；`development.md` 分组表与关键约束、`models.py` 过时注释同步定稿。
 - **校验**：新增 `tests/test_official_group_coverage.py` 双向钉死「注册官网 ⇄ 两组成员」「JSON 组 24 站」「两个下拉 A-Z」「MyWife_JSON 网址」；同步更新旧顺序断言；全量 pytest / ruff / mypy / 线程安全门禁通过。
 
