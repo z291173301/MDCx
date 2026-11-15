@@ -3,6 +3,13 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-15
+### 官网分组全量核对 + 当前网站/网络检测下拉按显示名 A-Z 重排（用户指定）
+- **核对**：`Official·pixelated`（34 站＝33 家有码官网网页版 + 唯一的有码官网 JSON 版 `Official·MyWife_JSON`）与 `Official·uncensored`（4 家无码官网 JSON 版）收齐注册表全部 38 个官网成员，无遗漏；`Official·JSON` 含 MyWife_JSON 后仍是 24 站（与 24 个已注册 `***_JSON` 刮削器一一对应）；网络检测下拉与「当前网站」下拉都已有 `Official·MyWife_JSON` 单站行，网址 `https://mywife.jp/`。
+- **排序**：两个保留 `Official·` 前缀的下拉改用「实际显示名」A-Z（`_net_display_sort_key`）。此前 5 个官方 JSON 站显示带前缀却按去前缀短名排序，被打散到 10/C/H/M/P 各段，视觉乱序且看起来像「少了某站」；改后与其它官网网页站一起归入 O 段，整列严格 A-Z，MyWife_JSON 在 O 段可直接找到。四个分组行仍按既定顺序置顶；「指定网站」「不走代理」下拉仍按去前缀展示名排序，不受影响。
+- **MyWife 网页版无条件可见**：`Official·MyWife`（hidden_in_ui=True）原本随「显示网页站点」开关关闭而从两个下拉消失；现由 `_PREFIX_COMBO_FORCED_SITES` + `_prefix_combo_site_values()` 强制并入这两个下拉（开关关 69 站 / 开 70 站，两态都含它且严格 A-Z，网页版 `https://mywife.cc/` 与 JSON 版 `https://mywife.jp/` 相邻）。指定网站、编辑网站候选区、类型名单仍按开关隐藏；网络检测的探测项也仍按 2026-11-15 既定口径排除隐藏网页版。
+- **同源化**：「保存HTML」批量成员从 `OFFICIAL_CENSORED_GROUP_SITES` 派生并剔除全部 JSON 通道（33 网页站），不再单独维护第二份名单；`development.md` 分组表与关键约束、`models.py` 过时注释同步定稿。
+- **校验**：新增 `tests/test_official_group_coverage.py` 双向钉死「注册官网 ⇄ 两组成员」「JSON 组 24 站」「两个下拉 A-Z」「MyWife_JSON 网址」；同步更新旧顺序断言；全量 pytest / ruff / mypy / 线程安全门禁通过。
+
 ### 版本 v3.0 + 欧美番号 Top3 排序固定 + 配置模型 v1→v2（用户指定）
 - **版本号**：`LOCAL_VERSION` 20261114 → 20261115；`VERSION_NAME` 固定为 `v3.0`，此后不再随发版递增。
 - **欧美番号 Top3 固定**：OUMEI 组内 ThepornDB_JSON / AVHEAT_JSON / JAVDB_JSON 三个固定置顶，其余 JSON 刮削器 A-Z 排在 Top3 之后，网页站点 A-Z 排在最后；`DEFAULT_FIELD_SITE_PRIORITY` 欧美字段优先级、`site_priority_dialog` 编辑网站/字段优先级对话框同源排序；既有 `Official·uncensored` 体系不变。
