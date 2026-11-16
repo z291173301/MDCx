@@ -2,6 +2,14 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-11-16
+### 「显示网页站点」控制三站显隐 + 「启用刮削兜底」控制三对 JSON→网页版兜底（用户指定）
+- **需求 1：三站网页版随开关显隐**。未勾选「显示网页站点」时，`DMM` / `JavDB` / `Official·MyWife` 三个网页版刮削器从「可用网站：按类型分组」「启用网站：从左到右优先级递减」「字段优先级」弹窗的顶部「可用网站」面板及标题/原标题/简介/原简介等每个字段行中隐藏；勾选时全部显示，名单顺序与改动前逐项一致。实现落在**名单构建处**而非渲染层：`hidden_web_sites_for_ui()` 以 `SHOW_WEB_SITES_ONLY_WEB`（三站）为唯一隐藏口径，`_current_hidden_web_sites()` 供 `_open_site_editor()` / `_open_priority_editor()` / `grouped_palette_groups()` 共用；过滤只减不增，两态的排序口径（`_sort_sites_for_priority()`）未动。
+- **需求 2：三对兜底受「启用刮削兜底」控制**。勾选时 `DMM_JSON→DMM`、`JavDB_JSON→JavDB`、`Official·MyWife_JSON→Official·MyWife` 生效：JSON 站刮不到数据时整站回退网页版，JSON 有数据但缺片商/封面等字段时由网页版补齐（封面/海报/剧照随之进入图片候选，由 `web.py` 依次降级下载）；完整 / 速度优先路径经 `aio_web_fallbacks()` 追加网页版，演员番号检查经 `_order_aio_sources()` 追加。未勾选时三对**完全不兜底**——新增 `web_fallback_for()` 作为唯一受门控入口，并在 `file_crawler` 的整站回退与字段补齐两处、`actor_sources` 的排序处显式接入；旧代码只看 `JSON_TO_WEB_SITE`，开关关闭时仍会偷偷回退，现已修正。
+- **刻意留空的三个常量**：`AIO_WEB_FALLBACK_SITES`（会把网页版从网络检测探测项与 `Official·HTML` 组排除）、`AIO_WEB_FALLBACK_HIDDEN_UI_SITES`（会牵连其它网页版的 UI 隐藏口径）、`AIO_WEB_TO_JSON_SITE`（会把用户显式启用的网页版归一成 JSON 版）均保持空集，三站不受牵连；`AIO_JSON_WEB_FALLBACK` / `AIO_JSON_SITES` 只恢复上述三对。
+- **连带修复：未授权保存不再改写刮削网站配置**。`_refresh_site_priority_line_edits()` 会在保存末尾把「显示网页站点」关闭时隐藏的网页版从名单剔除并写回配置（既有设计：隐藏即视为未启用，重新打开开关时由 augment 自动补回）。这段写回落在授权锁的还原之后，未授权时等于改了刮削网站配置。现把还原抽成 `_restore_website_snapshot()`，在解析后与 `refresh_site_combos_after_switch()` 之后各还原一次，授权锁恢复生效。
+- **校验**：新增 `tests/test_show_web_sites_toggle_2026_11.py`（17 例）——常量与「刻意留空」不变量、两个开关各自的显隐两态、三个站点选择窗口的真实弹窗显隐与排序不变、`aio_web_fallbacks()` 两态、演员源链路两态、单站刮削整站回退与字段补齐两态（含图片候选）；`tests/test_site_source_copy_menu.py` 两处期望同步（隐藏网页版不再出现在复制名单与解析结果里）；`development.md` 新增「两个开关」章节（常量表 / 显隐链路 / 兜底链路）。
+
 ## 2026-11-15
 ### 网络检测页 MyWife 行补双按钮 + 下拉 70/67 + pixelated 组剔除 MyWife_JSON（用户指定）
 - **MyWife 网页版按钮接入**：网络检测页 `Official·MyWife` 行右侧补「保存HTML」+「浏览器」。`row_has_html_view()` 改用 `include_hidden=True` 全量注册表（与两个下拉的站点全集同源），一次接通按钮绘制、`sizeHint` 宽度、点击分发（`request_html_save` / `request_html_browser`）、`html_view_target()` 取数（链接地址 `https://mywife.cc/teigaku/model/no/2306`）；该行不是 JSON 站，`row_has_json_button()` 仍为 False，不与 `Official·MyWife_JSON` 的「查看JSON」通道冲突。`_batch_members()` 同步用全量注册表校验成员存在性，避免分组行标题 33 站却因开关关闭漏存隐藏网页版。
