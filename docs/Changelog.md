@@ -3,6 +3,13 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-16
+### 厂牌官网按演员名搜番号（用户指定）
+- **调研**：用 Edge + curl_cffi 逐站实测 29 家同源 CMS 厂牌官网（`crawlers/sites_official/` 29 家 + DAHLIA）与 MGStage / Faleno。29 家共用同一套站内搜索 `{base}/search/list?keyword={关键字}&countup=0`（SSR 直出结果），作品链接 `/works/detail/{番号}`（番号多为无连字符形态，如 `ONSD340`），分页追加 `&page=N`；**演员名可直接当关键字**命中该演员全部作品，无需先找演员 id。29 家的搜索路径全部用站内探测番号实测可用，其中 23 家另用站内真实演员名端到端命中（S1「橋本ありな」178 个番号、Attackers「夏目彩春」、Madonna「水戸かな」、Premium「山岸逢花」、Dasdas「水川スミレ」…）。站是繁体站 → 名字依次试「原样 → 繁体 → 简体」。
+- **实现**：`actor_sources._official_brand_fetcher` 工厂 + `_OFFICIAL_BRAND_SITES` 表（30 站），注册进 `_SITE_FETCHERS`（在 `_SITE_FETCHERS_FC2` / `_WUMA` 两个变体字典之前 update，FC2 / 无码组同步可用）。工具页「官方网站」类型的可查源从 6 个涨到 36 个，34 家有码官网不再因无演员入口被整体跳过。
+- **未接入（记原因）**：`Official·MGStage` 整站年龄门 + SPA（`mgstage.com` 所有路径对无 JS 客户端返回同一份 SPA 首页，`mgstage.jp` 直接 403），`Official·Faleno` 是新系统 SPA、只有 `/top/works/{番号}/` 直达详情页没有公开搜索路径；两站番号均被 DMM / JavDB 覆盖，暂不接入并在查缺日志里说明。
+- **刮削层未改**：厂牌官网爬虫的 `_generate_search_url` 是「按番号搜详情页」，与演员名搜索是两回事；入口 URL 模板已记入 `development.md` 供后续复用。
+- **校验**：新增 `tests/test_official_brand_actor_search.py`（8 例）与 2 份真实搜索页裁剪夹具（`official_s1_search.html` / `official_attackers_search.html`）；`test_actor_missing_numbers.py` 的官网组断言随接入同步；ruff format/check、mypy、线程安全、全量 `pytest -m "not network"` 通过。
+
 ### 工具页类型下拉加「官方网站」+ 查缺功能全链路审查修复（用户指定）
 - **界面**：「检查演员缺失番号」右侧类型下拉在「自动判断」下方新增「官方网站」；`MDCx.ui` 改完按 pyuic6 + ruff format 重新生成 `MDCx.py`（diff 仅新增项）。逻辑接通到「类型刮削网站-官方网站」组（`_ACTOR_TYPE_TO_SCRAPING` / `missing.py` 映射 / `_TYPE_DISPLAY` / Excel 类型列），组内 32 个 studio 详情页无演员索引照常跳过并在日志说明，实际可用 6 源。
 - **审查**：用 Microsoft Edge 抽查 IQQTV / JavDay / Madou.club / FC2 / FC2CMADB / JavFree / JavBus 的搜索页与分页形态，沿「工具页入口 → missing.py → collect_numbers → 各站 fetcher」逐层核对，问题与证据表见 `development.md`「检查演员缺失番号全链路审查与修复」。
