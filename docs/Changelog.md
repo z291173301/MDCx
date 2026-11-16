@@ -3,6 +3,19 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-16
+### 「检查演员番号」二轮界面/状态圆圈调整（用户指定）
+- **尺寸与样式**：新组的「选择目录 / 打开目录 / 全选/全不选」三枚按钮统一 110×40，并把四个新按钮的对象名加进 `style.py` 明暗两套 base/hover/pressed 选择器，与查缺组「选择目录」同款 QSS；两个输入框与站点下拉左缘 140→136、宽度相应 +4，运行态与「演员名查缺失」输入框严格等宽；主按钮宽度运行态与「检查缺失番号」一致（布局同步统一钉到右侧按钮列左缘-19）。
+- **文案**：主按钮「检查演员番号」→「查询导出演员番号」；标签「获取站点：」→「番号获取网站：」；绿提示换成查缺组原文「本地资源库和演员名都可以填写多个，以中英文逗号分开」。按钮忙/闲文案、授权门禁功能名、提示日志同步改名。
+- **状态圆圈**：`_actor_number_status_icon()` + `_refresh_actor_number_badges()` 给「番号获取网站」**每一行**都画状态圆圈：ok 绿 / warn 黄 / fail 红；分组行按组内成员最差状态聚合；未检测过的站点按黄色「需关注」兜底（用户要求所有选项都有圈，不是网络检测那种透明占位）。`refresh_network_check_badges()` 同步刷新本下拉，跑完网络检测即按实际结果重着色。
+- **校验**：新增/更新 `test_actor_number_check_2026_11_16.py`（每行圆圈非空且只含三色、缓存驱动着色、QSS 覆盖、文案与几何）与 `test_tool_page_right_align.py`（三种窗宽下宽度对齐）；`ruff format/check`、`mypy mdcx/`、线程安全、全量 `pytest tests/ -m "not network"` 通过。
+
+### 软件工具新增「检查演员番号」：按单选/多选站点取号并逐站核对（用户指定）
+- **界面**：把「检查演员缺失番号」整组复制到「移动视频与字幕」下方、原组上方；副本里「演员名查缺失」改成「检查演员番号」，右侧类型下拉删除，下方新增「获取站点」多选下拉 + 右侧「全选/全不选」按钮。原组与「刮削缓存管理」整体下移 305px，滚动内容高度 2167→2472。`MDCx.ui` 改动经 pyuic6 → ruff format → 与入库版比对后再写回 `MDCx.py`（仅新增项 + 三处 y/高度变化）。
+- **下拉同源**：`init.py` 抽出 `_net_filter_option_rows()` / `_checked_site_filter_values()`，检测网络页筛选框与新下拉共用同一份选项（70 个站点 A-Z + 4 个置顶分组行；「显示网页站点」开关 OFF 时同为 67 行）、勾选态、分组展开与汇总文本；新下拉不画网络检测专属的「查看JSON/保存HTML」行内按钮。勾选态持久化到 `actor_number_sites`，开关变化重建下拉时自动保留。
+- **取号**：`actor_sources.build_sources_for_sites()` 完全按勾选清单建源（不加固定链、不加类型配置组、不追加官网链、不做 JSON/网页兜底配对），`collect_numbers(..., sites=..., per_site_out=...)` 回传逐站原始番号。`missing.check_missing_number()` 新增 `sites/actor_names/local_libraries` 参数并用独立忙信号 `check_actor_numbers_running`，新工具与查缺工具各自一套输入配置（`actor_number_*`）。
+- **报表**：新增 `tools/actor_number_check.py`，日志打印「所选 N 站 → 去重番号数 → 逐站取号量/独占号/覆盖率/示例番号」，本地资源库写出含「站点统计 / 站点番号明细 / 番号汇总」三张表的 `演员番号_<演员>_<时间>.xlsx`；刻意不补详情页元数据，避免把别的站点数据混进来影响准确性判断。空结果站点也会出表，用于验证取号功能是否正常。
+- **校验**：新增 `tests/test_actor_number_check_2026_11_16.py`（11 例）；ruff format/check、工具页/下拉/查缺/配置/授权门禁回归测试通过。
+
 ### AIO 三站（AVMOO / AVSOX / AVHeat）查看JSON 偶发 `code:500`（用户指定修复）
 - **现象**：网络检测页这三行点「查看JSON」偶尔弹出 `{"code": 500, "message": "Unable to complete the request. Please try again later.", "data": null}`。
 - **定性**：**不是**「按演员名搜番号」把功能改坏了——那条链路从未碰过 `json_view.py`（该文件最后一次改动是 9ba629c6，早于两次演员搜索提交）。真正原因是 AIO 后端（tellme.pw 平台，avmoo.shop / avsox.click / avheat.shop）处理不过来时返回 **HTTP 200 + 应用级错误信封**：HTTP 层不会重试，而查看JSON 旧实现只发一次裸 POST（既不预热会话 Cookie 也不认错误信封），于是这段错误体被原样糊到弹窗。
