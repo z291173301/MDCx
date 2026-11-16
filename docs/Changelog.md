@@ -16,6 +16,7 @@
 - **实现**：`actor_sources._official_brand_fetcher` 工厂 + `_OFFICIAL_BRAND_SITES` 表（30 站），注册进 `_SITE_FETCHERS`（在 `_SITE_FETCHERS_FC2` / `_WUMA` 两个变体字典之前 update，FC2 / 无码组同步可用）。工具页「官方网站」类型的可查源从 6 个涨到 36 个，34 家有码官网不再因无演员入口被整体跳过。
 - **未接入 → 已接入（补做）**：上一条记为「暂不接入」的 `Official·MGStage` 与 `Official·Faleno` 本轮也接上了 —— MGStage 走站内搜索的 `actor[]` 演员筛选（`cSearch.php?type=top&page=N&list_cnt=120&actor[]={演员名}_0`，**必须日文原字/繁体名**，简体「波多野结衣」不命中、繁体「波多野結衣」命中 120 条；首次访问可能返回年龄认证页，按 `crawlers/base/age_gate.py` 的成人入口规则重取一次），Faleno 是 WordPress 站，走 `wp-json/wp/v2/works?search={演员名}`（`search` 能命中 `acf.出演女優`，实测「つばさ舞」27 条）。实测 MGStage 366 个番号、Faleno 27 个番号；**官网组从 6 个源涨到 38 个源、`skipped` 清零**，34 家厂牌官网全部可按演员名查缺。
 - **刮削层未改**：厂牌官网爬虫的 `_generate_search_url` 是「按番号搜详情页」，与演员名搜索是两回事；入口 URL 模板已记入 `development.md` 供后续复用。
+- **单站超时上限**：厂牌官网 45 秒、MGStage 60 秒、Faleno 45 秒（`_SITE_TIMEOUTS`），超时由 `_run_source` 收手且不重试，个别站卡住不拖死整轮查缺。端到端实测：`collect_numbers("官方网站", ["波多野结衣"])` → 38 站参与、36.9 秒、合并去重 1453 个番号、25 个站点有贡献。
 - **校验**：新增 `tests/test_official_brand_actor_search.py`（13 例）与 4 份真实页面裁剪夹具（含 MGStage 搜索页与 Faleno REST 响应）；`test_actor_missing_numbers.py` 的官网组断言随接入同步；ruff format/check、mypy、线程安全、全量 `pytest -m "not network"` 通过。已提交并推送 GitHub：`8e2cdee6`（实现）+ `14074bc6`（补端到端实测结果到 `development.md`）。
 
 ### 工具页类型下拉加「官方网站」+ 查缺功能全链路审查修复（用户指定）
