@@ -3,6 +3,11 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### 两个「只获取单演员」复选框拆成独立配置项（用户指定）
+- **字段**：新增 `missing_single_actor_only`（检查缺失番号），与既有 `actor_number_single_actor_only`（查询演员番号）平级；两个键都写进 `resources/config/default_config.json`，默认 `false`（都不勾选）。`load_config` 各读各的、`save_config` 各写各的、`tool_page` 两处自动保存判断同步改口径，两枚复选框互不串改。
+- **旧配置升级**：`migrations._migrate_single_actor_checkboxes()` 把旧 `switch_on` 里的 `single_actor_only` 继承到 `missing_single_actor_only` 后清掉（也兼容同名顶层 bool 键），两个新键缺失时补 `false`；返回 `[迁移]` 消息让 `manager.load()` 首次启动即回写，第二次加载不再重复升级（幂等）。`Switch.SINGLE_ACTOR_ONLY` 枚举保留，仅用于解析旧值。
+- **校验**：新增 `tests/test_single_actor_config_2026_11_17.py`（10 例：默认值、旧开关继承/清理、显式新值优先、顶层旧 bool、幂等、序列化、两复选框运行时互不干扰），更新 `test_actor_missing_numbers.py` 的接线断言；ruff/mypy/线程安全、全量 `pytest tests/ -m "not network"` 通过。
+
 ### 查看JSON 弹窗：删关闭按钮 + 新增「获取JSON」原地重试（用户指定）
 - **界面**：底部 `QDialogButtonBox` 去掉 RejectRole 的「关闭」（标题栏 X 与 QDialog 默认 Esc 仍可关）；在「保存JSON」左侧加 `ActionRole` 的「获取JSON」，同角色按加入顺序排列保证位置。
 - **功能**：点击后重新解析 `json_view_target`（动态域名/凭据以当前配置为准），后台线程重发一次探测同款请求，通过新增的 `json_refetched` 信号回主线程**原地覆盖**「请求地址 + 返回体」，不弹第二个窗口；取数异常转成可读文案，finally 必摘在飞登记，按钮从「获取中…」恢复。用于查看JSON 偶发失败后直接重试。
