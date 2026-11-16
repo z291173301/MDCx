@@ -3,19 +3,27 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-16
+### AIO 三站（AVMOO / AVSOX / AVHeat）查看JSON 偶发 `code:500`（用户指定修复）
+- **现象**：网络检测页这三行点「查看JSON」偶尔弹出 `{"code": 500, "message": "Unable to complete the request. Please try again later.", "data": null}`。
+- **定性**：**不是**「按演员名搜番号」把功能改坏了——那条链路从未碰过 `json_view.py`（该文件最后一次改动是 9ba629c6，早于两次演员搜索提交）。真正原因是 AIO 后端（tellme.pw 平台，avmoo.shop / avsox.click / avheat.shop）处理不过来时返回 **HTTP 200 + 应用级错误信封**：HTTP 层不会重试，而查看JSON 旧实现只发一次裸 POST（既不预热会话 Cookie 也不认错误信封），于是这段错误体被原样糊到弹窗。
+- **修复**：新增 `mdcx/crawlers/aio_api.py` 协议层（识别错误信封 + 异步/同步两套退避重试）；查看JSON 改为与爬虫同款——tellme.pw 发布的**动态域名优先、静态/用户配置域名兜底**，GET 预热 `_csrf` Cookie 后再 POST，命中错误信封按 1s / 2.5s 退避重试 3 次；最终失败给出可读文案（`code=500 Unable to complete the request. Please try again later.`）而不是裸 JSON。`mdcx/base/web_sync.py` 补 `get_aio_domain_sync()` / `get_cookies_sync()` 两个同步包装供后台线程使用。
+- **连带修正**：① 网络检测 `_classify_aio_api` 旧判定只看 body 里有没有 `"data"` 字符串，而错误信封恰好带 `"data": null` → 同一个故障被误判成「连接正常，刮削正常」，现改为按 `code` 判定；② 三个刮削器（`avmoo_api` / `avsox_api` / `avheat_api`）改用同一协议层，后端抖动不再被报成「未找到匹配: XXX」；③ 演员搜索的 AIO fetcher 同样识别错误信封，翻页中断时写日志报原因，不再静默少一批番号。
+- **实测**：AIO 平台被并发打满时会直接掐 TLS（`curl: (35) SSL_connect: Connection closed abruptly`），单站顺序请求稳定返回 `code=200`——错误信封属后端偶发抖动，重试即可恢复。
+- **校验**：新增 `tests/test_aio_json_view_2026_11_16.py`（16 例：错误信封识别、异步/同步重试、动态域名优先 + 静态兜底、失败文案可读、网络检测不再误判、演员搜索中断带原因）；ruff format/check、mypy（292 文件）、线程安全、全量 `pytest -m "not network"` 通过。
+
 ### 厂牌官网按演员名搜番号（用户指定）
 - **调研**：用 Edge + curl_cffi 逐站实测 29 家同源 CMS 厂牌官网（`crawlers/sites_official/` 29 家 + DAHLIA）与 MGStage / Faleno。29 家共用同一套站内搜索 `{base}/search/list?keyword={关键字}&countup=0`（SSR 直出结果），作品链接 `/works/detail/{番号}`（番号多为无连字符形态，如 `ONSD340`），分页追加 `&page=N`；**演员名可直接当关键字**命中该演员全部作品，无需先找演员 id。29 家的搜索路径全部用站内探测番号实测可用，其中 23 家另用站内真实演员名端到端命中（S1「橋本ありな」178 个番号、Attackers「夏目彩春」、Madonna「水戸かな」、Premium「山岸逢花」、Dasdas「水川スミレ」…）。站是繁体站 → 名字依次试「原样 → 繁体 → 简体」。
 - **实现**：`actor_sources._official_brand_fetcher` 工厂 + `_OFFICIAL_BRAND_SITES` 表（30 站），注册进 `_SITE_FETCHERS`（在 `_SITE_FETCHERS_FC2` / `_WUMA` 两个变体字典之前 update，FC2 / 无码组同步可用）。工具页「官方网站」类型的可查源从 6 个涨到 36 个，34 家有码官网不再因无演员入口被整体跳过。
-- **未接入（记原因）**：`Official·MGStage` 整站年龄门 + SPA（`mgstage.com` 所有路径对无 JS 客户端返回同一份 SPA 首页，`mgstage.jp` 直接 403），`Official·Faleno` 是新系统 SPA、只有 `/top/works/{番号}/` 直达详情页没有公开搜索路径；两站番号均被 DMM / JavDB 覆盖，暂不接入并在查缺日志里说明。
+- **未接入 → 已接入（补做）**：上一条记为「暂不接入」的 `Official·MGStage` 与 `Official·Faleno` 本轮也接上了 —— MGStage 走站内搜索的 `actor[]` 演员筛选（`cSearch.php?type=top&page=N&list_cnt=120&actor[]={演员名}_0`，**必须日文原字/繁体名**，简体「波多野结衣」不命中、繁体「波多野結衣」命中 120 条；首次访问可能返回年龄认证页，按 `crawlers/base/age_gate.py` 的成人入口规则重取一次），Faleno 是 WordPress 站，走 `wp-json/wp/v2/works?search={演员名}`（`search` 能命中 `acf.出演女優`，实测「つばさ舞」27 条）。实测 MGStage 366 个番号、Faleno 27 个番号；**官网组从 6 个源涨到 38 个源、`skipped` 清零**，34 家厂牌官网全部可按演员名查缺。
 - **刮削层未改**：厂牌官网爬虫的 `_generate_search_url` 是「按番号搜详情页」，与演员名搜索是两回事；入口 URL 模板已记入 `development.md` 供后续复用。
-- **校验**：新增 `tests/test_official_brand_actor_search.py`（8 例）与 2 份真实搜索页裁剪夹具（`official_s1_search.html` / `official_attackers_search.html`）；`test_actor_missing_numbers.py` 的官网组断言随接入同步；ruff format/check、mypy、线程安全、全量 `pytest -m "not network"` 通过。
+- **校验**：新增 `tests/test_official_brand_actor_search.py`（13 例）与 4 份真实页面裁剪夹具（含 MGStage 搜索页与 Faleno REST 响应）；`test_actor_missing_numbers.py` 的官网组断言随接入同步；ruff format/check、mypy、线程安全、全量 `pytest -m "not network"` 通过。已提交并推送 GitHub：`8e2cdee6`（实现）+ `14074bc6`（补端到端实测结果到 `development.md`）。
 
 ### 工具页类型下拉加「官方网站」+ 查缺功能全链路审查修复（用户指定）
-- **界面**：「检查演员缺失番号」右侧类型下拉在「自动判断」下方新增「官方网站」；`MDCx.ui` 改完按 pyuic6 + ruff format 重新生成 `MDCx.py`（diff 仅新增项）。逻辑接通到「类型刮削网站-官方网站」组（`_ACTOR_TYPE_TO_SCRAPING` / `missing.py` 映射 / `_TYPE_DISPLAY` / Excel 类型列），组内 32 个 studio 详情页无演员索引照常跳过并在日志说明，实际可用 6 源。
+- **界面**：「检查演员缺失番号」右侧类型下拉在「自动判断」下方新增「官方网站」；`MDCx.ui` 改完按 pyuic6 生成到临时文件、ruff format 后与现文件比对，确认只多出新增项再替换 `MDCx.py`（生成器一行无关的路径写法已还原）。逻辑接通到「类型刮削网站-官方网站」组（`_ACTOR_TYPE_TO_SCRAPING` / `missing.py` 映射 / `_TYPE_DISPLAY` / Excel 类型列），组内 32 个 studio 详情页无演员索引照常跳过并在日志说明，实际可用 6 源。
 - **审查**：用 Microsoft Edge 抽查 IQQTV / JavDay / Madou.club / FC2 / FC2CMADB / JavFree / JavBus 的搜索页与分页形态，沿「工具页入口 → missing.py → collect_numbers → 各站 fetcher」逐层核对，问题与证据表见 `development.md`「检查演员缺失番号全链路审查与修复」。
 - **修复**：① 本地番号对比改用本次扫描快照（全局 `Flags.local_number_set` 跨次残留会漏报缺失）② 空/坏缓存文件读取保护 ③ 缓存由「每部影片全量重写整份 JSON」改为循环结束后写一次 ④ 前缀剥离保留 `-2`/`-C` 分集后缀与 `FC2-PPV-` 多连字符 ⑤ FC2 不再把卖家名兜底写进「演员」列 ⑥ MyWife 网页版/JSON 版登记同组让 `fallback_for` 短路生效 ⑦ 站点/演员级异常写日志与 traceback，不再伪装成「无数据」 ⑧ JavDay 补 `/search/page/{n}/wd/{kw}/` 分页（实测 4 页、第 2 页番号与首页不重叠）⑨ FC2 站内搜索复用 `manager.config.fc2` Cookie ⑩ `_cell_date` 的 except 括号化。
 - **刻意未改**：重试模型（整段 fetch 重试 / Xcity 单页 3 次）、FC2CMADB 与 Madou.club 的站点数据/反爬空结果、协作式取消与全局按钮复位，理由均记在 `development.md`。
-- **校验**：新增 `tests/test_missing_audit_2026_11_16.py`（11 例）与 JavDay 真实两页裁剪夹具；ruff format/check、mypy、线程安全、全量 `pytest -m "not network"` 全部通过。
+- **校验**：新增 `tests/test_missing_audit_2026_11_16.py`（11 例）与 JavDay 真实两页裁剪夹具；ruff format/check、mypy、线程安全、全量 `pytest -m "not network"` 全部通过。已提交并推送 GitHub（`MDCx-Beta/main`）：`6d3bb9ca` 主改动 + `b6222305` 文档代码块格式修正。
 
 ### 9 个聚合/综合站演员搜索入口调研 + 查缺工具补齐（用户指定）
 - **浏览器定规**：操作浏览器一律默认 Microsoft Edge（本机 `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`），写入 `docs/MEMORY.md`「本机环境」与 `development.md` 首节；需要浏览器验证的结论必须以 Edge 实际打开为准，批量取 HTML 用 Edge headless 或项目 curl_cffi 通道。
@@ -23,7 +31,7 @@
 - **新增**：`Lulubar`（`/video/bygirldetail?name=`；`/video/bysearch?search=` 稳定 403 CF 不可用）、`AVEntertainments`（`searchby=starring` → 详情页 `tag-title` 品番，与爬虫共用 verifybot Cookie）两个 fetcher；`Website.AIRAV` 网页版复用 `Airav_JSON` fetcher 只改站点标注。
 - **修正**：`AVBase_JSON` 改读 Next.js `__NEXT_DATA__` 的 `works[]` 并保留 `href="/works/{番号}"` 回退、支持分页（空结果不把 CSS 类名误收成番号）；`FreeJavBT` / `Jav321` 翻页上限 10 → `_MAX_PAGES`（FreeJavBT 实测 44 页）。`FreeJavBT` / `Jav321` / `7mmtv` / `Airav.cc` / `Xcity` 五个既有 fetcher 复核通过。
 - **口径**：`_AUTO_SITE_ORDER` 自动判断固定链按既有测试钉死不动，新增站点走「指定类型 → 类型刮削网站」配置组；刮削层三个 `NotImplementedError` 搜索入口未动，URL 模板留待复用。
-- **校验**：新增 `tests/test_actor_sources_sites_2026_11_16.py`（10 例）与 4 份 Edge 真实页面裁剪夹具；修正 `tests/test_actor_sources_aggregates.py` 里按展示形番号拼比较键的错误期望（`DSOD-012` → `DSOD12`）与 E741；`LOCAL_VERSION` 20261115 → 20261116。
+- **校验**：新增 `tests/test_actor_sources_sites_2026_11_16.py`（10 例）与 4 份 Edge 真实页面裁剪夹具；修正 `tests/test_actor_sources_aggregates.py` 里按展示形番号拼比较键的错误期望（`DSOD-012` → `DSOD12`）与 E741；`LOCAL_VERSION` 20261115 → 20261116；门禁全绿（ruff format --check / ruff check / mypy `mdcx/` / `check_thread_safety` / 全量 `pytest -m "not network"` 退出码 0，`scripts/bump.py --check` 一致）。
 
 ### 「显示网页站点」控制三站显隐 + 「启用刮削兜底」控制三对 JSON→网页版兜底（用户指定）
 - **需求 1：三站网页版随开关显隐**。未勾选「显示网页站点」时，`DMM` / `JavDB` / `Official·MyWife` 三个网页版刮削器从「可用网站：按类型分组」「启用网站：从左到右优先级递减」「字段优先级」弹窗的顶部「可用网站」面板及标题/原标题/简介/原简介等每个字段行中隐藏；勾选时全部显示，名单顺序与改动前逐项一致。实现落在**名单构建处**而非渲染层：`hidden_web_sites_for_ui()` 以 `SHOW_WEB_SITES_ONLY_WEB`（三站）为唯一隐藏口径，`_current_hidden_web_sites()` 供 `_open_site_editor()` / `_open_priority_editor()` / `grouped_palette_groups()` 共用；过滤只减不增，两态的排序口径（`_sort_sites_for_priority()`）未动。
