@@ -3,6 +3,21 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-16
+### 工具页类型下拉加「官方网站」+ 查缺功能全链路审查修复（用户指定）
+- **界面**：「检查演员缺失番号」右侧类型下拉在「自动判断」下方新增「官方网站」；`MDCx.ui` 改完按 pyuic6 + ruff format 重新生成 `MDCx.py`（diff 仅新增项）。逻辑接通到「类型刮削网站-官方网站」组（`_ACTOR_TYPE_TO_SCRAPING` / `missing.py` 映射 / `_TYPE_DISPLAY` / Excel 类型列），组内 32 个 studio 详情页无演员索引照常跳过并在日志说明，实际可用 6 源。
+- **审查**：用 Microsoft Edge 抽查 IQQTV / JavDay / Madou.club / FC2 / FC2CMADB / JavFree / JavBus 的搜索页与分页形态，沿「工具页入口 → missing.py → collect_numbers → 各站 fetcher」逐层核对，问题与证据表见 `development.md`「检查演员缺失番号全链路审查与修复」。
+- **修复**：① 本地番号对比改用本次扫描快照（全局 `Flags.local_number_set` 跨次残留会漏报缺失）② 空/坏缓存文件读取保护 ③ 缓存由「每部影片全量重写整份 JSON」改为循环结束后写一次 ④ 前缀剥离保留 `-2`/`-C` 分集后缀与 `FC2-PPV-` 多连字符 ⑤ FC2 不再把卖家名兜底写进「演员」列 ⑥ MyWife 网页版/JSON 版登记同组让 `fallback_for` 短路生效 ⑦ 站点/演员级异常写日志与 traceback，不再伪装成「无数据」 ⑧ JavDay 补 `/search/page/{n}/wd/{kw}/` 分页（实测 4 页、第 2 页番号与首页不重叠）⑨ FC2 站内搜索复用 `manager.config.fc2` Cookie ⑩ `_cell_date` 的 except 括号化。
+- **刻意未改**：重试模型（整段 fetch 重试 / Xcity 单页 3 次）、FC2CMADB 与 Madou.club 的站点数据/反爬空结果、协作式取消与全局按钮复位，理由均记在 `development.md`。
+- **校验**：新增 `tests/test_missing_audit_2026_11_16.py`（11 例）与 JavDay 真实两页裁剪夹具；ruff format/check、mypy、线程安全、全量 `pytest -m "not network"` 全部通过。
+
+### 9 个聚合/综合站演员搜索入口调研 + 查缺工具补齐（用户指定）
+- **浏览器定规**：操作浏览器一律默认 Microsoft Edge（本机 `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`），写入 `docs/MEMORY.md`「本机环境」与 `development.md` 首节；需要浏览器验证的结论必须以 Edge 实际打开为准，批量取 HTML 用 Edge headless 或项目 curl_cffi 通道。
+- **调研**：用 Edge 逐个打开 9 站搜索入口，逐站 URL 表、番号位置、分页与不可用结论记入 `development.md`「聚合/综合站「按演员名搜番号」调研」。R18.dev 确认没有「演员名 → 番号」入口（keyword / actress list 接口全 404，首页只认已知 actress id），按用户口径不接入、不再调研，结论同步 `docs/MEMORY.md`。
+- **新增**：`Lulubar`（`/video/bygirldetail?name=`；`/video/bysearch?search=` 稳定 403 CF 不可用）、`AVEntertainments`（`searchby=starring` → 详情页 `tag-title` 品番，与爬虫共用 verifybot Cookie）两个 fetcher；`Website.AIRAV` 网页版复用 `Airav_JSON` fetcher 只改站点标注。
+- **修正**：`AVBase_JSON` 改读 Next.js `__NEXT_DATA__` 的 `works[]` 并保留 `href="/works/{番号}"` 回退、支持分页（空结果不把 CSS 类名误收成番号）；`FreeJavBT` / `Jav321` 翻页上限 10 → `_MAX_PAGES`（FreeJavBT 实测 44 页）。`FreeJavBT` / `Jav321` / `7mmtv` / `Airav.cc` / `Xcity` 五个既有 fetcher 复核通过。
+- **口径**：`_AUTO_SITE_ORDER` 自动判断固定链按既有测试钉死不动，新增站点走「指定类型 → 类型刮削网站」配置组；刮削层三个 `NotImplementedError` 搜索入口未动，URL 模板留待复用。
+- **校验**：新增 `tests/test_actor_sources_sites_2026_11_16.py`（10 例）与 4 份 Edge 真实页面裁剪夹具；修正 `tests/test_actor_sources_aggregates.py` 里按展示形番号拼比较键的错误期望（`DSOD-012` → `DSOD12`）与 E741；`LOCAL_VERSION` 20261115 → 20261116。
+
 ### 「显示网页站点」控制三站显隐 + 「启用刮削兜底」控制三对 JSON→网页版兜底（用户指定）
 - **需求 1：三站网页版随开关显隐**。未勾选「显示网页站点」时，`DMM` / `JavDB` / `Official·MyWife` 三个网页版刮削器从「可用网站：按类型分组」「启用网站：从左到右优先级递减」「字段优先级」弹窗的顶部「可用网站」面板及标题/原标题/简介/原简介等每个字段行中隐藏；勾选时全部显示，名单顺序与改动前逐项一致。实现落在**名单构建处**而非渲染层：`hidden_web_sites_for_ui()` 以 `SHOW_WEB_SITES_ONLY_WEB`（三站）为唯一隐藏口径，`_current_hidden_web_sites()` 供 `_open_site_editor()` / `_open_priority_editor()` / `grouped_palette_groups()` 共用；过滤只减不增，两态的排序口径（`_sort_sites_for_priority()`）未动。
 - **需求 2：三对兜底受「启用刮削兜底」控制**。勾选时 `DMM_JSON→DMM`、`JavDB_JSON→JavDB`、`Official·MyWife_JSON→Official·MyWife` 生效：JSON 站刮不到数据时整站回退网页版，JSON 有数据但缺片商/封面等字段时由网页版补齐（封面/海报/剧照随之进入图片候选，由 `web.py` 依次降级下载）；完整 / 速度优先路径经 `aio_web_fallbacks()` 追加网页版，演员番号检查经 `_order_aio_sources()` 追加。未勾选时三对**完全不兜底**——新增 `web_fallback_for()` 作为唯一受门控入口，并在 `file_crawler` 的整站回退与字段补齐两处、`actor_sources` 的排序处显式接入；旧代码只看 `JSON_TO_WEB_SITE`，开关关闭时仍会偷偷回退，现已修正。

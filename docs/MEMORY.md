@@ -47,6 +47,7 @@
 
 ## 本机环境
 
+- **操作浏览器一律默认用 Microsoft Edge**（2026-11-16 用户定规，已按此执行）：本机路径 `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`（当前 157.0.4341.60）。联网调研站点、打开搜索入口、验证页面 DOM、点选/翻页等一切需要浏览器的动作都走 Edge，不用 Chrome、不用系统默认浏览器、不用 `webbrowser.open()` 的隐式默认；Playwright / Browser Use 显式指定 `executable_path` 指向该 exe（或 `channel="msedge"`）。**Windows 上 `msedge.exe --headless --dump-dom` 实测退出码 0 但 stdout 恒为 0 字节，不能用它抓 DOM**（2026-11-16），要渲染后源码一律用 Playwright 驱动 Edge；不需要渲染的批量取数仍用项目 curl_cffi/httpx 通道，但**需要浏览器验证的结论必须以 Edge 打开为准**。本机联网固定走 `http://127.0.0.1:7897`（Playwright 用 `proxy={"server": ...}`）。
 - Windows；Python 3.15 装在 `C:\Program Files\Python315`，**项目默认 3.15**（`requires-python >=3.15`，版本声明五处同步：`pyproject.toml`、`uv.lock`、`requirements.txt` 头注、README 徽章、`docs/Development.md` 第 8 节，测试里的 `skipif` 守卫同步）。仓库标准仍是 uv，别把 CI 写法改成本机口径。
 - 一律用 `python main.py`、`python -m pytest tests/ --tb=short -m "not network"`、`python scripts/quick_check.py`、`python scripts/check.py --skip-hook-install`；脚本自带 `resolve_tool()` 兜底。
 - GitHub：直连 TLS 被 reset、5915 代理 502，**Clash 7897 可用**（命令见上）。推送报 schannel「server closed abruptly」先查是否已推上去。
@@ -152,6 +153,9 @@
 ## 站点与网络
 
 - 各站探测番号与收录依据见爬虫类注释；JavDB 仅 FC2 系列需要 Cookie。
+- **R18.dev 没有「通过演员名搜索番号」的功能，不用管**（2026-11-16 用户定规 + Edge 实测）：`r18.dev` 只有按番号直连详情的 `/videos/vod/movies/detail/-/dvd_id=…/json`，以及首页按**已知 actress id** 列作品的 `/videos/vod/movies/list/?id=…&type=actress`；没有「演员名 → actress id」的搜索入口，`/videos/vod/movies/search/-/keyword=…/json` 与 `/videos/vod/actress/list/-/page=1/json` 实测均 404。故 `R18_JSON` / `R18.dev` 不进「检查演员缺失番号」的 `_SITE_FETCHERS`，也不再为它调研演员搜索；刮削继续按番号直连详情，行为不变。
+- **查缺站点入口按实测表改，不凭猜**（2026-11-16）：9 个聚合/综合站的搜索 URL、番号位置、分页与不可用结论都记在 `development.md`「聚合/综合站「按演员名搜番号」调研」，新增或修改 `actor_sources.py` 的 fetcher 前先按该表复核；URL 变更要用 Edge 实际打开验证，HTTP 200 不等于入口可用（AVBase 会回 200 但 `works` 为空、Lulubar `bysearch` 稳定 403 CF）。自动判断固定链由 `test_auto_site_chains_match_user_spec` 精确钉死，新增站点走「指定类型」配置组，不要顺手改固定链。
+- **查缺主流程三条硬口径**（2026-11-16 审查定稿）：① 本地番号对比只用**本次扫描的 `local_movies` 快照**，绝不用跨次不清空的全局 `Flags.local_number_set`；② `number_list.json` 只在**扫描循环结束后写一次**，不在每部影片里全量重写整份 JSON；③ 番号前缀只削开头数字（`_strip_number_prefix`），保留 `-2`/`-C` 分集后缀与 `FC2-PPV-` 多连字符。站点级异常必须写日志，不能压成空结果后照常打印「查询完毕」。
 - 站点 API 坑：missav_api 的 Recombee 仅 POST；DMM Affiliate v3 必需 site/service/floor 且 keyword 用 content_id 形态；madouqu 域名动态维护（24h 缓存）；madou_club 番号无横杠；parsel `Selector.get()` 纯 JSON 返回 dict（解析兼容 str/dict/Selector 三态）。
 - **当前注册爬虫 86 个**（`docs/Features.md` 同步）；数字开头模块名（`7mmtv.py`）用 `importlib.import_module` 加载。
 - 站点收录边界：AVEntertainments 只在无码组；Getchu 大陆 IP 过不了 CF 故从六组移除；Official·有码 29 站只在有码组、无码五站只在无码组。
