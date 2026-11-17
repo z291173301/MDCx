@@ -3,6 +3,14 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### 「查询演员番号」「检查缺失番号」只有已授权才能用（用户指定）
+- **需求**：这两个功能改成只有已授权才能使用，未授权像其他功能一样弹出窗口提示需要获取授权。
+- **原状**：`GUARDED_ACTIONS` 里两枚按钮早已登记（GUI 层点击闸门），点按钮确实会弹「请获取授权」；但闸门只拦鼠标左键按下与空格/回车，程序化 `click()`、快捷键、侧栏「查看本地番号」浮标等旁路都能直接跑到任务里——功能层面并不成立「只有已授权才能使用」。
+- **改动**：`tool_page.ToolPageMixin` 新增 `_require_license(action)`，三个入口在干活前先问一次授权：「检查缺失番号」按钮、「查询演员番号」按钮、侧栏左下角「查看本地番号」浮标（后者跑的是同一套 `missing.check_missing_number` 后端、同样联网取号）。未授权时弹「请获取授权」并直接返回，任务不提交、连配置自动保存也不触发；已授权时行为一字不变。
+- **文案**：弹窗走主窗统一闸门 `MyMAinWindow._premium_gate()` → `premium_gate.premium_message()`，标题固定「请获取授权」，功能名沿用 `GUARDED_ACTIONS` 里登记的「检查缺失番号」「查询演员番号」，与其它受保护功能逐字同源。
+- **兜底**：`premium_warning()` 的父窗口参数允许不是 QWidget（纯 Python 宿主）——此时不弹框但拒绝照常发生，避免无 GUI 的调用方被模态框卡住。
+- **校验**：新增 `tests/test_tool_page_license_gate_2026_11_17.py`（9 例：未授权弹窗且不提交任务、不自动保存、侧栏浮标同样被拦、已授权照常提交、弹窗正文与共享模板一致、两枚按钮仍在点击闸门清单里）；更新 `test_actor_missing_numbers.py` / `test_actor_number_check_2026_11_16.py` 直接调用 handler 的用例（补 `_premium_gate` 桩）；ruff format/check、mypy（295 文件）、线程安全、全量 `pytest tests/ -m "not network and not integration"` 通过。
+
 ### 两个「只获取单演员」复选框拆成独立配置项（用户指定）
 - **字段**：新增 `missing_single_actor_only`（检查缺失番号），与既有 `actor_number_single_actor_only`（查询演员番号）平级；两个键都写进 `resources/config/default_config.json`，默认 `false`（都不勾选）。`load_config` 各读各的、`save_config` 各写各的、`tool_page` 两处自动保存判断同步改口径，两枚复选框互不串改。
 - **旧配置升级**：`migrations._migrate_single_actor_checkboxes()` 把旧 `switch_on` 里的 `single_actor_only` 继承到 `missing_single_actor_only` 后清掉（也兼容同名顶层 bool 键），两个新键缺失时补 `false`；返回 `[迁移]` 消息让 `manager.load()` 首次启动即回写，第二次加载不再重复升级（幂等）。`Switch.SINGLE_ACTOR_ONLY` 枚举保留，仅用于解析旧值。

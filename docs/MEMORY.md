@@ -24,6 +24,7 @@
 - **账单导入与授权弹窗分文件**：账单导入只在 `bill_import_ui.py`（按钮、机器绑定轮询、导入流程），不写授权弹窗；未绑定机器的点击由 `premium_gate.MachineBoundClickGuard` 在按钮层拦，`import_bill()` 不再出现授权判断。
 - **未授权 ≠ 关掉入口**（2026-10-27 口径，推翻此前「演员管理整窗拦」）：窗口能开、能连 Emby 读取、能统计；只有联网取数 / 写回服务器 / 写本地文件的动作点时才拦。独立顶层窗口（演员管理器）走 `premium_gate.premium_denied()`，主窗走 `premium_gate.premium_gate()`，两者共用同一份弹窗文案。
 - **未授权点击只弹窗，不写状态栏 / 日志**（2026-10-28 用户口径）：被拦时只弹 `premium_gate.premium_warning()`，不要再 `show_scrape_info("🔒 …：请获取授权")`，也不要 `show_log_text(...)` 追加一行；演员管理器的 `_premium_blocked()` 同样不写窗口日志，开窗时也不打印「🔒 未授权…」提醒。额度用完的「今日免费额度已用完」状态提示不在此列。
+- **受保护功能要拦在功能层，不只拦点击**（2026-11-17 用户口径）：GUI 层的事件过滤器（`premium_gate.GUARDED_ACTIONS`）只拦鼠标左键按下与空格/回车，程序化 `click()`、快捷键、侧栏浮标等旁路都会绕过去——凡是用户要求「只有已授权才能使用」的功能，handler 开头必须再问一次授权（主窗走 `self._premium_gate(action)`，工具页见 `tool_page.ToolPageMixin._require_license`），且被拦时**任务不提交、配置自动保存也不触发**；同一后端的所有入口（例：侧栏「查看本地番号」浮标与工具页「检查缺失番号」按钮共用 `missing.check_missing_number`）要一起拦，不能只拦其中一个入口。
 
 ## 检查与提交纪律
 
