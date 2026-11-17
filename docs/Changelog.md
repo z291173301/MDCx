@@ -3,6 +3,15 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### 修复查缺取号骤降（141/145）+ 查询演员番号导出与缺失表同款（用户指定）
+- **现象**：三上悠亚在 JavDB 演员页 `https://javdb580.com/actors/Av2e` 标称 323 部影片；「查询演员番号」只勾 JavDB_JSON 导出 145 个，「检查缺失番号-自动判断」导出 141 个且八列表的「网站」列全是 JavDB_JSON，DMM / JavDB / IQQTV / 7mmtv 等一个番号都没有（前天还能取到 353 个）。
+- **根因①（站点被短路）**：`build_sources` 套用了刮削用的 `_order_aio_sources`，在「启用刮削兜底」开关打开时把固定链里的 JavDB / DMM 网页版降级成 JSON 版的隐藏兜底（`fallback_for`），JavDB_JSON 关键词一出号就整站跳过——实测 JavDB 演员页能取 321 个，却根本没跑。新增 `_order_missing_sources`：查缺清单只去重保序，每站都独立取号；`_order_aio_sources` 保留给刮削/既有测试。
+- **根因②（名字变体解析失效）**：`resolve_actor_names` 的 `/api/v2/search?type=actor` 没带登录 token（必然 `JWTVerificationError: 請登錄帳號`），网页名字块是 `<span class="actor-section-name">` 却用 `//div` 找，两条同时失效，结果只剩 `三上悠亚 / 三上悠亞`，DMM / JavBus / AVMOO 等按日文原名搜索的站全部 0 结果。现在带 `Authorization: Bearer …`、用通配标签取名字块，并加本地演员库 `resolve_jp_name` 兜底；实测解析出 `三上悠亜`。
+- **根因③（JavDB_JSON 用错入口）**：旧实现是 `type=movie` 关键词搜索，只匹配标题里写了名字的影片（145 条，还混入 FC2 / 合辑）。改为 App 演员搜索拿 `actor_id` → 同站演员主页分页取全部作品，统一标注 JavDB_JSON；找不到演员时（动漫社团名 / FC2 卖家名）回退原关键词搜索。实测单站 321 个（演员页 9 页共 321 张卡片，页面「323 部影片」是站点统计口径，差 2 条非解析漏号）。
+- **导出格式**：`actor_number_check.report_actor_numbers` 不再写「站点统计/站点番号明细/番号汇总」三张表，改为复用 `missing.write_number_excel` / `excel_target`：单 Sheet 八列、冻结首行、宋体 11、日期为 Excel 日期型、演员列查询名兜底、文件名 `演员名YYYY-MM-DD HH-MM-SS.xlsx`，与检查缺失番号完全同款；逐站取号量/独占数/覆盖率仍逐行打日志。写表前同样补一次本行来源站详情页（并发 8、总预算 120s，超时按已有字段导出）。
+- **实测**：修复前自动判断全链 143 个（仅 JavDB_JSON）；修复后 447 个——DMM 421、DMM_JSON 421、JavDB 321、JavDB_JSON 321、JavBus 195 均出号，JavDB_JSON 单站 321 个。IQQTV 为国产站、7mmtv 不在有码固定链里，不因本次改动新增请求（清单即边界）。
+- **校验**：新增 `tests/test_actor_numbers_regression_2026_11_17.py`（5 例），更新 `test_actor_number_check_2026_11_16.py` 导出格式断言；ruff format/check、mypy（295 文件）、线程安全、全量 `pytest tests/ -m "not network and not integration"` 通过。
+
 ### 查缺「自动判断」清单即边界 + HEYZO/MyWife 按演员取号防串演员（用户指定）
 - **现象**：选「自动判断」查缺时日志出现 `www.caribbeancom.com 404`、`mywife.jp 403`、`www.libredmm.com 404「Movie not found」/ 406` 等清单外网站的请求失败；用「三上悠亚」在 HEYZO_JSON 取号却拿到如月ジュリ（HEYZO-1294）、双葉みお（HEYZO-1449）等别人的作品，MyWife_JSON 同样串演员。
 - **清单即边界**：`build_sources` 不再无条件给自动判断 / 指定类型两条路径追加 5 家官网 JSON 版；仅 `actor_type == "官方网站"` 时补这五站（出厂官网组只列 33 家网页版，避免该类型能力退化）。自动判断链里没有官网，`_prepare_official_names` 也不会再为一轮查缺额外发 JavDB 名字解析请求。
