@@ -106,7 +106,8 @@ jobs:
 
       - name: Run ruff format
         if: steps.changes.outputs.code_changed == 'true'
-        run: uv run ruff format --check
+        # 全仓统一 `except (A, B):`；按 py313 检查，避免 3.14+ 的 PEP 758 去括号改写
+        run: uv run ruff format --check --target-version py313
 
       - name: Run ruff check
         if: steps.changes.outputs.code_changed == 'true'
