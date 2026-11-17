@@ -3,6 +3,17 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### 通用域名限速改为 10 req/s + 600 req/min 双桶（用户指定）
+- **口径**：JavDB 网页域名保持 5 req/s + 300 req/min 专属档；其余站点（含 JavDB App API 的 `apidd.czssdgz.com` 等独立域名）统一为每秒 10 个、滚动 60 秒不超过 600 个（10 × 60 = 600），取代原先 `AsyncLimiter(8, 1)` 的单桶默认档。
+- **改动**：`web_async.AsyncWebLimiters` 新增 `_GENERAL_RATE_PER_SEC=10` / `_GENERAL_RATE_PER_MIN=600`，`get()` 对未预置的 host 创建 `_CompositeLimiter(AsyncLimiter(10, 1), AsyncLimiter(600, 60))`；显式传非默认 `rate` / `period` 时仍按调用方单桶处理，保留旧接口。预置专属档不变：wiki 5 req/s + 180 req/min（贴 Wikimedia 官方 200/min 配额，不能为「统一」而改）、`javdb580.com` 5/300、本机地址 300 req/s。
+- **校验**：`tests/test_wiki_rate_limit.py` 与 `tests/test_javdb_meta_throttle_2026_11_17.py` 同步改为双桶断言，并补自定义 `rate` 兼容用例与本机地址断言；相关 89 例、`ruff check`、format check 全通过。
+
+### JavDB 域名限速改为 5 req/s + 300 req/min 双桶（用户指定）
+- **口径**：取代本日「详情页补齐」条目里把「javdb延时(秒)」换算成 `AsyncLimiter(1, N)` 的做法（默认 N=10 会变成每 10 秒 1 个 = 0.1 req/s，比预期慢 10 倍）。用户定规：JavDB 网页域名每秒最多 5 个请求，且滚动 60 秒总量不超过 300 个（5 × 60 = 300，两桶一致）。
+- **改动**：`web_async.AsyncWebLimiters.__init__` 照 wiki 双桶写法预置 `_CompositeLimiter(AsyncLimiter(5, 1), AsyncLimiter(300, 60))`，新增常量 `_JAVDB_RATE_PER_SEC=5` / `_JAVDB_RATE_PER_MIN=300`；删掉 `_javdb_interval_seconds()`、`_javdb_interval` 与 `get()` 里的动态分支，回到 `setdefault` 默认 8 req/s。限速器仍挂在 `AsyncWebClient` 单例上按 host 全局共享，线程数量只影响排队、不会放大速率；App API 独立域名仍走默认 8 req/s。
+- **界面**：「多线程刮削 → javdb延时(秒)」(`config.javdb_time`) 不再参与 HTTP 限速，保留读写只为兼容旧配置；未改 UI 文案（避免 pyuic6 产物逐字节同步风险）。
+- **校验**：`tests/test_javdb_meta_throttle_2026_11_17.py` 的限速器用例改写为双桶断言（5/1 + 300/60、每 host 独立、其它域名 8 req/s）；相关 84 例、`ruff check .`、`ruff format --check --target-version py313 .` 全通过。
+
 ### 详情页补齐：时长上界 + javdb580 独立限速 + 退避冷却 + App API 优先（用户指定）
 - **现象**：`三上悠亜2026-11-17 17-16-22.xlsx` / `17-18-16.xlsx` 两张导出表各 321 行，时长只有 12 / 8 个非空（发行日与封面 100% 完整），日志为「补齐 12 个，仍缺 309 个（javdb580.com 限流，已跳过该站剩余详情请求）」；另有 `FKONE-001=2091`、`FKONE-003=1493` 分钟这类合集总时长混进单片时长列。
 - **时长上界**：`utils/shared_fields.clean_duration` 新增 `MAX_DURATION_MINUTES=600`，纯数字与 `H:MM(:SS)` 两种形式统一校验 `(0, 600]`，超界一律返空（宁可留空，不写假数据）；同步把既有 `1440 分鍾` 测试样例改回合理片长并补 2091 回归。
