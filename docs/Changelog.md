@@ -3,6 +3,14 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### JavDB / JavDB_JSON 取号同源 + 演员页标称数差异日志（用户指定）
+- **一致性实测（6 位演员）**：修复前「涼森れむ / 白上咲花 / 波多野結衣 / 小鳥遊なぎ」在 JavDB 网页版全部 0 个，JavDB_JSON 分别 190 / 76 / 2395 / 1 个；三上悠亜、新有菜两站一致（321 / 325）。根因是网页演员搜索 `/search?q=…&f=actor` 偶发限流跳登录页，而 JavDB_JSON 走 App 演员 API（带 token）能稳定定位演员。
+- **同源改造**：新增 `_javdb_actor_hits(names)`（统一 base → `_javdb_app_actor_path` 演员定位 → `_javdb_actor_numbers` 演员主页分页），`_fetch_javdb` 与 `_fetch_javdb_app_all` 都只在其结果上改 `NumberHit.site` 标注；删掉旧 `_javdb_site_numbers`。`_javdb_app_actor_path` 改为接受整组名字变体：App API 逐个试，全部无结果才逐个回退网页搜索。动漫/FC2 仍由 `_JAVDB_KEYWORD_ONLY` 走关键词搜索。
+- **复测**：6 位演员两站番号集合全部 `same=True`（321/325/190/76/2395/1），`only_web` 与 `only_json` 均为 0。另核实波多野結衣 2395 个不是翻页截断——第 60 页是最后一页（无 `pagination-next`），`page=61+` 返回的都是第 60 页同一批番号。
+- **321 / 322 / 323 差异核查**：用户数出 8×40+2=322、页面标称「323 部影片」，导出表 321 个。逐页抓取 + 集合比对结论：演员页 9 页实为 40×8+1=321 张卡片、321 个唯一番号，与 `三上悠亜2026-11-17 11-22-28.xlsx` 的 A2:A322 **逐条完全一致**（无空番号、无重复、无被 `normalize_key` 过滤）。用户点名的第 9 页第二部 `TEK-071`（`https://javdb580.com/v/mOdqY`）实际在第 8 页末尾（该页最后三条 TEK-073/TEK-072/TEK-071），且已在导出表里——是分页边界把同一条推到相邻页造成的重复计数，不是丢号。带/不带登录 cookie、Chrome UA、`ja` 语言、`www`/`javdb581` 域名、随机参数绕缓存、`filter=p/s/m/c` 等 9 种请求下第 9 页均只有 `TEK-067` 一张卡片、全页仅 1 个 `/v/` 链接；前端 `app-*.js` 也没有演员作品的动态加载逻辑。App 关键词搜索 318 条里，演员页之外的 20 条全是 FC2 流出 / 合辑 / 蓝光版 / 标题提及，不是被漏掉的单体作品。
+- **可见化**：新增 `_javdb_stated_total()` 解析演员页「N 部影片」，标称数与列表实取数不一致时打日志（如「标称 323 部影片，列表实际展示 321 部（差 2 部为站点统计/未展示条目，非程序漏号）」），以后不必再靠数分页判断有没有漏抓。
+- **校验**：`tests/test_actor_numbers_regression_2026_11_17.py` 补 2 例（两站同源只差站点标注、标称数解析），并按新签名更新 1 例；ruff format/check、mypy（295 文件）、线程安全、全量 `pytest tests/ -m "not network and not integration"` 通过。
+
 ### 修复查缺取号骤降（141/145）+ 查询演员番号导出与缺失表同款（用户指定）
 - **现象**：三上悠亚在 JavDB 演员页 `https://javdb580.com/actors/Av2e` 标称 323 部影片；「查询演员番号」只勾 JavDB_JSON 导出 145 个，「检查缺失番号-自动判断」导出 141 个且八列表的「网站」列全是 JavDB_JSON，DMM / JavDB / IQQTV / 7mmtv 等一个番号都没有（前天还能取到 353 个）。
 - **根因①（站点被短路）**：`build_sources` 套用了刮削用的 `_order_aio_sources`，在「启用刮削兜底」开关打开时把固定链里的 JavDB / DMM 网页版降级成 JSON 版的隐藏兜底（`fallback_for`），JavDB_JSON 关键词一出号就整站跳过——实测 JavDB 演员页能取 321 个，却根本没跑。新增 `_order_missing_sources`：查缺清单只去重保序，每站都独立取号；`_order_aio_sources` 保留给刮削/既有测试。
