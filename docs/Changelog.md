@@ -3,6 +3,17 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### 工具页两枚「获取本地番号」复选框（用户指定）
+- **界面**：「检查缺失番号」「查询演员番号」两枚「只获取单演员」右侧各加一枚「获取本地番号」复选框（x=252，与左侧复选框同一行；两处绿色提示缩到 x=370/w=320 让位）。默认都不勾选。
+- **行为**：勾选才遍历本地资源库、读番号缓存并去重（「检查缺失番号」导出时剔除本地已有番号；「查询演员番号」统计「本地已有/缺失」）；未勾选时完全跳过本地扫描（含缓存读写与 `Flags` 全局集合写入），`local_keys` 为空、不与取到的番号去重，日志改打「⏭️ 未勾选「获取本地番号」…」与「未读取本地番号，不去重」。三个入口（查看本地番号浮标 / 检查缺失番号 / 查询演员番号）都把勾选态传给 `check_missing_number(read_local_numbers=…)`。
+- **配置**：新增 `missing_read_local_numbers` / `actor_number_read_local_numbers` 两个独立 bool 字段（默认 `false`），`default_config.json` 同步补键；`load_config` 各读各的、`save_config` 各写各的，两处自动保存判断把新复选框的勾选差异也纳入。`migrations._migrate_read_local_numbers_checkboxes()` 给旧配置补 `false` 并返回 `[迁移]` 消息触发首次启动回写，重复加载不再升级。
+- **后端**：本地扫描原段抽成 `_scan_local_numbers()`；`_report_actor_result` / `report_actor_numbers` 新增 `read_local_numbers`（默认 `True` 保持旧调用行为），未勾选时强制把本地快照置空，保证「不去重」不被调用方传入的快照破坏。
+
+### 详情页补齐阶段不再打印 HTTP 429 警告（用户指定）
+- **现象**：「查询演员番号」取到 321 个番号后，`⏳ 正在补齐番号的发行日/时长/封面图...` 会打印 `⚠️ javdb580.com请求失败：HTTP 429 body=<!doctype html>...`。写表前对每行打开来源站详情页补元数据，`_collect_meta` 的 JavDB 网页兜底 `javdb580.com` 被 Cloudflare 限流，`_http_text` 把底层错误经 `_report_http_error` 透传到主日志面板；几百个番号并发 8 排队继续撞限流。
+- **修复**：`actor_sources.enrich_missing_metadata()` 整轮设置 `_META_HTTP_QUIET` + 本轮独立的 `_META_LIMITED_HOSTS`（ContextVar 存同一个 set，每轮互不串台）。补齐阶段 `_report_http_error` 静默返回、不再打印 `⚠️`；遇到 429/403/5xx 把 host 记进熔断表，四个 `_http_*` 辅助随后直接跳过该 host 的剩余详情请求，不再持续触发限流。汇总行末尾用中性说明补一句「（某站 限流，已跳过该站剩余详情请求）」，解释为什么仍有行没补齐；取号阶段的站点失败照常告警。
+- **校验**：新增 `tests/test_read_local_numbers_2026_11_17.py`（12 例：默认值/模板、旧配置升级与幂等、UI 位置与编译产物同步、load/save 接线、三个入口传参、未勾选不扫描不去重、勾选读取并去重、两个报表日志、429 静默与熔断、非补齐阶段仍告警）；ruff format/check、mypy（295 文件）、线程安全、UI 布局检查、全量 `pytest tests/ -m "not network and not integration"` 通过。
+
 ### 删除 JavBus 全部回退/镜像地址，只保留 https://www.javbus.com/（用户指定）
 - **单一地址**：`utils/shared_fields.py` 用 `JAVBUS_DEFAULT_URL = "https://www.javbus.com"` 取代 8 域名清单 `JAVBUS_DOMAINS`；`crawlers/javbus.py` 同时删除欧美备用域与内部镜像切换。带 www 是因为裸域 301 到 www 会丢 Cookie 头。
 - **爬虫**：删 `_JAVBUS_DOMAINS` / 子类 `_domains` 声明，`base_url_()` 固定返回常量、不再读自定义网址；`get_real_url()` 去掉「候选域名 × 番号变体」双层轮换，只打唯一地址。
