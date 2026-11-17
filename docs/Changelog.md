@@ -3,6 +3,19 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### 详情页补齐：时长上界 + javdb580 独立限速 + 退避冷却 + App API 优先（用户指定）
+- **现象**：`三上悠亜2026-11-17 17-16-22.xlsx` / `17-18-16.xlsx` 两张导出表各 321 行，时长只有 12 / 8 个非空（发行日与封面 100% 完整），日志为「补齐 12 个，仍缺 309 个（javdb580.com 限流，已跳过该站剩余详情请求）」；另有 `FKONE-001=2091`、`FKONE-003=1493` 分钟这类合集总时长混进单片时长列。
+- **时长上界**：`utils/shared_fields.clean_duration` 新增 `MAX_DURATION_MINUTES=600`，纯数字与 `H:MM(:SS)` 两种形式统一校验 `(0, 600]`，超界一律返空（宁可留空，不写假数据）；同步把既有 `1440 分鍾` 测试样例改回合理片长并补 2091 回归。
+- **独立限速**：`web_async.AsyncWebLimiters.get()` 给 `javdb580.com` / `www.javdb580.com` 注册 `AsyncLimiter(1, N)`，N 取「软件设置 → 多线程刮削 → javdb延时(秒)」（默认 10，0–100，设 0 退回通用 8 req/s）；改滑块后自动重建。该设置此前只存进配置、没接到请求层。App API 走 `apidd.czssdgz.com` 等独立域名，不吃这条限速。
+- **熔断改退避**：删掉 `_meta_host_limited` 的「一次 429 熔断整站剩余请求」，新增 `_META_THROTTLES`（ContextVar 共享 dict）与 `_meta_fetch`，四个 `_http_*` 统一走 `AdaptiveRequestThrottle`（429/403/5xx 降速 + 指数冷却，冷却后重试 1 次，成功逐步恢复）。`_META_LIMITED_HOSTS` 只留作汇总日志说明，文案改为「限流，已自动降速并退避重试」，补齐阶段仍静默错误透传。
+- **App API 优先**：`_collect_meta` 的 JavDB 分支只认 App 通道——`/api/v4/movies/{id}` 有任意一项命中就不再打网页详情；只有 App 完全无响应（签名失效 / 接口故障 / 无 movie_id）才用带 Cookie 的网页详情兜底，且单独 8s 超时，不让单行拖累整轮。取号阶段 `_fetch_javdb_app` 的搜索结果本就带 duration，保持不变。
+- **校验**：新增 `tests/test_javdb_meta_throttle_2026_11_17.py`（时长边界、限速器重建、App 优先、非补齐阶段不重试）；`test_enrich_silences_http_429_and_stops_hammering_limited_host` 改写成 `..._backs_off_instead_of_fusing`（断言 12 行全部发出且各重试 1 次）；`test_collect_meta_never_queries_other_sites` 断言改为 `["movie:Y21VB"]`。
+
+### 全仓多异常捕获统一括号写法（用户指定）
+- **现象**：全仓 62 个 `.py` 共 225 处 PEP 758 的 `except A, B:`（3.14+ 合法），形似 Python 2 的 `except E, e:`，用 3.13 及更早解释器检查必报 `SyntaxError`，反复被当成故障上报。
+- **修复**：`mdcx/`、`tests/`、`scripts/`、`resources/`、`userdata/` 全量括号化为 `except (A, B):`。`ruff.toml` 的 `target-version` 保持 3.15 不变（降到 py313 会让 PEP 649 延迟注解多出 28 个 F821），改由 `.pre-commit-config.yaml` 的 `ruff-format` hook、`scripts/check.py` 的 ALWAYS 段与 `CI Pipeline.yaml` 的 Run ruff format 步骤统一传 `--target-version py313` 锁住格式；`ruff.toml` 顶部、`device_id.py` / `machine_binding.py` 注释与 `docs/MEMORY.md` 的旧口径同步更新。
+- **校验**：Python 3.13 全仓 AST 解析 0 错误；`ruff check .` 全通过；`ruff format --check --target-version py313 .` 782 个文件全部已格式化；pre-push 快速门禁不再把括号写法判成待格式化。
+
 ### 工具页两枚「获取本地番号」复选框（用户指定）
 - **界面**：「检查缺失番号」「查询演员番号」两枚「只获取单演员」右侧各加一枚「获取本地番号」复选框（x=252，与左侧复选框同一行；两处绿色提示缩到 x=370/w=320 让位）。默认都不勾选。
 - **行为**：勾选才遍历本地资源库、读番号缓存并去重（「检查缺失番号」导出时剔除本地已有番号；「查询演员番号」统计「本地已有/缺失」）；未勾选时完全跳过本地扫描（含缓存读写与 `Flags` 全局集合写入），`local_keys` 为空、不与取到的番号去重，日志改打「⏭️ 未勾选「获取本地番号」…」与「未读取本地番号，不去重」。三个入口（查看本地番号浮标 / 检查缺失番号 / 查询演员番号）都把勾选态传给 `check_missing_number(read_local_numbers=…)`。

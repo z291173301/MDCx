@@ -14,7 +14,7 @@
 - **不再单独建日期 md 文件，工作日志一律并进 `docs/Changelog.md`**（2026-11-16 用户要求）：不要写 `.workbuddy/memory/YYYY-MM-DD.md`、`docs/YYYY-MM-DD.md` 这类按日期另起一份的记录——「没人会看还占地方」。当天做了什么按 `docs/Changelog.md` 既有结构（`## YYYY-MM-DD` + `### 条目` + 「做了什么 / 改了什么 / 修了什么」）写进对应日期段；原因与排查过程写 `docs/Development.md`；可复用规则写本文件。**只记一次性事实的内容不进本文件**。
 - **已推送的内容一律新开 commit，不要 `--amend`**（2026-11-16 教训）：`--amend` 会改写已推送的提交历史，本地快进不了远端、直接造成分叉。改动已推送的内容就新开一个 commit。
 - **推 GitHub 走直连**（2026-11-16 实测）：GitHub 本身可直连；本机 git 配置里写死的 `http.proxy=127.0.0.1:7897` 会让 Schannel 握手失败。推送时用 `HTTPS_PROXY= HTTP_PROXY= git -c http.proxy= -c https.proxy= push`。
-- **`except A, B:`（不带括号）在 Python 3.14+ 合法，不是语法错误**（2026-11-16 澄清，PEP 758）：本项目 `requires-python >= 3.15`，`except TypeError, ValueError:` 这种写法能正常解析与导入。用 3.13 及以下解释器（如系统全局 python）检查会误报 `SyntaxError: multiple exception types must be parenthesized`——**这是解释器版本差，不是代码 bug**，别当故障上报、也别为此改代码；核对一律用 `.venv`（3.15）。
+- **多异常捕获一律写括号 `except (A, B):`，全仓禁止 PEP 758 的 `except A, B:`**（2026-11-17 用户定规，取代 11-16 的「不用改」口径）：ruff >= 0.15 的 2026 style 在 target >= py314 时会把括号形式自动改写成不带括号的 PEP 758 写法；后者虽在 3.14+ 合法，但形似 Python 2 的 `except E, e:`，用 3.13 及更早解释器检查还会误报 `SyntaxError: multiple exception types must be parenthesized`，导致反复被当成故障上报。现已把全仓 61 个文件 223 处统一括号化，并在 `.pre-commit-config.yaml` 的 `ruff-format` hook 单独传 `--target-version py313` 锁住格式；**lint 仍按 3.15**——在 `ruff.toml` 里直接降 `target-version` 到 py313 会让 PEP 649 延迟注解多出 28 个 F821 误报，不可行。手动格式化整仓也要带 `--target-version py313`。核对解释版本一律用 `.venv`（3.15）。
 - **大模型输出只给改动片段**（2026-10-27 定规）：默认只返回修改后的片段，不重复输出全文；新建文件、用户明确要求全文、或只给片段会产生歧义时才输出全文。
 - 改动前先说明「改什么、为什么」；遇到值得记的内容主动记入，不用等提醒；直接在当前分支操作，不擅自建分支。
 - **授权/未授权文案只有三个落点**：弹窗正文 `premium_gate.premium_message()`（`<功能名>功能需要获取授权后才能使用`，句末不带句号）、额度用完正文 `premium_gate.premium_quota_message()`、状态日志 `guard.describe()`（未授权只给原因，不套「未授权（…）」）。功能名由 `premium_gate.GUARDED_ACTIONS` / `_license_gate(action)` 传入，改文案只改这几处。
@@ -30,11 +30,11 @@
 
 - **没写明就不提交**（2026-10-23 明示）：需求里没有「提交 / 推送 / commit / push / 提交到 GitHub / 推到远程」这类字样时，只改工作区文件，不 `git add`、不 commit、不 push、不建分支。「改完了」「继续」「优化一下」都不算授权；授权只对当次需求有效。说「提交」= 只 commit，说「推送」才 push。
 - **界面改动默认不写 `docs/Changelog.md`**（2026-10-23 定规）：纯界面调整（位置、间距、尺寸、对齐、配色、字号、措辞、控件换行/换列，用户可观察的行为没变）不占 Changelog 行，也不补「界面微调」。行为变了（增删控件改变可达路径、改默认值/分支、窄窗不可用）才按功能条目写。口径见 `docs/Development.md` 10.7。
-- **本机没装 uv、也不要装**（2026-10-24）：门禁直接用系统 Python `"C:/Program Files/Python315/python.exe" -m ruff format --check mdcx tests scripts` / `-m ruff check ...` / `-m mypy mdcx/` / `-m pytest -m "not network" -q`，不要写 `uv run`。
+- **本机没装 uv、也不要装**（2026-10-24）：门禁直接用系统 Python `"C:/Program Files/Python315/python.exe" -m ruff format --check --target-version py313 mdcx tests scripts` / `-m ruff check ...` / `-m mypy mdcx/` / `-m pytest -m "not network" -q`，不要写 `uv run`。format 必须带 `--target-version py313`（口径见上文多异常捕获那条）。
 - 改代码后跑快速门禁（format + check + mypy），提交前加跑全量 `pytest -m "not network"`；只改 `docs/*.md` 或本文件时只需 `git diff --check`。
 - 全绿判定 = 退出码 0，且 `grep -E "\.py:[0-9]+: error|Found [0-9]+ error"` 无输出（mypy 输出可能被 tail 截断）。
 - `ruff check` 过 ≠ `ruff format --check` 过；改了 .py 必须 `ruff format` 落地。格式化要用仓库锁定版 ruff，**`uv.lock` 是唯一版本来源**：`pyproject.toml` / `requirements.txt` / `uv.lock` 根 specifier 由 `python -m scripts.sync_ruff_version` 自动同步（`--check` 只校验；`scripts/check.py` 检测到漂移会自动改写并拦截，提交后再重跑）。升版流程：先升级 `uv.lock` 的 ruff → 跑同步脚本 → 全量 format + check；`tests/test_ruff_version_sync.py` 锁死。
-- `scripts/` 也在 check 范围内。`check.py` 的 ALWAYS 段 = `ruff format --check` → `ruff check` → `mypy mdcx/` → `check_thread_safety`（**不含 pytest**）；要全量门禁显式加 `--with-tests`：`"C:/Program Files/Python315/python.exe" scripts/check.py --skip-hook-install --with-tests`。
+- `scripts/` 也在 check 范围内。`check.py` 的 ALWAYS 段 = `ruff format --check --target-version py313` → `ruff check` → `mypy mdcx/` → `check_thread_safety`（**不含 pytest**）；要全量门禁显式加 `--with-tests`：`"C:/Program Files/Python315/python.exe" scripts/check.py --skip-hook-install --with-tests`。CI Pipeline.yaml 的 Run ruff format 步骤同样带 py313 参数。
 - `check_ui_layout` 已移出门禁，只作手工诊断：`-m scripts.check_ui_layout`。xlsx 校验按路径跳过（`check_actor_db` / `check_info_db` 只在对应出厂库或校验脚本有改动时跑）。
 - `CI Pipeline.yaml` 的 `on:` 只有 `pull_request: branches: [main]`，**直推 main 不触发 CI**；门禁靠「PR + 本地自检」两道。
 - Linux 构建依赖统一走 `.github/actions/install-linux-deps`（`build-py315.yml` / `CI Pipeline.yaml` / `update-sr-tools.yml` 三处共用）：**不装系统 Qt6、不装 FFmpeg 开发库**（Qt 来自 pyqt6-qt6 wheel，FFmpeg 来自 av 的 abi3 wheel），且必须带 `--no-install-recommends`。三处各复制一份大清单会退回「149 个包 / 123MB / 几分钟」的老路。
