@@ -3,6 +3,16 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### 删除 JavBus 全部回退/镜像地址，只保留 https://www.javbus.com/（用户指定）
+- **单一地址**：`utils/shared_fields.py` 用 `JAVBUS_DEFAULT_URL = "https://www.javbus.com"` 取代 8 域名清单 `JAVBUS_DOMAINS`；`crawlers/javbus.py` 同时删除欧美备用域与内部镜像切换。带 www 是因为裸域 301 到 www 会丢 Cookie 头。
+- **爬虫**：删 `_JAVBUS_DOMAINS` / 子类 `_domains` 声明，`base_url_()` 固定返回常量、不再读自定义网址；`get_real_url()` 去掉「候选域名 × 番号变体」双层轮换，只打唯一地址。
+- **聚合层** `core/file_crawler.py`：删 `_MULTI_ADDRESS_SITE_TARGETS`（JavBus 四线路）、`_MAX_MULTI_ADDRESS_REQUESTS`、`_attempt_target()`、「第 N 次改用地址」日志与 `_site_custom_url()`；所有站点统一 `_MAX_SITE_REQUESTS = 3`。
+- **Cookie 检测** `cookie_checks.py`：`_JAVBUS_COOKIE_CHECK_BASES` 只剩唯一地址；删多节点投票 `javbus_cookie_verdict_sync()` 与 `_JAVBUS_VERDICT_RANK`，`javbus_cookie_check_urls()` 只返回一条，不再读自定义网址。
+- **查缺** `actor_sources.py`：删 `_JavbusRotator`（8 镜像轮询）与 `DomainRotator` 引入，新增 `_javbus_text()` 直接请求唯一地址；`_JAVBUS_HOST_MARKERS` 只留 `javbus`。
+- **测试用例**：删 `test_field_crawler_retry.py::test_javbus_tries_four_addresses_one_each`、`test_javbus_new.py::test_use_base_url_pins_address_and_restores`、Cookie 检测里 4 个多节点/自定义节点用例及 `_patch_get_text_by_url` / `_patch_custom_node` 辅助函数；保留改写的 `test_check_urls_only_default_node`（断言唯一地址）。
+- **保留说明**：`BaseCrawler.use_base_url()` / `_rotator` 是 Xcity 等动态域名爬虫的通用能力，不是 JavBus 回退；`proxy_sites` 默认白名单里的 `javbus.com` 是代理匹配域名，不是请求地址。
+- **校验**：ruff format/check、mypy（295 文件）、线程安全、全量 `pytest tests/ -m "not network and not integration"` 通过。
+
 ### 删除 JavDB 全部回退/镜像地址，只保留 javdb580.com（用户指定）
 - **用户实测口径**：`javdb573 / javdb580 / javdb582` 同为 9 个分页，但 580 第 8 页末尾是 `TEK-072`、第 9 页有 `TEK-071 + TEK-067`（322 部），573/582 第 8 页末尾是 `TEK-071`、第 9 页只有 `TEK-067`（321 部）；三个域名的页面标称都是「323 部影片」。最终口径：**删除 JavDB 的所有回退地址及相关代码与测试用例，只留 javdb580.com 这一个地址**。
 - **单一地址**：`utils/site_url.py` 只保留 `JAVDB_DEFAULT_URL = "https://javdb580.com"`；删除本轮临时加入的 `normalize_javdb_url()` 与旧镜像名单（573/574/575/581/582/javdb.com），不再读取用户配置里的其它 JavDB 网址。
