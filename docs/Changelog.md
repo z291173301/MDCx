@@ -3,6 +3,16 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### 删除 JavDB 全部回退/镜像地址，只保留 javdb580.com（用户指定）
+- **用户实测口径**：`javdb573 / javdb580 / javdb582` 同为 9 个分页，但 580 第 8 页末尾是 `TEK-072`、第 9 页有 `TEK-071 + TEK-067`（322 部），573/582 第 8 页末尾是 `TEK-071`、第 9 页只有 `TEK-067`（321 部）；三个域名的页面标称都是「323 部影片」。最终口径：**删除 JavDB 的所有回退地址及相关代码与测试用例，只留 javdb580.com 这一个地址**。
+- **单一地址**：`utils/site_url.py` 只保留 `JAVDB_DEFAULT_URL = "https://javdb580.com"`；删除本轮临时加入的 `normalize_javdb_url()` 与旧镜像名单（573/574/575/581/582/javdb.com），不再读取用户配置里的其它 JavDB 网址。
+- **取号链路**：`actor_sources._JAVDB_FALLBACK` 改用共享常量，`_javdb_actor_hits` / `resolve_actor_names` / `_javdb_jp_names` 三处 base 直接用该常量，删掉 `_javdb_base()` 与所有 `get_site_url(Website.JAVDB, …)` 调用。
+- **主爬虫**：`crawlers/javdb.py` 删除 `_MIRRORS`（573/574/575）、`normalize_javdb_url` / `without_www` 引入；`base_url_()` 固定返回常量，`_candidate_bases()` 只返回该常量。
+- **Cookie 检测**：`cookie_checks` 删除 `https://javdb.com` 回退、自定义网址与去 www 候选；`_JAVDB_COOKIE_CHECK_BASES` 只剩 580 一条。
+- **批量刮削**：`core/file_crawler.py` 删除 `_MIRROR_SITE_TARGETS` 里 JavDB→`javdb.com` 的「源 ↔ 镜像交替」重试及其分支代码，多线路站点上限改名 `_MAX_MULTI_ADDRESS_REQUESTS`（只服务 JavBus）。
+- **测试用例**：删除本轮新增的 `tests/test_javdb_domain_2026_11_17.py`（归一/镜像断言）；保留 `tests/crawlers/test_javdb.py` 等既有爬虫测试。
+- **备注**：本机 HTTP 直连 573/580/581/582（带/不带登录 Cookie、Chrome UA、locale、排序参数、绕缓存参数）抓到的演员页分页一致，均为 40×8+1=321 张卡片、321 个唯一番号，与导出表逐条一致；浏览器会话里的 322 无法在服务端响应中复现。按用户口径已把全部入口锁定到 580，代码中不再存在任何 JavDB 回退域名。
+
 ### JavDB / JavDB_JSON 取号同源 + 演员页标称数差异日志（用户指定）
 - **一致性实测（6 位演员）**：修复前「涼森れむ / 白上咲花 / 波多野結衣 / 小鳥遊なぎ」在 JavDB 网页版全部 0 个，JavDB_JSON 分别 190 / 76 / 2395 / 1 个；三上悠亜、新有菜两站一致（321 / 325）。根因是网页演员搜索 `/search?q=…&f=actor` 偶发限流跳登录页，而 JavDB_JSON 走 App 演员 API（带 token）能稳定定位演员。
 - **同源改造**：新增 `_javdb_actor_hits(names)`（统一 base → `_javdb_app_actor_path` 演员定位 → `_javdb_actor_numbers` 演员主页分页），`_fetch_javdb` 与 `_fetch_javdb_app_all` 都只在其结果上改 `NumberHit.site` 标注；删掉旧 `_javdb_site_numbers`。`_javdb_app_actor_path` 改为接受整组名字变体：App API 逐个试，全部无结果才逐个回退网页搜索。动漫/FC2 仍由 `_JAVDB_KEYWORD_ONLY` 走关键词搜索。
