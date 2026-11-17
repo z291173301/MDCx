@@ -3,6 +3,15 @@
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
 ## 2026-11-17
+### 查缺「自动判断」清单即边界 + HEYZO/MyWife 按演员取号防串演员（用户指定）
+- **现象**：选「自动判断」查缺时日志出现 `www.caribbeancom.com 404`、`mywife.jp 403`、`www.libredmm.com 404「Movie not found」/ 406` 等清单外网站的请求失败；用「三上悠亚」在 HEYZO_JSON 取号却拿到如月ジュリ（HEYZO-1294）、双葉みお（HEYZO-1449）等别人的作品，MyWife_JSON 同样串演员。
+- **清单即边界**：`build_sources` 不再无条件给自动判断 / 指定类型两条路径追加 5 家官网 JSON 版；仅 `actor_type == "官方网站"` 时补这五站（出厂官网组只列 33 家网页版，避免该类型能力退化）。自动判断链里没有官网，`_prepare_official_names` 也不会再为一轮查缺额外发 JavDB 名字解析请求。
+- **元数据补齐**：`_collect_meta` 删掉「按番号搜 JavDB 移动端 API → 猜 LibreDMM 详情页」两层跨站兜底（`_javdb_app_search_meta` 一并移除），只补本行来源站的详情页；libredmm 的 404/406 正来自按番号猜详情页。宁可表格留空，不请求清单外网站。
+- **HEYZO_JSON**：不再把名字拆成汉字/假名片段模糊搜（「三上悠亜」→「三上」）；搜索页 RSC payload 按 `movie_id` 切段提取该条演员名，没带演员名的候选回查 `/api/v1/movie/{id}`，统一用新增的 `_official_actor_matches` 严格校验，演员不符或校验不到一律丢弃。
+- **MyWife_JSON**：mywife.cc 结果卡按 `title` / `<b>` 的演员名严格校验后再收 model；WP 文章 `_mywife_post_model` 取消「双向子串 + 空名字放行」，改用同一套严格匹配。实测 `index?s=三上` 返回的「三上 美月」不再被当成「三上悠亜」的作品，WP REST 没命中时回退官网搜索同样逐卡校验。
+- **口径**：DMM / LibreDMM 仍在 2026-10-25 定稿的「有码」自动判断固定链内（用户确认保留），链内请求失败照常打印错误。
+- **校验**：新增 `tests/test_actor_sources_filter_2026_11_17.py`（14 例），更新 `test_actor_missing_numbers.py` 三处基线；ruff format/check、mypy（295 文件）、线程安全、全量 `pytest tests/ -m "not network and not integration"` 通过。
+
 ### 「查询演员番号」「检查缺失番号」只有已授权才能用（用户指定）
 - **需求**：这两个功能改成只有已授权才能使用，未授权像其他功能一样弹出窗口提示需要获取授权。
 - **原状**：`GUARDED_ACTIONS` 里两枚按钮早已登记（GUI 层点击闸门），点按钮确实会弹「请获取授权」；但闸门只拦鼠标左键按下与空格/回车，程序化 `click()`、快捷键、侧栏「查看本地番号」浮标等旁路都能直接跑到任务里——功能层面并不成立「只有已授权才能使用」。
