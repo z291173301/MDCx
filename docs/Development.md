@@ -386,6 +386,21 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
 （如 `core/file_association.py`、`tools/emby_actor_ui_kit.py`）。旧位置保留薄封装转调，改共用实现前先 `grep` 全部调用点；
 共用函数要有语义化名字、写清约束的 docstring，并被至少一个回归测试覆盖。细则见 `docs/MEMORY.md`「通用纪律」。
 
+### 10.13 xlsx 导出列宽纪律（2026-11-18 用户定规）
+
+**设定列宽是多少，导出后打开文件看到的就必须是多少**，不允许「设定 15 导出 14.22」这类偏差。
+
+- 根因：openpyxl 的 `column_dimensions[..].width` 写的是原始字符数，WPS/Excel 显示时会扣掉
+  网格内边距，实测显示值恒比写入值小 **0.78**（2026-10-17 用 `ET.Application` COM 实测，
+  见 `tools/emby_actor_export.py::WPS_COLUMN_WIDTH_OFFSET` 的注释）。
+- 规则：任何写 xlsx 列宽的代码，写入值一律 = 显示设定值 + `WPS_COLUMN_WIDTH_OFFSET`，
+  统一从 `tools/emby_actor_export.py` 导入该常量，禁止各处再手抄 0.78 或裸写设定值。
+- 回归：`tests/test_missing_audit_2026_11_16.py::test_excel_column_widths_written_as_displayed`
+  （演员番号/缺失番号导出表）、`tests/test_actor_export.py`（演员数据表）。
+- 2026-11-18 落地：「查询演员番号」/「检查缺失番号」共用的
+  `tools/missing.py::_write_missing_excel` 补上补偿；同时应用户要求把时长/类型两列
+  从 12 收窄为 6（`_COLUMN_WIDTHS = (15, 12, 12, 6, 6, 12, 60, 100)`）。
+
 ---
 
 ## 11. 左下角状态区图标规范

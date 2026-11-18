@@ -7,6 +7,13 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-18
+### DMM/DMM_JSON 演员番号导出剥掉 mono cid 的厂商码与版本标记（用户指定）
+- **现象**：「查询演员番号」只勾 DMM_JSON 查三上悠亜，导出 807 行里 371 行是 `9SSIS287` / `77SSIS313` / `88OFJE343` 这类形态，与表内已有的 `SSIS-287` / `SSIS-313` 是同一番号却各占一行；另有 `4KSSNI989`、`MIDE599BOD`、`N-650EHM0001` 属同类重复。
+- **根因**：`utils/shared_fields.dmm_number_from_cid` 只认「字母+数字」与「数字+字母+≥5 位数字」两种 cid，mono（DVD 通販）线的 3 位编号 cid（`9ssis287`）落到兜底分支原样大写返回，`normalize_key` 与 digital 线 `ssis00287` 不同键，`_merge` 的去重失效。
+- **修复**：cid 先剥版本标记——`4k` 前缀（Ultra HD Blu-ray 版）、数字后的 `bod` / `dod` 后缀（Blu-ray / DVD On Demand 版，API 实测标题带「（ブルーレイディスク）（BOD）」），再按「厂商码 + 厂牌 + 编号」剥前导数字（`9ssis287` / `77midv400` → `SSIS-287` / `MIDV-400`），素人厂商前缀 `h_` 扩到 `n_`（`n_650ehm0001` → `EHM-001`）。`4k` 剥离带 KIRI 例外：该系列厂商码恰为 4（cid=`4kiri00001`），不能当版本标记。
+- **实测**：把导出表 807 行的 cid 全量回放，收敛到 428 个番号且全部为「厂牌-编号」形态；`resources/userdata/dmm_cid_routes.json` 的 10530 条番号↔cid 白名单与全部系列路由组合比对旧实现，0 回退、2892 条修正。链接与封面仍用原始 cid，不受影响。
+- **校验**：新增 `tests/test_dmm_cid_number_2026_11_18.py`（29 例：cid 归一化、不可误伤形态、两条产品线同键、`_fetch_dmm_api` digital+mono 去重与元数据按字段补齐）。
+
 ### JavDB 时长补齐与请求节奏定稿（用户指定，取代 11-17 口径）
 - **时长不设上界**：删除 `utils/shared_fields.MAX_DURATION_MINUTES=600` 与 `clean_duration` 的上界检查，只排除 0 / 负数；合集整包总时长（720 / 960 / 2091 分钟）照写。
 - **限速与节奏**：`web_async._PacedLimiter` 给 JavDB 系 5 个 host（网页 `javdb580.com`/`www` + App `apidd.czssdgz.com`/`apidd.spthgb.com`/`jdforrepam.com`）统一 2 req/s + 120/min 双桶、`asyncio.Lock` 串行化、相邻请求 0.5–1s 随机间隔；wiki 5/180、通用 10/600、本机 300 req/s 不变，图片 CDN 不纳入。起因是账号被判「浏览速度远超正常用户」临时停用（11-19 07:05 自动恢复），**停用期间不联网实测**。

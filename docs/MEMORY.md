@@ -175,7 +175,7 @@ Qt 生命周期 · 崩溃与内存 · UI 排错 · 并发与网络库 · 站点�
 - 有码 29 站由 `official_sites.py` 统一路由（321 前缀锁定），与 `Official·Dahlia`/`Official·Faleno` 同单站锁定语义；改名的四站（Dahlia/Faleno/MGStage/Prestige）已并入候选区 `Official` 聚合行。
 - 被墙站测试：`-m scripts.dev_proxy start|status|test <url>|stop`，日本 IP 限制站用 `--port 7891 --regions "jp|日本"`；连通性验证必须用 curl_cffi impersonate；批量探测要校验 `data.title` 防假阳性。
 - HTTP 4xx/5xx 错误串必须携带截断响应体（保留 `"HTTP {status}"` 前缀）。
-- 番号归一化：前导单数字双重语义（studio 名单数字保留 vs DMM 预约版 `9` 前缀剥掉），改正则前 grep 全部分支。
+- 番号归一化：前导单数字双重语义（studio 名单数字保留 vs DMM 预约版 `9` 前缀剥掉），改正则前 grep 全部分支。**DMM cid → 番号（`shared_fields.dmm_number_from_cid`）要剥掉厂商码与版本标记**（2026-11-18）：mono 线 `9ssis287` / `77midv400` 的前导数字是厂商码，`4kssni989` 的 `4k` 是 Ultra HD Blu-ray 版，`mide599bod` / `hoiz155dod` 的 `bod` / `dod` 是 Blu-ray / DVD On Demand 版，素人厂商前缀 `h_` / `n_` 同理；剥完才与 digital 线 `ssis00287` 同键，演员番号导出才不会一个番号两行。唯一例外 KIRI（厂商码恰为 4，cid=`4kiri00001`）不剥 `4k`。改这条正则一律拿 `resources/userdata/dmm_cid_routes.json` 的白名单 + 系列路由组合全量回放，比对旧实现确认 0 回退。
 - 站点域名优先级与删站属产品取舍，查证给方案不擅动；删站影响面 = 注册表 + Website 枚举 + 默认 proxy 列表 + `migrations.py` 清洗 + UI 列表。
 - **站点默认地址一律不带 `www.`，唯一例外 Official·MGStage**（2026-10-24 定规）：`base_url_()` 默认值、AIO `fallback_domain`、`DEFAULT_SITE_URLS` 都不加，自定义网址也不再自动补 www。改默认地址一并核对 `docs/Scraper.md` 两张表。
 - **失效域名直接删，不留兜底**（2026-10-24）：删到只剩一个地址的站点（7mmtv / IQQTV / freejavbt）连镜像轮换一起删。
@@ -277,6 +277,7 @@ Qt 生命周期 · 崩溃与内存 · UI 排错 · 并发与网络库 · 站点�
 - 长时间任务：后台终端 + checkpoint 断点续传 + 分批落盘 + wrapper 45-50 分钟自重启；进度看落盘文件，不看终端日志（stdout 全缓冲可能 0 字节）。
 - 功能移除类需求先调研证据（活跃度、共享依赖、移除成本）；用户转述与代码证据矛盾时以代码为准。
 - **共用功能/方法必须单独成文件或函数（2026-10-27 用户定规）**：同一段逻辑出现第二处（或预见会出现）就抽出来，跨模块/体量大时抽独立文件（`core/file_association.py`、`tools/emby_actor_ui_kit.py`、`tools/emby_actor_source_catalog.py` 是现成范式）；旧入口保留薄封装转调，改共用实现前 grep 全部调用点，并留回归测试。
+- **xlsx 导出列宽纪律（2026-11-18 用户定规）**：**设定列宽是多少，导出后打开文件看到的就必须是多少**。根因是 openpyxl 写入的 width 是原始字符数，WPS/Excel 显示时扣掉网格内边距，显示值恒小 0.78（2026-10-17 `ET.Application` COM 实测）。规则：写 xlsx 列宽的代码一律写入 `显示设定值 + WPS_COLUMN_WIDTH_OFFSET`（常量在 `tools/emby_actor_export.py`，统一导入复用，禁止手抄 0.78 或裸写设定值）；回归看 `tests/test_missing_audit_2026_11_16.py::test_excel_column_widths_written_as_displayed` 与 `tests/test_actor_export.py`。本次落地：`tools/missing.py::_write_missing_excel`（查询演员番号/检查缺失番号共用导出）补补偿，时长/类型列宽 12→6。
 - **FC2/个摄番号必须兼容 `FC2-` 与 `FC2-PPV-` 两种写法（2026-11-15 用户定规）**：涉及 FC2/个摄的刮削器，输入侧两种前缀都要识别、输出统一归一为标准短形 `FC2-{digits}`（`utils/shared_fields.py::fc2_digits` 是归一公共件，`javdb_number_key` 把 `FC2PPV` 折叠成 `FC2`）；站侧要求 PPV 形的（javfree 搜索、7mmtv 标题、missav 详情 slug `fc2-ppv-*`）在生成搜索关键词/URL 时自行映射，绝不能因输入写法不同而搜不到。改任何 FC2 判定前闭眼兼容双写，别再写 `update("FC2-", "FC2-PPV ")` 这类会叠成 `FC2-PPV PPV-` 的替换（7mmtv.get_real_url 2026-11-15 修的真 bug）。
 - **刮削模式值全表**（2026-10-23 起）：1 正常 / 2 分离 / 3 视频 / 4 更新 / 5 读取 / 6 整理 / 7 补全。改动模式必须同步：`config/extend.py` 常量与 `is_xxx_mode()`、`load_config.py` / `save_config.py` 的 `mode_mapping` 与 radio 映射、`MDCx.ui` 单选项与说明、`core/file.py` 的模式元组、`base/file.py::get_movie_list`、`core/scraper.py` 的续刮排除与扫描排除、`init.py` 提示词、软件内使用说明。
 
