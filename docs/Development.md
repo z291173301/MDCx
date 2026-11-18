@@ -178,7 +178,7 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 ## 5. 网络层
 
 - httpx（默认）+ curl-cffi（指纹伪装）。
-- 指纹池默认 7 种画像轮换：Chrome 124/131/136 Win、Chrome 136 Mac、Firefox 133/135 Win、Safari 17.2 iOS；Amazon 用纯桌面 6 种池（不含 Safari iOS）。
+- 指纹池默认 7 种画像轮换：Chrome 124/131/136 Win、Chrome 136 Mac、Firefox 133/135 Win、Safari 17.2 iOS；Amazon 用纯桌面 6 种池（不含 Safari iOS）；Madouqu / Madou.club / Lulubar / MissAV / JavDB 各有专属池（详见 §5.1）。
 - 限流：并发数 + 全局线程延时；Amazon 另用 `AdaptiveRequestThrottle`（429 自动降速冷却）+ 指数退避。
 - **CF Bypass** 走 `mdcx/cf_bypass/trawl_adapter.py`（TRAWL `/scrape` 或 FlareSolverr `/v1`）；JavLibrary 额外支持 Selenium+Edge（`selenium_adapter.py`）；`cf_selenium_bypass` 默认开启。内置 CF Bypass（cloakbrowser + cf_bypasser）已于 v2.0.6 移除。
 - **代理路由**：按「走代理网站」域名，默认 38 域（amazon.co.jp、m.media-amazon.com、xcity.jp、minnano-av.com、avbase.net、javbus.com、javdb.com、javlibrary.com、r18.dev、mgstage.com、prestige-av.com、seesaawiki.jp、avsox.click、avsox.com、avmoo.shop、avmoo.com、avheat.shop、avheat.com、heyzo.com、caribbeancom.com、1pondo.tv、pacopacomama.com、10musume.com、mywife.cc、github.com、raw.githubusercontent.com、google.com、missav.ws、missav.live、aventertainments.com、javfree.me、7mmtv.sx、getchu.com、dl.getchu.com、jav321.com、hbox.jp）。
@@ -187,6 +187,30 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 - **网络检测**（`core/network_check.py`）：检测项由 `check_urls()` 动态生成；API 类爬虫走真实刮削探测 `_probe_crawler_by_run`；探针番号优先级 `NetworkCheckSpec.probe_number` > 爬虫 `probe_number` 类属性 > 全局 `SCRAPE_PROBE_NUMBER`（默认 SSNI-647）；Official·有码 29 站与无码五站各有独立 `Website`、各带本站探测番号（`official_sites.py::OFFICIAL_SITE_SPECS`、`official_uncensored.py::UNCENSORED_OFFICIAL_SITES`）；`_DETERMINISTIC_PROBE_MARKERS` 命中即首次定论（含年龄确认页/年龄认证/年龄验证/adcCookie/AgeVerification），其余按 `SCRAPE_PROBE_ATTEMPT_TIMEOUTS`（30s→45s）递进重试；搜索探测优先经 `crawler._fetch_search`（含各站18+兜底）而非raw`client.request`；终局说明只在两档都真超时时写「均超时」，站点可达但番号不存在单独出提示不计故障；结果持久化到 `userdata/network_check_cache.json`（`merge_site_check_cache` / `load_site_check_cache`），各站以站点值为键，同一站点多条结果只在本轮内取最差。
 - **检测里的 DMM GraphQL POST 是网页版探测、不是 JSON 通道**（2026-11-13 排查）：点【开始检测】后，`Website.DMM`（网页版）走真实刮削探测 → `dmm/__init__.py::fetch_digital` 打 `https://api.video.dmm.co.jp/graphql` 补简介，与 `Website.DMM_JSON` 的 affiliate ItemList 探测（hits=1）同轮并发，两条日志挨着容易被看成同一件事。`DMM_JSON` 自身带 validator，**不**走爬虫探测（`network_check.py` 的 crawl 探测分支要求 `not spec.validator`），所以这条 POST 与 JSON 通道无关，也与「查看JSON / 浏览器」按钮无关——那两个入口只在下拉框里点按钮才触发。
 - **FC2 文章页必须带 fc2 Cookie**（2026-11-13 排查）：`adult.contents.fc2.com/article/{id}/` 不带 Cookie 时返回「登录 FC2」空壳页（约 14KB，无 `items_article_*` 结构、无 ld+json），DOM 与 ld+json 解析全空 → FC2_JSON 的演员/标签/发行日/时长/厂商/剧照/标题全丢。刮削器 `FC2JsonCrawler._get_cookies` 一直带配置项 `fc2` 的 Cookie；`controllers/main_window/json_view.py` 的 FC2 分支原先没带，已补（同源 `fc2_cookie_to_dict`）。
+
+### 5.1 JavDB 专属 UA 指纹池与多 Cookie 轮换（2026-11-18）
+
+**背景**：JavDB 有 CF 墙且风控严格，账号曾因「浏览速度远超正常用户」被临时停用。此前 JavDB 走通用默认指纹池（7 种随机）、Cookie 用单一静态值（`manager.config.javdb`），无轮换机制。
+
+**UA 指纹池**（`mdcx/network_fingerprint.py`）：
+- 新增 `_JAVDB_FINGERPRINTS` 专属池，6 种指纹：Chrome 136 Win / Chrome 131 Win / Chrome 136 Mac / Firefox 135 Win / Firefox 133 Win / Safari 17.2 iOS。
+- `select_fingerprint()` 对 `javdb580.com` / `javdb.com` 及子域名命中专属池。
+- 轮换由 `web_async.py` 统一驱动：lifetime 20–45 分钟 + 请求数 120–240 双重过期；CF 挑战失败时 `exclude_fingerprint_id` 排除当前指纹重试。
+- 指纹与 `_solver_cookie_jar` 的 cookie 配对（CF 挑战成功后钉住），cookie 失效时解钉并轮换指纹。
+
+**多 Cookie 轮换**（`mdcx/crawlers/javdb.py`）：
+- `parse_javdb_cookies(raw)`：按换行分割、`strip()` 去空、去重保序，返回 `list[str]`。
+- `JavDBCrawler.__init__`：从 cookie 池 `random.choice` 选一个作为本次刮削的会话身份（sticky per-instance），模拟单一用户连续浏览；不同文件刮削用不同 cookie 分散单账号请求压力。
+- `_current_cookie()`：返回选中 cookie；`_rotate_cookie(exclude_current=True)`：登录态失效时切换到另一个。
+- `_get_headers()`：返回 `{"cookie": self._current_cookie()}`，无 cookie 时返回 `None`。
+- `actor_name_javdb.py::default_javdb_cookie()`：演员番号搜索也随机取 cookie。
+
+**兼容层**：
+- `core/network_check.py`：连通性检测取第一个 cookie（`parse_javdb_cookies(config.javdb)[0]`）。
+- `controllers/main_window/net_check.py::_check_javdb_cookie`：UI 检测取第一个 cookie，多 cookie 时提示「共 N 个 Cookie 轮换」。
+- 配置字段 `javdb` 不变（`str`），用户在文本框每行粘贴一个 cookie 即可；单 cookie 旧配置完全兼容。
+
+**测试**：`tests/test_network_fingerprint.py`（专属池命中 + 重试排除）、`tests/test_javdb_meta_throttle.py`（cookie 解析去重、实例随机选择、轮换切换、空 cookie 4 例）。
 
 ---
 
@@ -250,6 +274,7 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
   - `tests/test_version_consistency.py`、`tests/test_version_metadata.py`、`tests/test_version_check_*.py`。
 - `actor_db` 并发信号契约：`actor_db_finished = pyqtSignal(str)` 带 task_id；所有 `_run_actor_db_*` 走 `_run_actor_db_async(btn_attr, busy_text, log_prefix, coro_factory)` 模板，防重入靠 `_actor_db_running` 集合。
 - `scripts/check_ui_layout.py` 只作手工诊断（warning 不阻断），结构约束锁在 `test_ui_structure.py`。
+- **测试文件命名禁止带日期后缀**（2026-11-18 用户定规）：测试文件一律用 `test_<功能名>.py`，禁止写成 `test_<功能名>_YYYY_MM_DD.py` 或 `test_<功能名>_YYYY_MM.py`。日期信息写进 `docs/Changelog.md` 的对应日期段，不要塞进文件名。新增测试用例优先追加到已有同主题测试文件，不另起新文件。已有的 15 个带日期后缀的测试文件已全部重命名为无日期版本。
 
 ---
 
@@ -395,7 +420,7 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
   见 `tools/emby_actor_export.py::WPS_COLUMN_WIDTH_OFFSET` 的注释）。
 - 规则：任何写 xlsx 列宽的代码，写入值一律 = 显示设定值 + `WPS_COLUMN_WIDTH_OFFSET`，
   统一从 `tools/emby_actor_export.py` 导入该常量，禁止各处再手抄 0.78 或裸写设定值。
-- 回归：`tests/test_missing_audit_2026_11_16.py::test_excel_column_widths_written_as_displayed`
+- 回归：`tests/test_missing_audit.py::test_excel_column_widths_written_as_displayed`
   （演员番号/缺失番号导出表）、`tests/test_actor_export.py`（演员数据表）。
 - 2026-11-18 落地：「查询演员番号」/「检查缺失番号」共用的
   `tools/missing.py::_write_missing_excel` 补上补偿；同时应用户要求把时长/类型两列
@@ -434,9 +459,9 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
   传进 `_fetch_dmm_api` 的 `names` 只是同一演员的名字变体（`_pick_name(names, 2)` 试到解析出
   actress_id 就 break）。**真正会先截断的是超时**：DMM_JSON 原先没进 `_SITE_TIMEOUTS`、
   吃 `Source.timeout` 默认 120s，照 HBOX_JSON 先例放宽到 300s；DMM 网页版仍 60s 且转调同一 fetcher。
-- **回归**：`tests/test_dmm_cid_number_2026_11_18.py` 29 → 63 例。
+- **回归**：`tests/test_dmm_cid_number.py` 29 → 63 例。
 
-### 10.15 「格式化番号名称」为什么接在 `_merge` 而不是取完再格式化（2026-11-18）
+### 10.15 「格式化番号名」为什么接在 `_merge` 而不是取完再格式化（2026-11-18）
 
 用户要求把 DMM/DMM_JSON 那套剥壳口径推广到**所有站点**，做成独立文件独立函数、
 由工具页复选框控制、默认不勾选、旧配置自动升级。三个设计判断记录在此：
@@ -448,12 +473,14 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
 - **为什么接在 `_merge`**：grep 全部调用点确认 `_merge` 有 37 处调用，而
   `NumberHit(` 在 `mdcx/` 里只有一处构造（就在 `_merge` 内）—— 它是全部站点番号的
   唯一漏斗。在这里按 ContextVar 分流，逐站原始结果（`per_site_out`，供取号准确率对比表）
-  与合并结果天然同口径。**若改成「取完再统一格式化一遍」会有两个真问题**：
-  ① 对比表里逐站番号仍是旧形态、汇总表是新形态，同一番号在两处对不上；
-  ② MyWife 在 `_merge` **之后**用 `replace(hits[key], number=authority_number(...))`
-  把 `Mywife No.1693` 恢复成站内权威号（两处：WP REST 与官网兜底），因为
-  `display_number("Mywife No.1693")` 会压成 `MYWIFENO.1693`；后置统一格式化会把这两处
-  恢复再次覆盖掉。接在漏斗上则自动兼容 —— `format_number` 里 MyWife 分支本身就返回权威形态。
+  与合并结果天然同口径。**若改成「`collect_numbers` 返回后再统一格式化一遍」会有真问题**：
+  对比表里逐站番号仍是旧形态、汇总表是新形态，同一番号在两处对不上。
+  漏斗口径的漏网之鱼是 MyWife：它在 `_merge` **之后**用
+  `replace(hits[key], number=authority_number(...))` 把 `Mywife No.1693` 恢复成站内权威号
+  （两处：WP REST 与官网兜底），因为 `display_number("Mywife No.1693")` 会压成 `MYWIFENO.1693`。
+  这一处、以及「将来自己拼 `NumberHit` 不走 `_merge` 的新刮削器」，由 §10.16 的**站点出口**
+  兜住 —— `format_number` 的 MyWife 分支本身就返回权威形态，出口再走一遍是幂等的，
+  不会把恢复结果覆盖掉。
   ContextVar 而非参数透传，是因为 `_merge` 被 37 处 fetcher 调用，逐个加参数改动面太大；
   `asyncio.gather` 派生的子任务会 copy context，开关照样传得进去（与既有
   `_OFFICIAL_NAMES` / `_JAVDB_KEYWORD_ONLY` 同一套写法，`finally` 复位）。
@@ -469,8 +496,55 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
   两条新提示语必须同 x 同宽，才能在页面拉宽时同样右缘锚定、保持左缘上下对齐；
   宽度改一点就会掉进 `_KEEP` 分支，宽态下与 `label_8` 错开。三枚复选框宽 112、
   右缘最大 480 < 630.9，判为 `None`（保持原位），不受拉宽影响。
-- **回归**：新增 `tests/test_format_number_option_2026_11_18.py` 69 例；
+- **回归**：新增 `tests/test_format_number_option.py` 69 例（§10.16 扩到 224 例）；
   既有 5 个测试文件随文案更新断言，并给 fake Ui 补上两枚新复选框属性。
+
+### 10.16 文案遮挡的像素预算 + 70 站全部接入格式化番号名（2026-11-18 二次修订）
+
+用户当日追加三条：①「刮削排除目录:」改中文冒号以便与「本地文件路径」「番号链接地址」
+等左对齐；② 三枚复选框文案回退成 6 字，否则末字被遮挡；③ 70 个网站刮削器全部接入
+格式化番号名，两个工具导出的 xlsx 都要格式化。
+
+- **①的排查结论：冒号从来就是全角，问题是标签窄了 1px**。先 grep `.ui` 与 git 全历史，
+  `label_41` 的文案一直是 `刮削排除目录：`（U+FF1A），没有任何半角版本，所以「换冒号」
+  无从下手。改用 offscreen Qt 真实度量（`QFontMetrics.horizontalAdvance` + 工具页 QSS）：
+  13px 字体下 7 个全角字符需 **91px**，而 `label_41` 只有 **90px** —— 冒号被裁掉，
+  视觉上就成了「这个标签比别的短一截、没对齐」。兄弟标签 `label_3`（本地文件路径：）
+  与 `label_10`（番号链接地址：）都是 x=46 / 宽 **94**，所以把 `label_41` 宽 90→94
+  即与它们逐像素同几何。输入框 `lineEdit_escape_dir_move` x=136 不动：控件矩形虽有
+  4px 重叠，但文字墨迹到 ~130px 就结束，实际不相撞。
+- **②的根因：指示器边框吃掉了 2px**。工具页 QSS 只写 `* { font-size: 13px; }`，
+  但 `centralwidget` 的 QSS 会 cascading 到子页，其中
+  `QCheckBox::indicator{ width:14px; height:14px; border:1px solid #B8C0CC; }`
+  按 Qt 盒模型实占 **16px**（14 + 左右各 1px 边框）。offscreen 量得
+  `SE_CheckBoxContents` 起点 x=22、宽 **90px**（112 − 22）。7 个汉字需 **91px**，
+  差 1px 裁末字；6 个汉字 **78px**，留 12px 余量。只量工具页 QSS（不带指示器边框）
+  会得到「文字区 92px、7 字放得下」的错误结论 —— 这是第一次排查踩的坑，
+  必须把 cascading 的那份 QSS 一起加上才复现用户看到的现象。
+  修法取「改文案不改宽度」：加宽复选框会挤到右侧控件，而 6 字文案语义无损。
+- **③的实现：站点出口兜底，而不是逐站改 fetcher**。审计 70 个注册刮削器后确认
+  `NumberHit(` 在 `mdcx/` 里只有 `_merge` 一处构造，`_merge` 之后改 `number` 的只有
+  MyWife 两处权威号回填，`enrich_hit_meta` / `enrich_missing_metadata` 只补
+  release/duration/image 不动番号 —— 也就是说 §10.15 的漏斗口径**当时已经覆盖全部站点**。
+  但用户要的是「70 站都接入」这条结构性保证，所以再加一道出口：
+  `_run_source` 是唯一的站点结果边界（`_run_group` → `_collect_with_sources` 都经它），
+  在 `if hits:` 处按 `_FORMAT_NUMBERS` 调 `_format_site_hits`，内部复用 `_merge`
+  重新格式化 + 按新键去重 + 元数据按字段补齐。这样将来新增刮削器即使自己拼 `NumberHit`
+  也自动接上，不必记得调 `_merge`。四个 `clean_*` 归一函数都幂等
+  （`clean_meta` 逗号拼接、`clean_date` 委托 `normalize_release_date`、
+  `clean_duration` 纯数字、`clean_image` 只认 http(s)），重复走不漂移；
+  不勾选时出口原样返回，连这一遍都省掉。
+  **刻意不放在 `collect_numbers` 返回之后**：那样 `per_site_out` 与合并结果口径会分裂（§10.15 ①）。
+- **回归**：`tests/test_format_number_option.py` 69 → **224 例**。关键是把 70 站
+  逐站参数化（× 开关 = 140 例），桩 fetcher **故意不走 `_merge`、直接构造 `NumberHit`**，
+  再经真实的 `build_sources_for_sites` → `_run_group` → `_run_source` → `_collect_with_sources`
+  跑一遍，断言逐站与合并结果的番号都格式化、演员/日期/时长/封面不丢；
+  另有 70 站齐跑 × 三类型（有码/FC2/无码，三个注册表是 import 期 `{**_SITE_FETCHERS}`
+  拷贝，patch 必须三份一起换）× 开关 6 例、注册表恰好 70 站、MyWife 权威号出口兜住、
+  不勾选时出口 pass 被跳过（spy `_format_site_hits`）、两个工具 xlsx 番号列端到端 4 例。
+  新增 `tests/test_tool_page_text_width.py` **10 例**：从 `.ui` 读设计几何与文案，
+  用真实字体度量断言「文字宽 ≤ 控件文字区宽」，不写死字数 —— 换字体或改文案后
+  只要放得下就通过，放不下会报出差多少像素。
 
 ---
 
@@ -770,15 +844,15 @@ URL 模板同时可供刮削层 `_generate_search_url` 复用。
 补充说明：
 
 - **刮削层暂未改动**：`mmtv_json.py` / `avbase_json.py` / `airav_json.py` 的 `_generate_search_url` 目前是 `NotImplementedError`（刮削走详情直连，由 `DIRECT_PROBE_SITES` 钉死）。上表 URL 模板可直接复用到这三个爬虫，本轮只落在 `actor_sources.py`，避免牵动网络检测探测口径。
-- **自动判断固定链不动**：`_AUTO_SITE_ORDER` 由 `tests/test_actor_missing_numbers.py::test_auto_site_chains_match_user_spec` 精确钉死；新站走「指定类型 → 类型刮削网站」配置组生效（默认无码组含 `AVEntertainments` / `Lulubar`，有码组含 `FreeJavBT` / `Jav321` / `7mmtv` / `Airav` / `Xcity` / `AVBase`）。2026-11-17 起 `build_sources` 不再给固定链追加官网 JSON 版，固定链即全部请求范围（官网只在「官方网站」类型下补齐）；元数据补齐也只打本行来源站详情页，见 `tests/test_actor_sources_filter_2026_11_17.py`。
+- **自动判断固定链不动**：`_AUTO_SITE_ORDER` 由 `tests/test_actor_missing_numbers.py::test_auto_site_chains_match_user_spec` 精确钉死；新站走「指定类型 → 类型刮削网站」配置组生效（默认无码组含 `AVEntertainments` / `Lulubar`，有码组含 `FreeJavBT` / `Jav321` / `7mmtv` / `Airav` / `Xcity` / `AVBase`）。2026-11-17 起 `build_sources` 不再给固定链追加官网 JSON 版，固定链即全部请求范围（官网只在「官方网站」类型下补齐）；元数据补齐也只打本行来源站详情页，见 `tests/test_actor_sources_filter.py`。
 - **既有硬约束不变**：每站最多重试一次（`collect_numbers` 统一控制）、各站番号先 `normalize_key()` 归一再与本地库比较（`DSOD-012` → `DSOD12`，写断言时别按展示形拼 key）。
-- **测试夹具**：`tests/crawlers/data/actor_sources/` 下的 `lulubar_girl.html` / `avent_search.html` / `avent_detail.html` / `avbase_works.html` 均由 Edge 打开真实页面后裁剪得到；回归在 `tests/test_actor_sources_sites_2026_11_16.py`。
+- **测试夹具**：`tests/crawlers/data/actor_sources/` 下的 `lulubar_girl.html` / `avent_search.html` / `avent_detail.html` / `avbase_works.html` 均由 Edge 打开真实页面后裁剪得到；回归在 `tests/test_actor_sources_sites.py`。
 
 ### 「检查演员缺失番号」全链路审查与修复（2026-11-16）
 
 本轮又用 Edge 抽查了 IQQTV / JavDay / Madou.club / FC2 / FC2CMADB / JavFree / JavBus 的搜索页与分页形态，
 沿「工具页入口 → `missing.py` → `actor_sources.collect_numbers` → 各站 fetcher」逐层审查。
-下表只列**代码里能指出确凿证据**并已修复的条目，回归见 `tests/test_missing_audit_2026_11_16.py`：
+下表只列**代码里能指出确凿证据**并已修复的条目，回归见 `tests/test_missing_audit.py`：
 
 | # | 问题（ Evidence ） | 修复 |
 |----|---------------------|------|

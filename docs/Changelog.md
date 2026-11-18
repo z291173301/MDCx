@@ -7,6 +7,29 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-18
+### JavDB 专属 UA 指纹池 + 多 Cookie 轮换（用户指定）
+- **UA 指纹池**：`network_fingerprint.py` 新增 `_JAVDB_FINGERPRINTS`（Chrome 136/131 Win + Chrome 136 Mac + Firefox 135/133 Win + Safari iOS 共 6 种），`select_fingerprint()` 对 `javdb580.com` / `javdb.com` 及子域名命中专属池。配合 web_async 的 lifetime（20–45 分钟）+ 请求数（120–240）双重过期自动轮换，CF 挑战失败时排除当前指纹重试。
+- **多 Cookie 轮换**：`javdb.py` 新增 `parse_javdb_cookies()`，按换行分割去空去重；`JavDBCrawler.__init__` 从 cookie 池随机选一个作为本次刮削会话身份（sticky per-instance），`_get_headers` 返回选中 cookie；`_rotate_cookie()` 登录态失效时切换。`actor_name_javdb.py` 演员番号搜索也随机取 cookie 分散压力。
+- **兼容层**：`network_check.py` 连通性检测取第一个 cookie；`net_check.py` UI 检测取第一个 cookie 并提示「共 N 个 Cookie 轮换」。配置字段 `javdb` 不变，用户在文本框粘贴多行 cookie 即可。
+- **测试**：`test_network_fingerprint.py` 新增 JavDB 专属池 + 重试排除测试；`test_javdb_meta_throttle.py` 新增 cookie 解析、实例选择、轮换、空 cookie 4 例。
+- **校验**：ruff format/check 通过；相关测试全过。
+
+### 工具页文案回退 6 字 + 刮削排除目录标签加宽 + 70 站全部接入格式化番号名（用户指定）
+- **文案回退（末字被遮挡）**：只获取单个演员 → **只获取单演员**、获取本地番号名 → **获取本地番号**、格式化番号名称 → **格式化番号名**；`.ui` 六处复选框、配置 title、迁移消息、日志与 docstring 同步。根因是像素预算而不是文案本身：工具页 QSS 把字体压到 13px，`centralwidget` 的 `QCheckBox::indicator{width:14px;border:1px}` cascading 到工具页后指示器实占 **16px**，112px 复选框的文字区只剩 **90px**；7 个汉字要 **91px**（差 1px 裁掉末字），6 个汉字 **78px** 留 12px 余量。复选框的宽/x/y 一律不动，只改文案。本节取代上一条「工具页「格式化番号名称」独立模块 + 两枚复选框」里的 7 字文案口径（历史条目保留不改）。
+- **刮削排除目录标签加宽**：`label_41` 宽 90 → **94**，与同页 `label_3`（本地文件路径：）、`label_10`（番号链接地址：）同 x=46、同宽 94。文案一直就是全角冒号 U+FF1A，真正的问题是 7 个全角字符需 91px 而标签只有 90px，冒号被裁掉后看起来像没跟其它路径标签左对齐；输入框 `lineEdit_escape_dir_move` x=136 不动。`MDCx.py` 由 pyuic6 重编译 + ruff format 生成（本次 diff 只有 7 行：1 处 geometry + 6 处 setText）。
+- **70 个站点刮削器全部接入格式化番号名**：`actor_sources` 新增 `_format_site_hits`，挂在唯一的站点结果出口 `_run_source`（`if hits:` 分支）上，按 ContextVar `_FORMAT_NUMBERS` 决定是否再走一遍 `_merge`。此前格式化只发生在 `_merge` 内部，凡在 `_merge` 之后改写 number 的站（MyWife 权威号回填）以及将来自己拼 `NumberHit` 的新刮削器都会绕过开关；现在 70 站无论内部怎么拼番号，出口都是同一口径，逐站结果 `per_site_out` 与合并结果一致，「查询演员番号」「检查缺失番号」导出的 xlsx 番号列都格式化。不勾选时出口原样返回，不多跑一遍 `_merge`（四个 `clean_*` 归一函数本身幂等，重复走也不漂移）。
+- **校验**：`tests/test_format_number_option.py` 69 → **224 例**（新增：注册表恰好 70 站且有码/FC2/无码三个变体同集合 1 例、**70 站 × 开关逐站出口格式化 140 例**（桩故意不走 `_merge` 直接拼 `NumberHit`，并校验演员/日期/时长/封面不丢）、70 站齐跑 × 三类型 × 开关 6 例、MyWife 权威号出口兜住 1 例、不勾选时出口 pass 被跳过 1 例、两个工具 xlsx 番号列端到端 4 例、文案字数与标签几何 2 例）；新增 `tests/test_tool_page_text_width.py`（**10 例**：真实字体度量 + `.ui` 设计几何，六枚复选框文字区放得下、三个路径标签宽度放得下、刮削排除目录与兄弟标签同 x 同宽）；更新 `test_read_local_numbers.py` / `test_single_actor_config.py` / `test_actor_missing_numbers.py` 的文案断言；这三个文件同时去掉日期后缀改名（`test_format_number_option_2026_11_18.py` → `test_format_number_option.py`、`test_read_local_numbers_2026_11_17.py` → `test_read_local_numbers.py`、`test_single_actor_config_2026_11_17.py` → `test_single_actor_config.py`），历史条目里的旧文件名保留不改。
+
+### ruff format target 升级 py313 → py315 + 测试文件禁止日期后缀（用户指定）
+- **ruff target 升级**：`.pre-commit-config.yaml` 的 ruff-format hook、`scripts/check.py` FAST 段、CI Pipeline.yaml 的 Run ruff format 步骤统一从 `--target-version py313` 改为 `--target-version py315`；`ruff.toml` 注释同步更新。全仓执行 `ruff format --target-version py315 .`，60 个文件被改写（主要是 `except (A, B):` → PEP 758 `except A, B:`）；`machine_binding.py` / `device_id.py` 中过时的 py313 注释删除。`MEMORY.md` 中「多异常捕获一律写括号」规则更新为「ruff format 统一按 PEP 758 写 `except A, B:`」。
+- **测试文件命名去日期**：16 个带日期后缀的测试文件全部去日期：15 个直接重命名（如 `test_javdb_meta_throttle_2026_11_17.py` → `test_javdb_meta_throttle.py`），另 `tests/crawlers/test_json_channels_2026_11.py` 与已有的 `tests/crawlers/test_json_channels.py` 合并（合并重复的 `test_new_json_channels_are_registered_with_expected_probes`，去重后共 21 例）。同步更新 `test_official_aggregate.py` / `test_site_source_type_groups.py` 中 2 处 docstring 引用、`docs/Development.md` 与 `docs/MEMORY.md` 中所有回归测试引用。规则写入 `docs/MEMORY.md`（协作与质量）与 `docs/Development.md` §9：测试文件一律 `test_<功能名>.py`，日期信息进 Changelog，不进文件名；新增用例优先追加到已有同主题文件。
+- **校验**：`ruff format --check --target-version py315 .` 787 files already formatted；`ruff check .` All checks passed；16 个去日期测试文件全部通过（含 `test_javdb_meta_throttle.py` 22 例、`test_dmm_cid_number.py` 63 例、`test_format_number_option.py` 69 例、`tests/crawlers/test_json_channels.py` 21 例等）。
+
+### JavDB 限速 host 缩减为只保留 javdb580.com（用户指定）
+- **改动**：`web_async._JAVDB_PACED_HOSTS` 从 5 个 host（`javdb580.com` / `www.javdb580.com` / `apidd.czssdgz.com` / `apidd.spthgb.com` / `jdforrepam.com`）缩减为只保留 `javdb580.com`。`www.javdb580.com` 是空壳域名（只回 1 字节换行），App API 三个域名回退到通用档（10 req/s + 600/min）。
+- **影响**：JavDB 网页版仍走 2 req/s + 120/min + 0.5–1s 随机间隔的 `_PacedLimiter`；App API 调用（`JavdbAppCrawler._request_api` 自带 3–8s 随机间隔、`_fetch_javdb_app` 翻页间 0.3s sleep）走通用档。
+- **校验**：更新 `tests/test_javdb_meta_throttle.py` 中 `test_javdb_hosts_use_paced_limiter` 与 `test_javdb580_limit_is_independent_of_thread_settings` 的断言，验证 `javdb580.com` 走 `_PacedLimiter`、其余 4 个 host 走通用 `_CompositeLimiter`；22 例全过。
+
 ### DMM/DMM_JSON 演员番号导出剥掉 mono cid 的厂商码与版本标记（用户指定）
 - **现象**：「查询演员番号」只勾 DMM_JSON 查三上悠亜，导出 807 行里 371 行是 `9SSIS287` / `77SSIS313` / `88OFJE343` 这类形态，与表内已有的 `SSIS-287` / `SSIS-313` 是同一番号却各占一行；另有 `4KSSNI989`、`MIDE599BOD`、`N-650EHM0001` 属同类重复。
 - **根因**：`utils/shared_fields.dmm_number_from_cid` 只认「字母+数字」与「数字+字母+≥5 位数字」两种 cid，mono（DVD 通販）线的 3 位编号 cid（`9ssis287`）落到兜底分支原样大写返回，`normalize_key` 与 digital 线 `ssis00287` 不同键，`_merge` 的去重失效。
