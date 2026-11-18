@@ -2,6 +2,22 @@
 
 按日期分段（`## YYYY-MM-DD`，新 → 旧）。只写「做了什么 / 改了什么 / 修了什么」；原因与排查过程见 `docs/Development.md`，长期规则见 `docs/MEMORY.md`。
 
+## 2026-11-18
+### 取消时长上界 + JavDB 系请求降到 2 req/s 并加人工随机间隔（用户指定）
+- **背景**：用户选择「App 给什么都写进去」；同时 JavDB 账号因「浏览速度远超正常用户，判定为异常采集行为」被临时停用（提示 2026-11-19 07:05 自动恢复）。
+- **时长不设上界**：删除 `utils/shared_fields.MAX_DURATION_MINUTES=600` 与 `clean_duration` 的上界检查，只排除 0 / 负数；合集整包总时长（720 / 960 / 2091 分钟等）照写不丢，取代 11-17「宁可留空」的口径。同步改 `test_javdb_meta_throttle_2026_11_17.py`、`test_actor_missing_numbers.py`、`test_javdb_duration_index_2026_11_18.py` 三组断言。
+- **限速 + 节奏**：`web_async` 新增 `_PacedLimiter`——双桶硬上限 + `asyncio.Lock` 串行化 + 相邻请求随机 `uniform(0.5, 1.0)` 秒间隔；JavDB 系 5 个 host（`javdb580.com` / `www` 网页 + `apidd.czssdgz.com` / `apidd.spthgb.com` / `jdforrepam.com` App API）统一 **2 req/s + 120 req/min**，取代 11-17 的网页 5/300、App 走通用 10/600。wiki 5/180、通用 10/600、本机 300 req/s 不变；图片 CDN 不纳入（静态资源不算浏览行为）。
+- **预算**：`actor_number_check._META_TOTAL_TIMEOUT` 120 → 180，避免随机间隔拉长后尾行被整轮超时截断。
+- **校验**：新增 `_PacedLimiter` 串行化与随机间隔区间用例，更新限速/时长断言；ruff、format、mypy、线程安全、全量离线 pytest 通过。**未做联网实测**：账号仍在停用期，避免加重风控，待自动恢复后再跑导出验证。
+
+### 查缺导出时长彻底补齐：恢复 JavDB App 批量时长索引（用户指定）
+- **现象**：11-18 两次「查询演员番号」各导出 321 行，时长仍缺 194 / 198 行，日志仍有「javdb580.com 限流，已自动降速并退避重试」；用户指出 11-15 及之前的写法能拿到时长。
+- **根因（四层叠加）**：① 11-17「清单即边界」把 `_collect_meta` 末尾的 `_javdb_app_search_meta`（按番号搜 JavDB App）连同 LibreDMM 跨站兜底一起删了；② 同日 JavDB_JSON 改成演员主页分页取全量后，列表卡片只带发行日 + 封面、不带时长（旧的 App 关键词搜索结果自带 duration）；③ `_javdb_app_movie_meta` 只带 `jdsignature`、没带登录 JWT，实测 `/api/v2/search` 不带 token 返回 `JWTVerificationError: 請登錄帳號`；④ 11-17 又把网页兜底改成「App 有任意一项命中就不再追查」，v4 只给发行日/封面而不给时长的行因此永远补不到时长。
+- **修复**：新增 `_javdb_app_headers()` 统一带 `Authorization: Bearer <javdb_app_token>` + 签名；恢复 `_javdb_app_search_meta`（按番号、站内不跨站）；新增 `_javdb_app_duration_index(actor_names)` 按演员名翻 App 搜索页建立「番号→时长」索引；`enrich_missing_metadata` 新增 `actor_names`，仅在本轮确有 JavDB 来源且缺时长时先批量预填并打「📦 JavDB App 批量补齐时长：N 个」，剩余行再逐行补；`_collect_meta` 的顺序改为 v4 详情 → 缺 duration 就按番号搜 v2 → 网页详情最后兜底，且本轮网页兜底总次数上限 64，避免 App 整体失效时几百行排队撞 429。两个导出入口（查询演员番号 / 检查缺失番号）都传入演员名。
+- **实测**：带用户配置里的 token，按 `三上悠亜` 翻 7 页共 321 条、其中 290 条带有效时长；与演员页导出的 321 个番号集合**不完全重合**（索引另有 20 条表外番号，表内也有 47 条索引没覆盖），批量预填后剩余行仍交给逐行链路。实测两张 11-18 导出表的时长缺口可由批量索引回填 147 / 153 行，请求数从 321 次逐行详情降到 7 次，且这批请求完全不碰 `javdb580.com` 的 Cloudflare。
+- **剩余边界**：47 / 45 个索引没覆盖的番号里，15 个是 JavDB 只给合集总时长（720 / 960 / 2091 分钟等），被 11-17 定的 `MAX_DURATION_MINUTES=600` 过滤；约 21 个 App 按番号搜返回空或 0；其余可用值由逐行链路补。连续大量按番号请求会命中率下降（疑似 App 端业务限流），故以批量索引为主、逐行为辅。
+- **校验**：新增 `tests/test_javdb_duration_index_2026_11_18.py`（8 例：token 请求头、按番号精确匹配、翻页/归一化/上界过滤、无 token 不发请求、批量预填与 gained 统计、清单即边界、网页兜底预算）；同步更新 3 个既有用例的补齐链路断言；ruff、mypy、线程安全、全量离线 pytest 通过。
+
 ## 2026-11-17
 ### 通用域名限速改为 10 req/s + 600 req/min 双桶（用户指定）
 - **口径**：JavDB 网页域名保持 5 req/s + 300 req/min 专属档；其余站点（含 JavDB App API 的 `apidd.czssdgz.com` 等独立域名）统一为每秒 10 个、滚动 60 秒不超过 600 个（10 × 60 = 600），取代原先 `AsyncLimiter(8, 1)` 的单桶默认档。
