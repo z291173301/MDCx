@@ -14,6 +14,25 @@
 - **实测**：把导出表 807 行的 cid 全量回放，收敛到 428 个番号且全部为「厂牌-编号」形态；`resources/userdata/dmm_cid_routes.json` 的 10530 条番号↔cid 白名单与全部系列路由组合比对旧实现，0 回退、2892 条修正。链接与封面仍用原始 cid，不受影响。
 - **校验**：新增 `tests/test_dmm_cid_number_2026_11_18.py`（29 例：cid 归一化、不可误伤形态、两条产品线同键、`_fetch_dmm_api` digital+mono 去重与元数据按字段补齐）。
 
+### DMM/DMM_JSON 演员番号去重联网复核：补齐残余版本标记 + 翻页按 total_count（用户指定）
+- **复核方式**：用 `actor_sources._fetch_dmm_api` 联网实拉四位演员（三上悠亜 / 明日花キララ / 深田えいみ / 波多野結衣），把 digital + mono 两条产品线的原始 cid 全量落盘，逐条比对「原始条数 → 去重后番号」，并按标题相似度列出所有差异组人工判定。
+- **结论一：去重本身没有丢番号**。四位演员 `lost_keys` 全为 0；全部标题差异组（含相似度 <0.5 的）都是同一番号的介质/版本/分卷变体：OFJE-227（DVD4枚 vs Blu-ray4枚）、EHM-001（`h_295ehm00001` vs `n_650ehm0001`）、VRAD-801（4 个 VR 話 + `n_1155vrad801`）、DVAJ-391（td028/037/043 特価 + `537dvaj391` + bod）、DASD-785（Standard vs High-Quality）等。用户附件 `三上悠亜2026-11-18 11-26-54.xlsx` 的 428 行与联网结果逐号一致，双向差集为空。
+- **修复一：残余版本标记与促销前缀**。三位演员分别还剩 11 / 6 / 89 个非「厂牌-编号」形态的番号。`dmm_number_from_cid` 改为先用结构化 fullmatch 把「厂商码 + 厂牌 + 编号」核心与尾部标记切开（`((?:[hn]_\d+|\d+)?[a-z]{1,10}\d{2,7})((?:[a-z]+\d{0,2})+)`）再剥标记：租赁/特価 `r`/`x`/`f`/`re`/`redod`/`sodod`，AI リマスター与総集編 `ai`/`soai`/`mtn`/`jo01`/`jo01jo01`/`sa1`，赠品 `tk1`/`tktb`/`dl`/`dp`/`b`，分卷字母 `a`；促销前缀 `td0NN`（特価）与 `d1`…`d6`（FANZA 限定赠品版）在切分前剥，`4k` 在切分后剥（KIRI 例外不变）。
+- **防误伤**：直接按「数字后的字母尾」剥（`(?<=\d)[a-z][a-z0-9]*$`）造成 73066 条回退（`h_1743aabh00001`→`H-1743`），收到 `(?:[a-z]+\d{0,2})+$` 仍有 1858 条（2 位编号路由组合 `h_086abba01`→`H-086` 与「厂牌+标记」同构）。改结构化切分后按 `dmm_cid_routes.json` 白名单 + 系列路由组合全量回放 101146 例：**0 回退、1263 修正、9 中性**。白名单口径核对 `VRAD-801=h_1190vrad00801a`、`AD-1960=h_1416ad01960a`、`SERO-276=td033sero00276`、`SEO-276=td016seo00276`，10530 条番号无一例带字母尾。
+- **修复二（真丢番号）：翻页固定 offset 上限截断大目录**。`_fetch_dmm_api` 原护栏 `offset <= 3000`，而波多野結衣 digital `total_count=3937`、mono `4581`，两条线各被截掉 937 / 1581 部，合计 2518 条原始记录根本没进导出。改为按每页 `result.total_count` 收手（`offset > total` 即停），护栏放宽成 `_DMM_OFFSET_CEILING=20000`，只防 total_count 异常时跑飞、不再是目录上限。修复后波多野結衣原始 8518 条 → **4193 个番号**（原 3263，找回 930 个），四位演员两条线实拉条数都与各自 total_count 精确相等。
+- **配套放宽超时**：DMM_JSON 原先没进 `_SITE_TIMEOUTS`、吃 `Source.timeout` 默认 120s，大目录会在翻完前被 `_out_of_time()` 收手，缺号表现与 offset 截断一样。照 HBOX_JSON 先例给 `Website.DMM_JSON: 300`（波多野結衣 8518 条 = 86 次请求）。两万护栏是「单演员 × 单产品线」口径、不跨演员累计（多演员在 `tools/missing.py` 串行逐个查，`offset` 每线重置为 1），故未再放宽。DMM 网页版仍是 60s 且转调同一个 `_fetch_dmm_api`，本次未动。
+- **最终计数**：三上悠亜 1166→428、明日花キララ 475→212、深田えいみ 2256→1092、波多野結衣 8518→4193；四位均 `lost=0`、非标准形态番号 0。
+- **校验**：`tests/test_dmm_cid_number_2026_11_18.py` 29 → 63 例（新增 26 例标记/促销前缀归一、4 例 2 位编号防误伤、2 例含数字厂牌原样返回、1 例 total_count 翻页越过 offset 3000、1 例 DMM_JSON 超时 300s）。全量离线 5270 通过。
+- **已知无关失败**：`tests/test_py314_dependency_floors.py` 2 例（numpy 下限 2.5.5 vs 期望 2.5.4、uv.lock 缺 specifier）自 `239bd5fb` 起既存，本次未动。
+
+### 工具页「格式化番号名称」独立模块 + 两枚复选框（用户指定）
+- **新增选项**：「检查缺失番号」「查询演员番号」两组各在「获取本地番号名」右侧加一枚「格式化番号名称」复选框（x=368，与另两枚同行）。勾选后**所有站点**取到的番号统一按 DMM/DMM_JSON 口径格式化（`9SSIS287`→`SSIS-287`、`4KSSNI989`→`SSNI-989`、`MIDE599BOD`→`MIDE-599`）；不勾选保持各站原展示形态，行为与改动前一字不变。
+- **独立文件**：新增 `mdcx/utils/number_format.py`，只导出 `format_number(raw)`，内部复用 `shared_fields.dmm_number_from_cid` + `mywife_number` 归一化，不反向依赖业务模块。接线点只有一个：`actor_sources._merge`（全部站点取号的唯一漏斗）按 ContextVar `_FORMAT_NUMBERS` 决定走 `format_number` 还是 `display_number`；`collect_numbers` 新增 `format_numbers` 开关并在 `finally` 复位。逐站结果与合并结果同口径，MyWife 在 `_merge` 之后恢复权威号（`Mywife No.1693`）的既有逻辑不受影响。
+- **本地比对同口径**：勾选后 `_scan_local_numbers` 返回的本地键与 `_report_actor_result` 的 Flags 回退集合都按 `format_number` 格式化，否则本地 `9SSIS287` 会被误判成缺失；`Flags.local_number_set` / `local_number_cnword_set` 与 `number_list.json` 缓存仍写原值（其它工具共用，不能被本工具开关改写）。
+- **配置**：新增 `missing_format_number` / `actor_number_format_number` 两个独立 bool，默认 `False`，`default_config.json` 同步；migrations 新增 `_migrate_format_number_checkboxes`（缺键补 `False` + `[迁移]` 消息触发首次启动回写，幂等），`config_version` 保持 2。load/save 各读各写，`tool_page` 三个入口（左下角番号浮标、检查缺失番号按钮、查询演员番号按钮）都传开关，两处自动保存守卫加上新复选框比较。
+- **文案与布局**：只获取单演员 → **只获取单个演员**、获取本地番号 → **获取本地番号名**（含日志与迁移消息）；「本地资源库和演员名都可以填写多个，以中英文逗号分开」提示语下移一行到复选框下方（`label_actor_number_hint` y=212、`label_62` y=163），x=50 / 宽 591 与「移动…Movie_moved」提示 `label_8` 完全一致，左缘上下对齐且页面拉宽时同按右缘锚定。两组各增高 17px（302 / 258），组内按钮下移 17px，`groupBox_19` y 1851→1868、`groupBox_scrape_cache` y 2112→2146，工具页内容高 2472→2506，组间距保持 20px。`MDCx.py` 由 pyuic6 重编译 + ruff format 生成。
+- **校验**：新增 `tests/test_format_number_option_2026_11_18.py`（69 例：格式化口径 / 幂等 / MyWife 权威形态 / 不可误伤形态、`_merge` 开关与跨站去重、`collect_numbers` 开关复位与 gather 子任务同口径、配置默认值与迁移幂等、UI 几何与对齐、load/save/tool_page 接线、本地键同口径且缓存写原值）；更新 5 个既有测试文件的文案断言与 fake Ui。
+
 ### JavDB 时长补齐与请求节奏定稿（用户指定，取代 11-17 口径）
 - **时长不设上界**：删除 `utils/shared_fields.MAX_DURATION_MINUTES=600` 与 `clean_duration` 的上界检查，只排除 0 / 负数；合集整包总时长（720 / 960 / 2091 分钟）照写。
 - **限速与节奏**：`web_async._PacedLimiter` 给 JavDB 系 5 个 host（网页 `javdb580.com`/`www` + App `apidd.czssdgz.com`/`apidd.spthgb.com`/`jdforrepam.com`）统一 2 req/s + 120/min 双桶、`asyncio.Lock` 串行化、相邻请求 0.5–1s 随机间隔；wiki 5/180、通用 10/600、本机 300 req/s 不变，图片 CDN 不纳入。起因是账号被判「浏览速度远超正常用户」临时停用（11-19 07:05 自动恢复），**停用期间不联网实测**。

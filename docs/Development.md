@@ -401,6 +401,77 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
   `tools/missing.py::_write_missing_excel` 补上补偿；同时应用户要求把时长/类型两列
   从 12 收窄为 6（`_COLUMN_WIDTHS = (15, 12, 12, 6, 6, 12, 60, 100)`）。
 
+### 10.14 DMM 演员番号去重的联网复核与两处根因（2026-11-18）
+
+用户质疑「三上悠亜 700 多个原始番号去重后只剩 428 个，是不是丢了」。复核不靠推断，
+直接把 `actor_sources._fetch_dmm_api` 的原始返回落盘再逐条比对：
+
+- **方法**：给 `src._http_json` 套一层 spy（记录 `{url, data}` 后转调原函数），实拉四位演员
+  （三上悠亜 / 明日花キララ / 深田えいみ / 波多野結衣）的 digital + mono 两条产品线，抽出每条的
+  service/cid/title/url/date/volume/actresses/maker/label/series；再按 `normalize_key` 算
+  「原始键集合 − 命中键集合」得 `lost_keys`、反向得 `extra_keys`，并按标题相似度（difflib）
+  把同一键下的不同标题分组，逐组人工判定是不是真不同作品。脚本与原始 JSON 落系统临时目录，不进仓库。
+- **判定口径**：标题差异组只要 cid 剥壳后同键，就是介质/版本/分卷变体，不算丢番号。实测最极端的几组：
+  OFJE-227（DVD4枚 vs Blu-ray4枚）、EHM-001（`h_295ehm00001` vs `n_650ehm0001`，素人厂两条厂商码）、
+  VRAD-801（4 个 VR 話 + `n_1155vrad801`）、DVAJ-391（td028/037/043 三档特価 + `537dvaj391` + bod）、
+  DASD-785（Standard vs High-Quality）。四位演员 `lost_keys` 全为 0，用户附件 428 行与联网结果
+  双向差集为空 —— **去重本身没有丢番号**。
+- **根因一（重复没去干净）**：剥壳只覆盖了 bod/dod/4k，租赁与促销版的 `r`/`x`/`f`/`re`/`redod`/`sodod`、
+  総集編的 `ai`/`soai`/`mtn`/`jo01`/`sa1`、赠品的 `tk1`/`tktb`/`dl`/`dp`、分卷字母 `a`，
+  以及 `td0NN` / `d1`…`d6` 促销前缀都漏了，三位演员分别残留 11 / 6 / 89 个非标准形态番号。
+  **两次失败尝试**：① `(?<=\d)[a-z][a-z0-9]*$` 直接剥字母尾 → 白名单回放 73066 条回退，
+  数字结尾的厂商码后面整段「厂牌+编号」都被当成标记（`h_1743aabh00001`→`H-1743`）；
+  ② 收窄成 `(?<=\d)(?:[a-z]+\d{0,2})+$` → 仍 1858 条回退，2 位编号的路由组合（`h_086abba01`、`13acb01`）
+  与「厂牌+标记」在字符串层面同构，靠尾部正则区分不了。**可行解**：先结构化 fullmatch 认出核心
+  `((?:[hn]_\d+|\d+)?[a-z]{1,10}\d{2,7})`，剩下的才算标记；促销前缀在切分前剥、`4k` 在切分后剥
+  （KIRI 厂商码恰为 4）。101146 例回放 0 回退、1263 修正、9 中性。
+- **根因二（真丢番号，与去重无关）**：翻页护栏写死 `offset <= 3000`。波多野結衣 digital
+  `total_count=3937`、mono `4581`，两条线各截掉 937 / 1581 部，2518 条原始记录根本没进取号流程 ——
+  这才是「大目录演员导出缺号」的真凶。改成按每页 `result.total_count` 收手，护栏放宽到 20000
+  只防异常跑飞。修复后波多野結衣 8518 条原始 → 4193 个番号（原 3263，找回 930 个）。
+  护栏是「单演员 × 单产品线」口径、不跨演员累计：多演员在 `tools/missing.py` 的
+  `for actor_name, actor_type in actor_entries:` 里串行逐个查，`offset` 每条产品线重置为 1，
+  传进 `_fetch_dmm_api` 的 `names` 只是同一演员的名字变体（`_pick_name(names, 2)` 试到解析出
+  actress_id 就 break）。**真正会先截断的是超时**：DMM_JSON 原先没进 `_SITE_TIMEOUTS`、
+  吃 `Source.timeout` 默认 120s，照 HBOX_JSON 先例放宽到 300s；DMM 网页版仍 60s 且转调同一 fetcher。
+- **回归**：`tests/test_dmm_cid_number_2026_11_18.py` 29 → 63 例。
+
+### 10.15 「格式化番号名称」为什么接在 `_merge` 而不是取完再格式化（2026-11-18）
+
+用户要求把 DMM/DMM_JSON 那套剥壳口径推广到**所有站点**，做成独立文件独立函数、
+由工具页复选框控制、默认不勾选、旧配置自动升级。三个设计判断记录在此：
+
+- **为什么不能只调 `display_number`**：`_merge` 本来就已经对每个站点的番号调
+  `display_number`（`9SSIS287` 原样大写返回），所以「格式化」必须比它更强 ——
+  真正剥壳的是 `dmm_number_from_cid`。新模块 `utils/number_format.py::format_number`
+  就是「`dmm_number_from_cid` + MyWife 例外」这一层工具页策略，剥壳规则本身不搬家。
+- **为什么接在 `_merge`**：grep 全部调用点确认 `_merge` 有 37 处调用，而
+  `NumberHit(` 在 `mdcx/` 里只有一处构造（就在 `_merge` 内）—— 它是全部站点番号的
+  唯一漏斗。在这里按 ContextVar 分流，逐站原始结果（`per_site_out`，供取号准确率对比表）
+  与合并结果天然同口径。**若改成「取完再统一格式化一遍」会有两个真问题**：
+  ① 对比表里逐站番号仍是旧形态、汇总表是新形态，同一番号在两处对不上；
+  ② MyWife 在 `_merge` **之后**用 `replace(hits[key], number=authority_number(...))`
+  把 `Mywife No.1693` 恢复成站内权威号（两处：WP REST 与官网兜底），因为
+  `display_number("Mywife No.1693")` 会压成 `MYWIFENO.1693`；后置统一格式化会把这两处
+  恢复再次覆盖掉。接在漏斗上则自动兼容 —— `format_number` 里 MyWife 分支本身就返回权威形态。
+  ContextVar 而非参数透传，是因为 `_merge` 被 37 处 fetcher 调用，逐个加参数改动面太大；
+  `asyncio.gather` 派生的子任务会 copy context，开关照样传得进去（与既有
+  `_OFFICIAL_NAMES` / `_JAVDB_KEYWORD_ONLY` 同一套写法，`finally` 复位）。
+- **为什么本地键也要格式化、但缓存不能**：勾选后网络番号变成 `SSIS-287`（键 `SSIS287`），
+  本地若仍按原值 `9SSIS287` 算键（`9SSIS287`），去重就失效、本地已有的片被报成缺失。
+  所以 `_scan_local_numbers` 的返回键与 `_report_actor_result` 的 Flags 回退集合都要过
+  `format_number`。但 `Flags.local_number_set` / `local_number_cnword_set` 与
+  `number_list.json` 是**其它工具共用**的，写格式化值会污染它们，故仍写原值 ——
+  「比对键」与「共享数据」分开处理。`format_number` 必须幂等：写表前的
+  `enrich_missing_metadata` 会再按 `normalize_key(hit.number)` 建索引，不幂等就会漂移。
+- **文案与对齐**：`label_8`（移动…Movie_moved 提示）是 x=50 / 宽 591，右缘 641 ≥
+  组宽 701×0.9=630.9，被 `CustomScrollArea._classify_inner` 判为 `_DOCK_RIGHT`。
+  两条新提示语必须同 x 同宽，才能在页面拉宽时同样右缘锚定、保持左缘上下对齐；
+  宽度改一点就会掉进 `_KEEP` 分支，宽态下与 `label_8` 错开。三枚复选框宽 112、
+  右缘最大 480 < 630.9，判为 `None`（保持原位），不受拉宽影响。
+- **回归**：新增 `tests/test_format_number_option_2026_11_18.py` 69 例；
+  既有 5 个测试文件随文案更新断言，并给 fake Ui 补上两枚新复选框属性。
+
 ---
 
 ## 11. 左下角状态区图标规范
