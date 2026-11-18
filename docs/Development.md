@@ -1,6 +1,6 @@
 # Development
 
-MDCx 开发文档。记录架构、模块职责、口径与纪律。
+MDCx 开发文档。记录架构、模块职责、口径与纪律；第 18 章为 2026-11-15/16 的专题调研与实现笔记（由原根目录 `development.md` 合并而来）。
 排查过程与踩坑记录见 `docs/MEMORY.md`，版本变更记录见 `docs/Changelog.md`。
 
 ---
@@ -565,3 +565,546 @@ v2.2.1 起。
 - `showEvent` 读回校验，AppUserModelID 丢了就补 `_ensure_taskbar_app_id`。
 - **还原后严丝合缝盖住主窗口**：`changeEvent` 只认「从最小化出来」（最大化状态从 `event.oldState()` 取）；还原时最大化恢复最大化，普通态 `showNormal + setGeometry(主窗口几何)`；最大化盖普通不动、不抢焦点；主窗口还在最小化则挂起 `_cover_pending` 由 eventFilter 执行；`show_matching` 全程 `_placing`（try/finally）；最大化前先钉还原矩形到启动尺寸并泵一次事件。
 - **关闭语义**：预览 `WA_QuitOnClose=False`；主窗口 `closeEvent` 收起分支连带 `close()` 预览。再报「关预览退进程」先查构建落点再查事件查看器异常代码，不要直接动代码。
+
+---
+
+## 18. 专题调研与实现笔记（2026-11-15 ~ 2026-11-16）
+
+> 本章由仓库根目录 `development.md` 于 2026-11-18 整体合并而来，原文件已删除。
+> 内容是按日期的专题调研、实测结论与实现记录，与前面 1–17 章的架构说明与纪律口径互补；
+> 章节标题保留原始日期，层级整体下移一级，正文未作删改。
+
+### AIO 三站（AVMOO / AVSOX / AVHeat）的错误信封与重试（2026-11-16）
+
+tellme.pw AIO 平台（avmoo.shop / avsox.click / avheat.shop）是一套 Yii2 后端，三站接口形状一致：
+
+```
+POST {root}/{namespace}/data/api/search          body=[{"search": 番号, "lang": "cn"}, 60, 1]
+POST {root}/{namespace}/data/api/getMovie        body={"movieId": ...}
+POST {root}/{namespace}/data/api/getFilterMovies body=["star", starId, "cn", 60, page]
+```
+
+命名空间按站分：`jav`（有码，AVMOO）、`javu`（无码，AVSOX）、`wav`（欧美，AVHeat）。
+
+**错误信封（关键）**：后端处理不过来时返回的是 **HTTP 200 + 应用级错误体**：
+
+```json
+{"code": 500, "message": "Unable to complete the request. Please try again later.", "data": null}
+```
+
+这是本平台最容易踩的坑，三条推论：
+
+1. **HTTP 层不会重试**——状态码是 200，传输层只看 5xx/网络异常/挑战页。必须由业务层识别 `code`。
+2. **不能当成「查无此片」**——`data` 是 `null` 不是空列表，按「空结果」处理会把后端抖动当成查无此番。
+3. **不能只看 body 里有没有 `"data"` 字符串**——错误信封恰好带 `"data": null`，任何 `"data" in text` 的判定都会把故障误判成正常。
+
+三条已修的地方：
+
+| 位置 | 旧行为 | 现行为 |
+|------|--------|--------|
+| `crawlers/aio_api.py`（新增协议层） | 无 | 识别错误信封 + 异步/同步两套退避重试（1s / 2.5s，共 3 次） |
+| `controllers/main_window/json_view.py` 查看JSON | 一次裸 POST 到写死域名，无 Cookie、无重试 | 动态域名（tellme.pw 发布）优先 + 静态/用户配置域名兜底，GET 预热 `_csrf` Cookie 后 POST，命中信封退避重试，失败给可读文案 |
+| `core/network_check.py` `_classify_aio_api` | `'"data"' in text` 即判「连接正常，刮削正常」 | 按 `code` 判定，`code != 200` 判为异常并带出后端原文 |
+| `crawlers/av{moo,sox,heat}_api.py` | 后端抖动 → 「未找到匹配: XXX」 | 走同一协议层重试 |
+| `tools/actor_sources.py` AIO fetcher | 翻页遇错 → 直接 break，**静默少一批番号** | 识别信封重试，中断时写日志报原因 |
+
+**实测特性**：AIO 平台被并发打满时会直接掐 TLS（`curl: (35) BoringSSL SSL_connect: Connection closed abruptly`），单站顺序请求稳定返回 `code=200`。所以「Official·JSON」批量点「查看JSON」一次开二十多个窗口时，这三站最容易翻车——**别把并发度当成无成本的事**。
+
+**域名**：三站地址由 tellme.pw 的 `__AIO_SITE_URLS__` 发布（`base/web.py::get_aio_domain`，1 天内存缓存）。爬虫走动态域名；查看JSON 现在也走（`base/web_sync.py::get_aio_domain_sync`）。
+
+### 浏览器操作默认使用 Microsoft Edge（2026-11-16 用户定规）
+
+凡是需要操作浏览器的动作——联网调研站点搜索入口、打开搜索页验证参数、查看渲染后的 DOM、点选年龄门 / 翻页、核对详情页链接——**一律默认使用 Microsoft Edge**，不用 Chrome、不用系统默认浏览器、也不用 `webbrowser.open()` 的隐式默认浏览器。
+
+| 项 | 值 |
+|----|----|
+| 可执行文件 | `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe` |
+| 本机版本 | 157.0.4341.60（2026-11-16 实测） |
+| 代理 | Playwright `proxy={"server": "http://127.0.0.1:7897"}`；命令行 `--proxy-server=http://127.0.0.1:7897` |
+| Playwright / Browser Use | 显式 `executable_path=EDGE`（或 `channel="msedge"`） |
+
+具体用法：
+
+- **首选（2026-11-16 本机实测可用）**：用 Playwright 驱动本机 Edge，指定 `executable_path`：
+
+  ```python
+  from playwright.sync_api import sync_playwright
+
+  EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+  with sync_playwright() as p:
+      b = p.chromium.launch(
+          executable_path=EDGE,
+          headless=True,
+          proxy={"server": "http://127.0.0.1:7897"},
+          args=["--no-sandbox", "--disable-gpu", "--disable-blink-features=AutomationControlled"],
+      )
+      pg = b.new_page()
+      pg.goto(url, wait_until="domcontentloaded", timeout=25000)
+      html = pg.content()  # 渲染后 DOM
+  ```
+
+  SPA（Next.js `__NEXT_DATA__` / RSC payload）站点必须走这条路，纯 curl 只能拿到空壳。
+- **命令行 headless 取 DOM 不可用（同日实测）**：`msedge.exe --headless=new --dump-dom <url>` 退出码 0 但 stdout 恒为 0 字节（`--screenshot` 也不落盘），**不要用它抓页面**；自动化一律走上一条 Playwright。
+- **人工可见验证**：`headless=False` 起真实 Edge 窗口，按页面实际呈现确认搜索框、参数、分页与入口。
+- **不需要渲染的批量取数**：仍用项目既有的 `curl_cffi` / `httpx` 通道（爬虫与 `actor_sources` 同口径），但**「这个入口能不能用」的结论必须以 Edge 打开验证为准**，不能只凭 HTTP 200 下结论。
+- 本规则同时写入 `docs/MEMORY.md`「本机环境」段；两处口径一致，改动时同步。
+
+### 聚合/综合站「按演员名搜番号」调研（2026-11-16，Edge 实测）
+
+本轮 9 站：`FreeJavBT`、`Jav321`、`Lulubar`、`AVEntertainments`、`R18.dev`、`AVBase`、`7mmtv`、`Airav.cc`、`Xcity`。
+全部结论由 Microsoft Edge（headless + 本机代理 7897）实际打开页面得到，不凭 HTTP 200 下结论；
+成果落在 `mdcx/tools/actor_sources.py` 的 `_SITE_FETCHERS`（「检查演员缺失番号」工具），
+URL 模板同时可供刮削层 `_generate_search_url` 复用。
+
+#### 否定结论：R18.dev 不用管
+
+**`R18.dev` / `R18_JSON` 没有通过演员名搜索番号的功能，不实现 fetcher、不再调研**
+（用户 2026-11-16 定规，同日 Edge 实测确认，已同步写入 `docs/MEMORY.md`）：
+
+| 试过的入口 | 结果 |
+|------------|------|
+| `/videos/vod/movies/search/-/keyword=<名字>/json` | 404 Not Found |
+| `/videos/vod/actress/list/-/page=1/json` | 404 Not Found |
+| `/videos/vod/actress/detail/-/name=<名字>/json` | 404 Not Found |
+| 首页 `/videos/vod/movies/list/?id=<id>&type=actress` | 存在，但只认**已知 actress id**，站点没有「演员名 → id」的查询接口 |
+
+站点能力只有按番号直连详情 `/videos/vod/movies/detail/-/dvd_id=…/json`（`crawlers/r18dev.py` 已实现），
+刮削行为保持不变；查缺工具不为它注册 `_SITE_FETCHERS`，构建源时按既有逻辑跳过并在日志说明。
+
+#### 逐站实测结论（URL 模板可供刮削层复用）
+
+| 站 | 搜索入口 | 番号位置 | 分页 | 本轮处理 |
+|----|----------|----------|------|----------|
+| FreeJavBT | `GET /zh/search/{kw}?page=N`（表单另有 `/zh/search?wd=`） | 详情链接末段 `…/IPX-605` | `page=N`；白峰美羽 44 页，page=1/2 内容不同 | ✅ 复核通过，页上限 10 → `_MAX_PAGES` |
+| Jav321 | 搜索框**只收番号**（`POST /search` 字段 `sn`）；演员入口是 `/star/{star-id}/{page}`，star-id 从详情页「出演者」链接 `/star/1066537/1` 取 | `div.thumbnail//a` 文本末尾番号（`pbd-529`） | `<li class="next">`，实测 `/star/1066537/2` → `/3` | ✅ 复核通过（两步法依赖 JavDB 可达），页上限放宽 |
+| Lulubar | `GET /video/bygirldetail?name={演员名}&page=N`（等价 `?id={id}`，索引页 `/video/bygirl?page=N`）；**`/video/bysearch?search=` 稳定 403 CF，不可用** | `a.imgBoxW > img` 的 `alt`/`title` 开头 `ADN-814 - …`，详情链接 `/video/detail?id=…` | `page=N` | 🆕 新增 `_fetch_lulubar` |
+| AVEntertainments | `GET /dvd/search?lang=2&cat=29&keyword={名}&searchby=starring&page=N`（等价 `/dvd/idoldetail?lang=2&cat=29&idol={名}`） | 搜索页 `pro=<id>` 是站内 ID；番号在详情页 `//span[@class="tag-title"]`（`GLDV-006`，与爬虫同去 `DL` 前缀） | `page=N` | 🆕 新增 `_fetch_aventertainments`（并发 5，共用 `manager.config.aventertainments` verifybot Cookie） |
+| R18.dev | 无 | — | — | ❌ 不接入（见上） |
+| AVBase | `GET /works?q={kw}&page=N`，Next.js SSR | `<script id="__NEXT_DATA__">` 的 `props.pageProps.works[]`（`work_id` 优先）＋ `href="/works/{番号}"` 回退；`pageProps` 另带 `total` / `page` | `page=N` | 🔧 重写分页与内嵌 JSON 解析；连打会 CF 403，空结果不得把 `urbopack-25` 之类 CSS 类名当番号 |
+| 7mmtv | `GET /zh/searchform_search/all/index.html?search_keyword={kw}&search_type=searchall&op=search` | 详情链接末段 `/…/ATID-705.html` | 站内分页 | ✅ 复核通过（200，8 个番号） |
+| Airav.cc | `GET /cn/search_result?kw={kw}` | `div.oneVideo-body//h5` 文本开头番号（实测 60 条）；`hid=QC-BT-…` 是广告/内部 ID，不能当番号 | 站内分页 | ✅ 复核通过；`Website.AIRAV`（值 `airav`）复用同 fetcher 只改标注 |
+| Xcity | `GET /api/search?q={日文名}&type=0&page=N` | `frontprogramlist.program[].itemcode` | `page_ctrl.has_next` | ✅ 复核通过（鈴村 愛里 返回 50KB）；中文名/假名返回 `{"frontprogramlist":null}` 属数据问题，不是接口故障 |
+
+补充说明：
+
+- **刮削层暂未改动**：`mmtv_json.py` / `avbase_json.py` / `airav_json.py` 的 `_generate_search_url` 目前是 `NotImplementedError`（刮削走详情直连，由 `DIRECT_PROBE_SITES` 钉死）。上表 URL 模板可直接复用到这三个爬虫，本轮只落在 `actor_sources.py`，避免牵动网络检测探测口径。
+- **自动判断固定链不动**：`_AUTO_SITE_ORDER` 由 `tests/test_actor_missing_numbers.py::test_auto_site_chains_match_user_spec` 精确钉死；新站走「指定类型 → 类型刮削网站」配置组生效（默认无码组含 `AVEntertainments` / `Lulubar`，有码组含 `FreeJavBT` / `Jav321` / `7mmtv` / `Airav` / `Xcity` / `AVBase`）。2026-11-17 起 `build_sources` 不再给固定链追加官网 JSON 版，固定链即全部请求范围（官网只在「官方网站」类型下补齐）；元数据补齐也只打本行来源站详情页，见 `tests/test_actor_sources_filter_2026_11_17.py`。
+- **既有硬约束不变**：每站最多重试一次（`collect_numbers` 统一控制）、各站番号先 `normalize_key()` 归一再与本地库比较（`DSOD-012` → `DSOD12`，写断言时别按展示形拼 key）。
+- **测试夹具**：`tests/crawlers/data/actor_sources/` 下的 `lulubar_girl.html` / `avent_search.html` / `avent_detail.html` / `avbase_works.html` 均由 Edge 打开真实页面后裁剪得到；回归在 `tests/test_actor_sources_sites_2026_11_16.py`。
+
+### 「检查演员缺失番号」全链路审查与修复（2026-11-16）
+
+本轮又用 Edge 抽查了 IQQTV / JavDay / Madou.club / FC2 / FC2CMADB / JavFree / JavBus 的搜索页与分页形态，
+沿「工具页入口 → `missing.py` → `actor_sources.collect_numbers` → 各站 fetcher」逐层审查。
+下表只列**代码里能指出确凿证据**并已修复的条目，回归见 `tests/test_missing_audit_2026_11_16.py`：
+
+| # | 问题（ Evidence ） | 修复 |
+|----|---------------------|------|
+| 1 | 本地对比用全局 `Flags.local_number_set`，该集合跨次运行从不 `clear()`；删片或换库后旧番号仍被当成「本地已有」→ 漏报缺失 | `_check_missing_number_impl` 用本次 `local_movies` 构造 `local_keys`，传给 `_report_actor_result`（不传时保留旧回退） |
+| 2 | `number_list.json` 空文件 / 写了一半的 JSON / 非字典内容会让 `json.loads` 抛异常；`executor` 不读 Future 异常 → 任务崩溃但界面「点了没反应」 | 读取包 `except (OSError, ValueError, TypeError)`，回退空缓存并打日志；首次写 `"{}"` 失败也不会连锁 `FileNotFoundError` |
+| 3 | 扫描循环里**每部影片都全量重写整份缓存 JSON**（1000 部 = 1000 次整文件写），两个并发查缺任务还会各持快照互相 `os.replace` 覆盖 | 循环内只累积，循环结束后一次性 `_try_write_cache_async` |
+| 4 | 前缀剥离 `re.findall(r"\d{3,}([a-zA-Z]+-\d+)")` 把 `300ABCD-123-2` 截成 `ABCD-123`、对 `123FC2-PPV-1234567` 完全不去前缀 | 抽 `_strip_number_prefix()`，用 `^\d{3,}(?=[A-Za-z])` 只削开头数字，保留分集后缀与多连字符番号 |
+| 5 | FC2 类型填的是**卖家名**（文件头与 `_parse_actor_entry` 都写明），却与动漫不同、被兜底写进 Excel「演员」列 | `_TYPES_WITHOUT_ACTOR_FALLBACK` 补 `FC2` |
+| 6 | `Website.MYWIFE` / `MYWIFE_JSON` 未登记 `_SITE_GROUPS`，`_run_group` 的 `fallback_for` 短路只看组内结果 → JSON 已命中时网页版仍重复请求同一后端 | 两者登记为同组 `mywife` |
+| 7 | `_run_source` 把一切异常压成 `{}`，页面改版 / `KeyError` 被显示成「该站未取到番号」；`missing.py` 演员级异常只打 `str(e)` 就 `continue`，末尾照常打印「查询完毕」 | 异常写主日志（站点名 + 异常类型）；演员级异常追加 `traceback.format_exc()` 并标红 |
+| 8 | JavDay 只取搜索第一页；Edge 实测分页 `/search/page/{n}/wd/{kw}/` 共 4 页，第 2 页番号（`WAAA-576` 等）与首页完全不重叠 | `_fetch_javday` 加分页循环，无新番号即停；真实两页裁剪成 `javday_p1/p2.html` 夹具 |
+| 9 | FC2 站内搜索不带 Cookie 直接 302 到 `fc2.com/cn/login.php`；`crawlers/fc2_json.py` 早有同款 Cookie 口径但查缺没用 | `_fetch_fc2` 复用 `manager.config.fc2` → `fc2_cookie_to_dict()`，搜索页与卖家页都带上 |
+| 10 | `_cell_date` 的 `except TypeError, ValueError:` 是 Python 3 合法的 tuple 写法（AST / 导入均正常），但极易被误读成 Python 2 语法 | 括号化 `except (TypeError, ValueError):`，不改行为 |
+| 11 | 工具页类型下拉新增「官方网站」后要有完整链路 | `MDCx.ui` → `MDCx.py`（pyuic6 + ruff format 最小 diff）；`_FORCED_TYPE_BY_COMBO` / `_ACTOR_TYPE_TO_SCRAPING[官方网站]=OFFICIAL` / `_TYPE_DISPLAY` / Excel 类型列同步。官网组 34 站里 32 个 studio 详情页无演员索引会被跳过并在日志说明，实际可用 6 源 |
+
+**刻意未改（记录口径，别当漏项）**：
+
+- 重试模型：`_run_source` 重试的是**整段 fetch**（含翻页 / 名字变体 / 详情页），`_fetch_xcity` 内部还有单页 3 次重试，与文件头「每站最多两次请求机会」的措辞不完全一致。改它会动到所有站的可用性与超时预算，本轮不动，只留此说明。
+- FC2CMADB `/search?keyword=` 实测返回 39 字节空响应、Madou.club `?s=` 对日文演员名返回无结果页、JavBus `/searchstar/白峰美羽` 404（该站用日文名）：属站点数据 / 反爬 / 名字写法问题，代码均已优雅降级返回空，不改解析。
+- 协作式取消与 `finally` 里的全局按钮复位涉及 UI 信号与并发任务状态，用户未点名，按「界面没有要求的不要自作主张修改」保留。
+
+### 厂牌官网按演员名搜番号（2026-11-16，Edge + curl_cffi 实测）
+
+「官方网站」类型下拉此前只能查到 5 家无码官网 JSON 版 + MyWife，34 家有码厂牌官网全是
+studio 详情页、没有演员入口，查缺时全部被跳过。本轮给厂牌官网补上「按演员名列全部作品」。
+
+#### 入口表：29 家同源 CMS（`mdcx/crawlers/sites_official/` 29 家）+ DAHLIA
+
+这些站共用同一套 CMS，站内搜索形态完全一致：
+
+| 项 | 实测值 |
+|----|--------|
+| 搜索入口 | `{base}/search/list?keyword={关键字}&countup=0`（SSR 直出结果，无需浏览器渲染） |
+| 作品链接 | `{base}/works/detail/{番号}`，**番号在 URL 末段且多为无连字符形态**（`ONSD340` / `DLDSS581` / `IPX-605`） |
+| 分页 | 同一 URL 追加 `&page=N`，每页 30 条 |
+| 演员名 | **演员名可直接当关键字**，命中该演员全部作品（无需先找演员 id） |
+| 名字写法 | 站是繁体站 → 依次试「原样 → 繁体 → 简体」三种写法（`_brand_name_variants`） |
+| 编号对齐 | 站内无连字符 vs 本地库带连字符，`normalize_key()` 两侧都能对齐（`ONSD340` == `ONSD-340`） |
+
+覆盖清单（29 家同源 + DAHLIA = 30 站）：S1S1S1 / Moodyz / Madonna / Wanz / Ideapocket /
+Kirakira / E-Body / Bi / Premium / Miman / Tameikegoro / Fitch / Kawaii / Befree / Muku /
+Attackers / MKO / Dasdas / MVG / Opera / Oppai / V-AV / To-satsu / Bibian / Honnaka /
+Rookie / Nanpa / Hajimekikaku / HHH / Dahlia。
+
+实现落在 `actor_sources._official_brand_fetcher(site, base)` 工厂 + `_OFFICIAL_BRAND_SITES` 表，
+注册进 `_SITE_FETCHERS`（在 `_SITE_FETCHERS_FC2` / `_WUMA` 两个变体字典之前 update，
+免得 FC2 / 无码组漏掉）。各站域名不同 → 不进 `_SITE_GROUPS`，默认各自独立组并发。
+
+**证据强度**（分两档，如实记录）：
+
+- 29 家**搜索路径全部用站内探测番号实测可用**（`/search/list?keyword=` 200 且有作品链接）。
+- 其中 23 家另用「详情页取到的站内真实演员名」实测命中（例：S1「橋本ありな」→ 178 个番号、
+  Attackers「夏目彩春」、Madonna「水戸かな」、Premium「山岸逢花」、Dasdas「水川スミレ」…）。
+- 余下 6 家（Kirakira / V-AV / To-satsu / Nanpa / Hajimekikaku / HHH）没有女优索引页
+  （`/actress/a` 恒 404），详情页「女優」行结构与其它站不同，没能取到名字做端到端验证；
+  它们的搜索路径已用番号验证可用，且实现与其它 23 家是同一份代码。
+
+#### 端到端实测（真实网络）
+
+```
+collect_numbers("官方网站", ["波多野结衣"], use_config_sites=True)
+→ 38 个站点参与（37 组并发），36.9 秒，合并去重后 1453 个番号，25 个站点有贡献
+```
+
+单站耗时参考：S1S1S1 178 个番号 / 4.3 秒、Madonna 261 个 / 6.8 秒、MGStage 366 个 / 4.3 秒、
+Faleno 27 个 / 1 秒、Kawaii 12 个 / 2.2 秒；30 家厂牌官网同时并发总耗时 13.4 秒（无卡死站点）。
+
+**单站超时上限**（`_SITE_TIMEOUTS`）：厂牌官网 45 秒、MGStage 60 秒（每页约 1MB、要翻 4 页）、
+Faleno 45 秒。超时由 `_run_source` 直接收手**且不重试**，个别站卡住不会把整轮查缺拖成好几分钟。
+
+#### 另外两家：独立系统（不是 S1 系同源 CMS），单独实现
+
+| 站 | 演员名入口 | 番号位置 | 备注 |
+|----|------------|----------|------|
+| `Official·MGStage` | 主入口 `https://www.mgstage.com/search/cSearch.php?search_word={演员名}&type=top&list_cnt=120&page={n}`（站内关键字搜索）；兜底 `…/cSearch.php?type=top&list_cnt=120&actor[]={演员名}_0&page={n}` | 作品链接 `/product/product_detail/{番号}`（番号带连字符，如 `287HZGD-285`） | **必须用日文原名**：繁体「波多野結衣」命中 120 条，简体「波多野结衣」一条不中（站是日文繁体站）→ 查缺侧用 `_official_name_candidates` 依次试「用户输入的写法（原样/繁/简）→ 演员库的日文原名」。**以关键字搜索为准**：演员筛选（`actor[]=`）对「涼森れむ」只给 150 部，站内关键字搜索给 152 部（少的 2 部 KRNK-005 / KRNK-010 确实是她的作品，作品页出演者里有她，只是演员筛选没收进去），与页面标称「152タイトル中　1～120タイトル　1ページ目を表示」一致。首次访问可能返回年龄认证页，按 `crawlers/base/age_gate.py` 的成人入口规则点一次（只选 18+ 入口）后**必须回头重取原来的搜索页**——成人入口指向首页（`./`），直接解析它的内容会拿到首页推荐番号（152 → 149、首页 120 → 117） |
+| `Official·Faleno` | `https://faleno.jp/top/wp-json/wp/v2/works?search={演员名}&per_page=100&page={n}` | `acf_custom_images.main_photo_url` 里的标准形态（`FNS-277`），取不到用 slug 还原（`fns277` → `FNS-277`） | 站点是 WordPress，`search` 能命中 `acf.出演女優`（实测「つばさ舞」27 条、「藤沢なみえ」1 条，与演员页列出的作品数一致） |
+
+实测：MGStage「波多野结衣」366 个番号、Faleno「つばさ舞」27 个番号；
+官网组从 6 个源涨到 **38 个源**、`skipped` 清零（34 家厂牌官网全部可按演员名查缺）。
+
+#### 官网按名字查：只用日文原名 + JavDB 兜底（2026-11-16 改）
+
+官网的站内搜索基本只认**日文原名**：用户填「凉森玲梦」这种中文名时，MGStage 一条都搜不到
+（该站演员栏写的是「涼森れむ」，中文名 / 繁体名 / 别名一律 0 命中）。既然输入原名注定 0 结果，
+就没有必要先拿它去 30 多家官网各发一轮请求——**直接跳过**。
+
+现在的流程（`mdcx/tools/actor_sources.py`）：
+
+1. `collect_numbers` 在并发跑站点**之前**调 `_prepare_official_names()` 统一解析一次名字，
+   结果放进 ContextVar `_OFFICIAL_NAMES`，各 fetcher 通过 `_official_name_candidates()` 同步读取
+   （避免 30+ 个官网各自重复发 JavDB 请求）。名字变体通常只是同一人的不同写法，
+   JavDB 兜底一轮只做一次。
+2. `userdata/actor_database.xlsx` 能转出日文原名 → **以它为首位**（输入名本来就是日文原名时也用它，
+   两者相等，语义一致），不再拼用户输入的原样/繁简变体。
+   若同一行 keyword 里还有**汉字+假名的日文艺名别名**，排在后面兜底：库的「日文原名」列
+   可能是旧艺名（实测「新有菜」→「橋本ありな」），而官网按现艺名「新ありな」收录，
+   只用库给的值会漏。别名经 `_official_jp_aliases` 严格过滤：排除输入原名及繁简变体、
+   排除纯假名读音（すずもり れむ）与罗马字（Arina Hashimoto）——这些不是官网搜索写法，
+   加进去只会凭空多一轮翻页请求，最多取 2 个。
+3. 库里查不到 → 新增的 `mdcx/core/actor_name_javdb.py` 走 **JavDB / JavDB_JSON** 兜底：
+   - JavDB_JSON 移动端签名 API `/api/v2/search?q={名}&type=actor`（需登录 token）直接给演员 id；
+     API 不可用/未登录时退回网页搜索 `/search?q={名}&f=actor` 取 `/actors/{id}`
+     （该页偶发被限流跳登录页，故按输入名 + 繁简变体依次重试，并用标题识别登录页）；
+   - 抓演员页解析：`<span class="actor-section-name">新有菜, 新ありな</span>` → 日文原名
+     `新ありな`（优先含假名且与输入名不同的项；两个都不含假名时按 JavDB 显示名取），
+     `<span class="section-meta">橋本ありな, 上乃木まな, …</span>` → 别名，
+     `325 部影片` → 作品数（仅用于日志核对）；
+   - 候选顺序 = 日文原名 → 别名（最多 3 个），**用户输入的原名一律剔除**，
+     各官网「按候选顺序搜、命中即返回」，所以别名只在日文原名搜不到时才用上。
+4. 演员库和 JavDB 都拿不到 → 保留一条输入名兜底并在日志里明确说明，避免官网组整轮 0 结果。
+
+两个独立模块（其它功能/函数可直接 import）：
+
+```python
+from mdcx.core.actor_name_map import resolve_jp_name, resolve_jp_names, lookup_actor, load_jp_name_index
+from mdcx.core.actor_name_javdb import parse_actor_page, parse_actor_api, resolve_jp_names_via_javdb
+
+resolve_jp_name("凉森玲梦")  # → "涼森れむ"（库里的「日文原名」列）
+resolve_jp_name("Remu Suzumori")  # → "涼森れむ"（别名也认）
+resolve_jp_names(["凉森玲梦", "三上悠亚"])  # → ["涼森れむ", "三上悠亜"]
+```
+
+演员库读法：列序 日文原名 / 中文名 / 繁体名 / 别名（逗号分隔），索引登记「日文原名 + 中文名 +
+繁体名 + 全部别名 + 各自的去分隔符形式 + 繁简转换形式」，进程内缓存，库更新后调 `clear_cache()`。
+注意库里的「日文原名」列并不总等于 JavDB 演员页的日文原名（例：`新有菜` 在库里 → `橋本ありな`，
+而 JavDB 演员页写的是 `新ありな`），故库命中时以库为准、库未命中才走 JavDB。
+
+实测（真实 HTTP 通道 + 代理 7897）：MGStage 用「涼森れむ」拿到 **152 部**（首页 120 + 次页 32），
+与站点标称一致。另：系统代理模式下所有有码官网均可正常访问，S1 搜索页「波多野結衣」0 结果
+是她已引退下架，不是网络问题——现役「白上咲花」同接口能搜到 30 部。
+
+#### HTTP 传输层错误透传
+
+`_http_text` / `_http_json` / `_http_json_list` / `_http_post_json` 原先丢弃底层 `_error`，
+代理端口写错时 30+ 站点全部静默返回空，界面只显示「0 个番号」。现在经 `_report_http_error`
+把 `curl: (7) Failed to connect ... over proxy` 原文送到日志面板，并提示核对代理端口
+（Clash 默认 7890 / mihomo 常用 7897）；按错误指纹去重，一轮查缺同类错误只报一次、
+总数封顶 8 条，避免刷屏。超时、组内单站异常、站点组整体异常也都记日志，且不会让整轮查缺崩掉。
+
+#### 与刮削层的关系
+
+厂牌官网爬虫的 `_generate_search_url` 是「按番号搜详情页」，与演员名搜索是两回事，**本轮未改刮削层**；
+上表的 URL 模板（S1 系 `{base}/search/list?keyword=`、MGStage `cSearch.php?search_word=`（兜底 `…&actor[]=`）、
+Faleno `wp-json/wp/v2/works?search=`）可直接复用，后续要在刮削层支持关键字检索时直接用。
+
+### UI 生成流程（MDCx.ui → MDCx.py）
+
+`mdcx/views/MDCx.py` 和 `mdcx/views/posterCutTool.py` 是 Qt Designer 生成的 Python 代码，**禁止手动编辑**。修改 UI 文案/布局后必须立即执行：
+
+```bash
+pyuic6 mdcx/views/MDCx.ui -o mdcx/views/MDCx.py
+pyuic6 mdcx/views/posterCutTool.ui -o mdcx/views/posterCutTool.py
+python scripts/fix_qt_enums.py mdcx/views/MDCx.py mdcx/views/posterCutTool.py
+```
+
+最后一步 `fix_qt_enums.py` 修复 PyQt6 6.11+ 的枚举兼容性（旧 pyuic6 生成 flat enums 会在新 PyQt6 上报 AttributeError）。
+
+**注意**：只改 `.ui` 文件不重新生成 `.py` 会导致界面看起来完全没变——这是最常见的 UI 修改踩坑。
+
+**生成到临时文件、比对后再替换（2026-11-16 定规）**：本机 pyuic6 生成的代码与入库版本会差一两行无关内容（生成器版本不同带来的路径写法等）。直接覆盖会把这些无关差异一起带进 diff。正确做法是先生成到临时文件、格式化后比对，确认只多出本次改动再替换，并手工还原生成器带来的无关差异：
+
+```bash
+pyuic6 mdcx/views/MDCx.ui -o /tmp/MDCx.py   # 生成到临时文件
+ruff format /tmp/MDCx.py                     # 与入库版本同样式
+diff /tmp/MDCx.py mdcx/views/MDCx.py         # 确认只多出本次改动
+```
+
+### 站点分组常量（config/models.py）
+
+删除或重命名官网站点后，以下常量必须同步更新，否则 Official·uncensored / Official·pixelated 分组行显示 0 站：
+
+| 常量 | 内容 | 使用场景 |
+|------|------|----------|
+| `OFFICIAL_CENSORED_SITES` | 33 家有码官网**网页版**（无 JSON 站） | `OFFICIAL_CENSORED_GROUP_SITES` 的网页部分 |
+| `OFFICIAL_CENSORED_JSON_SITES` | `Official·MyWife_JSON`（唯一有码官网 JSON 版） | 与网页版合成展示组 |
+| `OFFICIAL_CENSORED_GROUP_SITES` | = `CENSORED_JSON_SITES + CENSORED_SITES`（34 站） | **指定网站 `Official` 聚合展开、字段优先级、官方网站源候选区**；网络检测页同名分组行**不用**它 |
+| `OFFICIAL_UNCENSORED_SITES` | 无码官网网页版（已删 → **空 tuple**） | 仅兼容 |
+| `OFFICIAL_UNCENSORED_JSON_SITES` | TENMUSUME / CARIBBEANCOM / HEYZO / PACOPACOMAMA 共 4 个 | **实际使用** |
+| `OFFICIAL_UNCENSORED_GROUP_SITES` | = `UNCENSORED_SITES + UNCENSORED_JSON_SITES`（4 站） | Official·uncensored 分组成员 |
+
+**四个下拉分组的成员选择**（`_net_filter_group_members()`，`init.py`）：
+
+| 分组 | 成员常量 | 按钮通道 |
+|------|----------|----------|
+| Official·HTML | `html_all_members()`（动态，全部网页） | 保存HTML + 浏览器 |
+| Official·JSON | `json_group_members()`（动态，JSON_VIEW_SITES A-Z，**24 站**） | 查看JSON + 浏览器 |
+| Official·pixelated | **`html_view._html_group_members()[HTML_GROUP_PIXELATED]`（33 网页，不含 MyWife_JSON）** | 保存HTML（批量同源 33 网页） + 浏览器 |
+| Official·uncensored | **必须** `OFFICIAL_UNCENSORED_GROUP_SITES`（4 站 JSON） | 查看JSON + 浏览器 |
+
+**关键约束**（2026-11-15 全量核对后定稿，同日二次口径修订）：
+
+- **两个「有码官网」名单刻意不同，别混**：指定网站下拉的 `Official` 聚合用
+  `OFFICIAL_CENSORED_GROUP_SITES`（34 站＝33 网页 + `Official·MyWife_JSON`），
+  服务于刮削展开/字段优先级；网络检测页的 `Official·pixelated` 分组行只收
+  **33 家网页官网**，成员直接复用 `_html_group_members()[HTML_GROUP_PIXELATED]`。
+  用户 2026-11-15 要求把 `Official·MyWife_JSON` 从网络检测页该组移除：它独立行右侧是
+  「查看JSON」，混在官网组里会与本组的「保存HTML」批量冲突。
+  注册表里所有 `Official·` 开头的真实站点必须恰好落进两个**刮削组**之一，
+  由 `tests/test_official_group_coverage.py` 双向钉死。
+- `Official·MyWife_JSON` 仍**同时**属于 `Official·JSON`（24 站）与刮削层
+  `OFFICIAL_CENSORED_GROUP_SITES`（34 站），跨组复用是刻意的：按 JSON 通道检测、
+  按官网通道路由。`Official·JSON` 恒等于「全部已注册 `***_JSON` 刮削器」，
+  加入 MyWife_JSON 后仍是 24 站，不要重复加。
+- 网络检测页分组行成员（33）与「保存HTML」批量成员（33）**必须相同**：
+  `init._net_filter_group_members()` 复用 `_html_group_members()`，
+  后者从 `OFFICIAL_CENSORED_GROUP_SITES` 里剔除所有 `JSON_VIEW_SITES` 成员，
+  于是勾选展开、行标题计数、批量保存三处永远同源，新增有码官网 JSON 版也不会被误当网页站保存。
+- `Official·MyWife` 网页版单站行右侧是「保存HTML」+「浏览器」：
+  `row_has_html_view()` 用 `include_hidden=True` 全量注册表判断（与该行所在下拉同源），
+  因此按钮绘制、`html_view_target()`（链接地址 `https://mywife.cc/teigaku/model/no/2306`）、
+  `request_html_save()` / `request_html_browser()` 一起接通；它不是 JSON 站，
+  不会与 `Official·MyWife_JSON` 的「查看JSON」通道冲突。`_batch_members()` 同样用全量注册表
+  校验成员存在性，避免分组行标题写 33 站却因开关关闭漏存 MyWife。
+- Official·uncensored 是**纯 JSON 分组**，不再画保存HTML 按钮——必须在 `row_has_html_view()` / `row_has_html_batch()` / `_html_group_members()` 三处排除它；同时在 `row_has_json_batch()` / `row_has_json_button()` / `request_json_view_all()` / `request_json_browser_all()` 四处加入它
+
+核心文件：
+
+- [init.py](file:///d:/@Data/MDCx/mdcx/controllers/main_window/init.py) `_net_filter_group_members()` — 分组成员
+- [html_view.py](file:///d:/@Data/MDCx/mdcx/controllers/main_window/html_view.py) — 保存HTML 按钮行判断
+- [json_view.py](file:///d:/@Data/MDCx/mdcx/controllers/main_window/json_view.py) — 查看JSON 按钮行判断 + 批量入口
+
+**下拉排序键**（2026-11-15 用户指定）：
+
+| 下拉 | 排序键 | 说明 |
+|------|--------|------|
+| 「当前网站」`comboBox_custom_website` | `_net_display_sort_key()` | 按**实际显示名** A-Z |
+| 网络检测筛选 `comboBox_net_site_filter` | `_net_display_sort_key()` | 同上；四个分组行仍置顶不参与排序 |
+| 「指定网站」/「不走代理」 | `_site_sort_key()` | 按去前缀展示名 A-Z |
+
+5 个官方 JSON 站在前两个下拉里保留 `Official·` 前缀（`_NET_KEEP_OFFICIAL_PREFIX_JSON`）。
+若误用 `_site_sort_key()`（内部会去前缀），它们会被打散到 10/C/H/M/P 各段，与整齐排在
+O 段的官网网页站混在一起，视觉乱序且看起来像「少了某站」。
+
+**成员来源**：这两个下拉统一用 `_prefix_combo_site_values()` 取站点（已按显示名排好序），
+不要用裸的 `get_registered_crawler_site_values()`。它以 `include_hidden=True` 的
+全量注册表（70 站）为底，由「显示网页站点」开关决定 `DMM` / `JavDB` /
+`Official·MyWife` 三站的显隐：**勾选 70 站 / 未勾选 67 站**，两态都严格 A-Z
+（用户 2026-11-15 二次口径，取代上一版「MyWife 无条件显示」）。
+其余界面（指定网站、编辑网站候选区、类型名单、网络检测探测项）仍走各自的开关过滤，
+不受这份名单影响（下拉可见 ≠ 参与检测，两条口径不要混）。
+分组行勾选展开也只覆盖下拉里真实存在的行：关闭态 DMM/JavDB 无行，
+故 `Official·HTML` 批量勾选不会把它们凭空选进来。
+
+### 「显示网页站点」/「启用刮削兜底」两个开关（2026-11-15）
+
+用户指定两个开关共同控制 DMM / JavDB / Official·MyWife 三个**网页版**刮削器
+（`Website.DMM` / `Website.JAVDB` / `Website.MYWIFE`，即 `Official·MyWife`）。
+
+| 开关 | 关闭时 | 开启时 |
+|------|--------|--------|
+| `Switch.SHOW_WEB_SITES`（显示网页站点） | 三个网页版从**所有站点选择窗口**消失 | 三个网页版照常显示，排序口径不变 |
+| `Switch.ENABLE_WEB_FALLBACK`（启用刮削兜底） | 三对 JSON→网页版**完全不兜底** | JSON 刮不到数据 / 字段不全时由网页版补全，图片候选随之降级下载 |
+
+#### 涉及的常量（mdcx/config/models.py）
+
+| 常量 | 当前值 | 说明 |
+|------|--------|------|
+| `SHOW_WEB_SITES_ONLY_WEB` | `{DMM, JavDB, MYWIFE}` | 「显示网页站点」关闭时要藏起来的三个网页版 |
+| `SHOW_WEB_SITES_JSON_FALLBACK` | `{DMM_JSON: DMM, JavDB_JSON: JAVDB, MYWIFE_JSON: MYWIFE}` | 三对 JSON→网页版配对 |
+| `AIO_JSON_WEB_FALLBACK` | = 上面三对 | 兜底配对表（`aio_web_fallbacks` / `actor_sources` 据此追加网页版） |
+| `AIO_JSON_SITES` | = 三对的 JSON 键 | JSON 优先区判定；`file_crawler` 的字段补齐白名单之一 |
+| `AIO_WEB_FALLBACK_SITES` | **空**（刻意） | 它会把网页版从网络检测探测项与 `Official·HTML` 组里排除——本轮三站仍要参与，故留空 |
+| `AIO_WEB_FALLBACK_HIDDEN_UI_SITES` | **空**（刻意） | UI 隐藏名单改由 `SHOW_WEB_SITES_ONLY_WEB` 单独控制，不牵连其它网页版 |
+| `AIO_WEB_TO_JSON_SITE` | **空**（刻意） | 它会把用户显式启用的网页版归一成 JSON 版，与「网页版仍是独立可勾选站点」相反 |
+
+`hidden_web_sites_for_ui(show_web_sites=...)` 是 UI 隐藏的唯一口径：开关关闭返回
+`SHOW_WEB_SITES_ONLY_WEB`，开启返回空集。
+
+#### 显隐链路
+
+`_current_hidden_web_sites()`（site_priority_dialog.py）→ `hidden_web_sites_for_ui()`，
+三个站点选择窗口都在**名单构建处**过滤，而不是在渲染层过滤：
+
+- 「可用网站：按类型分组」/「启用网站：从左到右优先级递减」→ `_open_site_editor()`
+- 字段优先级弹窗顶部「可用网站」面板 + 标题/原标题/简介/原简介等每个字段行 → `_open_priority_editor()`
+  （面板与各字段行的允许集合同源于 `type_sites`）
+- 候选区分组 `grouped_palette_groups()` 也会剔除隐藏站，避免被分组名单重新带出来
+
+过滤只减不增：勾选态名单与改动前逐项同序（`_sort_sites_for_priority()` 口径不变）。
+
+**连带效应**（改配置时注意）：
+
+- `_parse_sites()` 是所有站点名单解析的统一入口，它会剔除 `_current_hidden_web_sites()`
+  里的站点。因此「显示网页站点」关闭时，设置页行输入框、编辑网站弹窗、字段优先级弹窗
+  拿到的名单都不含这三个网页版。
+- `_refresh_site_priority_line_edits()`（`init.py`）在保存末尾把过滤后的名单写回
+  `manager.config.website_*`——即「隐藏即视为未启用」，配置里也会掉这三站；
+  重新勾选开关时 `_augment()` 会按 `AIO_JSON_WEB_FALLBACK` 把网页版自动补回
+  （`DMM_JSON→DMM`、`JavDB_JSON→JavDB`、`MYWIFE_JSON→Official·MyWife`），不会真的丢失。
+- 这段写回发生在 `save_config.save()` 的**末尾**，会落在未授权锁的还原之后。
+  故 `save_config.py` 把还原抽成 `_restore_website_snapshot()`，在解析后与
+  `refresh_site_combos_after_switch()` 之后各还原一次，避免未授权时改写刮削网站配置。
+
+#### 兜底链路
+
+`web_fallback_for(json_site, switch_on=...)` 是受开关门控的唯一入口：开关关闭返回 `None`，
+开关开启返回 `SHOW_WEB_SITES_JSON_FALLBACK` 里的网页版（LibreDMM 等其它配对不在此表内，
+调用方直接查 `JSON_TO_WEB_SITE`，行为不变）。
+
+接入点：
+
+- `file_crawler._call_specific_crawler()` —— JSON 无数据时的**整站回退**
+- `file_crawler._supplement_missing_fields()` 链路 —— JSON 有数据但缺字段时的**字段补齐**
+  （封面/海报/剧照随之进入图片候选，由 `web.py` 依次降级下载）
+- `file_crawler.aio_web_fallbacks(sites, enable=...)` —— 完整 / 速度优先路径把网页版追加到末尾
+- `actor_sources._order_aio_sources()` —— 演员番号检查的 JSON→网页版链路
+
+### 站点优先级排序规则
+
+排序入口：`mdcx/controllers/main_window/site_priority_dialog.py` → `_sort_sites_for_priority()`
+
+| 刮削类型 | 排序规则 |
+|----------|----------|
+| OFFICIAL（官方网站） | 全部站点 A-Z |
+| OUMEI（欧美番号） | **Top3 固定** `THEPORNDB_JSON` → `AVHEAT_JSON` → `JAVDB_JSON` → 其余 JSON 站点 A-Z → 网页站点 A-Z |
+| YOUMA / WUMA / FC2 / GUOCHAN / SUREN / DONGMAN | JSON 刮削器 A-Z → 网页站点 A-Z |
+
+JSON 刮削器判断条件：站点 value 以 `_JSON` 结尾 **或** 在 `_ALL_JSON_SITES` 集合（26 家）里。
+
+应用位置：编辑网站对话框（`_open_site_editor`）、字段优先级对话框（`_open_priority_editor`）的 `selected_sites` / `all_sites` / `type_sites` / 每字段 `site_prority`。
+
+### 配置版本
+
+| 文件 | 说明 |
+|------|------|
+| `mdcx/config/v2.py` | Legacy INI 格式读取器（含 `ConfigV1` dataclass + `load_v1()`） |
+| `mdcx/config/models.py` | Pydantic `Config` 模型，`config_version` 默认值 = 2 |
+| `mdcx/config/migrations.py` | `CURRENT_CONFIG_VERSION = 2`，迁移入口 |
+| `mdcx/consts.py` | `LOCAL_VERSION`（数值日期 YYYYMMDD，每发版 bump）、`VERSION_NAME`（展示名） |
+
+跨文件引用 `mdcx.config.v1.*` 已全部改为 `mdcx.config.v2.*`，类名 `ConfigV1` / 函数名 `load_v1` 保留。
+
+### 高级页 6 按钮布局（绝对定位）
+
+6 枚功能按钮（网站列表 / 生成授权 / 生成私钥 / 设备编号 / 导入账单 / 路由列表）全部用绝对定位锚在 `gridLayoutWidget_20` 的 row 10~15 锚点中线，纵向间距由 `_even_button_centers(host)` 做 6 点等差数列，浮点 step = 35.2px，取整后 5 段 gap 为 [35, 35, 36, 35, 35]。各 `_sync_advanced_page_*_button` 方法按按钮对应的 row index 取 `centers[i]`。
+
+| 按钮 | row index | 锚点控件 |
+|------|-----------|----------|
+| 网站列表 | 0 | `checkBox_hide_dock_icon` |
+| 生成授权 | 1 | `checkBox_hide_window_title` |
+| 生成私钥 | 2 | `checkBox_dialog_qt` |
+| 设备编号 | 3 | `comboBox_ui_scale` |
+| 导入账单 | 4 | `checkBox_hide_nfo_nav` |
+| 路由列表 | 5 | `checkBox_show_web_sites` |
+
+所有按钮左缘锚 `checkBox_show_data_log` 的 x（同一条竖线）。
+
+### 跨分支 import 规范
+
+- 同分支内部可以自由 import
+- 配对刮削器（JSON ↔ 网页）**禁止**跨分支 import，各自实现 `build_view_payload`
+- 共享基类 / 工具模块（`AIO_JSON_WEB_FALLBACK`、`models.py`、`consts.py`）允许跨分支引用
+
+### 有码番号图片下载架构（2026-11-15）
+
+#### 核心策略
+
+有码番号（YOUMA / OFFICIAL 类型）的 poster / thumb 下载采用 **"优先档命中即停，未命中则继续"** 的两阶段裁剪策略：
+
+1. **优先档**（group 0~4）：Amazon → 官方网站 → DMM站 → DMM CDN → MGStage
+2. **其他档**（group 5）：AVMOO_JSON, AVSOX_JSON, JavDB, JavBus, JavLibrary, Madou.club, Lulubar, Xcity 等综合站
+
+**逻辑流程**：
+- 刮削阶段：`file_crawler.py` 的 `_run_scrape_type` 正常收集**所有站点**的 poster_list / thumb_list（不做静态过滤）
+- 下载阶段：`web.py` 构建候选列表后，由 `_prune_priority_only()` / `_prune_poster_priority_only()` 判断：
+  - 优先档有候选 → 过滤掉 group 5 的其他站点候选
+  - 优先档无候选 → 保留全部（降级到常规排序）
+- 选优阶段：`_rank_image_indices()` 对剩余候选按 **来源档优先 → 尺寸更大** 排序
+
+#### 档位定义（`image_source_group`，返回 0~5）
+
+| Group | 来源 | 识别方式 |
+|-------|------|----------|
+| 0 | Amazon | source 含 `amazon` 或 URL 含 `media-amazon` |
+| 1 | 官方网站 | source ∈ `official_sources`（番号对应的官网 + 其 JSON 版） |
+| 2 | DMM 站 | source ∈ DMM 来源集 或 URL 含 `dmm.co.jp` |
+| 3 | DMM CDN 直构图 | URL 含 `awsimgsrc` 或 source 为 `dmm_direct/dmm_fallback/dmm_cdn` |
+| 4 | MGStage | source 或 URL 含 `mgstage` |
+| 5 | 其他站点 | 以上均不匹配 |
+
+#### 关键函数位置
+
+| 函数 | 文件 | 职责 |
+|------|------|------|
+| `image_source_group(source, url, official_sources)` | `core/web.py:1228` | 单条候选 → 0~5 档位 |
+| `image_source_plan(result)` | `core/web.py:1297` | 返回 `"youma"` / `"wuma"` / `"ordered"` / `""` |
+| `_prune_priority_only(covers, official_sources)` | `core/web.py:1260` | Thumb/Cover 优先档裁剪 |
+| `_prune_poster_priority_only(candidates, official_sources)` | `core/web.py:1281` | Poster 优先档裁剪 |
+| `_order_cover_candidates(result, covers, ctx)` | `core/web.py:1406` | Thumb 完整排序列表 |
+| `_order_poster_candidates(result, candidates, ctx)` | `core/web.py:1437` | Poster 完整排序列表 |
+| `_rank_image_indices(sources, urls, plan, ctx)` | `core/web.py` | 按档+尺寸选优排序 |
+
+#### Amazon 封面来源
+
+Amazon 不是常规爬虫，封面由下载层通过条码匹配额外获取：`_get_big_poster()` 在构建候选列表时通过 `extra_candidates` 传入，source 为 `"Amazon"`，在 `image_source_group` 中被识别为 group 0（优先档首位）。
+
+#### extrafanart 不受影响
+
+extrafanart 从所有站点下载，不经过上述裁剪逻辑。
+
+#### 未来拆分方向
+
+当前裁剪函数直接写在 `core/web.py` 中。按用户要求，理想架构应将以下职责拆分成独立函数放独立模块（如 `core/image_source.py`）：
+
+1. **Amazon 封面获取函数**：通过条码匹配 Amazon 页面，提取 largest 尺寸封面 URL
+2. **DMM 封面候选构建函数**：`_build_dmm_poster_candidates()` + `_sized_poster_candidates()`
+3. **官方网站封面候选函数**：从 result.poster + result.poster_list 提取 official_sources 范围内的候选
+4. **其他站点封面候选函数**：AVMOO_JSON, JavDB 等综合站
+5. **优先档裁剪函数**：当前的 `_prune_priority_only` / `_prune_poster_priority_only`
+6. **尺寸校验函数**：`image.py` 中 `_replace_if_poster_bigger()` + `web.py` 中 `_download_image` 尺寸探测
+7. **最终选优函数**：`_rank_image_indices()` 按档 + 尺寸综合排序
