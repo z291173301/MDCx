@@ -2,6 +2,13 @@
 
 只记「以后每次都该怎么做」的规则。技术原理与架构见 `docs/Development.md`，版本变更见 `docs/Changelog.md`。
 
+> **阅读口径**：本文件只留长期规则；一次性事实写 `docs/Changelog.md`，原理与排查过程写 `docs/Development.md`。
+> 同一主题只保留一条口径，旧定规被取代时并入新条目、不另起一条。
+
+**主题索引**：协作与质量 · 检查与提交纪律 · pre-push 钩子 · 本机环境 · 议题/GitHub · 排查与本地验证 ·
+Qt 生命周期 · 崩溃与内存 · UI 排错 · 并发与网络库 · 站点与网络 · Windows 打包发布 ·
+版本号与配置迁移 · 视频模式与伴生文件 · 通用纪律 · 日亚 ASIN 数据库。同一主题只保留一条口径。
+
 ---
 
 ## 协作与质量
@@ -10,13 +17,11 @@
 - **界面没有要求的不要自作主张修改**（2026-11-13 用户严规）：只改需求明确点名的界面部位（控件、文案、宽度、对齐、配色、字号等），没点名的一律不动——即使觉得「更一致」「顺手可优化」也不许改，下拉框/弹窗宽度与选项文案尤其不许擅自变动。认为确有必要改的，先说明理由征得同意再动手。
 - **日志与界面文字：英文语境之间的空格照留，中文之间的空格不留，图标后保留一个空格**（2026-10-28 用户定规，2026-11-12 修订口径）：所有可见文字（日志窗口、日志文件、详情日志、弹窗、按钮、菜单、标签等）里的连续空格 / Tab / 全角空格算一段，**两侧都是半角可见字符（英文字母、数字、半角标点）时留一个空格**——英文单词之间 `I Want Clips:Blacked Out Fm`、单词与数字之间 `Start time` / `HTTP 403`、英文标点之后 `videos, Please` 都必须留；**只要有一侧是中文、全角标点或图标就删掉**（`连接 Gfriends 网络` → `连接Gfriends网络`），数字与汉字仍紧贴（如「10个站点」），需要停顿用冒号或顿号。另外保留空格的几处：每行行首的图标与文字之间（「🔐 授权状态：」「📂 程序目录：」）、版本标识 `MDCx YYYYMMDD`（不得压成「MDCx20261027」）、HTTP 请求前缀 `GET http(s)://`（不得压成 `GEThttps://a.com`）、产品名 `CF Bypass` / `CloudFlare Bypass`（不得压成 `CFBypass`）、URL 被 `add_html()` 包成 `<a href="…">` 后同样成立；以及 2026-10-30 定规的四处——诊断串的 `HTTP 403`、`403 body=`、URL 与「失败」之间（`…fa735 失败：`）、双引号内的原文（响应体/引用，如 `body={"message":"This action is unauthorized."}`）。后几组只补「源码里本来就写漏空格」的情况，全部幂等；出口由 `utils.strip_log_spaces()` 兜底，新文案仍不要主动加多余空格。**例外：检测网络页的检测报告**（2026-10-30 用户定规）——那是等宽表格，列间连续空格就是排版本身，`show_net_info()` 走 `add_html_plain_text(keep_spaces=True)` 保留原样，不要给它套空格清洗。**刮削到的字段值按站点实际值走，不单独删空格**（2026-11-12 用户定规）：`mgstage` / `prestige` / `prestige_web` 的演员名不再 `replace(" ", "")`（prestige_web 的 `_split_names` 也只按 `[,、，]` 分隔、不按空白切开），`美月 さくら` 这类姓名按实际保留；番号归一、标题匹配、搜索 query 里的临时去空格属匹配逻辑，不在此列。
 - **NFO 写入值保持站点刮削到的原值，不做修改不做替换**（2026-11-12 用户定规）：写 NFO 只做 XML 编码必需的两步——`utils/xml.py::escape_xml_text()`（实体幂等化 + 转义）与 `build_cdata()`（实体幂等化 + `]]>` 转义），字符一个不动。全角空格 `\u3000`、不换行空格 `\xa0`、`・`、`“”`、`...` 一律原样写出，`<runtime>` 不再去空格；`normalize_xml_text()` / `REP_WORD` / `XML_TEXT_FIELDS` 已删除，`core/nfo.py` 写入前与 `core/file_crawler.py::_deal_res()` 刮削后的字符清洗都不再做。**上游替换表只去美观类**（同日用户口径）：`manual.py::ALL_REP_WORD` 不再做 `・`→`·`、`“”‘’`→`「」`、`...`/`……`→`…`、`’s`→`'s`、`! `→`！`、全角字母数字→半角、`\t`→空格，`TITLE_REP` 标题上下集/蓝光版剥离整表删除；**保留** HTML 实体解码、`&`→`＆` / `<`→`＜` / `>`→`＞`（防 Emby 读 NFO 误判）、`<br/>` 残留清理、`SPECIAL_WORD` 反和谐与半角片假名还原、简体字段用字归一。匹配键（`convert_half`、`_normalize_info_key`、番号归一、标题匹配、搜索 query）不在保真范围内。**不算改值的两类要保留**：① 解码——`normalize_linebreaks()` 把爬虫转义过的 `\r\n` / 字面 `\n` / `<br>` 还原成真实换行；② 既有功能——标题命名模板、番号前缀与 CD 后缀、tag 模板、简介原文拼接与「由 X 提供翻译」、`OUTLINE_NO_CDATA` 单行化、评分量纲、日期归一、`N/A` 导演过滤、占位简介清理。细则见 `docs/Development.md` §3.8。
-- **记忆只写这一个文件**：`docs/MEMORY.md`。不要另建 `.workbuddy-ai/memory/` 之类的旁路记忆文件（用户 2026-10-23 要求）。本文件不受 150 行限制，只记可复用做法，不记一次性事实。
-- **不再单独建日期 md 文件，工作日志一律并进 `docs/Changelog.md`**（2026-11-16 用户要求）：不要写 `.workbuddy/memory/YYYY-MM-DD.md`、`docs/YYYY-MM-DD.md` 这类按日期另起一份的记录——「没人会看还占地方」。当天做了什么按 `docs/Changelog.md` 既有结构（`## YYYY-MM-DD` + `### 条目` + 「做了什么 / 改了什么 / 修了什么」）写进对应日期段；原因与排查过程写 `docs/Development.md`；可复用规则写本文件。**只记一次性事实的内容不进本文件**。
+- **工作日志与记忆只落两处**（2026-10-23 / 11-16 用户定规）：当天做了什么写进 `docs/Changelog.md` 的 `## YYYY-MM-DD` 段，可复用规则写进本文件；不要另建 `.workbuddy/`、` .workbuddy-ai/memory/`、`docs/YYYY-MM-DD.md` 之类旁路或按日期的记忆文件——「没人会看还占地方」。本文件只记可复用做法，不记一次性事实。
 - **已推送的内容一律新开 commit，不要 `--amend`**（2026-11-16 教训）：`--amend` 会改写已推送的提交历史，本地快进不了远端、直接造成分叉。改动已推送的内容就新开一个 commit。
 - **推 GitHub 优先直连，直连失败改走 7897 代理 + openssl**（2026-11-16 定规，2026-11-17 补充）：本机 git 配置里写死的 `http.proxy=127.0.0.1:7897` 会让 Schannel 握手失败，直连时用 `HTTPS_PROXY= HTTP_PROXY= git -c http.proxy= -c https.proxy= push`。若报 `Recv failure: Connection was reset` / 连接超时（2026-11-17 实测直连不通、7897 代理 curl 返回 200），改用 `HTTPS_PROXY= HTTP_PROXY= git -c http.sslBackend=openssl -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 push origin main`。两条都试过再判定网络故障。
 - **多异常捕获一律写括号 `except (A, B):`，全仓禁止 PEP 758 的 `except A, B:`**（2026-11-17 用户定规，取代 11-16 的「不用改」口径）：ruff >= 0.15 的 2026 style 在 target >= py314 时会把括号形式自动改写成不带括号的 PEP 758 写法；后者虽在 3.14+ 合法，但形似 Python 2 的 `except E, e:`，用 3.13 及更早解释器检查还会误报 `SyntaxError: multiple exception types must be parenthesized`，导致反复被当成故障上报。现已把全仓 61 个文件 223 处统一括号化，并在 `.pre-commit-config.yaml` 的 `ruff-format` hook 单独传 `--target-version py313` 锁住格式；**lint 仍按 3.15**——在 `ruff.toml` 里直接降 `target-version` 到 py313 会让 PEP 649 延迟注解多出 28 个 F821 误报，不可行。手动格式化整仓也要带 `--target-version py313`。核对解释版本一律用 `.venv`（3.15）。
-- **JavDB 系域名限速 = 2 req/s + 120 req/min + 相邻请求随机间隔 0.5–1 秒**（2026-11-18 用户定规，取代 11-17 的网页 5/300）：账号曾因「浏览速度远超正常用户，判定为异常采集行为」被临时停用，光压总量不够，必须打散匀速机器节奏。`web_async.AsyncWebLimiters` 给 5 个 host 预置 `_PacedLimiter`（`javdb580.com`/`www` 网页 + `apidd.czssdgz.com`/`apidd.spthgb.com`/`jdforrepam.com` App API）：内部双桶 `AsyncLimiter(2,1)` + `AsyncLimiter(120,60)`，外加 `asyncio.Lock` 串行化与 `random.uniform(0.5, 1.0)` 秒的最小相邻间隔。常量在 `web_async.py` 的 `_JAVDB_RATE_PER_SEC` / `_JAVDB_RATE_PER_MIN` / `_JAVDB_GAP_MIN` / `_JAVDB_GAP_MAX`，host 列表 `_JAVDB_PACED_HOSTS`（改 App 地址要同步）。图片 CDN 不纳入（静态资源不算浏览）。限速器挂在 `AsyncWebClient` 单例上按 host 全局共享，**线程数量只影响排队、不会放大速率**；界面「javdb延时(秒)」(`javdb_time`) 只存不参与限速。别再拿它换算 req/s（旧 `AsyncLimiter(1, 10)` = 0.1 req/s 已废弃）。账号被停用期间不要联网实测，等自动恢复再验证。
-- **其它站点通用限速 = 10 req/s + 600 req/min 双桶**（2026-11-17 用户定规）：`AsyncWebLimiters.get()` 对未预置的 host 建 `_CompositeLimiter(AsyncLimiter(10, 1), AsyncLimiter(600, 60))`，常量 `_GENERAL_RATE_PER_SEC` / `_GENERAL_RATE_PER_MIN`，取代旧 `AsyncLimiter(8, 1)` 单桶。预置专属档优先级更高且不要动：wiki 5 req/s + 180 req/min（贴 Wikimedia 官方 200/min 配额，别为「统一」改它）、JavDB 系 2 req/s + 120/min（外加随机间隔，见上条）、本机 `127.0.0.1` / `localhost` 300 req/s。显式传非默认 `rate` / `period` 仍按单桶处理。
+- **HTTP 限速档（唯一口径，2026-11-17/18 用户定规）**：JavDB 系 5 host（`javdb580.com`/`www` 网页 + `apidd.czssdgz.com`/`apidd.spthgb.com`/`jdforrepam.com` App API）走 `web_async._PacedLimiter`：2 req/s + 120/min 双桶、`asyncio.Lock` 串行化、相邻请求 `random.uniform(0.5, 1.0)` 秒随机间隔（账号曾被判异常采集，光压总量不够）；wiki 5/180、通用 10/600、本机 300 req/s 不变，图片 CDN 不纳入。常量在 `web_async.py` 的 `_JAVDB_*` 与 `_GENERAL_RATE_*`，host 清单 `_JAVDB_PACED_HOSTS`（改 App 地址要同步）。限速器挂在 `AsyncWebClient` 单例按 host 共享，线程数只影响排队不放大速率；界面「javdb延时(秒)」(`javdb_time`) 只存不参与限速，别再拿它换算 req/s。账号停用期间不联网实测。
 - **JavDB 时长补齐只认 App 通道，且必须带登录 token**（2026-11-18 用户定规）：`/api/v2/search` 不带 `Authorization: Bearer <javdb_app_token>` 会返回 `JWTVerificationError: 請登錄帳號`，只带 `jdsignature` 不够。演员页列表卡片**没有时长**，所以导出表时长必须靠：① `enrich_missing_metadata(..., actor_names=[...])` 按演员名翻 App 搜索页建「normalize_key(番号)→duration」索引批量预填（实测 `三上悠亜` 7 页共 321 条、其中 290 条带有效时长，与演员页 321 个番号集合不完全重合，实测回填 147 / 153 行）；② 剩余行 `_collect_meta` 走 v4 详情 → 按番号搜 v2 → 网页详情最后兜底（本轮网页兜底上限 64 次）。11-17 被误删的 `_javdb_app_search_meta` 是 **JavDB 站内接口**、不违反「清单即边界」，已恢复；LibreDMM 跨站兜底不要恢复。别再用 321 次逐行详情页去补时长，那是 429 与缺口的来源。**`clean_duration` 不设上界**（2026-11-18 用户定规）：App / 站点给多少写多少，合集总时长 720 / 960 / 2091 分钟照写，只排除 0 / 负数；11-17 的 `MAX_DURATION_MINUTES=600` 已删除，别再加回来。
 - **大模型输出只给改动片段**（2026-10-27 定规）：默认只返回修改后的片段，不重复输出全文；新建文件、用户明确要求全文、或只给片段会产生歧义时才输出全文。
 - 改动前先说明「改什么、为什么」；遇到值得记的内容主动记入，不用等提醒；直接在当前分支操作，不擅自建分支。
@@ -31,9 +36,8 @@
 
 ## 检查与提交纪律
 
-- **没写明就不提交**（2026-10-23 明示）：需求里没有「提交 / 推送 / commit / push / 提交到 GitHub / 推到远程」这类字样时，只改工作区文件，不 `git add`、不 commit、不 push、不建分支。「改完了」「继续」「优化一下」都不算授权；授权只对当次需求有效。说「提交」= 只 commit，说「推送」才 push。
-- **界面改动默认不写 `docs/Changelog.md`**（2026-10-23 定规）：纯界面调整（位置、间距、尺寸、对齐、配色、字号、措辞、控件换行/换列，用户可观察的行为没变）不占 Changelog 行，也不补「界面微调」。行为变了（增删控件改变可达路径、改默认值/分支、窄窗不可用）才按功能条目写。口径见 `docs/Development.md` 10.7。
-- **本机没装 uv、也不要装**（2026-10-24）：门禁直接用系统 Python `"C:/Program Files/Python315/python.exe" -m ruff format --check --target-version py313 mdcx tests scripts` / `-m ruff check ...` / `-m mypy mdcx/` / `-m pytest -m "not network" -q`，不要写 `uv run`。format 必须带 `--target-version py313`（口径见上文多异常捕获那条）。
+- **没写明就不提交**（2026-10-23 明示，细则见 `docs/Development.md` §10.10）：需求里没有「提交 / 推送 / commit / push / 提交到 GitHub / 推到远程」字样时只改工作区；授权只对当次有效，「提交」= commit、「推送」= push。
+- **界面改动默认不写 `docs/Changelog.md`**（2026-10-23 定规）：纯界面调整（位置/间距/尺寸/对齐/配色/字号/措辞）不占 Changelog 行；只有用户可观察的行为变了才写。判定表见 `docs/Development.md` §10.7。
 - 改代码后跑快速门禁（format + check + mypy），提交前加跑全量 `pytest -m "not network"`；只改 `docs/*.md` 或本文件时只需 `git diff --check`。
 - 全绿判定 = 退出码 0，且 `grep -E "\.py:[0-9]+: error|Found [0-9]+ error"` 无输出（mypy 输出可能被 tail 截断）。
 - `ruff check` 过 ≠ `ruff format --check` 过；改了 .py 必须 `ruff format` 落地。格式化要用仓库锁定版 ruff，**`uv.lock` 是唯一版本来源**：`pyproject.toml` / `requirements.txt` / `uv.lock` 根 specifier 由 `python -m scripts.sync_ruff_version` 自动同步（`--check` 只校验；`scripts/check.py` 检测到漂移会自动改写并拦截，提交后再重跑）。升版流程：先升级 `uv.lock` 的 ruff → 跑同步脚本 → 全量 format + check；`tests/test_ruff_version_sync.py` 锁死。
@@ -44,7 +48,7 @@
 - `git add -- <具体文件>`，绝不用 `git add -A`；提交前看 `git status` 的未跟踪文件，运行残留不得入库。
 - **不改不是自己改的文件**（并行会话可能同时改本仓库）；暂存区里有别人的改动时，用 `git commit -- <自己的文件>` 只提交自己的。
 - 提交信息不要手写 `Co-authored-by`（`prepare-commit-msg` 会无条件追加）。
-- **提交优先用 GitHub Desktop，并尽量走代理**（2026-10-27 定规）：提交/推送前先确认代理已开；命令行直连失败用一次性代理参数（系统代理 `127.0.0.1:7897`，端口按实际改）：`git -c http.proxy=http://127.0.0.1:7897 -c https.proxy=http://127.0.0.1:7897 push origin main`；报网络错先 `git ls-remote origin main` 对 SHA，确认没推上去再重试。
+- **推送方式以「协作与质量」章的「直连优先」条款为准**（2026-11-17 更新，取代 10-27 旧定规）：命令行优先直连，仅直连失败才走 7897 代理 + openssl；GitHub Desktop 不再是默认，也不再要求「先确认代理已开」。
 
 ## pre-push 钩子
 
@@ -62,14 +66,6 @@
 - pytest 成功时 conftest 的 `pytest_sessionfinish` 会 `os._exit(0)` 丢弃 stdout，**判定只认退出码**，要细节加 `--junitxml`。
 - 沙箱陷阱：①直接调系统 python 触发 stdout 捕获异常 → 命令内 `> file 2>&1` 落盘再读；②中文 Windows 子进程默认 GBK，控制台乱码只影响显示；③用 `-m ruff` / `-m mypy` 走当前解释器。
 - PowerShell 7.6.7 在 `C:\Program Files\PowerShell\7\pwsh.exe`（曾因 `AppCompatFlags\Layers` 的 RUNASADMIN 报 740，已清除；再报 740 先查这层，别用 `-Verb RunAs`）。5.1 的 `Set-Content -Encoding utf8NoBOM` 不可用；中文 commit message 一律写文件后 `git commit -F <file>`。仓库无 bash（`bash` 命令不存在。
-
-# 来自 .workbuddy-ai/memory/MEMORY.md 的补充笔记
-
-- 本机已装 uv（0.13.7），`.venv` 可用；改 `pyproject.toml` 依赖后必须重跑 `uv lock` 并提交 `uv.lock`，否则 CI 的 `uv sync --locked` 会回退重新解析。
-- 联网固定走 `http://127.0.0.1:7897`：用户级环境变量、`~/.bashrc`/`~/.bash_profile`、git 全局 `http.proxy`/`https.proxy` 均已设为该地址（2026-11-11）。WorkBuddy 工具进程会注入动态端口（9187/2903）覆盖 shell 变量，但 git 走全局 config 不受影响；非 git 的联网命令仍需显式 `HTTP_PROXY=... HTTPS_PROXY=...` 指定。
-- pre-push 门禁（`.githooks/pre-push` → `uv run check --skip-hook-install`）：ruff format --check / ruff check / mypy mdcx/ / check_thread_safety；默认不跑 pytest。钩子失败应修底层问题，不要用 `--no-verify` 或 `SKIP_PRE_PUSH` 绕过。
-- **Python 版本坑**：项目锁 3.15，系统 PATH 上的 `python` 却是 3.13.14；检查语法/运行脚本一律用 `.venv/Scripts/python.exe`。PEP 758（3.14+）起 `except A, B:` 合法，全库约 158 处无括号写法均合法（3.15 编译全库 768 个 .py 零错误）。ruff 0.16～0.17 在 target py314/py315 下会把 `except (A, B):` 规范化成无括号，**不是 bug**，无「修复版」可换；只有把 target-version 降到 py313 才会保留括号（与项目定位冲突）。用 3.13 检查会误报 SyntaxError。
-- PyInstaller 打包：`scripts/build.py` 用 `--collect-all <包>` 收集延迟导入 + 非 .py 数据；playwright 的 driver（node.exe + package/cli.js，约 110MB）必须显式收集，否则打包版「保存HTML」不可用。
 
 ## 议题定性
 
@@ -94,10 +90,8 @@
 - 测试必须喂生产形态数据，不手造；网页解析夹具用真实页面快照放 `tests/fixtures/`；结构约束类修复用 AST 哨兵锁位置并反向确认判失败。
 - pytest-asyncio strict：文件内全是 async 才用顶部 `pytestmark`；混有同步测试必须逐函数加 `@pytest.mark.asyncio`。
 - conftest dummy 双陷阱：实例属性会遮蔽真实 manager 属性；真实 manager 加新方法必须同步给 dummy 加同名，缺了在 Qt 测试里以 qFatal abort 爆。
-- **subagent 结论不可直接采信**（22 项宣称中 11 项编造/夸大）：要求它输出「已排除假设清单 + 理由」，修复前每条独立复现。
 - 数据质量治理前必须实证全量抽查，不靠代码推断；「功能上可达」≠「正常路径会走到」。
 - `CancelledError` 在 task 收集点与 `Exception` 同级软着陆；整轮取消只由 cancel_event 分支负责，`wait_for` 的 cancel 残留不得穿透。
-- **误判家族四条**：①「未命中/空结果」是业务常态，不得与「通道故障」混用（真实限流信号只有 403/429/连接异常）；②模型哨兵默认值（如 `"0000-00-00"`）是 truthy 会被放行，下发前按格式白名单归一化；③集合合并类 bug 第一嫌疑永远是有无 dedupe；④「不标来源就报结果」的日志/汇总字段是诊断盲区。
 - Emby/Jellyfin 同步：`UpdateItem` 对缺省 `Genres`/`Tags`/`ProviderIds` 空引用，payload 三者恒非 null，日期/年份归一化收口在模型层。**`Taglines` ≠ `Tags`**：UI 的「标签」列一律指 `Taglines`。
 - 持久化快照三必备：原子写（tmp + `os.replace`）、按快照比对才清 dirty、停止/退出路径强制落盘；传 `Flags` 全局列表一律 `list(...)` 快照。
 - 「日志说成功但文件不存在」第一嫌疑 = 写后无回验；模板：replace 后 exists 校验，不过退直写，仍不落则抛错。
@@ -110,20 +104,10 @@
 - ruff B010/B009 与 mypy attr-defined 组合写法：`obj._x = v  # type: ignore[attr-defined] # noqa: SLF001` + `getattr(obj, "_x", None)  # noqa: B009`。
 - 还原/回程类回归用「三态对比探针」定性（fresh → 最大化 → 还原，并排 dump 几何）；复现 UI 几何时不得 stub QSS。
 - `edit` 工具会静默忽略缩进差异，改完立刻 `read` 复核。
-- 门禁已知遗留红（2026-10-19 实测）：`tests/test_advanced_page_tail_align.py::test_wide_nav_row_survives_deferred_stage_one[1920-1170]` 在干净树上必红。合格线 =「除这条外全绿」；先跑干净树对照，别当元凶，也别顺手去「修」。
 
 ## Qt 生命周期
 
-- 测试里 `w.deleteLater()` ≠ 销毁：`processEvents()` 不投递 DeferredDelete，须显式 `sendPostedEvents(None, QEvent.Type.DeferredDelete)`。全仓 92 处 deleteLater 原先都没生效。
-- 从未 `show()` 过的窗口，`close()` 不发 `hideEvent`。
 - `MyMAinWindow.closeEvent` 由 `WindowOpsMixin` 提供且末尾恒 `a0.ignore()`：要加清理绝不能新写同名方法（会遮蔽 mixin），应加在 mixin 内部（新增 `hideEvent` 安全）。查归属用 `"closeEvent" not in MyMAinWindow.__dict__`。
-
-## 崩溃与内存
-
-- access violation 根因（2026-10-17 已修）：deleteLater 未生效 → 40+ 测试文件各自造窗口泄漏 → 每窗挂 100ms 热表等 4 个定时器 → 后续任意 processEvents 派发陈旧回调 → AV；拦路虎是 `_SiteComboTipFilter.eventFilter` 无限递归爆栈。
-- 三条走不通的路（别再试）：补 sendPostedEvents 真析构、`TerminateProcess(GetCurrentProcess())`、DLL pinning。
-- 已落地三处缺一不可：`483cee1` 重入守卫、`bab49bd` 隐藏/关闭时停四个轮询定时器、`conftest._teardown_qt()` 补 `sendPostedEvents` + `list(topLevelWidgets())`。
-- 崩溃分 A/B 面：A 面（processEvents 里 AV、退出码非 0）必须治；B 面（`os._exit(0)` 内部析构导致 AV、退出码仍 0）对门禁无害。间歇性原生崩溃不适合靠反复全量跑验证，要在单文件上做因果验证再下沉 conftest。
 
 ## UI 开发与排错
 
@@ -161,19 +145,16 @@
 ## 站点与网络
 
 - 各站探测番号与收录依据见爬虫类注释；JavDB 仅 FC2 系列需要 Cookie。
-- **R18.dev 没有「通过演员名搜索番号」的功能，不用管**（2026-11-16 用户定规 + Edge 实测）：`r18.dev` 只有按番号直连详情的 `/videos/vod/movies/detail/-/dvd_id=…/json`，以及首页按**已知 actress id** 列作品的 `/videos/vod/movies/list/?id=…&type=actress`；没有「演员名 → actress id」的搜索入口，`/videos/vod/movies/search/-/keyword=…/json` 与 `/videos/vod/actress/list/-/page=1/json` 实测均 404。故 `R18_JSON` / `R18.dev` 不进「检查演员缺失番号」的 `_SITE_FETCHERS`，也不再为它调研演员搜索；刮削继续按番号直连详情，行为不变。
 - **查缺站点入口按实测表改，不凭猜**（2026-11-16）：9 个聚合/综合站的搜索 URL、番号位置、分页与不可用结论都记在 `docs/Development.md` 第 18 章「聚合/综合站「按演员名搜番号」调研」，新增或修改 `actor_sources.py` 的 fetcher 前先按该表复核；URL 变更要用 Edge 实际打开验证，HTTP 200 不等于入口可用（AVBase 会回 200 但 `works` 为空、Lulubar `bysearch` 稳定 403 CF）。自动判断固定链由 `test_auto_site_chains_match_user_spec` 精确钉死，新增站点走「指定类型」配置组，不要顺手改固定链。
 - **查缺主流程三条硬口径**（2026-11-16 审查定稿）：① 本地番号对比只用**本次扫描的 `local_movies` 快照**，绝不用跨次不清空的全局 `Flags.local_number_set`；② `number_list.json` 只在**扫描循环结束后写一次**，不在每部影片里全量重写整份 JSON；③ 番号前缀只削开头数字（`_strip_number_prefix`），保留 `-2`/`-C` 分集后缀与 `FC2-PPV-` 多连字符。站点级异常必须写日志，不能压成空结果后照常打印「查询完毕」。
 - **厂牌官网查缺入口**（2026-11-16 实测）：29 家同源 CMS 厂牌官网 + DAHLIA 统一用 `{base}/search/list?keyword={关键字}&countup=0`，番号在 `/works/detail/{番号}` 末段（**站内多为无连字符**，`normalize_key` 能与本地库对齐），分页追加 `&page=N`；演员名可直接当关键字。**另两家独立系统**：MGStage 用 `search/cSearch.php?type=top&page=N&list_cnt=120&actor[]={演员名}_0`（**必须日文原字/繁体名**，简体不命中；首次可能撞年龄门，走 `crawlers/base/age_gate.py` 的成人入口），Faleno 用 `wp-json/wp/v2/works?search={演员名}`（WordPress，命中 `acf.出演女優`）。三处站都是繁体站，**名字要试原样/繁体/简体三种**。改这些站点的入口前先按 `docs/Development.md` 第 18 章「厂牌官网按演员名搜番号」复核。
 - 站点 API 坑：missav_api 的 Recombee 仅 POST；DMM Affiliate v3 必需 site/service/floor 且 keyword 用 content_id 形态；madouqu 域名动态维护（24h 缓存）；madou_club 番号无横杠；parsel `Selector.get()` 纯 JSON 返回 dict（解析兼容 str/dict/Selector 三态）。
-- **当前注册爬虫 86 个**（`docs/Features.md` 同步）；数字开头模块名（`7mmtv.py`）用 `importlib.import_module` 加载。
 - 站点收录边界：AVEntertainments 只在无码组；Getchu 大陆 IP 过不了 CF 故从六组移除；Official·有码 29 站只在有码组、无码五站只在无码组。
 - **类型默认名单排序**（2026-11-12 用户口径）：有码/无码组移除官网组（见下条「官网路由无条件优先」），其余各组全部 JSON 站 A-Z、其余站 A-Z；唯一例外欧美组 ThepornDB_JSON 置顶。实现只在 `models.TYPE_DEFAULT_SITES` 一处排序，其它名单（`default_config.json`、使用说明、`docs/Features.md`、测试期望）全部同源跟随。
-- **官网聚合 JSON 优先**（2026-11-18 用户口径）：`Official`（MyWife_JSON/PRESTIGE_JSON + 34 有码站）与 `Official·uncensored`（3 家 JSON + 5 网页站）都先打 JSON 版；指定网站下拉 `Prestige_JSON` 已并入 `Official`（不再单列，存量偏好迁移收拢），新增 `Official·uncensored` 选项；单站路径 JSON 有数据但部分字段缺失时由对应网页版只补空字段（标题/番号以 JSON 为准，番号对不上不补；仅官网体系 JSON 站生效，其它 JSON 通道保持原行为）。
+- **Official 聚合：JSON 优先 + 成员边界**（2026-11-13 / 11-18 用户口径，原两条合并）：`Official`（MyWife_JSON/PRESTIGE_JSON + 34 有码官网，`Prestige_JSON` 已并入下拉、存量偏好迁移收拢）与 `Official·uncensored`（3 家 JSON + 5 网页站）都先打 JSON 版；单站 JSON 有数据但缺字段时由对应网页版只补空字段（标题/番号以 JSON 为准，番号对不上不补，仅官网体系生效）。成员按 `OFFICIAL_CENSORED_GROUP_SITES` 过滤：有码 34 家归 `Official`（能力文案「官网：有码」），无码官网及对应 JSON 归 `Official·uncensored`；`resolve_official_aggregate_site` 仍解析全部 39 站，由调用方按组过滤。
 - **官网路由无条件优先 + 类型名单剔除官网组 + 级联兜底**（2026-11-12 用户口径）：番号前缀命中路由表（`site_routes.collect_site_routes` 即「路由列表」导出源）即先刮对应官网（含其 JSON 版），**自动判断与锁定有码/无码同口径**（锁定分支也先 `resolve_official_aggregate_site`）；官网被禁用/无结果/字段不全由该类型启用网站补齐（`_official_route_fallback_classification`，不再以「启用名单含官网组」为前提），兜底名单剔除整个官网组（同源不重请），直接从 7mmtv_JSON 及之后的启用网站刮削。自动判断下官网+有码/无码组都无数据时依次 **国产传媒→国产短剧→个摄→欧美** 级联兜底（`_official_route_cascade`，前缀与有码/无码重复尤其国产传媒最严重；锁定类型不级联）。**有码/无码等七类类型名单与「编辑网站」可用网站/启用网站不再含 `Official`（Official·pixelated）/`Official·uncensored` 聚合与官网单站**：`TYPE_DEFAULT_SITES` 有码组移除 34 有码站 + MyWife_JSON/Prestige_JSON、无码组移除 5 网页站 + 5 JSON 版，`_open_site_editor` 候选区过滤官网成员，存量配置由 `_migrate_official_groups_removed`（标记键 `official_groups_removed_migrated`）剔除；官网单站只在「官方网站」源窗口编辑，指定网站下拉/检测网络分组/禁用名单/全局字段优先级保留官网值。FC2/FC2-/FC2-PPV/FC2PPV 仅当位于**文件名首位**才路由个摄番号组，MyWife 仅当位于文件名首位才路由官网 MyWife/MyWife_JSON；均不区分大小写、-/_ 通用，含在文件名中间不再命中（`file_crawler._name_starts_with`，无文件名时退回番号首位判断）。
 - **图片官网档只认番号对应官网**（2026-11-12 用户口径）：勾选「优先从Amazon、官网、DMM下载图片」时，`web.image_source_group` 的官网档只认番号路由到的那家官网及其配对 JSON 版（`web._official_image_sources`，与刮削路由 `resolve_official_aggregate_site` 同源），其它官网降入其他站点档——只从对应官网下载，不从其他官网下载；有码顺序 Amazon > 对应官网（含 _JSON）> DMM > DMM CDN > MGStage 直构 > 其他站点，无码保持对应官网 > 其他站点两档；组内按尺寸选优、失败降级、勾选本地文件直接跳过下载均不变。
 - **Official· 前缀界面显示规则**（2026-11-12 用户口径）：界面仅三个站点下拉保留 Official·——指定网站（`Official` 聚合显示为 `Official·pixelated`，`_SITE_DISPLAY_ALIASES`，UserRole/存盘仍 `Official`）、网络检测、当前网站；其余界面（图片来源标签 `image.py`、字段来源/站点摘要 `show_result`、评分来源后缀、刮削日志 `file_crawler._display_site`、检测日志 `log_console.with_site_prefix`）一律去 Official· 显示短名。官网单站定位说明（crawler `description`）统一「官网：有码」/「官网：无码」，禁带 ·站点名 后缀与（JSON API）/（JSON-LD）括号技术说明——网络检测下拉文案与候选区悬停同源。网络检测筛选弹窗右缘钉死对齐全选/全不选按钮右缘（`_layout_net_filter_popup`），不随选项文案长短加宽缩窄。
-- **指定网站两个聚合的成员边界**（2026-11-13 用户口径）：`Official`（Official·pixelated）只含 34 家有码官网 + MyWife_JSON/Prestige_JSON，能力文案「官网：有码」；无码官网及对应 JSON 一律归 `Official·uncensored`，pixelated 聚合的前缀路由与多站兜底都按 `OFFICIAL_CENSORED_GROUP_SITES` 过滤（`_crawl` 指定网站分支）。自动分类/图片来源共用的 `resolve_official_aggregate_site` 仍解析全部 39 站，由调用方按组过滤。
 - **NO_PROXY 兼容基线**（2026-11-13）：宿主机代理工具（Clash 等）把 IPv6 回环写成 `[::1]` 塞进 NO_PROXY，httpx 0.28 不认带方括号 IPv6 → 非法挂载键 `all://*[::1]` → trust_env 客户端构造抛 `InvalidURL: Invalid port`。修复在 `mdcx/proxy_compat.py::normalize_no_proxy_env`，`mdcx/__init__.py` 导入即把 `[host]` 归一成 `host`（httpx 会自动补回方括号），进程级覆盖全部 httpx 客户端创建点；新增 httpx 客户端无需各自设防，测试桩（`httpx._utils.getproxies` 置空）只作跨机器确定性兜底。
 - **指定网站聚合行徽标**（2026-11-11）：`Official` / `Official·uncensored` 不是真实站点、没有自己的检测键，状态圆圈按成员站检测结果聚合（成员名单与刮削展开同源 `OFFICIAL_CENSORED_GROUP_SITES` / `OFFICIAL_UNCENSORED_GROUP_SITES`）：成员同色→该色、颜色不一→黄、没测过→无圈，与检测网络筛选框分组行同规则；悬停取成员里最新一次检测时间。实现 `init._aggregate_site_check_entry`，初始填充与检测后刷新共用 `_site_check_entry` 取条目。
 - **联动站点组规则**（2026-11 用户定规；实现唯一来源 `models.SITE_GROUPS` + `models.WEB_TO_JSON_SITE`，界面在「编辑网站」弹窗）：
@@ -198,19 +179,14 @@
 - 站点域名优先级与删站属产品取舍，查证给方案不擅动；删站影响面 = 注册表 + Website 枚举 + 默认 proxy 列表 + `migrations.py` 清洗 + UI 列表。
 - **站点默认地址一律不带 `www.`，唯一例外 Official·MGStage**（2026-10-24 定规）：`base_url_()` 默认值、AIO `fallback_domain`、`DEFAULT_SITE_URLS` 都不加，自定义网址也不再自动补 www。改默认地址一并核对 `docs/Scraper.md` 两张表。
 - **失效域名直接删，不留兜底**（2026-10-24）：删到只剩一个地址的站点（7mmtv / IQQTV / freejavbt）连镜像轮换一起删。
-- **JavBus 四条线路、一个地址一次**：`www.javbus.com` → `www.dmmsee.casa` → `www.javsee.cyou` → `www.cdnbus.bond`，由 `_MULTI_ADDRESS_SITE_TARGETS` 派发，爬虫内部不再自建轮换。JavDB 爬虫内部默认 `javdb580.com`、自动轮询 573/574/575 镜像。
 - 「当前网站」下拉网址列显示一律去 www（`init._display_site_url`，只改显示）；新增配置 `last_custom_website`，交互中只置脏标记、`exit_app` 时落盘（别在交互里 `manager.save()`）。
 - 带语言段的入口地址不能直接当前缀拼：`base/web.py::site_root()` 先收敛成 `scheme://host`；missav 默认地址为 `https://missav.live/cn`（2026-11-09 用户指定去掉每片轮换的 dm 段，请求时站点 302 到当片 `/dmXX/cn/` canonical；旧 `/dm79/cn` 硬编码已废弃），不带语言段会被 302 到英文页。
 - JavDB 两源：javdb（网页/镜像站轮询，与旧 JavDB_API 同实现）/ javdb_app（App API，免 CF 最稳）；thejavdb 与 javdb 无关。App 签名见 `docs/Javdb_App_Signature.md`，排障锚点 = 三主机同时 4xx 或 InvalidSignature；搜索 limit ≤ 50，分页须 `movie_sort_by=release`。
 - javdb 图源无水印体系：`tp.spfcas.com` 是 App 专用（单字节 XOR），`c0.jdbstatic.com` 带水印；解密集中在 `base/web.py`。加密流尺寸探测 (0,0) 属预期。
-- **ThePornDB 的 401 与 403 不是一回事**（2026-10-30 实测）：401 = Token 不存在/失效；403 `This action is unauthorized.` = Token 已通过验证但没该接口权限（粘贴了网页登录令牌、旧 Token 被重置、账号无哈希直查权限）。403 绝不能提示「检查网络或代理」，也不能中断刮削（哈希直查 403 就退到标题搜索）。判定与文案只在 `mdcx/utils/theporndb_token.py`，三处（设置页检测、检测网络页、刮削爬虫）共用。
-- **ThePornDB 接口基址是 `api.theporndb.net`**（用户 2026-10-30 确认，勿再改成主域 `/api`）。主域 `/api` 只是 `API_BASE_FALLBACK`：仅在子域连接层失败、或 403 但响应体不是本站 JSON（Cloudflare 挑战页）时由 `with_fallback_base()` 兜底重试一次；真 403 JSON 与 404 不重试。
-- **ThePornDB 的「站点检测」行改打 ALDN-494 的 JSON 详情**（用户 2026-11-09，取代 2026-10-30 的主站首页打法）：链接地址填浏览器可访问的 JSON 地址 `https://api.theporndb.net/jav/568c12b8-756f-4d01-bb6c-cdc9d7382451`（详情页 Run Query 打的同一地址），`probe_url` 走 appoint_url 真实刮削（`_run` 的 /jav/ 分支），连通性与探测都带 Bearer Token；「接口/Token 能不能用」仍归「账号/API」组的「ThePornDB Token」项。番号/uuid 单一来源：`ThepornDB_JSONCrawler.probe_number` / `probe_uuid`。
+- **ThePornDB 口径（2026-10-30 / 11-09 定规，原三条合并）**：接口基址 `api.theporndb.net`，主域 `/api` 仅在连接层失败或 Cloudflare 挑战页时由 `with_fallback_base()` 兜底一次（真 403 / 404 不重试）。401 = Token 不存在/失效；403 = Token 有效但无该接口权限，绝不能提示「检查网络或代理」，哈希直查 403 退到标题搜索；判定与文案只在 `mdcx/utils/theporndb_token.py`。「站点检测」行打 ALDN-494 的 JSON 详情 `https://api.theporndb.net/jav/568c12b8-756f-4d01-bb6c-cdc9d7382451`，`probe_url` 走 appoint_url 真实刮削并带 Bearer Token，番号/uuid 单一来源 `ThepornDB_JSONCrawler.probe_number` / `probe_uuid`。
 - **18+年龄门一律选成人入口**（2026-11-07用户定规，MGStage误报根因）：凡遇「18岁以上/はい（アダルトへ）/すすむ/確認」一律点成人入口，绝不进「いいえ/MGSシアター/未成年/否」分支。实现只在`mdcx/crawlers/base/age_gate.py`（判定`is_age_gate_page`+提取`extract_adult_entry_url`+点选`follow_adult_entry`+五站成人Cookie常量），各站只调模块不得自写一套（MGStage旧私有判定已改为别名，Hbox/DMM/GetchuDL/JavBus的Cookie同源，Getchu主站「すすむ」同口径，JavBus的POST确认+验证码层保留站内实现）。
 - **刮削探测必须复用真实抓取路径**（2026-11-07与上条同因）：`_probe_crawler_capability`对带`_fetch_search`的爬虫一律经`asyncio.wait_for(crawler._fetch_search)`探测（含各站年龄门兜底），不得另起raw`client.request`绕过；无`_fetch_search`的最小替身才回退raw路径。仍过不去的年龄确认页（年龄确认页/年龄认证/年龄验证/adcCookie/AgeVerification，含JavBus验证码层）是确定性结论，首轮即定论，不走45s/60s递进。
 - **刮削探测全站直达详情页、搜索优先直连为例外**（2026-11-09 用户定规）：所有站点的网络检测探测必须落到详情页真实刮削。默认走 `_generate_search_url` → `_fetch_search` → `_parse_search_page` 番号搜索链路，且搜索必须能解析出详情链才算 OK（否则回退整站 `_run`）；只有搜索落不到详情页的站才允许在 `network_check._build_site_specs` 写死 `probe_url` 直达详情（例外须同步进 `site_fields.DIRECT_PROBE_SITES`，`test_probe_mode_matches_network_check_probe_urls` 钉死两集合相等；刮削字段表“方式”列直连填“直连”、搜索填“搜索”）。当前 24 个直连例外均为用户实测“搜索不可用”、逐站指定详情地址（Hbox 无番号搜索；Jav321 搜索是 POST 表单 URL 表述不了；Madou.club `?s=` LIKE 搜不到 MD332；FC2 无搜索实现；AVEntertainments 搜索页撞 verifybot 墙；AVheat/AVMOO/AVSOX POST JSON + Cookie 预热 + tellme 动态域；R18.dev 网页版无搜索页；TheJavDB 网页版 SPA + CF 无真搜索；JavLibrary 搜索页常年被 CF 墙挡；IQQTV uuid 不透明；7mmtv 含站内 ID 100674；Airav.cc hid 不透明；AVBase 名寄せ ID 含 maker 前缀；DMM 详情 host 为 video.dmm.co.jp；JavDB /v/5nnDEY 不透明 ID（探针号 DASS-481）；JavDay /videos/ADN384/；Getchu 探针号 AIV-10、详情 /item/1300711/；LibreDMM /movies/IPX-535；Lulubar id 不透明；FreeJavBT /zh/IPX-826；Madouqu /video/mdx0216/；JavFree /452656/abf-398；ThepornDB_JSON（用户 2026-11-09 指定：探测号 ALDN-494 直达 JSON 详情 /jav/568c12b8-…，uuid 不透明无法拼接），不要改回搜索。
-- **Hbox门壳先确诊再定论**（2026-11-08实测）：Hbox无Cookie回302→`/age_check`，门页是约4KB的Next.jsSPA空壳（无文本无链接，唯一信号是`__NEXT_DATA__`里的`"page":"/age_check"`与落地URL），Cookie是唯一成人入口。连通性/真实刮削先经`is_hbox_age_gate_shell`认门壳→直接报「年龄验证未通过（age_check_okCookie未生效）」首轮定论，不重试；只有认不出的非门壳（截断/抖动）才走Hbox专属重试。不得把门壳笼统报成「节点IP被限制」让用户盲目换节点。
-- **JavDB 预告片登录态走 preview_url 接口**（2026-11-09 线上 JS 实锤）：新版详情页 `<video>` 无 `<source>`，前端 `movie-detail#startPreview` 对 `data-url`（`/v/{id}/preview_url`）发 GET（Cookie + `X-CSRF-Token`）取 JSON 并用其 `url` 字段播流（见线上 `packs/js/app-*.js`：`.then(t=>t.ok?t.json():…).then(t=>this.prepareStream(e,t.url))`）。`javdb._parse_detail_page` 在详情无预告片且配了 Cookie 时按同款口径补取（`_fetch_preview_stream`，best-effort，失败不影响主流程）；回包解析兼容 JSON `url` → 递归找 http 串 → 全文 `.mp4/.m3u8` 正则；未配 Cookie 不请求（匿名调只回登录页）。
 
 - **JSON 通道「浏览器」按钮只打开 http:// 或 https:// 地址**（2026-11-13 用户定规）：对 FC2_JSON / AVBase_JSON / 7mmtv_JSON 等站点，浏览器按钮直接打开目标网页/接口地址（`http(s)://...`），不落临时文件；「查看JSON」仍展示合并后的完整字段。实现统一在 `json_view.request_json_browser` 的站点分支里，新增 JSON 站点默认也走临时文件，除非明确加入该分支。分支里的站点名必须写 `Website` 枚举的 **value**（`Hbox_JSON`，不是枚举名 `HBOX_JSON`）：写错大小写不报错，只会静默退回临时文件（2026-11-13 修 Hbox_JSON 时踩到）。分支成员清单在 `json_view._JSON_BROWSER_DIRECT_SITES`（2026-11-13 起 21 站）。**临时文件只留给浏览器打不开原始数据的两类**：ThepornDB_JSON（接口只认 Authorization 头，URL 带 token 一律 401）与 AVMOO/AVSOX/AVHeat_JSON（只收 POST，浏览器只会发 GET）；Missav_JSON 开详情页。**临时文件会被浏览器会话恢复**——下次浏览器启动自动又打开那个 `file:///…/mdcx-xxx-xxxx.json` 标签页，看着像软件无缘无故弹窗，所以新增 JSON 站点一律直开 http(s)，别再落临时文件。
 
@@ -223,7 +199,6 @@
 - Heyzo 时长转换规则：将 HH:MM:SS 格式的时长转换为整数分钟，**秒数 ≥ 30 则进 1 分钟**，最低保底为 1 分钟，优先使用 `download.whole` 数组的 `duration` 字段，`movie_files` 数组的 ISO 格式时长作为回退
 - 直接解析 heyzo SPA 页面 DOM 无法获取 runtime 字段，该字段仅在前端播放器渲染后才会显示，无法从页面源码中提取
 - 所有 JSON 版刮削器与对应的网页版刮削器必须**完全解耦**：JSON 版不得依赖对应网页版的 DOM 辅助函数，网页版也不得依赖对应 JSON 版的工具函数，所有跨配对依赖的逻辑必须在各自文件内另行实现，保持字段口径完全一致
-- **7 对官网爬虫彻底解耦（2026-11-14 达成）**：10Musume/10Musume_JSON、1Pondo/1Pondo_JSON、Pacopacomama/Pacopacomama_JSON、HEYZO/HEYZO_JSON、MyWife/MyWife_JSON、Prestige/Prestige_JSON、Caribbeancom/Caribbeancom_JSON 之间字段获取完全独立、互不影响，JSON 版与网页版各自持有完整的 DOM/API 解析逻辑副本，无任何跨配对 import 依赖。JSON 版若缺失网页版已获取的字段（如 Caribbeancom_JSON 初始缺 actors/release/runtime/tags/score/studio——因为站点 microdata 只有 name/description，其余全靠 DOM movie-spec），必须在 JSON 文件内独立实现获取逻辑，绝不 import 网页版函数；反之网页版亦然。
 - **7 对官网网页版 = 界面隐藏的 JSON 兜底（2026-11-14 用户严规，勿再改回可见）**：解耦只管「字段获取互不 import」，不代表网页版可以删。七个网页刮削器（10Musume / 1Pondo / Caribbeancom / HEYZO / MyWife / Pacopacomama / Prestige）一律 `hidden_in_ui() -> True`（5 个无码官网统一写在 `sites_official_uncensored/base.py::_OfficialUncensoredCrawler`，MyWife / Prestige 各自覆写），核心刮削、探测番号、封面/海报/剧照下载能力**全部保留**；配对写进 `AIO_JSON_WEB_FALLBACK`（`AIO_WEB_FALLBACK_SITES` / `AIO_WEB_TO_JSON_SITE` 自动派生）。口径统一为「JSON 优先、网页版仅在失败或字段不全时兜底」：单站路径走 `_call_specific_crawler` 的 `JSON_TO_WEB_SITE` 回退 + `_supplement_missing_fields`（含图片字段）；多站/速度优先路径把名单里残留的网页版归一为 JSON 版，再由 `_with_aio_fallback` / `AIO_JSON_WEB_FALLBACK` 追加网页版到末尾。**导出刮削字段表必须用 `include_hidden=True` 全量列出七行**；网络检测用默认视图 + `AIO_WEB_FALLBACK_SITES` 双重拦截跳过七网页版（JSON 版照常检测）；设置页官网行 `load_config` 把隐藏网页版显示成 JSON 版、`save_config` 与 `site_priority_dialog._open_site_editor` 过滤隐藏网页版；「检查演员缺失番号」`build_sources` 曾给两条路径都追加官网链，**2026-11-17 起撤销（用户定规：清单即边界）**：只有 `actor_type == "官方网站"` 才补五家官网 JSON 版，自动判断与其它指定类型一站不加，免得清单外网站被请求并把 404/403 刷进日志；写缺失表前的元数据补齐同样只打本行来源站详情页，不再按番号跨站猜 LibreDMM。「单文件刮削」靠 `deal_url` + `_prefer_json_site` 升级到 JSON。回归测试见 `tests/test_official_json_fallback_2026_11.py` 与 `tests/test_actor_sources_filter_2026_11_17.py`。
 
 ### JSON/网页 刮削器配对解耦总原则（2026-11-14 用户严规，适用于全仓所有配对）
@@ -280,8 +255,6 @@
 - 已删除的符号（别照着记忆去找）：`Config.factory_defaults()`、`migrations.backfill_missing_keys()`、`NEW_LIST_ITEMS`、`ConfigManager._needs_upgrade_persist()`、`tests/test_config_auto_upgrade.py`。取「字段声明层默认值」只能遍历 `Config.model_fields`，**绝不能用 `Config().model_dump()`**（`model_post_init` 会覆盖用户自定义的 `type_field_configs`）。
 - 撤销范围不明的工作区改动一律 `git revert --no-commit <sha>` 让 Git 算，复现的 diff 必须逐条核对来源。
 - **功能开关类配置项不得充当「逃生通道」过滤器**：「当前配置」下拉必须列出目录下每一个 `.json`，不做有效性过滤（`load()` 出错会切到 `_failed.json`，下拉框是唯一切回通道）。
-- **尚未落地（别当成已修）**：①`load_config()` 的填表仍在 `if errors: ... return` 之后（`load_config.py:91-103`），必须提到 errors 分支之前（`_refresh_config_file_combos()` **并不存在**）；②下标查找仍是裸 `all_config_files.index("config.json")`，缺文件时 ValueError，应逐级兜底。
-- **⚠️ 互调型递归必须自带重入保护**（2026-10-19 诊断完成、修复未落地）：`load_config()` ↔ `pushButton_init_config_clicked()` 互调，终止只靠「下一轮文件已存在」，可 `reset()` 补的文件不保证同一路径 → 约百次后 `RecursionError`；代码里**没有** `_creating_config` 标志。配套纪律：判循环别看栈尾；一处崩溃可能长期掩盖另一处；本地状态文件会被探针污染（`MDCx.config` 残留 Temp 路径会「启动即崩」）。
 - **配置加载路径上的对象构造必须「无前置条件」**：`Computed()` 在 `ConfigManager.load()` 里同步构造、`manager` 是模块级实例化，任何外部客户端构造失败都会让软件起不来。`LLMClient.__init__` 缺凭据就不构造客户端（`self.client = None` + `close()` 空值保护）。**可选功能（LLM / Emby / 同步）的凭据永远不能是启动前置条件。**
 - 用户在安装目录自维护的 `actor.json` / `default.json` / `studios.json` / `theporndb.json` 是不同命名方式的独立配置，不是出厂数据；看到同名 json 先看有没有 `config_version` / `main_mode`。`list_configs()` 无差别列 `.json` / `.ini` 是既有设计。
 - 手工改用户真配置按字节级单行替换（无 BOM、纯 CRLF），改完回验：JSON 可解析、行为字段未变、键集合一致、差异行只有目标行、CRLF 计数不变。
