@@ -114,9 +114,9 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | **欧美番号**（7） | ThepornDB_JSON、AVHeat_JSON、JavDB_JSON、Missav_JSON、AVheat、JavDB、Missav |
 | **国产传媒**（12） | JavDB_JSON、Madouqu_JSON、Missav_JSON、7mmtv、FreeJavBT、IQQTV、JavBus、JavDay、JavDB、Madou.club、Madouqu、Missav |
 | **国产短剧**（2） | JavDay、Lulubar |
-| **动漫里番**（7） | JavDB_JSON、Hbox_JSON、Getchu、Jav321、JavDB、Hbox、IQQTV |
+| **动漫里番**（7） | Getchu、Hbox、Hbox_JSON、IQQTV、Jav321、JavDB、JavDB_JSON |
 
-> 组内站点顺序（组内先后即优先级递减，2026-11-18 口径）：有码番号组按 Official 置顶、全部 JSON 站 A-Z、其余 A-Z；无码番号组按 Official·uncensored 聚合置顶、JSON 站 A-Z、其余 A-Z；个摄番号组按全部 JSON 站 A-Z、其余 A-Z；欧美番号组按 ThepornDB_JSON 置顶、其余 JSON 站 A-Z、其他站 A-Z；国产传媒组按 JavDB_JSON、Madouqu_JSON、Missav_JSON，其余 A-Z；国产短剧组全组 A-Z；动漫里番组按 JavDB_JSON、Hbox_JSON、Getchu、Jav321、JavDB，其余 A-Z（Hbox、IQQTV）。双击分组标题加入启用网站时同样按这份组内顺序。
+> 组内站点顺序（组内先后即优先级递减，2026-11-18 口径）：有码番号组按 Official 置顶、全部 JSON 站 A-Z、其余 A-Z；无码番号组按 Official·uncensored 聚合置顶、JSON 站 A-Z、其余 A-Z；个摄番号组按全部 JSON 站 A-Z、其余 A-Z；欧美番号组按 ThepornDB_JSON 置顶、其余 JSON 站 A-Z、其他站 A-Z；国产传媒组按 JavDB_JSON、Madouqu_JSON、Missav_JSON，其余 A-Z；国产短剧组全组 A-Z；动漫里番组全组 A-Z。双击分组标题加入启用网站时同样按这份组内顺序。
 > **「国产短剧」组挂 `JavDay` + `Lulubar` 两站**（原「素人番号」组 28 站全部移除，配置字段名仍是 `website_suren`）：国产短剧条目**本身没有番号**，JavDay 只给站内随机 ID（`/videos/Gb5WuoJw/`），文件名也是千奇百怪没有统一格式，既**不能按路径或文件名自动识别**，别的站又全靠番号查——查不到就是查不到，留在组里只会给每条影片白挂一次请求。故这一组只在**「锁定刮削类型」选「国产短剧」**时才生效（走 JavDay 的站内搜索页按剧名找页面，或用户手动指定页面），程序不做任何 DUANJU 自动识别；**以前的素人番号（`SIRO-`、`LUXU-` 等）全部按有码刮削**，它们是有码厂牌的正规番号。
 > **34 家 `Official·...` 有码官网只出现在有码番号组，五个无码官网只出现在无码番号组**，国产传媒、欧美番号、个摄番号、国产短剧四组都不含它们——34 站按番号前缀锁定对应官网，对国产/欧美/个摄番号没有收录；五个无码官网只收无码番号，短剧又没有番号可路由，加进去只会给每条影片白挂一次无效请求。`Official·Dahlia`、`Official·Faleno` 是早年从 Official 拆出的有码厂牌独立站（现已改名并入 `Official` 聚合行），`Official·MyWife`（舞ワイフ，人妻・熟女・3P 素人系列）同样并入该聚合行（同属 `OFFICIAL_YOUMA_SITES`）、只随**有码番号**一组走（`MyWife No.1230` 按前缀直调 Official·MyWife 单站）。34 家有码官网与五个无码官网各自独立启用/禁用，禁用其中一个不会影响其他站。
 > **AVEntertainments 只在无码番号一组**（2.5.6 起从有码番号、素人番号两组移除）：该站是正規無修正 DVD 販売/配信的商城，只收录无码番号，有码厂牌的番号查不到条目——放在有码番号、素人番号两组里只会给每条影片白挂一次请求，故只保留在无码番号组。爬虫本身不变（它仍在「编辑网站」候选区里可选，只是不被这两组默认勾选）。

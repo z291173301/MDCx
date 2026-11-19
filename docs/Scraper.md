@@ -193,10 +193,10 @@ MDCx 刮削网站类型汇总表
     Getchu     http://getchu.com       里番/同人志/书籍/动漫商品邮购；DLID* 前缀强制路由本站
     Hbox       https://hbox.jp         アダルト総合サイト：AV 有码 + 動漫/里番；只能按标题搜，不支持番号搜索
     Hbox_JSON  https://hbox.jp         详情页内联 gtmSetItemList JSON 通道
+    IQQTV      https://iqqtv.net/cn    综合站（有码/无码/欧美/国产），按用户 2026-11-10 口径也进动漫里番组
     Jav321     https://www.jav321.com  DMM 系聚合站：/video/h_xxx 与 digital/video/h_xxx 即动漫，mosaic 返回动漫
     JavDB      https://javdb580.com    Tags 含 Anime
     JavDB_JSON  https://javdbapp.com    同 JavDB（App 接口，免 CF）
-    IQQTV      https://iqqtv.net/cn    综合站（有码/无码/欧美/国产），按用户 2026-11-10 口径也进动漫里番组
 
     注：这一组现在也是「类型刮削网站」下的一个类型（动漫里番），默认勾这 7 个站；
         Getchu 同时也在有码番号组默认名单里，DLID* 前缀仍强制路由本站。
