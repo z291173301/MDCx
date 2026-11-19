@@ -334,7 +334,7 @@
 - 测试修复：`tests/test_emby_respx.py`（3 项）与 `tests/test_trawl_adapter.py`（2 项）的预存失败根因为宿主机代理配置（NO_PROXY 含 `[::1]`）与 httpx 0.28 trust_env 不兼容，客户端构造抛 `InvalidURL: Invalid port`；两文件新增 autouse fixture 置空 `httpx._utils.getproxies`（含 Windows 注册表回退），测试不再依赖宿主机代理环境，5 项全部修复而非删除。
 - 校验：新增 `tests/test_official_groups_removed_migration.py`、锁定有码/无码官网优先与级联兜底用例；`tests/test_file_crawler_runtime.py` 旧「无官网组不回退」用例改为新口径。
 ### 官网路由回退剔除官网组 + FC2/MyWife 文件名首位路由 + 图片官网档限定对应官网（用户指定）
-- 路由回退：番号前缀命中官网路由番号表（「路由列表」导出同源）先刮对应官网及其 JSON 版（JSON 优先、网页版回退/补齐不变）；官网被禁用、无结果或字段不全时，兜底名单**剔除整个官网组**——有码番号剔 `Official·pixelated`、无码番号剔 `Official·uncensored`（组内站点与已请求的对应官网同源，同样拿不到数据），直接从 7mmtv_JSON 及之后的启用网站按序补齐；剔除后无其它站点则不再回退（`mdcx/core/file_crawler.py::_official_route_fallback_classification`）。启用名单不含官网组时仍保持单站锁定、失败不回退的旧行为。
+- 路由回退：番号前缀命中官网路由番号表（「路由列表」导出同源）先刮对应官网及其 JSON 版（JSON 优先、网页版回退/补齐不变）；官网被禁用、无结果或字段不全时，兜底名单**剔除整个官网组**——有码番号剔 `Official·pixelated`、无码番号剔 `Official·uncensored`（组内站点与已请求的对应官网同源，同样拿不到数据），直接从 Mmtv_JSON 及之后的启用网站按序补齐；剔除后无其它站点则不再回退（`mdcx/core/file_crawler.py::_official_route_fallback_classification`）。启用名单不含官网组时仍保持单站锁定、失败不回退的旧行为。
 - 首位路由：FC2/FC2-/FC2-PPV/FC2PPV 仅当位于**文件名首位**才自动路由个摄番号组刮削字段下载图片；MyWife 仅当位于文件名首位才路由官网 MyWife/MyWife_JSON；均不区分大小写、`-`/`_` 通用，含在文件名中间不再命中（`mdcx/core/file_crawler.py::_name_starts_with`，无文件名时退回番号首位判断）。
 - 图片：勾选「优先从Amazon、官网、DMM下载图片」时，官网档只认番号对应官网及其配对 JSON 版（`mdcx/core/web.py::_official_image_sources`，与刮削路由 `resolve_official_aggregate_site` 同源），其它官网降入其他站点档——只从对应官网下载，不从其他官网下载；有码顺序 Amazon > 对应官网（含 _JSON）> DMM > DMM CDN > MGStage 直构 > 其他站点，组内按尺寸选优、失败自动降级不变；无码保持对应官网 > 其他站点两档；勾选使用本地文件时仍直接跳过下载。
 - 分隔符：字母前缀无码番号 `-`/`_` 通用（`HEYZO_3843` 等同 `HEYZO-3843`，`mdcx/number.py::is_uncensored`）；MKY/XXX-AV/MD 的提取与分类正则兼容两种分隔符；纯数字无码番号分隔符保留站点语义（`072625_001` vs `082226-001`）不变。
@@ -362,9 +362,9 @@
 - 徽标：指定网站下拉 `Official` / `Official·uncensored` 聚合行原先没有检测键、状态圆圈一直空白；现按成员站检测结果聚合显示红/黄/绿（成员与刮削展开同源：有码 36 站、无码 10 站；成员同色→该色、颜色不一→黄、没测过→无圈，与检测网络筛选框分组行同规则），悬停提示取成员里最新一次检测时间；初始填充与检测后刷新两条路径都生效。
 - 校验：`tests/test_website_single_official_rows.py` 新增聚合行徽标用例、`tests/test_net_filter_html_group.py` 新增 JSON 组全员回归；全量 pytest 通过。
 ### 新增四个独立 JSON 刮削器/探测器 + Xcity 改名 Xcity_JSON（用户指定）
-- 新增：`LibreDMM_JSON`（官网 `/movies/{番号}.json` 明细，探针 SNOS-038）、`FC2_JSON`（`/api/v2/videos/{番号}/sample` + 详情页 JSON-LD，探针 4992761）、`7mmtv_JSON`（详情页内联 JSON-LD VideoObject，探针 MIDV-744）、`Airav_JSON`（同款 JSON-LD，探针 SNOS-421）四个独立刮削器（`mdcx/crawlers/*_json.py`，共用 `json_ld.py` 纯文本提取，不复用网页版 DOM 解析）与网络检测探测器；连通性地址与刮削探测地址同源，番号由各爬虫 `probe_number` 单一提供。
-- 链接地址：LibreDMM_JSON / FC2_JSON 有浏览器可直接打开查看的独立 JSON 文件地址，字段表「链接地址」与「查看JSON」都用它们；7mmtv_JSON / Airav_JSON / Xcity_JSON 无独立 JSON 端点，链接地址用可直接打开的网页/API 地址（7mmtv / Airav 的「查看JSON」从该页抠出内嵌 JSON-LD 展示）。
-- 分组：`LibreDMM_JSON` 进有码、`FC2_JSON` 进个摄、`7mmtv_JSON` / `Airav_JSON` 进有码/无码/个摄/欧美四组，全部按「JSON 站 A-Z 置顶」的现有规则排序；四个新站均不进官方网站组；「可用网站（按类型分组）」与「启用网站」同步。
+- 新增：`LibreDMM_JSON`（官网 `/movies/{番号}.json` 明细，探针 SNOS-038）、`FC2_JSON`（`/api/v2/videos/{番号}/sample` + 详情页 JSON-LD，探针 4992761）、`Mmtv_JSON`（详情页内联 JSON-LD VideoObject，探针 MIDV-744）、`Airav_JSON`（同款 JSON-LD，探针 SNOS-421）四个独立刮削器（`mdcx/crawlers/*_json.py`，共用 `json_ld.py` 纯文本提取，不复用网页版 DOM 解析）与网络检测探测器；连通性地址与刮削探测地址同源，番号由各爬虫 `probe_number` 单一提供。
+- 链接地址：LibreDMM_JSON / FC2_JSON 有浏览器可直接打开查看的独立 JSON 文件地址，字段表「链接地址」与「查看JSON」都用它们；Mmtv_JSON / Airav_JSON / Xcity_JSON 无独立 JSON 端点，链接地址用可直接打开的网页/API 地址（7mmtv / Airav 的「查看JSON」从该页抠出内嵌 JSON-LD 展示）。
+- 分组：`LibreDMM_JSON` 进有码、`FC2_JSON` 进个摄、`Mmtv_JSON` / `Airav_JSON` 进有码/无码/个摄/欧美四组，全部按「JSON 站 A-Z 置顶」的现有规则排序；四个新站均不进官方网站组；「可用网站（按类型分组）」与「启用网站」同步。
 - 下拉与按钮：四个新站进检测网络下拉、`软件设置-网络-网站设置-当前网站` 下拉；仅 `LibreDMM_JSON` / `FC2_JSON` 进 `软件设置-刮削网站-指定网站-网站偏好` 下拉。四站检测网络行右侧均带「查看JSON」+「浏览器」双按钮（取数与探测同款），`Official·JSON` 组同步纳入。
 - 改名：软件界面上的 `Xcity` 全部改为 `Xcity_JSON`（检测网络/指定网站/当前网站下拉、可用网站（按类型分组）、启用网站、使用说明、默认配置模板），枚举成员 `Website.XCITY_JSON`；旧值 `Xcity` / `xcity` 由 `_missing_` 与 `migrations.py` 归一。检测网络行右侧「保存HTML」改为「查看JSON」（tc 子域 `/api/search?q=ABF050` 返回 JSON，浏览器可直接打开），`Xcity_JSON` 从 `Official·HTML` 组移入 `Official·JSON` 组。
 - 校验：新增 `tests/crawlers/test_json_channels_2026_11.py`；全量 pytest 通过（含默认名单、字段表、下拉按钮、使用说明、迁移等钉板同步）
