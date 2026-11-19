@@ -1167,7 +1167,7 @@ O 段的官网网页站混在一起，视觉乱序且看起来像「少了某站
 | 刮削类型 | 排序规则 |
 |----------|----------|
 | OFFICIAL（官方网站） | 全部站点 A-Z |
-| OUMEI（欧美番号） | **Top3 固定** `THEPORNDB_JSON` → `AVHEAT_JSON` → `JAVDB_JSON` → 其余 JSON 站点 A-Z → 网页站点 A-Z |
+| OUMEI（欧美番号） | 全部站点 A-Z |
 | YOUMA / WUMA / FC2 / GUOCHAN / SUREN / DONGMAN | JSON 刮削器 A-Z → 网页站点 A-Z |
 
 JSON 刮削器判断条件：站点 value 以 `_JSON` 结尾 **或** 在 `_ALL_JSON_SITES` 集合（26 家）里。
