@@ -14,6 +14,7 @@
 - **工具页几何断言跟进 11-18 左对齐统一**：设计列 x 由 140/136 统一到 158、右缘不变，`test_symlink_button_width.py`（设计 x、右缘 509、宽态增量 43）与 `test_tool_page_right_align.py`（输入框/站点下拉 x=158）同步。
 - **窗口居中守卫**：`actor_db.py` 的 `_ActorDbResultDialog` 把内联的居中闭包提为 `_center_on_screen()`，行为不变、符合 `test_window_centering.py` 的顶层窗口契约。
 - **UI 编译产物同步**：`mdcx/views/MDCx.py` 由 pyuic6 重编译 + 锁版本 ruff format 生成，与 `MDCx.ui` 文本一致。
+- **删除两个长期跳过的出厂库用例**：`resources/userdata/actor_database.xlsx` 是可选随包资源（源码仓库按 `.gitignore` 不放、`scripts/check_actor_db.py` 对缺文件也返回 0），`tests/test_actor_db_structure.py` 的 `test_factory_db_has_actor_sheet_first` / `test_factory_db_main_sheet_headers` 因此从未真正执行。直接移除这两例及其依赖的 `FACTORY_XLSX` 常量；文件内其余用例本就用内存/临时文件构造工作簿，仍覆盖 sheet 选择、辅助 sheet 保留与写入归属。全量测试 2 skipped → 0 skipped。
 
 ## 2026-11-18
 ### JavDB 专属 UA 指纹池 + 多 Cookie 轮换（用户指定）
