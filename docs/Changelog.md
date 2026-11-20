@@ -7,6 +7,23 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-20
+### DMM / DMM_JSON 定位说明改「综合：有码/动漫」（用户指定）
+- 两个爬虫类的 `description` 由「有码：仅限有码」改为「综合：有码/动漫」（分隔符按 UI 口径用「/」）；候选区悬停与三个站点下拉的前缀随之由「聚合」变「综合」，动漫里番按既有 `_CAPTION_HIDDEN_TYPES` 规则仍不写进这行名单，故显示为「综合：有码番号」/「综合：有码」。
+- 同步 `docs/Features.md` 全部爬虫表、`docs/Scraper.md` 总表、`site_priority_dialog.py` 前缀规则说明、`tests/test_site_source_type_groups.py` / `test_site_combo_tooltips.py` 的文案断言与模拟样例；`tests/crawlers/test_dmm_api.py` 新增 1 例锁定两个 description。
+- **校验**：改动文件 ruff format/check、mypy 通过，全仓推送前门禁（ruff/mypy/线程安全）通过，全量离线 pytest 5635 例无失败。
+
+### DMM / DMM_JSON 接入动漫里番（用户指定）
+- **默认名单**：`TYPE_PRIORITY_SITES[DONGMAN]` 优先刮削组加入 `DMM_JSON`（组首），`TYPE_DEFAULT_SITES[DONGMAN]` 兜底刮削组加入 `DMM`；`resources/config/default_config.json` 的 `website_dongman`、软件内使用说明（`MDCx.py` / `MDCx.ui`）、`docs/Features.md` 分组表（动漫里番 8 → 10 站）与测试里的分组名单/优先组断言同源同步。
+- **两条链路实测（2026-11-20）**：affiliate `ItemList` 的 `floor=anime` 与 `floor=videoa` 返回 JSON **顶层字段完全同构**，差别只在 `floor_code`、`URL`（`/anime/content/` vs `/av/content/`）、`content_id` 带厂商数字码（`196glod00410`）、`iteminfo` 无 `actress`/`director`；图床仍是 `/digital/video/<cid>/`。带横杠番号 `GLOD-0410` 与用 `videoa` 搜动漫均 0 条，`glod00410` / `196glod00410` 在 `anime` 精确命中，去掉 `floor` 虽可跨楼层但会放宽结果集，故保留双楼层顺序检索。网页端站内搜索入口与有码相同，只有详情链接是 `/anime/content/?id=…`；有码/动漫详情页同属一个 Next.js app（同一构建号、`av/content` 与 `anime/content` 仅路由 chunk 不同）。
+- **爬虫适配**：`dmm_api.py` 按 `videoa → anime`（配信品番形态改 `anime → videoa`）检索，按 `floor_code`/URL 判动漫并把 `mosaic` 置「里番」，预告片 player 的 `floor`、GraphQL 的 Referer 随频道切换；`dmm/__init__.py` 放行 `/anime/content/` 搜索结果链接，配信品番跳过有码那套 00 折叠/补零。有码链路保持原样。
+- **回归**：`tests/crawlers/test_dmm_api.py` 新增 12 例（真实响应字段、番号打分、双楼层回退、网页版链接放行与配信品番搜索），并用线上 `floor=anime` 真实响应跑通字段映射；改动文件 ruff format/check、mypy 通过，全量离线 pytest 5629 例通过。首轮未取到的动漫 GraphQL 简介与预告片已于当晚复测并接入，见下一节。
+
+### DMM 动漫 GraphQL 简介 / 预告片复测与接入（用户指定）
+- **GraphQL 实测**：`api.video.dmm.co.jp/graphql` 的 `ppvContent(id: 配信品番)` 对动漫返回与有码**完全同构**的字段，`403jdra56578rag01` 完整响应 3974 字节：description 433 字（含 `<br>`，清洗后可用）、duration 1629、`actresses`/`directors` 空数组、maker ピンクパイナップル；`sample2DMovie.highestMovieUrl` 直接给 `tencc3001.dmm.co.jp/pv/…hhb.mp4`。两条动漫番号（`403jdra56578rag01` / `196glod00410`）都取到完整响应并留存，description 分别 433 / 199 字、均含官方 mp4；本机代理 TLS 偶发阻断，带重试可通。无需为动漫另写 query/payload。
+- **html5_player 实测**：`floor=anime` 与有码 `floor=videoa` 一样只返回 2939 字节 `foreignError` 地区限制页（"Sorry! This content is not available in your region."），没有任何内联 mp4；这是地区限制，不是动漫特有问题，播放器页链路对本机 IP 无效。
+- **改动**：`dmm_api.py` 把 `_fetch_outline_graphql` 换成 `_fetch_digital_extras`，一次 GraphQL 同时取简介 + 官方 mp4 预告片并优先使用，`_fetch_trailer`（html5_player）降为兜底、识别地区限制页后直接跳过；`dmm/__init__.py` 的 mp4 候选正则兼容新域名 `tencc3001`；`json_view.py` 的 DMM_JSON 分支改用 `DMM_ADULT_COOKIES`、按 `floor_code`/URL 选 anime Referer，`build_view_payload` 一并展示 GraphQL 预告片。
+- **回归**：新增 5 例（真实响应简介/预告片、GraphQL 优先跳过 player、地区限制页跳过、`tencc3001` 候选、查看JSON trailer），并用线上真实 GraphQL 响应跑通简介 433 字 + mp4 提取；改动文件 ruff format/check、mypy 通过，全量离线 pytest 5634 例通过。
+
 ### 国产传媒/动漫里番兜底网站补站
 - **默认名单**：`TYPE_DEFAULT_SITES` 的「国产传媒」兜底组新增 `7mmtv_JSON` + `Airav_JSON`，「动漫里番」兜底组新增 `Airav_JSON`，均为 JSON 源兜底、优先刮削组不变；`resources/config/default_config.json` 的 `website_guochan` / `website_dongman` 与软件内使用说明（`MDCx.py` / `MDCx.ui`）两条类型清单同步。
 - **文档与回归**：`docs/Features.md` 分组表更新为国产传媒 14 站 / 动漫里番 8 站；`tests/test_config_conversion.py` 的默认优先级断言补两站，`tests/test_site_source_type_groups.py` 的分组名单补三站，`7mmtv_JSON` 悬停说明断言同步为「综合：有码番号/无码番号/欧美番号/国产传媒」；另同步 `tests/test_site_combo_tooltips.py` 的下拉短词断言为「综合：有码/无码/欧美/国产」。

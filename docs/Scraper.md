@@ -219,8 +219,8 @@ AVheat            欧美：欧美番号              欧美                     
 AVMOO             有码：仅限有码              有码                             https://avmoo.shop/cn
 AVSOX             无码：仅限无码              无码                             https://avsox.click/cn          081826_100
 Official·Dahlia     有码：仅限有码              有码                           https://dahlia-av.jp            DLDSS-539
-DMM               有码：仅限有码              有码+素人
-DMM_JSON           有码：仅限有码              有码                             https://api.dmm.com
+DMM               综合：有码/动漫             有码+素人+动漫
+DMM_JSON           综合：有码/动漫             有码+动漫                        https://api.dmm.com
 Official·Faleno     有码：仅限有码              有码                           https://faleno.jp               FNS-165
 FC2               FC2：FC2官网                无码+素人+FC2                    https://adult.contents.fc2.com  FC2-5003460
 FC2CMADB          FC2：FC2网站                素人+FC2                         https://fc2cmadb.com            FC2-4988506
