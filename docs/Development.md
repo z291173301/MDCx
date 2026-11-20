@@ -245,9 +245,10 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 
 ```
 aiohttp>=3.14.5      av>=19.0.2          lxml>=6.1.3
-pillow>=13.0.0       numpy>=2.5.4        pyinstaller>=6.22.3,<7
+pillow>=13.0.0       numpy>=2.5.5        pyinstaller>=6.22.3,<7
 aiofiles>=25.1.0     cffi>=2.1.1         jiter>=0.19.0
-markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
+markupsafe>=3.0.4    pydantic-core>=2.50.5  PyQt6-sip>=13.13.1
+pyyaml>=6.0.4
 ```
 
 - `requires-python` 固定 `>=3.15`（3.15 是当前唯一构建目标），不带 upper bound。
@@ -256,7 +257,7 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
   2. 标准流程：`uv lock --upgrade-package <pkg>` → `uv sync --locked` 验证 → 同步 `requirements.txt` 镜像行 → 若涉及 cp315 wheel 起步包，同步更新 `tests/test_py314_dependency_floors.py` 的声明/锁定元组/文档 → ruff 走 `python -m scripts.sync_ruff_version`（自动同步三处声明点）→ 跑通 floors/sync 相关测试。
   3. 例外 cap 保持不动：`pyqt6<6.12`（上游 .pyi 语法问题，见 `requirements.txt` 注释）、`ruff<0.18`（由同步脚本按 lock 自动推导 upper bound）。
 （3.15 是当前唯一构建目标），不带 upper bound。
-- 124 个锁包里 120 个有 wheel（mdcx 自身除外；sdist-only：oshash/pyyaml/zhconv），其中 pyyaml 无 cp315 wheel，靠 `PYYAML_FORCE_LIBYAML=0` 出纯 Python wheel。
+- 112 个锁包里 109 个有 wheel（mdcx 自身除外；sdist-only：oshash/zhconv）。pyyaml 6.0.4 起提供 cp315 wheel（含 libyaml C 扩展），dev 组显式钉 `>=6.0.4`；`PYYAML_FORCE_LIBYAML=0` 仅作为 sdist 回退保险保留。
 - ruff 版本以 `uv.lock` 为唯一来源。升级 ruff 后运行 `python -m scripts.sync_ruff_version`，自动同步 `pyproject.toml`（`ruff>=X,<Y`）、`requirements.txt`（`ruff>=X`）和 `uv.lock` 根 metadata 的 specifier；`--check` 只校验不改文件。`scripts/check.py` 发现漂移会自动同步并以非 0 退出，提交同步结果后重跑即可。标准升级流程：`uv lock --upgrade-package ruff` → 同步脚本 → 全量 format/check；`tests/test_ruff_version_sync.py` 钉死一致性。
 
 ---
@@ -790,7 +791,7 @@ PyInstaller，入口 `main.py`。Linux 手动构建依赖见 `Install.md#linux-�
 
 - `python-version: 3.15`、`UV_PYTHON: 3.15`、构建前断言 `sys.version_info[:2] == (3, 15)`。
 - `uv sync --locked` 失败自动回退 `uv sync`（只改 CI 临时工作树）。
-- PyYAML 无 cp315 wheel → 设 `PYYAML_FORCE_LIBYAML: "0"` 从 sdist 出纯 Python wheel（`uv sync` 与 `pip install -r requirements.txt` 都认；本机同理 `setx PYYAML_FORCE_LIBYAML 0`）。工作流另设 `UV_NO_SYNC: "1"`。
+- PyYAML 6.0.4 起已有 cp315 wheel（含 libyaml C 扩展），dev 组显式钉 `>=6.0.4`；`PYYAML_FORCE_LIBYAML: "0"` 保留为 sdist 回退时的纯 Python 构建保险（`uv sync` 与 `pip install -r requirements.txt` 都认；本机同理 `setx PYYAML_FORCE_LIBYAML 0`）。工作流另设 `UV_NO_SYNC: "1"`。
 
 ### 14.4 五条护栏
 

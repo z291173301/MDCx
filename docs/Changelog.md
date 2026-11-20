@@ -7,6 +7,11 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-21
+
+### 依赖全量升级：PyYAML 6.0.4 起支持 Python 3.15
+- `uv lock --upgrade` + `uv sync --locked` 把本机 `.venv` 升到最新：10 个包更新（annotated-doc 0.0.7 / certifi 2026.11.20 / filelock 4.2.12 / librt 0.17.0 / markdown-it-py 4.3.0 / platformdirs 4.14.8 / python-discovery 1.9.6 / pyyaml 6.0.4 / soupsieve 4.1.3 / virtualenv 21.15.9）；`pyproject.toml` 里显式声明的版本下限均已是本机最新版本，无需上调。
+- PyYAML 6.0.4（2026-11-20 发布）是首个提供 cp315 wheel 的版本（含 libyaml C 扩展），`pyproject.toml` dev 组与 `requirements.txt` dev 段同步显式钉 `pyyaml>=6.0.4`，纳入 `tests/test_py314_dependency_floors.py` 的声明/锁版本守卫；`PYYAML_FORCE_LIBYAML=0` 保留为 sdist 回退保险，CI 注释、`docs/Development.md` 与两处测试说明里「无 cp315 wheel」的旧表述全部改写。
+
 ### 官方网站档放行 DMM / DMM CDN 图片（用户指定）
 - `DMM_IMAGE_ALLOWED_SCRAPING_TYPES` 补 `FixedScrapingType.OFFICIAL`，扩展上一节门禁：有码番号 / 动漫里番 / 官方网站三类可从 DMM 站与 DMM CDN 下载封面图、缩略图、剧照，其它类型仍按原口径拦截；函数注释、定序日志与兜底说明里的「非有码/动漫里番类型」同步改「非有码/动漫里番/官方网站类型」。官方网站档与日亚门禁的允许类型自此一致。
 - **校验**：`tests/test_dmm_image_type_gate.py` 类型矩阵 OFFICIAL 改放行，新增官方网站档保留 DMM 候选（定序 / 剧照 / 直构 / 海报直构）用例；原先用 OFFICIAL 作反例的两处用例改回 OUMEI；Changelog / Features / Development / MEMORY 同源同步。全量离线 pytest 通过。
