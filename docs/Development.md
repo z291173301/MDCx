@@ -106,7 +106,7 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 - 封面统一请求 `SL2560` 原图变体，输出官方下划线式 `https://m.media-amazon.com/images/I/{image_id}._SL2560_.jpg`。
 - `_normalize_amazon_image_url` 处理四种输入：标准下划线式 `._AC_UL320_.jpg`、旧点号式 `.SL1500.jpg`、无后缀原图、已是目标尺寸。
 - **适用范围（2026-11-20 用户定规）**：日亚成人影像只收录日本有码 DVD 及其官网商品，其它类型番号实测只得到 MP3 下载/无结果，条码扫描 → 标题搜索 → 演员兜底整条链路纯属浪费。故 `core/web.py::amazon_images_allowed()` 成为唯一入口守卫，只放行 `YOUMA` / `OFFICIAL`；`_get_big_poster()` 用它决定是否调用 `get_big_pic_by_amazon()`，Thumb/Poster 候选在 `_build_poster_candidates()` / `_order_*_candidates()` 中剔除 Amazon 档（group 0）后再进入尺寸探测与下载，避免仍向 `media-amazon.com` 发请求。
-- 自动判断的兜底分支（`classify_scrape_task` 末尾）把无特征前缀番号一律归为有码，欧美站点（如 ThepornDB_JSON）兜底拿到的结果因此仍带 `YOUMA` 类型。守卫用两条附加信号复核实际内容：马赛克是否为纯无码/国产/里番动漫等，以及 number/title/originaltitle/thumb/poster 主字段来源是否落在「其它类型专属站点」集合（`TYPE_DEFAULT_SITES` 其它组站点减去有码/官网组，跨组共用的 JavDB / DMM 等不在其中）。流出/破解按有码母带口径保留日亚搜索。
+- 自动判断的兜底分支（`classify_scrape_task` 末尾）把无特征前缀番号一律归为有码，欧美站点（如 ThepornDB_JSON）兜底拿到的结果因此仍带 `YOUMA` 类型。`_result_looks_like_other_type()`（日亚 / DMM 两条门禁共用）用两条信号复核：纯无码/国产马赛克，以及 number/title/originaltitle/thumb/poster 主字段来源是否落在「其它类型专属站点」集合（`TYPE_DEFAULT_SITES` 其它组站点减去有码/官网组，跨组共用的 JavDB / DMM 等不在其中）。日亚另排除里番/动漫/同人/书籍马赛克；流出/破解按有码母带口径保留日亚搜索。DMM 侧允许类型与过滤入口见「有码番号图片下载架构」章节。
 - 直调 `amazon.get_big_pic_by_amazon()` 的离线测试不受守卫影响（守卫在下载层入口，不在爬虫模块内）。
 
 ### 3.6 Emby 演员工具
@@ -1373,9 +1373,15 @@ JSON 刮削器判断条件：站点 value 以 `_JSON` 结尾 **或** 在 `_ALL_J
 
 Amazon 不是常规爬虫，封面由下载层通过条码匹配额外获取：`_get_big_poster()` 在构建候选列表时通过 `extra_candidates` 传入，source 为 `"Amazon"`，在 `image_source_group` 中被识别为 group 0（优先档首位）。非有码/官方网站类型不再调用 `_get_big_poster()` 的搜索分支，已有 Amazon 候选也在构建/定序前剔除。
 
-#### extrafanart 不受影响
+#### DMM / DMM CDN 图片门禁（2026-11-21）
 
-extrafanart 从所有站点下载，不经过上述裁剪逻辑。
+`amazon_images_allowed()` 与 `dmm_images_allowed()` 共用 `_result_looks_like_other_type()`：自动判断末尾把无特征前缀番号默认归为 YOUMA，欧美站点兜底拿到的结果会带错误类型，故用纯无码/国产马赛克与主字段来源（「其它类型专属站点」= `TYPE_DEFAULT_SITES` 其它组减有码/官网组）复核。两条门禁的允许类型不同：日亚是 `YOUMA`/`OFFICIAL`（另排除里番/动漫等马赛克），DMM 是 `YOUMA`/`DONGMAN`。
+
+`_is_dmm_image_candidate()` 复用 `image_source_group` 的 group 1（DMM 站 / `dmm.co.jp` / `pics.dmm.co.jp`）与 group 2（`awsimgsrc` / `dmm_direct` / `dmm_fallback` / `dmm_cdn`）。三个入口在尺寸探测与下载前过滤：Thumb 走 `_order_cover_candidates()`，Poster 走 `_build_poster_candidates()` + `_order_poster_candidates()`，ExtraFanart 走 `extrafanart_download()`（主候选与 `fallback_fetch` 补刮后的两组都过滤，按来源/URL 逐条剔除）。此外 `_direct_image_candidates()`、`_build_dmm_poster_candidates()` 不再为非允许类型生成 CDN 直构候选，thumb 的 `find_valid_dmm_cover()` 兜底也加守卫。爬虫层 `upgrade_dmm_cover()` 产生的 awsimgsrc URL 仍在下载层统一拦截，无需逐站改。MGStage（group 4）与 Amazon 校验用的 DMM 内存参考图不在门禁范围内。
+
+#### extrafanart 不参与来源档排序
+
+extrafanart 从所有站点下载，不经过上述优先档定序/裁剪逻辑；但仍按类型门禁过滤 Amazon 与 DMM / DMM CDN 图源（见上一节），过滤后的候选才进入 `download_extrafanart_task()`。
 
 #### 未来拆分方向
 

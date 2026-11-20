@@ -7,6 +7,11 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-21
+### DMM / DMM CDN 图片仅限「有码番号 / 动漫里番」（用户指定）
+- **门禁**：`mdcx/core/web.py` 新增 `dmm_images_allowed()`，只放行 `YOUMA` / `DONGMAN`；把 Amazon 门禁的「实际内容复核」抽成 `_result_looks_like_other_type()` 共用（纯无码/国产马赛克 + 主字段来源是否属于其它类型专属站点），自动判断把 `VIXEN-100802` 归为有码、实际来自 ThepornDB_JSON 且马赛克「无码」的结果会被拦下。MGStage 不属于 DMM，保持原行为；Amazon 校验用的 DMM 参考图（内存、不落盘）不在本次范围内。
+- **三条链路**：`_is_dmm_image_candidate()` 按来源/URL 识别 DMM 站(group 1) 与 DMM CDN 直构(group 2)；`_drop_dmm_cover_candidates()` / `_drop_dmm_poster_candidates()` / `_drop_dmm_extrafanart_candidates()` 在尺寸探测与下载前剔除，覆盖缩略图、封面图、剧照（含 `fallback_fetch` 补刮后的剧照）；`_direct_image_candidates()`、`_build_dmm_poster_candidates()`、thumb 的 `find_valid_dmm_cover()` 兜底一并加守卫，日志里 `awsimgsrc.../vixen100802ps.jpg` 404 不再出现。
+- **校验**：新增 `tests/test_dmm_image_type_gate.py`（九档类型、误判复核、DMM 候选识别、三类图片过滤、直构/兜底不触发、剧照下载不请求 DMM 图）；`tests/test_web_dmm_disabled.py` 改用真实 `CrawlersResult`、`tests/test_amazon_image_type_gate.py` 同步共享常量改名；全量离线 pytest 通过。
+
 ### 全量并行测试：真实 Windows Qt 子进程独立临时目录
 - `tests/_qt_windows.py::run_in_windows_qt` 给子进程设 `PYTEST_DEBUG_TEMPROOT=<temp>/mdcx-qt-windows` 并预建目录；原先与主 pytest / xdist worker 共用 `pytest-of-<user>`，退出清理会一次删掉前几轮累积的上千个文件，被环境的批量删除保护拦下后 returncode 非 0（子进程内用例其实已通过、stdout 仍是 `[100%]`），导致全量并行时 `test_preview_window_has_own_taskbar_app_id` 偶发误报。两处真实 Qt 用例（`test_nfo_library_maximize_preview.py` / `test_actor_export.py`）单跑与全量均通过。
 - 全量离线 pytest 改用 `-n 4 --dist loadscope`（本机 `-n auto` worker 过多会触发 `MemoryError` 且耗时十分钟以上）；最终一轮退出码 0、0 失败，ruff format/check、mypy（297 文件）、线程安全检查全绿。
