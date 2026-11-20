@@ -7,7 +7,11 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-21
-### DMM / DMM CDN 图片仅限「有码番号 / 动漫里番」（用户指定）
+### 官方网站档放行 DMM / DMM CDN 图片（用户指定）
+- `DMM_IMAGE_ALLOWED_SCRAPING_TYPES` 补 `FixedScrapingType.OFFICIAL`，扩展上一节门禁：有码番号 / 动漫里番 / 官方网站三类可从 DMM 站与 DMM CDN 下载封面图、缩略图、剧照，其它类型仍按原口径拦截；函数注释、定序日志与兜底说明里的「非有码/动漫里番类型」同步改「非有码/动漫里番/官方网站类型」。官方网站档与日亚门禁的允许类型自此一致。
+- **校验**：`tests/test_dmm_image_type_gate.py` 类型矩阵 OFFICIAL 改放行，新增官方网站档保留 DMM 候选（定序 / 剧照 / 直构 / 海报直构）用例；原先用 OFFICIAL 作反例的两处用例改回 OUMEI；Changelog / Features / Development / MEMORY 同源同步。全量离线 pytest 通过。
+
+### DMM / DMM CDN 图片仅限「有码番号 / 动漫里番」（用户指定，随后扩展官方网站档）
 - **门禁**：`mdcx/core/web.py` 新增 `dmm_images_allowed()`，只放行 `YOUMA` / `DONGMAN`；把 Amazon 门禁的「实际内容复核」抽成 `_result_looks_like_other_type()` 共用（纯无码/国产马赛克 + 主字段来源是否属于其它类型专属站点），自动判断把 `VIXEN-100802` 归为有码、实际来自 ThepornDB_JSON 且马赛克「无码」的结果会被拦下。MGStage 不属于 DMM，保持原行为；Amazon 校验用的 DMM 参考图（内存、不落盘）不在本次范围内。
 - **三条链路**：`_is_dmm_image_candidate()` 按来源/URL 识别 DMM 站(group 1) 与 DMM CDN 直构(group 2)；`_drop_dmm_cover_candidates()` / `_drop_dmm_poster_candidates()` / `_drop_dmm_extrafanart_candidates()` 在尺寸探测与下载前剔除，覆盖缩略图、封面图、剧照（含 `fallback_fetch` 补刮后的剧照）；`_direct_image_candidates()`、`_build_dmm_poster_candidates()`、thumb 的 `find_valid_dmm_cover()` 兜底一并加守卫，日志里 `awsimgsrc.../vixen100802ps.jpg` 404 不再出现。
 - **校验**：新增 `tests/test_dmm_image_type_gate.py`（九档类型、误判复核、DMM 候选识别、三类图片过滤、直构/兜底不触发、剧照下载不请求 DMM 图）；`tests/test_web_dmm_disabled.py` 改用真实 `CrawlersResult`、`tests/test_amazon_image_type_gate.py` 同步共享常量改名；全量离线 pytest 通过。

@@ -1375,7 +1375,7 @@ Amazon 不是常规爬虫，封面由下载层通过条码匹配额外获取：`
 
 #### DMM / DMM CDN 图片门禁（2026-11-21）
 
-`amazon_images_allowed()` 与 `dmm_images_allowed()` 共用 `_result_looks_like_other_type()`：自动判断末尾把无特征前缀番号默认归为 YOUMA，欧美站点兜底拿到的结果会带错误类型，故用纯无码/国产马赛克与主字段来源（「其它类型专属站点」= `TYPE_DEFAULT_SITES` 其它组减有码/官网组）复核。两条门禁的允许类型不同：日亚是 `YOUMA`/`OFFICIAL`（另排除里番/动漫等马赛克），DMM 是 `YOUMA`/`DONGMAN`。
+`amazon_images_allowed()` 与 `dmm_images_allowed()` 共用 `_result_looks_like_other_type()`：自动判断末尾把无特征前缀番号默认归为 YOUMA，欧美站点兜底拿到的结果会带错误类型，故用纯无码/国产马赛克与主字段来源（「其它类型专属站点」= `TYPE_DEFAULT_SITES` 其它组减有码/官网组）复核。两条门禁共用复核但允许类型略有不同：日亚是 `YOUMA`/`OFFICIAL`（另排除里番/动漫等马赛克），DMM 是 `YOUMA`/`DONGMAN`/`OFFICIAL`（官方网站档 2026-11-21 当日追加，两边都放行）。
 
 `_is_dmm_image_candidate()` 复用 `image_source_group` 的 group 1（DMM 站 / `dmm.co.jp` / `pics.dmm.co.jp`）与 group 2（`awsimgsrc` / `dmm_direct` / `dmm_fallback` / `dmm_cdn`）。三个入口在尺寸探测与下载前过滤：Thumb 走 `_order_cover_candidates()`，Poster 走 `_build_poster_candidates()` + `_order_poster_candidates()`，ExtraFanart 走 `extrafanart_download()`（主候选与 `fallback_fetch` 补刮后的两组都过滤，按来源/URL 逐条剔除）。此外 `_direct_image_candidates()`、`_build_dmm_poster_candidates()` 不再为非允许类型生成 CDN 直构候选，thumb 的 `find_valid_dmm_cover()` 兜底也加守卫。爬虫层 `upgrade_dmm_cover()` 产生的 awsimgsrc URL 仍在下载层统一拦截，无需逐站改。MGStage（group 4）与 Amazon 校验用的 DMM 内存参考图不在门禁范围内。
 
