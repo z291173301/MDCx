@@ -628,6 +628,41 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
   等**写入**功能全部保留（`config/resources.py`、`actor_db.py`、
   `tool_handlers.py`）；删的只是「读它做演员原名映射」这一个用途。
 
+### 10.19 「自动判断」探测路由与站点改名（2026-11-20 第三批）
+
+用户追加：四个复选框要对全部 70 站生效；「检查缺失番号 + 自动判断」先拿
+AVMOO / AVSOX / AVHeat 探测类型，再分别跑命中的类型组、汇总成一张 xlsx；
+`Mmtv_JSON` 改名 `7mmtv_JSON` 并重排刮削兜底组与下拉选项。
+
+- **探测与取号分离**：`actor_type_probe.probe_actor_types()` 只回答「该演员
+  大概率属于哪些类型」，返回的番号**不并入导出**。理由：探测站与正式取号站
+  有重叠（AVMOO_JSON / AVSOX_JSON / AVHeat_JSON 本身就在各固定链里），把探测
+  结果并进去会与正式结果重复、且探测时用的名字可能与正式取号不同，去重口径
+  会分裂。三站并发、同站按名字串行，`_DEADLINE` 给每次探测设 30s 软超时——
+  探测只需要知道有没有番号，不必翻完演员的全部作品页。
+- **为什么 AVSOX 要试完所有名字**：AVSOX 一个名字可能只返回非 FC2 番号，
+  另一个名字才返回 FC2 番号。`_site_complete()` 对 AVSOX 要求「非 FC2 与 FC2
+  都命中」才提前收手，AVMOO / AVHeat 命中一次即可停，兼顾正确性与请求数。
+  实测这也正是需求 3 的关键：三上悠亚用简体输入名时 AVMOO 返回 0，换成
+  JavDB 取到的「三上悠亜」后返回 417 个番号。
+- **多组只出一张表**：命中 N 组就调 N 次 `_fetch_actor_numbers`（各自
+  `use_config_sites=False` → `_AUTO_SITE_ORDER[类型]`），结果按
+  `normalize_key` 合并去重后**一次**交给 `_report_actor_result`。因此
+  「只获取单演员」「获取本地番号」的过滤/去重天然覆盖所有组的所有站点，
+  不必逐组各写一张 xlsx 再让用户自己合并。四个开关在默认流程与每组取号里
+  用的是同一组参数，不存在「探测路由绕过某个开关」的分支。
+- **三站全空要能退回原流程**：探测全空时 `routed_types=[]`，循环走原来的
+  单一 `actor_type` 分支（`use_config_sites` / `sites` / `per_site_out` 全部
+  原样保留），所以「查询演员番号」工具、下拉指定类型、以及探测无结果的场景
+  行为与改动前一致。
+- **改名只动展示值，不动内部标识**：`Website.MMTV_JSON` 成员名保留（Python
+  标识符不能以数字开头，且内部标识无需跟着 UI 文案改），只把 value 改成
+  `7mmtv_JSON`；`_rename_site` 与 `Website` 别名表都保留 `"Mmtv_JSON"` 旧键，
+  存量配置不会因改名被静默剔除。排序按用户口径只重排两处：`TYPE_DEFAULT_SITES`
+  / `default_config.json` 的**兜底刮削组**（数字 7 开头移到 `Airav_JSON` 之前），
+  以及 `JSON_VIEW_SITES` / 运行时 `_site_sort_key` 的**下拉选项**；优先刮削组
+  与其它列表位置一律不动。
+
 ---
 
 ## 11. 左下角状态区图标规范

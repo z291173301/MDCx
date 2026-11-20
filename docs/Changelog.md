@@ -7,6 +7,14 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-20
+### 「自动判断」AIO 三站探测路由 + 四开关全站接入 + 7mmtv_JSON 改名（用户指定）
+- **四个开关对全部 70 站生效**：「只获取单演员」「获取本地番号」「格式化番号名」「获取演员原名」在默认流程与新探测路由的每一组取号里都原样传递——格式化经 `_FORMAT_NUMBERS` 到 `_merge` 与站点出口、原名变体经 `_MIN_NAME_VARIANTS` 到每个 fetcher、单演员过滤与本地去重在合并后的报表层统一生效；是否使用完全由勾选控制，不勾选一字不变。
+- **自动判断探测路由**：新建独立模块 `mdcx/tools/actor_type_probe.py`，`probe_actor_types()` 用 AVMOO / AVSOX / AVHeat 对候选名字分别搜索（三站并发、同站按名字串行、`_DEADLINE` 软超时），按「AVMOO 有号 → 有码」「AVSOX 非 FC2 → 无码」「AVSOX 有 FC2 → FC2」「AVHeat 有号 → 欧美」判定；**探测番号只作路由依据，不并入导出**。`missing.py` 仅在「检查缺失番号 + 自动判断」启用：未勾「获取演员原名」用用户输入名探测，勾选时先取 JavDB 全部原名/艺名/曾用名再逐个分别探测；命中多组时每组走各自的 `_AUTO_SITE_ORDER` 固定链，结果按番号去重合并后只导出**一张** xlsx；三站全空按原默认流程查询并导出。「查询演员番号」与下拉选了具体类型时不启用探测。
+- **三演员实测**：三上悠亚 / 新有菜 / 波多野结衣跑通「探测 → 多组取号 → 合并导出」全链路，无异常。未勾原名时三上悠亚 / 波多野结衣三站全空走默认流程、新有菜命中 AVSOX → 无码；勾选原名后三上悠亚取到 3 个原名并命中 AVMOO 417 个番号 → 有码，新有菜取到 6 个原名命中 AVMOO+AVSOX → 有码/无码两组，导出单表 3 行（表头 + 2 个番号）。JavDB_JSON 未取到演员时按设计回退网页版并打出日志。
+- **站点改名**：`Mmtv_JSON` → **`7mmtv_JSON`**（枚举 value、别名表、迁移表、`default_config.json`、`json_view.py`、爬虫标识、软件内使用说明、文档与测试断言全仓同步）；存量配置旧精确值 `Mmtv_JSON` 经 `_rename_site` / `Website` 别名自动升级，幂等。按用户口径只重排**刮削兜底组**（`TYPE_DEFAULT_SITES` 与四组默认名单里数字 7 开头移到兜底段最前）与**下拉 / 查看JSON 选项**（`JSON_VIEW_SITES` 与运行时 A-Z 排序），优先组与其余列表位置不变。
+- **保留 uv 与 .venv**：用户本轮撤回「删掉 uv 与 .venv」的要求，工具链维持现状。
+- **校验**：新增 `tests/test_auto_type_probe.py`（探测判定、逐个原名分别搜索、四开关 × 四组传递、多组合并一张表、全空回退、非自动判断不探测）；同步 8 个既有测试文件的站点顺序/展示名断言与配置迁移用例；全仓 ruff format/check、mypy、线程安全、全量离线 pytest 全部通过。
+
 ### 依赖与 .venv 全部升到本机版本（用户指定）
 - **环境对齐**：本机（系统 Python 3.15）与 `.venv` 共有的包版本差异全部抹平（最终比对差异 0 个），含 PyQt6 6.11.0 → **6.12.1**、PyQt6-Qt6 6.11.2 → 6.12.0、ruff 0.17.5 → 0.17.6、pydantic 2.14.3 → 2.14.4、openai 3.54.0 → 3.57.0 等。`uv pip install` 经代理下载 76MB 的 PyQt6-Qt6 wheel 卡住，改用 curl 直连断点续传 + 规范命名的本地 wheel 离线安装。
 - **声明同步**：`pyproject.toml` / `requirements.txt` 的直接依赖下限改到本机版本，删除 `pyqt6<6.12` 限制及旧的桩报错注释；`uv lock` 重解析只升级 7 个包（openai / pydantic / pydantic-core / pyqt6 / pyqt6-qt6 / ruff / typer）；`scripts/sync_ruff_version.py --check` 一致，`uv.lock` 根 specifier 与实锁版本同步。
