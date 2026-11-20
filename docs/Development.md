@@ -105,6 +105,9 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 
 - 封面统一请求 `SL2560` 原图变体，输出官方下划线式 `https://m.media-amazon.com/images/I/{image_id}._SL2560_.jpg`。
 - `_normalize_amazon_image_url` 处理四种输入：标准下划线式 `._AC_UL320_.jpg`、旧点号式 `.SL1500.jpg`、无后缀原图、已是目标尺寸。
+- **适用范围（2026-11-20 用户定规）**：日亚成人影像只收录日本有码 DVD 及其官网商品，其它类型番号实测只得到 MP3 下载/无结果，条码扫描 → 标题搜索 → 演员兜底整条链路纯属浪费。故 `core/web.py::amazon_images_allowed()` 成为唯一入口守卫，只放行 `YOUMA` / `OFFICIAL`；`_get_big_poster()` 用它决定是否调用 `get_big_pic_by_amazon()`，Thumb/Poster 候选在 `_build_poster_candidates()` / `_order_*_candidates()` 中剔除 Amazon 档（group 0）后再进入尺寸探测与下载，避免仍向 `media-amazon.com` 发请求。
+- 自动判断的兜底分支（`classify_scrape_task` 末尾）把无特征前缀番号一律归为有码，欧美站点（如 ThepornDB_JSON）兜底拿到的结果因此仍带 `YOUMA` 类型。守卫用两条附加信号复核实际内容：马赛克是否为纯无码/国产/里番动漫等，以及 number/title/originaltitle/thumb/poster 主字段来源是否落在「其它类型专属站点」集合（`TYPE_DEFAULT_SITES` 其它组站点减去有码/官网组，跨组共用的 JavDB / DMM 等不在其中）。流出/破解按有码母带口径保留日亚搜索。
+- 直调 `amazon.get_big_pic_by_amazon()` 的离线测试不受守卫影响（守卫在下载层入口，不在爬虫模块内）。
 
 ### 3.6 Emby 演员工具
 
@@ -1325,48 +1328,50 @@ JSON 刮削器判断条件：站点 value 以 `_JSON` 结尾 **或** 在 `_ALL_J
 - 配对刮削器（JSON ↔ 网页）**禁止**跨分支 import，各自实现 `build_view_payload`
 - 共享基类 / 工具模块（`AIO_JSON_WEB_FALLBACK`、`models.py`、`consts.py`）允许跨分支引用
 
-### 有码番号图片下载架构（2026-11-15）
+### 有码番号图片下载架构（2026-11-15 / 2026-11-20 改序）
 
 #### 核心策略
 
-有码番号（YOUMA / OFFICIAL 类型）的 poster / thumb 下载采用 **"优先档命中即停，未命中则继续"** 的两阶段裁剪策略：
+有码番号（YOUMA / OFFICIAL 类型）的 poster / thumb 采用「优先档按来源选优 → 按序下载成功即停 → 全部失败才降级」：
 
-1. **优先档**（group 0~4）：Amazon → 官方网站 → DMM站 → DMM CDN → MGStage
-2. **其他档**（group 5）：AVMOO_JSON, AVSOX_JSON, JavDB, JavBus, JavLibrary, Madou.club, Lulubar, Xcity 等综合站
+1. **优先档**（group 0~4）：Amazon → DMM 站 → DMM CDN 直构 → 官方网站（番号对应官网 + 配对 JSON 版）→ MGStage 官方直构
+2. **其他档**（group 5）：AVMOO_JSON, AVSOX_JSON, JavDB, JavBus, JavLibrary, Madou.club, Lulubar, Xcity 等综合站，保留在队尾
 
 **逻辑流程**：
 - 刮削阶段：`file_crawler.py` 的 `_run_scrape_type` 正常收集**所有站点**的 poster_list / thumb_list（不做静态过滤）
-- 下载阶段：`web.py` 构建候选列表后，由 `_prune_priority_only()` / `_prune_poster_priority_only()` 判断：
-  - 优先档有候选 → 过滤掉 group 5 的其他站点候选
-  - 优先档无候选 → 保留全部（降级到常规排序）
-- 选优阶段：`_rank_image_indices()` 对剩余候选按 **来源档优先 → 尺寸更大** 排序
+- 类型门禁：`amazon_images_allowed()` 对非「有码番号 / 官方网站」的结果剔除 Amazon 候选（见 §3.5）
+- 选优阶段：`_rank_image_indices()` 对全部候选按 **来源档优先 → 尺寸更大** 排序；其他站点档排最后，组内仍按尺寸选优
+- 下载阶段：按序尝试，第一个下载成功即返回——优先档拿到封面图/缩略图后不再下载其他网站；优先档全部下载失败才轮到 group 5
+- `wuma` 只保留官网(3) + 其他(5) 两档；`ordered`（其它类型）不按来源重排
+
+> 2026-11-20 取代 11-12 口径：原先 `_prune_priority_only()` / `_prune_poster_priority_only()` 在排序阶段就把 group 5 候选删掉，优先档全部下载失败时只能靠 `fallback_fetch` 按需补刮；现在保留队尾候选，降级直接可用，两个裁剪函数已删除。
 
 #### 档位定义（`image_source_group`，返回 0~5）
 
 | Group | 来源 | 识别方式 |
 |-------|------|----------|
 | 0 | Amazon | source 含 `amazon` 或 URL 含 `media-amazon` |
-| 1 | 官方网站 | source ∈ `official_sources`（番号对应的官网 + 其 JSON 版） |
-| 2 | DMM 站 | source ∈ DMM 来源集 或 URL 含 `dmm.co.jp` |
-| 3 | DMM CDN 直构图 | URL 含 `awsimgsrc` 或 source 为 `dmm_direct/dmm_fallback/dmm_cdn` |
+| 1 | DMM 站 | source ∈ DMM 来源集 或 URL 含 `dmm.co.jp` |
+| 2 | DMM CDN 直构图 | URL 含 `awsimgsrc` 或 source 为 `dmm_direct/dmm_fallback/dmm_cdn` |
+| 3 | 官方网站 | source ∈ `official_sources`（番号对应的官网 + 其 JSON 版） |
 | 4 | MGStage | source 或 URL 含 `mgstage` |
-| 5 | 其他站点 | 以上均不匹配 |
+| 5 | 其他站点 | 以上均不匹配（含其它官网，见 `_official_image_sources`） |
 
 #### 关键函数位置
 
 | 函数 | 文件 | 职责 |
 |------|------|------|
-| `image_source_group(source, url, official_sources)` | `core/web.py:1228` | 单条候选 → 0~5 档位 |
-| `image_source_plan(result)` | `core/web.py:1297` | 返回 `"youma"` / `"wuma"` / `"ordered"` / `""` |
-| `_prune_priority_only(covers, official_sources)` | `core/web.py:1260` | Thumb/Cover 优先档裁剪 |
-| `_prune_poster_priority_only(candidates, official_sources)` | `core/web.py:1281` | Poster 优先档裁剪 |
-| `_order_cover_candidates(result, covers, ctx)` | `core/web.py:1406` | Thumb 完整排序列表 |
-| `_order_poster_candidates(result, candidates, ctx)` | `core/web.py:1437` | Poster 完整排序列表 |
-| `_rank_image_indices(sources, urls, plan, ctx)` | `core/web.py` | 按档+尺寸选优排序 |
+| `image_source_group(source, url, official_sources)` | `core/web.py` | 单条候选 → 0~5 档位 |
+| `image_source_plan(result)` | `core/web.py` | 返回 `"youma"` / `"wuma"` / `"ordered"` / `""` |
+| `amazon_images_allowed(result)` | `core/web.py` | 是否允许该结果走 Amazon 图片链路 |
+| `_drop_amazon_cover_candidates` / `_drop_amazon_poster_candidates` | `core/web.py` | 非允许类型剔除 Amazon 候选（尺寸探测前） |
+| `_order_cover_candidates(result, covers, ctx)` | `core/web.py` | Thumb 完整排序列表（含队尾降级候选） |
+| `_order_poster_candidates(result, candidates, ctx)` | `core/web.py` | Poster 完整排序列表 |
+| `_rank_image_indices(sources, urls, plan, ctx)` | `core/web.py` | 按档 + 尺寸选优排序 |
 
 #### Amazon 封面来源
 
-Amazon 不是常规爬虫，封面由下载层通过条码匹配额外获取：`_get_big_poster()` 在构建候选列表时通过 `extra_candidates` 传入，source 为 `"Amazon"`，在 `image_source_group` 中被识别为 group 0（优先档首位）。
+Amazon 不是常规爬虫，封面由下载层通过条码匹配额外获取：`_get_big_poster()` 在构建候选列表时通过 `extra_candidates` 传入，source 为 `"Amazon"`，在 `image_source_group` 中被识别为 group 0（优先档首位）。非有码/官方网站类型不再调用 `_get_big_poster()` 的搜索分支，已有 Amazon 候选也在构建/定序前剔除。
 
 #### extrafanart 不受影响
 
@@ -1374,13 +1379,13 @@ extrafanart 从所有站点下载，不经过上述裁剪逻辑。
 
 #### 未来拆分方向
 
-当前裁剪函数直接写在 `core/web.py` 中。按用户要求，理想架构应将以下职责拆分成独立函数放独立模块（如 `core/image_source.py`）：
+当前定序函数直接写在 `core/web.py` 中。按用户要求，理想架构应将以下职责拆分成独立函数放独立模块（如 `core/image_source.py`）：
 
 1. **Amazon 封面获取函数**：通过条码匹配 Amazon 页面，提取 largest 尺寸封面 URL
 2. **DMM 封面候选构建函数**：`_build_dmm_poster_candidates()` + `_sized_poster_candidates()`
 3. **官方网站封面候选函数**：从 result.poster + result.poster_list 提取 official_sources 范围内的候选
 4. **其他站点封面候选函数**：AVMOO_JSON, JavDB 等综合站
-5. **优先档裁剪函数**：当前的 `_prune_priority_only` / `_prune_poster_priority_only`
+5. **优先档/降级定序函数**：`_order_cover_candidates()` / `_order_poster_candidates()` + `_rank_image_indices()`（原 `_prune_*_priority_only()` 已于 2026-11-20 删除）
 6. **尺寸校验函数**：`image.py` 中 `_replace_if_poster_bigger()` + `web.py` 中 `_download_image` 尺寸探测
 7. **最终选优函数**：`_rank_image_indices()` 按档 + 尺寸综合排序
 

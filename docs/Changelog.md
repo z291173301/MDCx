@@ -6,9 +6,33 @@
 > 原先逐条重复的「校验：…门禁通过」已收敛到此处，条目里只保留新增用例名、用例数、例外与实测结论。
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
+## 2026-11-21
+### 全量并行测试：真实 Windows Qt 子进程独立临时目录
+- `tests/_qt_windows.py::run_in_windows_qt` 给子进程设 `PYTEST_DEBUG_TEMPROOT=<temp>/mdcx-qt-windows` 并预建目录；原先与主 pytest / xdist worker 共用 `pytest-of-<user>`，退出清理会一次删掉前几轮累积的上千个文件，被环境的批量删除保护拦下后 returncode 非 0（子进程内用例其实已通过、stdout 仍是 `[100%]`），导致全量并行时 `test_preview_window_has_own_taskbar_app_id` 偶发误报。两处真实 Qt 用例（`test_nfo_library_maximize_preview.py` / `test_actor_export.py`）单跑与全量均通过。
+- 全量离线 pytest 改用 `-n 4 --dist loadscope`（本机 `-n auto` worker 过多会触发 `MemoryError` 且耗时十分钟以上）；最终一轮退出码 0、0 失败，ruff format/check、mypy（297 文件）、线程安全检查全绿。
+
 ## 2026-11-20
+### 图片来源优先级改序 + 优先档下载失败才降级（用户指定）
+- **文案**：设置项「优先从Amazon、官网、DMM下载图片」→「优先从Amazon、DMM、官方网站下载图片」；`Config.field_priority_image_source_priority.title`、`MDCx.ui` / `MDCx.py`、`core/web.py` 注释、`docs/Features.md` / `docs/Development.md` / `docs/MEMORY.md` 同源同步；「启用 Amazon 查找高清封面图」说明补「仅有码番号/官方网站生效」。
+- **档位重排**：`image_source_group` 由 Amazon(0) > 官网(1) > DMM站(2) > DMM CDN(3) > MGStage(4) 改为 Amazon(0) > DMM站(1) > DMM CDN(2) > 官方网站(3) > MGStage(4)，`IMAGE_SOURCE_GROUP_NAMES` 随之重排；无码档 `allowed` 由 (1,5) 改 (3,5)；官网档仍只认番号对应官网及配对 JSON 版。
+- **降级口径**：删除 `_prune_priority_only()` / `_prune_poster_priority_only()`，其他站点候选不再在排序阶段被过滤，而是保留在队尾（group 5）；下载层按序尝试、第一个成功即停——优先档拿到封面图/缩略图后不再下载其他网站，优先档全部下载失败才降级。定序日志补「其他站点降级 N 条（优先档全失败才尝试）」。
+- **校验**：`tests/test_image_source_priority.py` 更新六档断言与两组定序期望、新增 Poster 新顺序用例和 thumb 下载「优先档成功即停 / 全失败才降级」2 例；`tests/test_amazon_image_type_gate.py` 同步队尾降级候选断言；全量离线 pytest 通过。
+
+### Amazon 图片仅限「有码番号 / 官方网站」（用户指定）
+- **类型门禁**：`mdcx/core/web.py` 新增 `amazon_images_allowed()`，只放行 `FixedScrapingType.YOUMA` / `OFFICIAL`；删除旧 `_should_search_amazon()` 的「素人/FC2/无码排除 + 流出破解/里番动漫马赛克放行」白名单与 `_get_big_poster()` 的素人特例，统一为一条跳过日志。无码/欧美/国产/个摄/动漫/FC2/自动判断未定一律不再发起日亚搜索（条码快路径 → 标题搜索 → 演员兜底）。
+- **误判复核**：自动判断会把无特征前缀番号（如 `vixen100905`）默认归为有码，欧美站点兜底拿到的结果仍带 YOUMA 类型；门禁再按马赛克（纯无码/国产/里番动漫/同人书籍）与主字段来源（number/title/originaltitle/thumb/poster）是否属于「其它类型专属站点」（`TYPE_DEFAULT_SITES` 其它组减有码/官网组，含 ThepornDB_JSON、AVHeat_JSON、无码官网等）复核。跨组共用站（JavDB / DMM 等）不拦，流出/破解按有码母带保留日亚搜索。
+- **图片候选**：`_build_poster_candidates()` / `_order_cover_candidates()` / `_order_poster_candidates()` 在进入定序与尺寸探测前剔除 Amazon 档（group 0）候选，非允许类型不再下载或探测 `media-amazon.com` 图片；有码/官方网站仍保留 Amazon 优先档，其后的档位顺序按上一节改序。
+- **文案**：设置页「启用 Amazon 查找高清封面图」说明补「仅有码番号/官方网站生效」（`MDCx.py` / `MDCx.ui`），`docs/Features.md` / `docs/Development.md` / `docs/MEMORY.md` 同源同步。
+- **校验**：新增 `tests/test_amazon_image_type_gate.py`（九档类型、马赛克、主字段来源、`_get_big_poster` 不触发搜索、候选过滤与尺寸探测前拦截），`tests/test_image_source_priority.py` 欧美档用例改为断言 Amazon 候选被剔除且其余候选仍按尺寸选优；全量离线 pytest 通过。
+
+### 三个站点下拉提示词：DMM/DMM_JSON「综合：有码/动漫」、单无码/单欧美站「聚合」（用户指定）
+- 网络检测筛选框、「当前网站」、「指定网站」三个下拉共用的 `_site_combo_caption` 对 DMM / DMM_JSON 直接返回 `description` 全文「综合：有码/动漫」，不再套现算的短词类型名单（此前因 `_CAPTION_HIDDEN_TYPES` 隐去动漫里番只显示「综合：有码」）。其余站点、候选区悬停提示（仍「综合：有码番号」）与「使用代理」下拉（本就不拼能力文案）均不变；复用同一份选项行的「查询演员番号」下拉同步生效。
+- 同批口径：单无码站（AVSOX / AVSOX_JSON / AVEntertainments 等）「无码：无码」→「聚合：无码」，单欧美站（AVHeat_JSON / ThepornDB_JSON 等）「欧美：欧美」→「聚合：欧美」，与单有码站「聚合：有码」同口径；只在 `_site_combo_caption` 侧判定，候选区悬停提示仍按各站自己的定位说明（「无码：无码番号」「欧美：欧美番号」），爬虫 `description` 也不改。
+- 同步 `tests/test_site_combo_tooltips.py` 的样例行与短词断言（补 DMM_JSON / AVSOX / AVEntertainments / AVHeat_JSON / ThepornDB_JSON），新增 1 例覆盖 `_populate_site_combo` 两处与 `setup_net_site_filter` 网络检测筛选框的显示文本；`init.py` 的 `_site_combo_caption` docstring 与下拉 tooltip 注释补口径。
+- **校验**：改动文件 ruff format/check、mypy 通过，下拉相关 182 例全绿。全量离线 pytest 5656 通过 / 9 失败，失败项全部落在工作区并行会话尚未收尾的 Amazon 图片门槛改动（`tests/test_image_source_priority.py`、`tests/test_amazon_image_type_gate.py`），与本轮文案改动无关；全仓 `ruff format --check` 同样被该会话的 2 个未格式化文件单独拦下。
+
 ### DMM / DMM_JSON 定位说明改「综合：有码/动漫」（用户指定）
-- 两个爬虫类的 `description` 由「有码：仅限有码」改为「综合：有码/动漫」（分隔符按 UI 口径用「/」）；候选区悬停与三个站点下拉的前缀随之由「聚合」变「综合」，动漫里番按既有 `_CAPTION_HIDDEN_TYPES` 规则仍不写进这行名单，故显示为「综合：有码番号」/「综合：有码」。
+- 两个爬虫类的 `description` 由「有码：仅限有码」改为「综合：有码/动漫」（分隔符按 UI 口径用「/」）；候选区悬停前缀随之由「聚合」变「综合」，动漫里番按既有 `_CAPTION_HIDDEN_TYPES` 规则仍不写进这行名单，故显示「综合：有码番号」。三个站点下拉随后改回直接显示 description 全文，见上一节。
 - 同步 `docs/Features.md` 全部爬虫表、`docs/Scraper.md` 总表、`site_priority_dialog.py` 前缀规则说明、`tests/test_site_source_type_groups.py` / `test_site_combo_tooltips.py` 的文案断言与模拟样例；`tests/crawlers/test_dmm_api.py` 新增 1 例锁定两个 description。
 - **校验**：改动文件 ruff format/check、mypy 通过，全仓推送前门禁（ruff/mypy/线程安全）通过，全量离线 pytest 5635 例无失败。
 
