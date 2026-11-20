@@ -7,6 +7,26 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-20
+### 依赖与 .venv 全部升到本机版本（用户指定）
+- **环境对齐**：本机（系统 Python 3.15）与 `.venv` 共有的包版本差异全部抹平（最终比对差异 0 个），含 PyQt6 6.11.0 → **6.12.1**、PyQt6-Qt6 6.11.2 → 6.12.0、ruff 0.17.5 → 0.17.6、pydantic 2.14.3 → 2.14.4、openai 3.54.0 → 3.57.0 等。`uv pip install` 经代理下载 76MB 的 PyQt6-Qt6 wheel 卡住，改用 curl 直连断点续传 + 规范命名的本地 wheel 离线安装。
+- **声明同步**：`pyproject.toml` / `requirements.txt` 的直接依赖下限改到本机版本，删除 `pyqt6<6.12` 限制及旧的桩报错注释；`uv lock` 重解析只升级 7 个包（openai / pydantic / pydantic-core / pyqt6 / pyqt6-qt6 / ruff / typer）；`scripts/sync_ruff_version.py --check` 一致，`uv.lock` 根 specifier 与实锁版本同步。
+- **mypy 6.12 桩兼容**：6.12 的 `QtCore.pyi` 把 `pyqtSignal.__init__` 的 `arguments` 写成必填（运行时其实可省），mypy 2.4 因此在 10 个文件报 104 个 `call-arg`，另有 8 个 `arg-type` / `var-annotated` 误报。`pyproject.toml` 新增一条 `[[tool.mypy.overrides]]`，只对声明信号的这 10 个模块关掉这三类错误码，其余模块与错误码照常检查；上游修桩后即可删除。`MDCx.py` 用 pyuic6 6.12.1 重编译 + `fix_qt_enums.py` + 锁定版 ruff format。
+- **校验**：全仓 `ruff format --check`（789 文件）、`ruff check`、`mypy mdcx/`（296 文件）、`check_thread_safety`、`sync_ruff_version --check`、`scripts/check.py --skip-hook-install` 与全量离线 pytest（**5594 例通过 / 0 失败**）全部通过；顺带把工作区里并行会话遗留的 `site_priority_dialog.py` 缩进按锁定版 ruff format 收尾。
+
+### 「获取演员原名」独立化 + 四种开关组合 + 删掉 xlsx 演员名来源（用户指定）
+- **独立模块**：新建 `mdcx/core/actor_original_names.py`，导出单一主函数 `fetch_actor_original_names(name, log=...)`（返回 JavDB 全部原名/艺名/曾用名），外加纯函数 `join_original_names()`（英文逗号回填）与 `actor_name_variants()`（输入名 + 全部原名去重）。自带默认 HTTP 通道（项目通用 `AsyncWebClient`，共享 JavDB 限速）且允许注入，不依赖工具页 / 取号链路 / UI，供两个工具及以后任何功能直接 import；原 `actor_sources.resolve_all_actor_names` 与 `missing.py` 内的编排删除，统一改调独立模块。
+- **删除 actor_database.xlsx 演员原名来源**：用户指出该库数据可能有错，`mdcx/core/actor_name_map.py` 整个文件删除；`actor_sources.py` 里 4 处调用（`_official_jp_names` / `_official_jp_aliases` / `_prepare_official_names` 的 xlsx 读取 / `resolve_actor_names`）、官网自动 JavDB 兜底 `_javdb_jp_names` 与 `resolve_actor_names` 名字自动扩展一并删除。`_prepare_official_names` 改为同步去重函数：官网候选直接取本轮名字（未勾「获取演员原名」只有用户输入名，勾选时是它加 JavDB 全部原名）。演员库维护 / 补全中文名等**写** xlsx 的功能不受影响。
+- **四种开关组合**（`格式化番号名` × `获取演员原名`）：未勾后者时各站**只使用用户输入的演员名**，不再自动扩展日文原名 / 繁简变体；未勾前者时番号保持各站原展示形态（`display_number`）但照常按 `normalize_key` 去重；两枚同时勾选时先从 JavDB 取原名 → 各站查询 → `format_number` 格式化 → 去重 → 导出一张 xlsx，文件名仍用用户输入名 + 时间戳。
+- **回归**：`tests/test_fetch_actor_names.py` 扩到 **28 例**（新增独立模块主函数与辅助函数、四种开关组合参数化、`_merge` 在两种格式开关下都去重）；`test_official_jp_name_fallback.py` 重写为「官网候选只用本轮名字」+ MGStage 回归；`test_official_javdb_name_fallback.py` 的 `TestPrepareOfficialNames` 重写（含断言 xlsx 模块已删除）；`test_official_brand_actor_search.py` 删除 xlsx 映射桩；`test_actor_numbers_regression.py` 的名字解析用例改测独立模块；`test_actor_missing_numbers.py` 新增「未勾选时只收到输入名」用例；`docs/Development.md` 的旧 xlsx 接口示例标注【已废止】并替换为新模块示例。
+
+### 工具页「获取演员原名」：JavDB 全部艺名回填 + 合并一张表（用户指定）
+- **界面**：「检查缺失番号」「查询演员番号」两组各在「格式化番号名」右侧（x=506）加一枚「获取演员原名」复选框（6 字、112×22，与另三枚同行），默认不勾选。
+- **取名**：点查询按钮时按输入框里的名字去 JavDB 取全部原名/艺名/曾用名，**JavDB_JSON 优先**（App API 拿演员 id 并补 `name_zht` / `other_name`），取不到自动回退**网页版 JavDB** 搜索页；两条都抓 `/actors/{id}` 演员页的 `actor-section-name` 名字块 + `section-meta` 别名，演员页被限流时仍用 App API 字段兜底。实测 `/actors/RJM8` 新有菜 → 新有菜/新ありな/橋本ありな/上乃木まな/岩谷志季/橋本有菜 6 个，`/actors/Av2e` 三上悠亞 → 三上悠亜/三上悠亞/鬼头桃菜 3 个，顺序与演员页一致。
+- **回填**：全部名称用英文逗号回填对应输入框（新增 `actor_names_filled` 信号，工作线程 emit、主线程 `setText`），目的只是直观看到 JavDB 有没有拿到原名/艺名/曾用名；**回填文本不写进配置**——`textEdited` 只记「用户最后手动输入名」，程序 `setText` 不触发该信号，`save_config` 在输入框仍等于最近一次回填文本时改存影子值，重启后输入框恢复为最后手动输入的名称。
+- **取号**：这批名称 + 用户手动输入名作为**同一演员**的名字写法传给 `collect_numbers`，各站按候选顺序试探、结果去重合并成**一张表**，表名仍是用户输入名 + 时间戳；`_MIN_NAME_VARIANTS` ContextVar 把各 fetcher 写死的 `_pick_name(names, 2/1)` 上限抬到实际名字数，不勾选时行为一字不变（`finally` 复位，`gather` 子任务 copy context）。
+- **配置**：新增 `missing_fetch_actor_names` / `actor_number_fetch_actor_names` 两个独立 bool（默认 `False`），`default_config.json` 同步；migrations 新增 `_migrate_fetch_actor_names_checkboxes`（缺键补 `False` + `[迁移]` 消息触发首次启动回写，幂等），`config_version` 保持 2。load/save 各读各写，`tool_page` 三个入口（左下角番号浮标、检查缺失番号按钮、查询演员番号按钮）都传开关，两处自动保存守卫加比较。
+- **校验**：新增 `tests/test_fetch_actor_names.py`（**21 例**：6/3 名顺序、JSON 优先与网页兜底、演员页限流时 API 兜底、变体上限与复位、回填信号与一张表、报表文件名、配置默认值与迁移幂等、影子值不落盘与手动编辑接管、UI 几何与文案）；`test_tool_page_text_width.py` / `test_format_number_option.py` 的复选框清单补两枚，`test_tool_page_license_gate.py` / `test_actor_missing_numbers.py` / `test_actor_number_check.py` 的 fake Ui 与 `tests/conftest.py` 的 dummy 信号补同名属性。`MDCx.py` 由 pyuic6 6.11.0 重编译 + `fix_qt_enums.py` + 锁定版 ruff format 生成。
+
 ### 全量测试回归修复（5566 例）
 - **依赖下限守卫同步**：`pyproject.toml` / `uv.lock` 的 numpy 已抬到 `>=2.5.5`、pyqt6-sip 已抬到 `>=13.13.1`，`tests/test_py314_dependency_floors.py` 的声明表与锁版本下限同步更新，不再假红；守卫注释补充「上抬依赖需同步本表」的规则。
 - **官网查缺单测补齐名字候选桩**：官网 fetcher 只搜 `_official_name_candidates` 给的日文原名，测试环境没有 `userdata/actor_database.xlsx` 时会一个请求都不发。`test_official_brand_actor_search.py` / `test_official_jp_name_fallback.py` 增加 autouse 的最小「输入名 → 日文原名」映射，让厂牌官网/MGStage/Faleno 用例重新覆盖 URL、翻页、年龄门与 REST 解析逻辑；`test_official_jp_name_fallback.py` 中显式断言候选解析的用例仍各自覆盖该桩。

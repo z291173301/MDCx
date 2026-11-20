@@ -131,6 +131,7 @@ Qt 生命周期 · 崩溃与内存 · UI 排错 · 并发与网络库 · 站点�
 - PyQt6 测试纪律：含 Qt 的文件顶部（PyQt6 导入前）自持 `os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")`；fixture 构造后立即停全部 QTimer；qFatal abort（栈无 Python 行号）查 QTimer 槽与 dummy 桩缺方法；隔离配置目录用 `monkeypatch.chdir(tmp_path)`。
 - 极窄窗宽下的对齐判据写「不劣于关掉本功能的基线」，不要写绝对 `width >= sizeHint`（会得到永远红的假用例）。
 - 造「本需求之前」的基线：把该需求的唯一落点入口桩成 no-op 最省；入口被多处共用时要同时断言「目标确实被搬走了」。
+- **程序回填输入框的内容不许写进配置，也不许回流成查询输入**（2026-11-20「获取演员原名」定规）：用 `textEdited` 记「用户最后手动输入名」（`setText()` 不触发该信号），`save_config` 仅当输入框文本恰好等于最近一次回填文本时改存影子值，用户手改后 `textEdited` 清掉该槽标记即按当前文本正常保存；查询提交同样取影子值，否则逗号分隔的展示文本会被 `parse_actor_entries` 拆成多个演员、各出一张表。跨线程回填一律走 Qt 信号到主线程 `setText`。
 
 ## 并发与网络库
 
@@ -237,6 +238,8 @@ Qt 生命周期 · 崩溃与内存 · UI 排错 · 并发与网络库 · 站点�
 | Madouqu ↔ Madouqu_JSON | ✅ 完全解耦 |
 
 **通用工具函数例外**：`iso8601_minutes`（时长归一）、`normalize_release`（日期归一）、`split_names`（演员分割）这类纯工具函数可以跨文件调用——只要调用的是**独立声明在某一方文件顶部、与该方网站无耦合**的函数。例如 `heyzo_json.iso8601_minutes` 是独立的 ISO-8601 → 分钟工具，`caribbeancom_json` 调它不构成配对耦合。
+
+- **演员原名/别名/艺名/曾用名只从 JavDB 取，不准读 `actor_database.xlsx`**（2026-11-20 用户定规）：该库数据可能有错，`core/actor_name_map.py` 及取号链路里所有读它做名字映射的逻辑（含 `resolve_actor_names` 自动扩展、官网 JavDB 自动兜底）已整体删除。任何功能需要这批名字一律走独立模块 `core/actor_original_names.fetch_actor_original_names()`（JavDB_JSON 优先、失败回退网页版 JavDB），未勾选「获取演员原名」时各站只用用户手动输入的名字，不自动扩展繁简/日文写法。xlsx 仍用于演员库维护、补全中文名、同步别名等**写入**场景，两者不要混。
 
 
 ## Windows 打包与发布

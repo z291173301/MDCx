@@ -546,6 +546,88 @@ markupsafe>=3.0.4    pydantic-core>=2.50.4  PyQt6-sip>=13.13.0
   用真实字体度量断言「文字宽 ≤ 控件文字区宽」，不写死字数 —— 换字体或改文案后
   只要放得下就通过，放不下会报出差多少像素。
 
+### 10.17 「获取演员原名」四个设计判断（2026-11-20）
+
+用户要求：两组各在「格式化番号名」右侧加一枚复选框；点查询按钮时先按输入框
+的名字去 JavDB 取全部原名/艺名/曾用名（JavDB_JSON 优先、失败回退网页版），
+用英文逗号回填输入框供直观查看，这批名字分别去各站取号、合并成一张表，
+回填文本不落盘、重启恢复手动输入名。四个容易踩坑的地方记在此：
+
+- **不新写解析器，复用 `core/actor_name_javdb.py`**。该模块原本就为「官网只认
+  日文原名」而做：JavDB_JSON 的 `/api/v2/search?type=actor` 拿 id（带 token 时
+  不受网页限流影响）→ 网页搜索兜底 → 抓 `/actors/{id}` 解析
+  `actor-section-name` 名字块与 `section-meta` 别名，正好覆盖用户举的两个例子。
+  本次只做三处增量：`JavdbActorNames` 加 `page_names` 字段保留**名字块原序**
+  （`aliases` 原本把 meta 别名排在名字块其它写法之前，`candidates()` 又强制把
+  日文原名排第一，两种顺序都不等于页面顺序）、新增 `all_names()` 用于展示、
+  演员页被限流时直接用 App API 的 `name / name_zht / other_name` 兜出一份清单。
+  `candidates()` 一字未改，官网搜索名不受影响。
+- **名字变体上限用 ContextVar 而不是逐个改 fetcher**。70 个刮削器里有 25 处
+  写死 `_pick_name(names, 2)`、还有 `(names, 1)`，即使把 6 个名字传进
+  `collect_numbers`，每站也只吃前两个，用户拿到的 6 个名字等于白取。逐个加参数
+  改动面太大且与 §10.15 的 `_FORMAT_NUMBERS` 同一套问题，故加
+  `_MIN_NAME_VARIANTS`（默认 `None`），`_pick_name` 里 `limit = max(limit, floor)`；
+  `collect_numbers(all_name_variants=True)` 把它设成 `len(names)` 并在 `finally`
+  复位。不勾选时 ContextVar 为 `None`，所有调用点的行为一字不变。
+- **回填文本是「展示态」，绝不能回流成查询输入**。`parse_actor_entries` 按逗号
+  拆多个演员，若把回填的 6 个名字当输入框内容提交，就会跑 6 轮、生成 6 张表，
+  与用户要的「合并一张表」相反。所以后端解析发生在**任务内部**：以
+  `parse_actor_entries` 拆好的原始条目为准，把每个条目的解析结果记进
+  `resolved_names`，循环里作为 `name_variants` 传给 `_fetch_actor_numbers`；
+  报表仍用原始 `actor_name`（`_excel_target` / `excel_target` 都以它命名）。
+  回填只发一次 `actor_names_filled(slot, text)` 信号，由主线程 `setText`。
+- **「默认不保存」靠 `textEdited` 而非 `textChanged`**。`setText()` 不触发
+  `textEdited`，只有用户真实手打/粘贴才更新 `_manual_actor_names` 影子值；
+  `save_config` 仅当输入框当前文本**恰好等于**最近一次程序回填文本时改存影子值
+  （相等说明用户没再动过），随后 `load_config` 又会 `setText` 回配置值并清空
+  回填标记。用户手动改过回填内容时 `textEdited` 会清掉该槽的标记，保存与查询
+  都按编辑后的文本走，不会被影子值覆盖。两个槽（`missing` / `actor_number`）
+  各记各的，互不串改。
+
+- **回归**：`tests/test_fetch_actor_names.py` 21 例，含用户举的 6 名 / 3 名顺序、
+  JavDB_JSON 命中时断言不发 `/search?`、JSON 空时断言发了 `/search?`、演员页
+  返回登录页时 App API 兜底、ContextVar 设置与复位、回填信号的槽位与英文逗号、
+  只跑一次 `_fetch_actor_numbers`（一张表）、配置迁移幂等等。
+
+### 10.18 「获取演员原名」独立化、四种开关组合与 xlsx 数据源下线（2026-11-20 追加）
+
+用户追加四条：把功能做成**独立文件 / 独立函数**（以后还有别的功能要调用）、
+规定两枚复选框四种组合的取号与格式化口径、并明确「`actor_database.xlsx`
+数据可能有错，无论什么情况都不要再拿它取演员原名，把功能和逻辑删掉」。
+
+- **独立模块的边界**：`core/actor_original_names.py` 只做「输入名 → JavDB 全部名称」
+  这一件事，主函数 `fetch_actor_original_names()` 自带默认 HTTP 通道（项目通用
+  `AsyncWebClient`，与取号链路共享 JavDB 限速）并允许注入 `fetch_text` /
+  `fetch_json` / `javdb_api`，因此离线单测不需要网络、其它功能不需要经过工具页。
+  纯解析仍在 `core/actor_name_javdb.py`（`parse_actor_page` / `JavdbActorNames`
+  / `resolve_jp_names_via_javdb`），两层分工：解析层不碰网络客户端，业务层不碰
+  HTML。`join_original_names()` / `actor_name_variants()` 是纯函数，调用方自己决定
+  拿去回填还是拿去取号 —— 展示态和取号态不再共用一份被 `parse_actor_entries`
+  误当成「多个演员」的字符串。
+- **四种组合的落点只有一处**：`missing._fetch_actor_numbers` 的
+  `names = list(name_variants) if name_variants else [name]`。`name_variants`
+  只有勾选「获取演员原名」时才由后端解析填充；不勾选时直接 `[name]`，从而
+  `resolve_actor_names`（xlsx + JavDB App + 网页演员页 + 简转繁）整条自动扩展
+  链路被彻底移除。格式化仍由 `_merge` 的 `_FORMAT_NUMBERS` ContextVar 决定，
+  与名字来源完全正交；`normalize_key` 去重在两种格式开关下都发生。
+
+    | 格式化番号名 | 获取演员原名 | 各站用的名字 | 番号 | 导出 |
+    |---|---|---|---|---|
+    | ✗ | ✗ | 仅用户输入名 | 原展示形态，照常去重 | 一张 xlsx |
+    | ✓ | ✗ | 仅用户输入名 | `format_number` 后去重 | 一张 xlsx |
+    | ✗ | ✓ | 用户输入名 + JavDB 全部原名 | 原展示形态，照常去重 | 一张 xlsx |
+    | ✓ | ✓ | 用户输入名 + JavDB 全部原名 | `format_number` 后去重 | 一张 xlsx |
+- **xlsx 下线的连带影响**：官网 fetcher 原本靠 `_official_name_candidates` 拿
+  「演员库日文原名」，删库后这条链路会整组哑火。故 `_prepare_official_names`
+  从 async + xlsx 读线程 + JavDB 网络兜底，简化成同步的「本轮名字去重」，
+  `_official_name_candidates` 在准备阶段没跑时直接 `_pick_name(names, limit)`。
+  代价是官网（MGStage 等）不再自动把中文名转日文名，用户输入什么就搜什么 ——
+  这正是用户要的口径；要用日文原名时勾「获取演员原名」即可，届时
+  `_MIN_NAME_VARIANTS` 会把各站写死的 `limit=2` 抬到全部名字数。
+- **没有删的东西**：`actor_database.xlsx` 本身、演员库维护 / 补全中文名 / 同步别名
+  等**写入**功能全部保留（`config/resources.py`、`actor_db.py`、
+  `tool_handlers.py`）；删的只是「读它做演员原名映射」这一个用途。
+
 ---
 
 ## 11. 左下角状态区图标规范
@@ -964,21 +1046,22 @@ Faleno 45 秒。超时由 `_run_source` 直接收手**且不重试**，个别站
      各官网「按候选顺序搜、命中即返回」，所以别名只在日文原名搜不到时才用上。
 4. 演员库和 JavDB 都拿不到 → 保留一条输入名兜底并在日志里明确说明，避免官网组整轮 0 结果。
 
+> **【已废止】2026-11-20 用户定规**：``actor_database.xlsx`` 的数据可能有错，
+> 「从它取演员原名」的功能与逻辑已整体删除（``mdcx/core/actor_name_map.py`` 移除，
+> ``actor_sources`` 里 4 处调用、``resolve_actor_names`` 自动扩展、官网 JavDB 兜底
+> 一并删除）。因此上面 1–4 的官网候选来源不再成立：现在官网搜索名直接取本轮名字，
+> 未勾「获取演员原名」只有用户手动输入名，勾选时是它加上 JavDB 取到的全部原名。
+
 两个独立模块（其它功能/函数可直接 import）：
 
 ```python
-from mdcx.core.actor_name_map import resolve_jp_name, resolve_jp_names, lookup_actor, load_jp_name_index
+from mdcx.core.actor_original_names import fetch_actor_original_names, actor_name_variants, join_original_names
 from mdcx.core.actor_name_javdb import parse_actor_page, parse_actor_api, resolve_jp_names_via_javdb
 
-resolve_jp_name("凉森玲梦")  # → "涼森れむ"（库里的「日文原名」列）
-resolve_jp_name("Remu Suzumori")  # → "涼森れむ"（别名也认）
-resolve_jp_names(["凉森玲梦", "三上悠亚"])  # → ["涼森れむ", "三上悠亜"]
+names = await fetch_actor_original_names("新有菜")  # → 6 个名称（JavDB_JSON 优先、网页版兜底）
+actor_name_variants("新有菜", names)  # → 用户输入名 + 全部原名（取号用）
+join_original_names(names)  # → "新有菜,新ありな,..."（英文逗号回填输入框用）
 ```
-
-演员库读法：列序 日文原名 / 中文名 / 繁体名 / 别名（逗号分隔），索引登记「日文原名 + 中文名 +
-繁体名 + 全部别名 + 各自的去分隔符形式 + 繁简转换形式」，进程内缓存，库更新后调 `clear_cache()`。
-注意库里的「日文原名」列并不总等于 JavDB 演员页的日文原名（例：`新有菜` 在库里 → `橋本ありな`，
-而 JavDB 演员页写的是 `新ありな`），故库命中时以库为准、库未命中才走 JavDB。
 
 实测（真实 HTTP 通道 + 代理 7897）：MGStage 用「涼森れむ」拿到 **152 部**（首页 120 + 次页 32），
 与站点标称一致。另：系统代理模式下所有有码官网均可正常访问，S1 搜索页「波多野結衣」0 结果
