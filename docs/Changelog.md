@@ -7,6 +7,10 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-20
+### 自动判断三站探测软超时 30s → 60s（用户指定）
+- `mdcx/tools/actor_type_probe.py` 的 `_PROBE_TIMEOUT` 由 `30.0` 改为 `60.0`：AVMOO / AVSOX / AVHeat 三站共用，慢代理下少漏命中。预算按「每个候选名字」计（不是整站总时限），三站并发、同站按名字串行，用完 `_DEADLINE.reset` 复位，不污染后续正式取号。
+- 同步 `docs/Development.md` §10 的超时描述；`tests/test_auto_type_probe.py` 新增 1 例断言常量为 60s、2 个名字 × 3 站共 6 次探测每次都拿到 ≈60s 预算且结束后复位。
+
 ### 「自动判断」AIO 三站探测路由 + 四开关全站接入 + 7mmtv_JSON 改名（用户指定）
 - **四个开关对全部 70 站生效**：「只获取单演员」「获取本地番号」「格式化番号名」「获取演员原名」在默认流程与新探测路由的每一组取号里都原样传递——格式化经 `_FORMAT_NUMBERS` 到 `_merge` 与站点出口、原名变体经 `_MIN_NAME_VARIANTS` 到每个 fetcher、单演员过滤与本地去重在合并后的报表层统一生效；是否使用完全由勾选控制，不勾选一字不变。
 - **自动判断探测路由**：新建独立模块 `mdcx/tools/actor_type_probe.py`，`probe_actor_types()` 用 AVMOO / AVSOX / AVHeat 对候选名字分别搜索（三站并发、同站按名字串行、`_DEADLINE` 软超时），按「AVMOO 有号 → 有码」「AVSOX 非 FC2 → 无码」「AVSOX 有 FC2 → FC2」「AVHeat 有号 → 欧美」判定；**探测番号只作路由依据，不并入导出**。`missing.py` 仅在「检查缺失番号 + 自动判断」启用：未勾「获取演员原名」用用户输入名探测，勾选时先取 JavDB 全部原名/艺名/曾用名再逐个分别探测；命中多组时每组走各自的 `_AUTO_SITE_ORDER` 固定链，结果按番号去重合并后只导出**一张** xlsx；三站全空按原默认流程查询并导出。「查询演员番号」与下拉选了具体类型时不启用探测。
