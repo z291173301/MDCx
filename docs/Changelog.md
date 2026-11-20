@@ -6,6 +6,15 @@
 > 原先逐条重复的「校验：…门禁通过」已收敛到此处，条目里只保留新增用例名、用例数、例外与实测结论。
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
+## 2026-11-20
+### 全量测试回归修复（5566 例）
+- **依赖下限守卫同步**：`pyproject.toml` / `uv.lock` 的 numpy 已抬到 `>=2.5.5`、pyqt6-sip 已抬到 `>=13.13.1`，`tests/test_py314_dependency_floors.py` 的声明表与锁版本下限同步更新，不再假红；守卫注释补充「上抬依赖需同步本表」的规则。
+- **官网查缺单测补齐名字候选桩**：官网 fetcher 只搜 `_official_name_candidates` 给的日文原名，测试环境没有 `userdata/actor_database.xlsx` 时会一个请求都不发。`test_official_brand_actor_search.py` / `test_official_jp_name_fallback.py` 增加 autouse 的最小「输入名 → 日文原名」映射，让厂牌官网/MGStage/Faleno 用例重新覆盖 URL、翻页、年龄门与 REST 解析逻辑；`test_official_jp_name_fallback.py` 中显式断言候选解析的用例仍各自覆盖该桩。
+- **JavDB 预告片用例对齐 Cookie 池**：`JavDBCrawler.__init__` 会把 `manager.config.javdb` 解析成 sticky cookie 池，测试改为先配 Cookie 再实例化，断言的 `cookie` 请求头才有来源。
+- **工具页几何断言跟进 11-18 左对齐统一**：设计列 x 由 140/136 统一到 158、右缘不变，`test_symlink_button_width.py`（设计 x、右缘 509、宽态增量 43）与 `test_tool_page_right_align.py`（输入框/站点下拉 x=158）同步。
+- **窗口居中守卫**：`actor_db.py` 的 `_ActorDbResultDialog` 把内联的居中闭包提为 `_center_on_screen()`，行为不变、符合 `test_window_centering.py` 的顶层窗口契约。
+- **UI 编译产物同步**：`mdcx/views/MDCx.py` 由 pyuic6 重编译 + 锁版本 ruff format 生成，与 `MDCx.ui` 文本一致。
+
 ## 2026-11-18
 ### JavDB 专属 UA 指纹池 + 多 Cookie 轮换（用户指定）
 - **UA 指纹池**：`network_fingerprint.py` 新增 `_JAVDB_FINGERPRINTS`（Chrome 136/131 Win + Chrome 136 Mac + Firefox 135/133 Win + Safari iOS 共 6 种），`select_fingerprint()` 对 `javdb580.com` / `javdb.com` 及子域名命中专属池。配合 web_async 的 lifetime（20–45 分钟）+ 请求数（120–240）双重过期自动轮换，CF 挑战失败时排除当前指纹重试。
