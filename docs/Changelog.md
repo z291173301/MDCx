@@ -7,6 +7,10 @@
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
 ## 2026-11-20
+### 国产传媒/动漫里番兜底网站补站
+- **默认名单**：`TYPE_DEFAULT_SITES` 的「国产传媒」兜底组新增 `7mmtv_JSON` + `Airav_JSON`，「动漫里番」兜底组新增 `Airav_JSON`，均为 JSON 源兜底、优先刮削组不变；`resources/config/default_config.json` 的 `website_guochan` / `website_dongman` 与软件内使用说明（`MDCx.py` / `MDCx.ui`）两条类型清单同步。
+- **文档与回归**：`docs/Features.md` 分组表更新为国产传媒 14 站 / 动漫里番 8 站；`tests/test_config_conversion.py` 的默认优先级断言补两站，`tests/test_site_source_type_groups.py` 的分组名单补三站，`7mmtv_JSON` 悬停说明断言同步为「综合：有码番号/无码番号/欧美番号/国产传媒」。
+
 ### 自动判断三站探测软超时 30s → 60s（用户指定）
 - `mdcx/tools/actor_type_probe.py` 的 `_PROBE_TIMEOUT` 由 `30.0` 改为 `60.0`：AVMOO / AVSOX / AVHeat 三站共用，慢代理下少漏命中。预算按「每个候选名字」计（不是整站总时限），三站并发、同站按名字串行，用完 `_DEADLINE.reset` 复位，不污染后续正式取号。
 - 同步 `docs/Development.md` §10 的超时描述；`tests/test_auto_type_probe.py` 新增 1 例断言常量为 60s、2 个名字 × 3 站共 6 次探测每次都拿到 ≈60s 预算且结束后复位。
