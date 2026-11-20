@@ -112,9 +112,9 @@ MDCx 支持的功能全景。只想快速上手的话，先看 [QuickStart.md](Q
 | **无码番号**（25） | Official·1Pondo_JSON、Official·Pacopacomama_JSON、Official·10Musume_JSON、Official·10Musume、Official·1Pondo、Official·Caribbeancom、Official·HEYZO、Official·Pacopacomama、AVSOX_JSON、JavDB_JSON、JavFree_JSON、Missav_JSON、7mmtv、Airav.cc、AVEntertainments、AVSOX、FreeJavBT、IQQTV、JavBus、JavDay、JavDB、JavFree、Lulubar、Missav、TheJavDB |
 | **个摄番号**（18） | AVSOX_JSON、FC2CMADB_JSON、JavDB_JSON、JavFree_JSON、Missav_JSON、7mmtv、Airav.cc、AVSOX、FC2、FC2CMADB、FreeJavBT、IQQTV、JavBus、JavDB、JavFree、Lulubar、Missav、TheJavDB |
 | **欧美番号**（12） | ThepornDB_JSON、AVHeat_JSON、JavDB_JSON、7mmtv_JSON、Airav_JSON、FreeJavBT、IQQTV、JavBus、JavDB、Lulubar、Missav_JSON、TheJavDB_JSON |
-| **国产传媒**（12） | 7mmtv、FreeJavBT、IQQTV、JavBus、JavDay、JavDB、JavDB_JSON、Madou.club、Madouqu、Madouqu_JSON、Missav、Missav_JSON |
+| **国产传媒**（14） | 7mmtv、7mmtv_JSON、Airav_JSON、FreeJavBT、IQQTV、JavBus、JavDay、JavDB、JavDB_JSON、Madou.club、Madouqu、Madouqu_JSON、Missav、Missav_JSON |
 | **国产短剧**（2） | JavDay、Lulubar |
-| **动漫里番**（7） | Getchu、Hbox、Hbox_JSON、IQQTV、Jav321、JavDB、JavDB_JSON |
+| **动漫里番**（8） | Airav_JSON、Getchu、Hbox、Hbox_JSON、IQQTV、Jav321、JavDB、JavDB_JSON |
 
 > 组内站点顺序（组内先后即优先级递减，2026-11-19 口径）：所有分组全组站点按站点值 A-Z 排列。双击分组标题加入启用网站时同样按这份组内顺序。
 > **「国产短剧」组挂 `JavDay` + `Lulubar` 两站**（原「素人番号」组 28 站全部移除，配置字段名仍是 `website_suren`）：国产短剧条目**本身没有番号**，JavDay 只给站内随机 ID（`/videos/Gb5WuoJw/`），文件名也是千奇百怪没有统一格式，既**不能按路径或文件名自动识别**，别的站又全靠番号查——查不到就是查不到，留在组里只会给每条影片白挂一次请求。故这一组只在**「锁定刮削类型」选「国产短剧」**时才生效（走 JavDay 的站内搜索页按剧名找页面，或用户手动指定页面），程序不做任何 DUANJU 自动识别；**以前的素人番号（`SIRO-`、`LUXU-` 等）全部按有码刮削**，它们是有码厂牌的正规番号。
