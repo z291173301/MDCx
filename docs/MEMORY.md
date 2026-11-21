@@ -117,6 +117,8 @@ Qt 生命周期 · 崩溃与内存 · UI 排错 · 并发与网络库 · 站点�
 - 布局问题先写最小复现脚本验证 Qt 原生行为。常见根因是 BoxLayout / QGridLayout 缺末尾 Expanding 间隔（`setVisible(False)` 管不到 QSpacerItem）；末尾 Expanding 的 `sizeHint` 必须写 `0x0`，否则末行下方留死空白。
 - 富余高度被吃掉两种：①灌给该行唯一控件（wordWrap 标签，表现为文字垂直居中留白 + 后续行被下推）→ .ui 补垂直 Expanding + 运行期把容器高钉成 `layout.sizeHint().height()`；②在顶/行间/底均分 → 把行首留白折进 `contentsMargins`，组高按「容器底 + 固定底留白」收紧。
 - 通用宽幅同步只改宽不改高：wordWrap 组拉宽后变矮，空白堆在网格底部 → 挂 `_post_wide_sync_hook`，按 `childrenRect().bottom() + 1` 量真实底边并同步平移其后各组，窄态显式复位。
+- **凡「通用宽幅同步 + 页面定制对齐」两层叠加的滚动区，定制对齐必须挂 `CustomScrollArea._post_wide_sync_hook`，不能只写在 `_sync_page_layouts` 里**（2026-11-21 工具页输入框缩小事故）：滚动区自身 resizeEvent/showEvent 会单独跑 `sync_wide_children_width()`，不经过主窗全量同步；只写在全量同步里的对齐会在那一拍被通用拉伸覆盖，留下「控件停在窄/错位中间态、切页或重启才恢复」的幽灵 bug。钩子内按拉伸落定后的实时锚点重算绝对几何（幂等），并在 `_sync_page_layouts` 显式拉伸后调用**同一个**收口方法，两个入口不许各写一份；顺带留一条「摘掉钩子用例必红」的回归守护。详见 `docs/Development.md` §10.20。
+- **绝对定位控件改宽前先算 `_classify_inner` 阈值**（2026-11-21 清理按钮）：`sg.width() >= inner_w*0.5` 判 `_STRETCH`、`右缘+1 >= box_w*0.9` 判 `_DOCK_RIGHT`、都不满足才是 None（通用同步完全不碰，宽度只能定制方法运行时 `setGeometry` 给）。把按钮设计宽从 321 直接写进 `.ui` 改成 405 会跨过 340.5 阈值变 `_STRETCH`，宽态被拉成 `405+extra`——用户要的「宽态保持窄态宽度」立刻破功。对齐 `_STRETCH` 输入框右缘时差值随 `extra` 变，一律运行时 `mapTo` 实测、不写死；宽态要冻结宽度就记录非宽态基准，判态门限与同页其它按态换列逻辑共用一个常量。详见 `docs/Development.md` §10.21。
 - 重影/重叠先问「渲染层还是定义层」：定义层同 cell 多控件用 .ui 文本级哨兵 grep 该 grid 全部 `<item row=` 确认严格递增。实机截图是最终判据。
 - 行首「空 QLabel 做缩进」是对齐的隐形敌人（grep 文案搜不到，最小宽改 0 也不行——spacing 还会留 6px）：要左对齐直接从 .ui 删那枚 item。
 - 把末位项右移到锚点竖线：在前插 `Fixed` `QSpacerItem`，宽度 = 锚点 x − 前导右缘 − spacing，并夹到 `[0, slack]`；收到 0 仍偏右再逐像素压 `row.setSpacing()`（每遍先复位设计值）。别用 `_pin_row_lead_width` 钉前导控件（下拉框被撑成几百像素、复选框吞掉留白区）。

@@ -668,6 +668,22 @@ AVMOO / AVSOX / AVHeat 探测类型，再分别跑命中的类型组、汇总成
   以及 `JSON_VIEW_SITES` / 运行时 `_site_sort_key` 的**下拉选项**；优先刮削组
   与其它列表位置一律不动。
 
+### 10.20 工具页输入框宽度随机缩小：滚动区独立 resize 漏跑定制对齐（2026-11-21）
+
+- **现象**：软件工具页「本地文件路径 / 番号链接地址」输入框与「开始刮削」等宽按钮在运行一段时间后变窄约 43px，右侧按钮位置不变、行内间隙变大；重启软件恢复。
+- **取证**：离屏 Qt 探针在 1080 窗宽下逐项打印滚动区视口宽、`extra`、按钮 x、输入框宽。正常态 426px（`pushButton_select_file.x() - 19 - 158`）；只要让 `scrollArea_10` 自己 `resize()` 一次、不跑 `_sync_page_layouts`，输入框立刻变 383px（`设计宽 351 + extra 32`），`extra` 与按钮 x 都没变，随后 hide/show 也不恢复，只有切页 / 改窗宽 / 重启（触发全量同步）才拉回。383 与 426 的差正是「设计间隙 62px − 目标间隙 19px」，与截图量到的 43px 一致。
+- **根因**：`CustomScrollArea.resizeEvent/showEvent` 会单独跑一次 `sync_wide_children_width()`，把 `_STRETCH` 输入按「设计宽 + extra」铺开；工具页这些行的终态却由 `_sync_tool_page_input_fill` 按右侧按钮的实时位置钉到「按钮左缘 − 19」。此前只有 `_sync_page_layouts` 会在通用拉伸后补跑工具页三步对齐，而 `scrollArea_10` 不在 `tabWidget` 内、没被安装 `_post_wide_sync_hook`（演员页 / NFO 页 / 高级页等都装了），于是任何一次不经过全量同步的独立事件都把终态覆盖成通用拉伸的中间态，并一直保持。
+- **修复**：新增 `LayoutActorMixin._sync_tool_page_wide_hook()` 收口三步（演员库紧凑排布 → 封面补图选项行 → 输入框右缘锚定），`main_window.__init__` 给 `scrollArea_10` 安装为 `_post_wide_sync_hook`；`layout_master._sync_page_layouts` 里显式 `sync_wide_children_width()` 之后改为调用同一个方法，两条入口共用一套顺序，日后新增对齐项不会只照顾一处。钩子自带重入保护，`setGeometry` 触发嵌套 resize 时不会递归（离屏实测嵌套场景宽度仍稳定）。
+- **回归**：`tests/test_tool_page_right_align.py` 追加 6 例——钩子安装、1080/1170/1600 三档窗宽下独立 resize / hide-show / 切页后宽度逐像素不动、窗宽往返与反复全量同步不漂移；断言落在「右缘 = 同行按钮左缘 − 19」这一不变量上，不写死像素值。临时摘掉钩子后其中 4 例必红，确认测试锁住的就是修复点。70 个 GUI/布局测试文件串行全绿，ruff format/check、mypy（297 文件）、线程安全门禁全绿。
+
+### 10.21 刮削目录页「检查待刮削目录并清理文件」右缘对齐（2026-11-21）
+
+- **需求**：按钮右缘向右移到与「文件名包含」输入框右缘严格上下对齐，输入框位置不变；宽态（最大化）时按钮保持窄态相同的宽度，不跟着输入框拉成长条。
+- **取证**：离屏 Qt 实测（box61 局部坐标，`extra = 窗宽 − 1048`）：按钮 `160,430,321,40`（右缘 481 恒定）；两处「文件名包含」输入框右缘 `565 + extra`（1000→517 / 1030→547 / 1082→599 / 1920→1437）；同行「刮削时自动清理」左缘 `571 + extra`（宽态换到记录列，1920 下 800）。两者右缘天然差 6px，与 extra 无关。
+- **两个不能踩的坑**：① 按钮设计宽 321 < 组框内半宽 340.5、右缘 481 < 0.9×701，`_classify_inner` 判为 None，**通用宽幅同步从不登记/搬动它**——所以宽度只能由定制方法运行时 `setGeometry` 给；若图省事直接改 `.ui` 把宽度写到 405，就会跨过 340.5 阈值变成 `_STRETCH`，宽态被拉成 `405 + extra`，恰好违反用户第二条。② 输入框在 `_STRETCH` 布局容器里，右缘随 extra 变，右缘差值不能写死，必须每遍按运行时 `mapTo` 实测（跨分支经公共祖先 content 中转）。
+- **做法**：新增 `LayoutSettingsMixin._sync_guaxiaomulu_check_button_align()`，左缘/y/高一律不动，只改宽度 = 实测输入框右缘 − 160。非宽态逐遍对齐并记录窄态宽度；宽态（`isMaximized()` 或 `extra > _GUAXIAOMULU_WIDE_EXTRA=600`，与同页「自动清理」换列共用判据）冻结该宽度，直接在最大化态启动则退到「输入框右缘 − extra」的设计态宽度。右缘守卫取「组框内缘」与「自动清理终态左缘 − 6」的较小值。挂在 `_sync_guaxiaomulu_page_align` 第三步（前两步之后才能读到自动清理终态），并在 `layout_master._sync_page_layouts` 追加同一调用，钩子/全量同步两个入口共用。
+- **回归**：`tests/test_clean_check_button_align.py` 6 例——两输入框同列假设、4 档非宽态右缘严格相等且只改宽度、与「摘掉新方法」基线比对、用户窗口→最大化宽度不变且输入框确实拉宽、幂等与窄↔宽往返、只跑钩子也能补齐。临时让方法 early-return 后 4 例必红。270 例相关回归 + 71 个 GUI/布局测试文件串行全绿，静态门禁（ruff format/check、mypy 297 文件、线程安全）退出码 0。
+
 ---
 
 ## 11. 左下角状态区图标规范
