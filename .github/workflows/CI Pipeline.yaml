@@ -22,11 +22,8 @@ jobs:
       # 锁定 3.15：程序已迁移到 Python 3.15（pyproject 的 requires-python 为 >=3.15，
       # 3.15 是当前唯一构建目标），这里显式钉死，避免 uv 自行挑选解释器导致结果不可预期。
       UV_PYTHON: "3.15"
-      # PyYAML 至今没有 cp315 wheel（见「Install locked dependencies」）：置 0 让它
-      # 跳过 `yaml._yaml` C 扩展，从 sdist 直接产出纯 Python wheel，不需要编译器。
-      PYYAML_FORCE_LIBYAML: "0"
       # 关掉 uv run 的隐式 sync：依赖统一在安装步骤显式 sync 一次，隐式 sync 每次
-      # uv run 都会重新解析（可能重建 pyyaml，拖慢构建）。
+      # uv run 都会重新解析，拖慢构建。
       UV_NO_SYNC: "1"
     steps:
       - name: Checkout code
@@ -89,12 +86,8 @@ jobs:
         if: steps.changes.outputs.code_changed == 'true'
         uses: astral-sh/setup-uv@v10.1.0
 
-      # PyYAML 至今没有 cp315 wheel（6.0.3 只发到 cp314），3.15 下 uv sync 会退回源码
-      # 编译（Windows runner 缺 MSVC 头文件、Linux 也要编译器）。工作流级
-      # `PYYAML_FORCE_LIBYAML=0` 让 PyYAML 的 setup.py 跳过 `yaml._yaml` C 扩展，直接
-      # 产出纯 Python wheel（py3-none-any）：不需要编译器，产物还是通用 wheel（不掺
-      # 别的 ABI 版本）。`_yaml` 本就只是可选的 C 加速，缺它时 PyYAML 自动退回纯 Python
-      # 实现，功能一致。等 PyYAML 出了 cp315 wheel，删掉这个环境变量即可。
+      # PyYAML 6.0.4 起提供 cp315 wheel（含 libyaml C 扩展），dev 组显式钉 >=6.0.4，
+      # 3.15 下直接装官方 wheel，不再需要纯 Python 构建的兼容开关。
       - name: Install locked dependencies
         if: steps.changes.outputs.code_changed == 'true'
         shell: bash
@@ -143,9 +136,6 @@ jobs:
     env:
       # 与 quality job 同口径：3.15 为当前构建目标。
       UV_PYTHON: "3.15"
-      # PyYAML 至今没有 cp315 wheel（见「Install dependencies」）：置 0 让它跳过
-      # `yaml._yaml` C 扩展，从 sdist 直接产出纯 Python wheel，不需要 MSVC。
-      PYYAML_FORCE_LIBYAML: "0"
       # 关掉 uv run 的隐式 sync：依赖统一在安装步骤显式 sync 一次（见安装步骤注释）。
       UV_NO_SYNC: "1"
     steps:
@@ -192,11 +182,8 @@ jobs:
         with:
           activate-environment: true
 
-      # PyYAML 至今没有 cp315 wheel（6.0.3 只发到 cp314），3.15 下只能源码编译，
-      # Windows runner 缺 MSVC 头文件会直接失败。工作流级 `PYYAML_FORCE_LIBYAML=0`
-      # 让它跳过 `yaml._yaml` C 扩展，直接产出纯 Python wheel（py3-none-any），
-      # 不需要编译器；`_yaml` 只是可选的 C 加速，缺它时 PyYAML 自动退回纯 Python
-      # 实现，功能一致。等 PyYAML 出了 cp315 wheel，把这个环境变量删掉即可。
+      # PyYAML 6.0.4 起提供 cp315 wheel（含 libyaml C 扩展），dev 组显式钉 >=6.0.4，
+      # 3.15 下直接装官方 wheel，不再需要纯 Python 构建的兼容开关。
       - name: Install dependencies
         if: steps.changes.outputs.code_changed == 'true'
         shell: pwsh
