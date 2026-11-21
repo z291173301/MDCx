@@ -8,6 +8,11 @@
 
 ## 2026-11-21
 
+### 修复发版：产物配额打满 + 失败腿被门禁漏掉
+- `build-py315.yml` 三平台上传改 `retention-days: 1`，并在 `init-matrix` 开头新增 `Purge stale build artifacts`：分页列出产物、删掉所有非本次 run 的 `mdcx-*` 产物，避免多次发版累积打满 Actions 存储配额（`Artifact storage quota has been hit`）。
+- 删除 `build-app` 的 `continue-on-error: true`：它会让 `needs.build-app.result` 恒为 success，三腿上传全失败时 `publish-release` 仍启动并报「产物缺失」。不阻塞其余腿由 `strategy.fail-fast: false` 保证，门禁按真实结果干净跳过。
+- 守卫 `test_py315_release_workflow.py` 新增 `test_artifact_storage_is_bounded`，改写发布门禁断言（禁止 continue-on-error、必须有 fail-fast: false）；`docs/Development.md` 发版章节同步。
+
 ### 移除 PyYAML 的 sdist 兼容开关
 - PyYAML 6.0.4 已有 cp315 wheel（含 libyaml C 扩展），从全部工作流（`build-py315.yml`、`CI Pipeline.yaml`、`update-sr-tools.yml`）删除 `PYYAML_FORCE_LIBYAML=0` 及相关注释；`tests/test_py315_release_workflow.py` 改为断言该开关不再出现，`docs/Development.md` 与依赖下限守卫的说明同步。
 
