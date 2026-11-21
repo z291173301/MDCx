@@ -1,6 +1,6 @@
 # MDCx
 
-![Crawlers](https://img.shields.io/badge/Sites-47-brightgreen.svg) ![License](https://img.shields.io/badge/License-GPLv3-blue.svg) ![python](https://img.shields.io/badge/Python-3.15+-3776AB.svg?style=flat\&logo=python\&logoColor=white) ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+![Crawlers](https://img.shields.io/badge/Sites-70-brightgreen.svg) ![License](https://img.shields.io/badge/License-GPLv3-blue.svg) ![python](https://img.shields.io/badge/Python-3.15+-3776AB.svg?style=flat\&logo=python\&logoColor=white) ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 
 <p align="center"><b>如果你觉得不错赞助50元获取授权，谢谢！ 😊</b></p>
 
