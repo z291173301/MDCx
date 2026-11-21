@@ -778,8 +778,11 @@ PyInstaller，入口 `main.py`。Linux 手动构建依赖见 `Install.md#linux-�
 `.github/workflows/build-py315.yml`（Build and Release Python3.15），三平台矩阵：macOS ARM64 / Windows x86_64 / Linux x86_64。
 
 - tag 为纯数字 `LOCAL_VERSION`。
-- **发布目标只有公开仓库**：默认 `z291173301/MDCx`，可用仓库变量 `MDCX_PUBLIC_REPO` 覆盖；目标分支默认 `main`，可用 `MDCX_PUBLIC_BRANCH` 覆盖。私有开发仓 `MDCx-Beta` **不创建 Release**，本仓库 `GITHUB_TOKEN` 无 `contents: write`（仅 `init-matrix` 为清产物临时加 `actions: write`）。
-- **产物存储配额**：`upload-artifact` 默认保留 90 天，三平台产物单个数百 MB，多次发版会打满配额并报 `Artifact storage quota has been hit`，上传全失败。对策：三处上传都设 `retention-days: 1`；`init-matrix` 开头 `Purge stale build artifacts` 用 `gh api` 分页删掉所有非本次 run 的 `mdcx-*` 产物（本次 run 的要留给 publish 下载）。守卫 `test_artifact_storage_is_bounded`。
+- **发布目标只有公开仓库**：默认 `z291173301/MDCx`，可用仓库变量 `MDCX_PUBLIC_REPO` 覆盖；目标分支默认 `main`，可用 `MDCX_PUBLIC_BRANCH` 覆盖。私有开发仓 `MDCx-Beta` **不创建 Release**，本仓库 `GITHUB_TOKEN` 只有 `contents: read`；跨仓库写全程用 PAT `MDCX_SYNC_TOKEN`。
+- **产物绝不能走 Actions artifacts（账户级配额硬阻断）**：Actions artifact 存储是**账户级**、按整个计费周期的 **GB-小时累计**（Free 500MB，与 Packages 共享）。删产物、设 `retention-days: 1` 只降低当前占用，**不退还本周期已累计用量**，配额 6–12 小时重算的也是累计值；账户无有效支付方式时，配额耗尽会硬阻断上传直到下个计费周期，报 `Artifact storage quota has been hit. Unable to upload any new artifacts.`——重试/清理/缩短保留期都解不开。
+  - 唯一根治：**发版链路完全不调用 `actions/upload-artifact` / `download-artifact`**。改用公开仓库一个临时 **draft Release** 做中转：Release assets 不计入 Actions/Packages 存储配额。
+  - 流程：`init-matrix` 建草稿（`tag=mdcx-staging-<run_id>-<run_attempt>`，draft、非纯数字 tag 会被客户端 `check_version` 跳过，也不进 latest/atom），输出 `staging_tag` / `staging_release_id`；三平台构建后按 **release id** 直传 `uploads.github.com`；`publish-release` 按 **asset id** 走 REST + curl 下载到 `dist/`（草稿没有 git tag，按 tag 上传/下载都不可靠）；后续核对、重命名、正文、删旧建新逻辑不变；`cleanup-staging` 用 `always()` 无论成败都删掉草稿与残留 tag。
+  - 「删旧 Release」的过滤显式跳过 `mdcx-staging-*` 前缀，避免误删中转草稿。守卫 `test_build_assets_bypass_actions_artifact_quota`。
 - 跨仓库写用 Secrets 里的 `MDCX_SYNC_TOKEN`（公开仓库 Contents: Read and write）。未配置时发布步骤直接报错，不会退回私有仓库。
 - 资产名 `MDCx-<tag>-<平台>-<架构>-<40位sha>.<ext>`（2026-10-22 起去掉展示版本号段；客户端只读 `tag_name` 不解析资产名，故零影响）。资产名同时写在本文档与 `tests/test_py315_release_workflow.py::_EXPECTED_ASSETS`，**三处同改**。
 - Release 标题 `MDCx <日期版本号>`，日期取自源码 `consts.py::LOCAL_VERSION`；补发旧 tag 时按 tag 取日期并告警。由 `test_asset_names_and_release_title` 与 `test_release_title_date_comes_from_source_code` 钉住。
@@ -796,7 +799,7 @@ PyInstaller，入口 `main.py`。Linux 手动构建依赖见 `Install.md#linux-�
 
 ### 14.4 五条护栏
 
-1. **缺产物不发版**：`build-app` 不设 continue-on-error（设了会让 `needs.build-app.result` 恒为 success，上传全失败仍会触发发版）；其余腿不阻塞靠 `strategy.fail-fast: false`。`publish-release` 用 `if: !cancelled() && needs.build-app.result == 'success'`，发布前再核对三平台产物非空。
+1. **缺产物不发版**：`build-app` 不设 continue-on-error（设了会让 `needs.build-app.result` 恒为 success，上传全失败仍会触发发版）；其余腿不阻塞靠 `strategy.fail-fast: false`。`publish-release` 用 `if: !cancelled() && needs.build-app.result == 'success'`，从草稿中转 Release 下载后先核对三平台产物非空，再删旧 Release、建正式 Release。
 2. **并发不互杀**：`concurrency` 按 ref 分组 + `cancel-in-progress: false`。
 3. **重跑幂等**：公开仓库同 tag 或同标题的旧 Release 先删再建；残留 tag 一并清理。
 4. **Release 正文按文件写**：`Extract current changelog` 落 `release-notes.md`，截断后写 `release-body.md`，用 `gh release create --notes-file` 一次写入；不再使用会覆盖正文的 `svenstaro/upload-release-action`。

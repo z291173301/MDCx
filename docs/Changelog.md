@@ -8,6 +8,12 @@
 
 ## 2026-11-21
 
+### 发版产物改为 Release assets 中转，彻底绕开 Actions 存储配额
+- **根因**：Actions artifact 存储是账户级、按计费周期 GB-小时累计（Free 500MB）。删产物 / `retention-days: 1` 只降当前占用，不退还本周期已累计用量；账户无支付方式时配额耗尽会硬阻断上传直到下周期，上一版「清理 + 短保留」因此无效，报错重复出现。
+- 发版链路移除全部 `actions/upload-artifact` / `download-artifact`：改用公开仓库临时 **draft Release** 中转（Release assets 不计入 Actions/Packages 配额）。`init-matrix` 建草稿并输出 release id，三平台按 release id 直传 uploads API，`publish-release` 按 asset id 下载到 `dist/`，核对/重命名/正文/删旧建新逻辑不变；`cleanup-staging` 用 `always()` 无论成败都清理草稿与残留 tag。删旧 Release 的过滤显式跳过 `mdcx-staging-*`。
+- 中转 tag 为 `mdcx-staging-<run_id>-<run_attempt>`：draft 不进 latest/atom，非纯数字 tag 被客户端 `check_version` 跳过，不影响自动更新。守卫改为 `test_build_assets_bypass_actions_artifact_quota`，`docs/Development.md` 发版章节同步。
+- macOS arm64 runner 的 `Due to capacity constraints` 只是排队提示，不是失败原因，无需处理。
+
 ### 修复发版：产物配额打满 + 失败腿被门禁漏掉
 - `build-py315.yml` 三平台上传改 `retention-days: 1`，并在 `init-matrix` 开头新增 `Purge stale build artifacts`：分页列出产物、删掉所有非本次 run 的 `mdcx-*` 产物，避免多次发版累积打满 Actions 存储配额（`Artifact storage quota has been hit`）。
 - 删除 `build-app` 的 `continue-on-error: true`：它会让 `needs.build-app.result` 恒为 success，三腿上传全失败时 `publish-release` 仍启动并报「产物缺失」。不阻塞其余腿由 `strategy.fail-fast: false` 保证，门禁按真实结果干净跳过。
