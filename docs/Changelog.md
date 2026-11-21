@@ -8,6 +8,9 @@
 
 ## 2026-11-21
 
+### 移除 PyYAML 的 sdist 兼容开关
+- PyYAML 6.0.4 已有 cp315 wheel（含 libyaml C 扩展），从全部工作流（`build-py315.yml`、`CI Pipeline.yaml`、`update-sr-tools.yml`）删除 `PYYAML_FORCE_LIBYAML=0` 及相关注释；`tests/test_py315_release_workflow.py` 改为断言该开关不再出现，`docs/Development.md` 与依赖下限守卫的说明同步。
+
 ### 依赖全量升级：PyYAML 6.0.4 起支持 Python 3.15
 - `uv lock --upgrade` + `uv sync --locked` 把本机 `.venv` 升到最新：10 个包更新（annotated-doc 0.0.7 / certifi 2026.11.20 / filelock 4.2.12 / librt 0.17.0 / markdown-it-py 4.3.0 / platformdirs 4.14.8 / python-discovery 1.9.6 / pyyaml 6.0.4 / soupsieve 4.1.3 / virtualenv 21.15.9）；`pyproject.toml` 里显式声明的版本下限均已是本机最新版本，无需上调。
 - PyYAML 6.0.4（2026-11-20 发布）是首个提供 cp315 wheel 的版本（含 libyaml C 扩展），`pyproject.toml` dev 组与 `requirements.txt` dev 段同步显式钉 `pyyaml>=6.0.4`，纳入 `tests/test_py314_dependency_floors.py` 的声明/锁版本守卫；`PYYAML_FORCE_LIBYAML=0` 保留为 sdist 回退保险，CI 注释、`docs/Development.md` 与两处测试说明里「无 cp315 wheel」的旧表述全部改写。

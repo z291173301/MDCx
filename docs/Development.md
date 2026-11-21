@@ -257,7 +257,7 @@ pyyaml>=6.0.4
   2. 标准流程：`uv lock --upgrade-package <pkg>` → `uv sync --locked` 验证 → 同步 `requirements.txt` 镜像行 → 若涉及 cp315 wheel 起步包，同步更新 `tests/test_py314_dependency_floors.py` 的声明/锁定元组/文档 → ruff 走 `python -m scripts.sync_ruff_version`（自动同步三处声明点）→ 跑通 floors/sync 相关测试。
   3. 例外 cap 保持不动：`pyqt6<6.12`（上游 .pyi 语法问题，见 `requirements.txt` 注释）、`ruff<0.18`（由同步脚本按 lock 自动推导 upper bound）。
 （3.15 是当前唯一构建目标），不带 upper bound。
-- 112 个锁包里 109 个有 wheel（mdcx 自身除外；sdist-only：oshash/zhconv）。pyyaml 6.0.4 起提供 cp315 wheel（含 libyaml C 扩展），dev 组显式钉 `>=6.0.4`；`PYYAML_FORCE_LIBYAML=0` 仅作为 sdist 回退保险保留。
+- 112 个锁包里 109 个有 wheel（mdcx 自身除外；sdist-only：oshash/zhconv）。pyyaml 6.0.4 起提供 cp315 wheel（含 libyaml C 扩展），dev 组显式钉 `>=6.0.4`，3.15 下直接装官方 wheel，无需纯 Python 构建的兼容开关。
 - ruff 版本以 `uv.lock` 为唯一来源。升级 ruff 后运行 `python -m scripts.sync_ruff_version`，自动同步 `pyproject.toml`（`ruff>=X,<Y`）、`requirements.txt`（`ruff>=X`）和 `uv.lock` 根 metadata 的 specifier；`--check` 只校验不改文件。`scripts/check.py` 发现漂移会自动同步并以非 0 退出，提交同步结果后重跑即可。标准升级流程：`uv lock --upgrade-package ruff` → 同步脚本 → 全量 format/check；`tests/test_ruff_version_sync.py` 钉死一致性。
 
 ---
@@ -791,7 +791,7 @@ PyInstaller，入口 `main.py`。Linux 手动构建依赖见 `Install.md#linux-�
 
 - `python-version: 3.15`、`UV_PYTHON: 3.15`、构建前断言 `sys.version_info[:2] == (3, 15)`。
 - `uv sync --locked` 失败自动回退 `uv sync`（只改 CI 临时工作树）。
-- PyYAML 6.0.4 起已有 cp315 wheel（含 libyaml C 扩展），dev 组显式钉 `>=6.0.4`；`PYYAML_FORCE_LIBYAML: "0"` 保留为 sdist 回退时的纯 Python 构建保险（`uv sync` 与 `pip install -r requirements.txt` 都认；本机同理 `setx PYYAML_FORCE_LIBYAML 0`）。工作流另设 `UV_NO_SYNC: "1"`。
+- PyYAML 6.0.4 起已有 cp315 wheel（含 libyaml C 扩展），dev 组显式钉 `>=6.0.4`，3.15 下直接装官方 wheel；`PYYAML_FORCE_LIBYAML` 兼容开关已从所有工作流移除。工作流另设 `UV_NO_SYNC: "1"`。
 
 ### 14.4 五条护栏
 
