@@ -264,21 +264,18 @@ jobs:
           $File = Get-Item "${PACKAGE}.zip"
           Write-Host ("{0} - {1:N2} MB" -f $File.Name, ($File.Length / 1MB))
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: Trawl-Portable-${{ steps.version.outputs.version }}-windows
-          path: Trawl-Portable-${{ steps.version.outputs.version }}-windows.zip
-          retention-days: 7
-
+      # 不再走 actions/upload-artifact：Actions 产物存储是账户级、按计费周期 GB-小时
+      # 累计的配额，打满后删除/缩短保留期都不管用，会硬阻断上传并报
+      # "Artifact storage quota has been hit"。zip 统一作为 Release asset 提供
+      # （不计入该配额）：upload_to_releases=true 发正式版，false 则建草稿版，
+      # 草稿在 Releases 页同样可下载，行为与原来的 artifact 下载等价。
       - name: Create GitHub Release
-        if: inputs.upload_to_releases
         uses: softprops/action-gh-release@v3
         with:
           tag_name: trawl-${{ steps.version.outputs.version }}
           name: TRAWL ${{ steps.version.outputs.version }} Windows Portable
           files: Trawl-Portable-${{ steps.version.outputs.version }}-windows.zip
-          draft: false
+          draft: ${{ !inputs.upload_to_releases }}
           prerelease: false
           body: |
             ## TRAWL ${{ steps.version.outputs.version }} Windows 便携版
