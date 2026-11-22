@@ -1375,7 +1375,7 @@ O 段的官网网页站混在一起，视觉乱序且看起来像「少了某站
   `manager.config.website_*`——即「隐藏即视为未启用」，配置里也会掉这三站；
   重新勾选开关时 `_augment()` 会按 `AIO_JSON_WEB_FALLBACK` 把网页版自动补回
   （`DMM_JSON→DMM`、`JavDB_JSON→JavDB`、`MYWIFE_JSON→Official·MyWife`），不会真的丢失。
-- 用户 2026-11-22 起取消未授权锁定：刮削网站设置未授权也允许修改，`save_config.py`
+- 用户 2026-11-23 起取消未授权锁定：刮削网站设置未授权也允许修改，`save_config.py`
   不再抽 `_restore_website_snapshot()` 还原，本区照常落盘；这段写回不再被授权锁还原覆盖。
 
 #### 兜底链路
