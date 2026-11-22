@@ -381,7 +381,7 @@ pyyaml>=6.0.4
 
 ### 10.9 界面文案纪律
 
-菜单项/提示词/状态提示/日志提示一律**不写空格、不写括号**（`（）` 与 `()` 都不行）。
+菜单项/提示词/状态提示/日志提示一律**不写空格、不写括号、不写分号**（`（）`、`()`、`；`、`;` 都不行）。
 
 **日志与所有界面文字：英文语境之间的空格照留，中文之间的空格不留，行首图标后保留一个空格**（用户 2026-10-28 定规，2026-11-12 修订口径）。日志出口统一经 `mdcx/utils/__init__.py::strip_log_spaces()` 洗一遍：`LogConsole.log_text()`、`LogConsole.add_log()`、`Signals.show_log_text()`、`LogPageMixin.show_log_text()` 以及 `add_html()` / `add_html_plain_text()` 把行内连续空白（空格 / Tab / 全角空格）当成一段再判断——两侧都是半角可见字符（英文单词之间、单词与数字之间、英文标点之后）时留一个空格（`I Want Clips:Blacked Out Fm`、`Start time`、`HTTP 403`、`videos, Please`），只要有一侧是中文、全角标点或图标就删掉（`连接 Gfriends 网络` → `连接Gfriends网络`）；同时保留 `\n`、HTML 标签内部语法（如 `<font color="red">`）、双引号里的原文（响应体/引用）、每行行首图标后的一个空格（如 `🔐 授权状态：`）、URL 与紧随其后的「失败」之间的空格，以及源码里本来就写漏空格的固定搭配（`MDCx 20261027`、`GET https://a.com`、`CF Bypass`、`HTTP 403 body=`）；新写的日志与界面文案仍不要主动加多余空格。
 
