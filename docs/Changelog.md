@@ -8,6 +8,16 @@
 
 ## 2026-11-22
 
+### 工具页「去重复番号」独立模块 + 五枚复选框重排改名（用户指定）
+
+- **文案改名与重排**：工具页两组（「检查缺失番号」`groupBox_19` / 「查询演员番号」`groupBox_actor_numbers`）的四枚复选框由「只获取单演员 / 获取本地番号 / 格式化番号名 / 获取演员原名」改为「获取单演员 / 读本地番号 / 格式化番号 / 获取演员名」，并新增第五枚「去重复番号」插在「格式化番号」右侧、「获取演员名」左侧。改名与缩间距是同一次改动的原因：沿用旧的 6 字文案与 112px 宽时，最右一枚会超出所在组框右缘，故五枚统一改 5 字、宽 100、x=158/263/368/473/578（间距 116px → 105px），最右一枚右缘 678 < 组框右缘 731。像素依据：工具页 QSS 字体 13px + `QCheckBox::indicator{width:14px;border:1px}` 实占 16px，100px 复选框文字区剩 84px，5 字 65px 留 19px 余量；6 字 78px 只剩 6px、7 字 91px 直接裁掉末字。`.ui` 与 pyuic6 生成的 `MDCx.py` 同步。
+- **去重能力从「格式化番号」迁出**：新增独立模块 `mdcx/utils/number_dedupe.py`，四个公开函数——`dedupe_key(raw)`（去重口径键）、`spelling_key(raw)`（不去重口径键）、`number_key(raw, dedupe=)`（按开关二选一）、`dedupe_numbers(numbers)`（**供各站点直接调用**：站点自己收番号列表后过一遍即收敛成一条，保留首次写法与顺序）。模块只依赖 `number_format` / `shared_fields` 两个纯字符串工具，不反向依赖业务模块。
+- **两件事彻底解耦**：「格式化番号」只决定*番号名长什么样*（勾选走 `format_number` 剥壳，不勾选保持各站 `display_number` 原形态）；「去重复番号」只决定*哪些写法算同一部影片*（勾选时合并键收敛成一条，不勾选时各站原写法各占一条、即便格式化后番号名相同也照样分行）。四种组合实测：格式化+去重 = 先格式化、格式化完成后再去重；只格式化 = 只格式化不去重；只去重 = 只去重不格式化；都不勾 = 既不格式化也不去重。
+- **合并键从原始番号算，不从展示形态反推**：`spelling_key` 在格式化后会变（`spelling_key('9SSIS287') != spelling_key('SSIS-287')`），故 `actor_sources._merge` 用 `number_key(raw, dedupe=...)`（`raw` 为入参原文）算键，跨站同番号分支直接补元数据、不再回调 `_merge` 重算键；`dedupe_key` 幂等，保证「先格式化再去重」与「直接去重」同口径。
+- **70 站全部接入**：`_merge` 是全部站点番号的唯一漏斗，ContextVar `_DEDUPE_NUMBERS` 与 `_FORMAT_NUMBERS` 各自独立、由 `collect_numbers(dedupe_numbers=...)` 设置并在 `finally` 复位；站点出口 `_format_site_hits` 按去重开关分两条路——**去重未勾选时只改展示形态、绝不重新按番号合并**（否则 7mmtv「同一番号多版本：有码原版/reduced-mosaic/中文字幕」会被压成一条，违背「未勾选不去重」），7mmtv 站内同理按 `detail_url` 为键保留每条网页条目。
+- **配置与升级**：新增 `missing_dedupe_number` / `actor_number_dedupe_number` 两个独立 bool，默认不勾选、写入 `resources/config/default_config.json`；旧配置缺键由 `_migrate_dedupe_number_checkboxes` 补 `False` 并回写（幂等，用户显式写过的 true/false 原样保留），`config_version` 保持 2。工具页三个入口（「检查缺失番号」按钮、左下角番号浮标、「查询演员番号」按钮）把勾选态传给后端，勾选态与配置不一致时自动保存。
+- **校验**：新增 `tests/test_number_dedupe.py`（四个公开函数 + 展示键与合并键解耦这条设计不变量）；`tests/test_format_number_option.py` 补四种组合矩阵、70 站注册表共享键、全部 70 站同开同关、文案改名与位置、配置默认值与旧配置升级幂等、load/save 接线、工具页三入口传参等用例；ruff check 通过。
+
 ### 站点能力文案前缀修正：有码聚合站改为「综合」
 - TheJavDB_JSON / FreeJavBT 实际跨有码+欧美（及无码/国产）多组，但爬虫 `description` 仍写「有码：仅限有码」，导致候选区悬停与三处站点下拉显示「有码：有码/欧美」；改为「综合：有码/欧美」/「综合：有码/无码/欧美/国产」，前缀与实际类型跨度一致（单类型站仍走「聚合」规则）。
 
