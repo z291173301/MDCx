@@ -1521,3 +1521,59 @@ extrafanart 从所有站点下载，不经过上述优先档定序/裁剪逻辑�
 - 【历史状态】2026-10-19 诊断：load_config ↔ pushButton 互调型递归需重入保护，当时修复未落地。
 - R18.dev 调研（2026-11-16 Edge 实测）：没有「演员名 → actress id」搜索入口，按番号直连详情；不进查缺 fetcher。
 - 【已过时】2026-10-24 曾记录本机无 uv；当前仓库已用 .venv + uv 标准工具链，门禁以 scripts/check.py 为准。
+
+
+## 演员名查号站点拆分（2026-11-23）
+
+`mdcx/tools/actor_sources.py` 原为 4500+ 行单体，现拆成 `mdcx/tools/actor_search/`：
+
+| 层 | 文件 | 职责 |
+| --- | --- | --- |
+| 共享层 | `common.py` | 数据结构、HTTP/限速、解析、ContextVar、执行引擎、站点编排 |
+| 站点实现 | `fetch_*.py` / `official_*.py` | 每站一个 fetcher，只 `from . import common as _as` |
+| 组合根 | `registry.py` | 静态登记 70 站的 `SITE_FETCHERS` / `_FC2` / `_WUMA` |
+| 兼容门面 | `actor_sources.py` | 只做聚合，不含实现 |
+
+依赖单向：`common ← fetch_* ← registry ← actor_sources`；站点模块不得反向 import 门面。
+门面通过 `sys.modules[__name__] = common` 与共享层**共用同一模块对象**，因此历史的
+`monkeypatch.setattr(actor_sources, ...)` 与 `actor_sources._fetch_xxx` 直调语义不变；
+站点之间也经该命名空间互调（如 Jav321 借 JavDB 取代表作），所以新增 fetcher 必须
+同时写进 `registry._REGISTERED_FETCHERS`。
+
+三条硬约束（都是本次审查修掉的坑）：
+
+- **注册表必须是静态源码**：曾有一版在导入时读临时文件里的函数名清单、再用
+  `git show HEAD:...` + `exec` 拼出三张表，换机器、清理临时目录、提交后都会失效，
+  还会执行过期代码。禁止任何形式的运行时自举。
+- **站点模块不得写共享命名空间属性**：拆分时把函数内局部变量 `html` 机械改成
+  `_as.html`，会覆盖共享层的标准库 `html` 模块（`_strip_title` 依赖 `html.unescape`），
+  并发取详情页时还会串页。HTTP 响应一律用函数内局部变量。
+- **外部响应先校验结构再用**：JSON 接口的 `data` / `items` / `title` 等字段可能被
+  改版成 list/str，`int(total_count)` 也可能抛；逐层 `isinstance` 后再取，
+  并发详情页用 `gather(..., return_exceptions=True)`，单条失败不拖垮整批。
+
+新增站点步骤：① 在 `fetch_<site>.py` 实现；② 在 `registry.py` import、加入
+`_REGISTERED_FETCHERS`、登记进 `SITE_FETCHERS`（FC2/无码变体按需覆盖）；
+③ 补测试（`tests/test_two_files_split.py` 的结构哨兵会检查登记完整性）。
+番号刮削爬虫在 `mdcx/crawlers/`，与查号链路相互独立；部分站点复用通用爬虫或
+JSON 源，不必强求「一站一个 crawler 文件」。
+
+
+## 拆分审查纪律检查清单（2026-11-23 确立，强制）
+
+> 权威条款与理由见 `docs/MEMORY.md` §「拆包与稳定性纪律」；本节是**提交前逐条打勾**的
+> 执行清单，由本次拆分审查实际暴露的 12 类问题反推而成。凡涉及模块拆分、代码搬迁、
+> 兼容门面改造或新增站点，未逐条确认不得提交。
+
+- [ ] **依赖单向**：共享层 ← 每站实现 ← 组合根 ← 兼容门面；子模块不 import 门面，包 `__init__.py` 不预加载组合根。
+- [ ] **零运行时自举**：注册表是静态源码；源码中无 `exec(`、临时文件读取、`git show` / `subprocess`、`import_module` 扫目录。
+- [ ] **门面共用命名空间**：`sys.modules[__name__] = impl`，不用 `globals().update()` 造属性副本；`TYPE_CHECKING` 中 re-export，mypy 必须 0 错。
+- [ ] **动态符号显式登记**：组合根 `_REGISTERED_FETCHERS` 逐项列全，共享层 `TYPE_CHECKING` 声明互调函数；不靠 `globals()` 自动收集。
+- [ ] **新增站点三处同步**：实现文件 + 组合根 import/登记 + 测试；结构哨兵会校验登记完整性。
+- [ ] **搬迁等价核验**：规范化 AST 逐函数、逐常量对比原实现，差异清单逐条解释（本次 44 个搬移函数 + 161 个共享层符号，差异仅包层级 `..`→`...`、注册表静态化、一处集合推导式）。
+- [ ] **局部变量不升格**：HTTP 响应等中间值一律函数内局部变量，禁止 `_as.html = ...` 之类共享命名空间写入。
+- [ ] **外部响应先验后用**：`data` / `items` / `title` 逐层 `isinstance`，`int()` 兜 `TypeError` / `ValueError`。
+- [ ] **并发与翻页兜底**：`gather(..., return_exceptions=True)` 逐项过滤；翻页同时受 `_out_of_time()` 与页数上限约束。
+- [ ] **测试打公共入口**：monkeypatch 只用兼容门面，不依赖内部模块路径；哨兵基于 `__file__` 绝对路径且断言有实质内容。
+- [ ] **文档与架构同步**：不写「每站两个文件、互不影响」这类与分层不符的断言；新增站点步骤必须写清组合根登记。
+- [ ] **门禁与回归基线**：`scripts/check.py` 全绿（ruff format/check、mypy、线程安全）+ 受影响测试集全通过；全量用 `-n 4` xdist 取结果，Qt 相关既有失败须隔离复现后判定，不得误判为回归。

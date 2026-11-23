@@ -306,3 +306,32 @@ Qt 生命周期 · 崩溃与内存 · UI 排错 · 并发与网络库 · 站点�
 - DMM cid 结构：前缀映射 + 数字双态（5 位补零 digital 与 3 位 mono 同系列可并存）+ 双路径。DMM 图床下架时 CDN 不删对象，占位图 200+ 且 <4KB 已拒收。
 - 日亚图 SL1500 物理无条码；老商品标题是半角片假名（NFKC 必做）；日亚 DVD 封与 DMM digital 封版本不同（相似度天花板 ~0.62）；tenhow.net 图床 `images/{ASIN}.jpg` 与日亚 SL1500 同源，免代理直取。
 - 工程散点：数据治理前先 `Counter` 关键列识别导入批次残留；openpyxl 迭代中 `delete_rows` 会跳行（读出→去重→清空重写）；javbus 搜索不识别 ASIN；**合并判定禁用 or 链**（短路吞判定值、带副作用的 `pop` 不执行）；外部 API 错误码取响应原文字面值。
+
+
+## 拆包与稳定性纪律（2026-11-23 审查确立，强制）
+
+> 来源：`actor_sources.py`（4546 行）拆成 `actor_search/` 时，一次审查同时暴露
+> 12 类问题（基线 315 个用例红、33 个 mypy 错、53 个 ruff 告警）。以下是**必须遵守的
+> 规则，不是复盘叙事**；提交前执行清单见 `docs/Development.md` §「拆分审查纪律检查清单」。
+> 当前结构：`common.py` 共享层 ← `fetch_*.py` 每站实现 ← `registry.py` 组合根（静态 70 站）← `actor_sources.py` 兼容门面。
+
+**架构（D1–D5）**
+
+1. **依赖必须单向**：共享层 ← 每站实现 ← 组合根 ← 兼容门面。站点模块禁止 import 门面，包 `__init__.py` 禁止预加载组合根，任何循环依赖一律不允许。
+2. **禁止运行时自举**：注册表/符号表必须是静态源码；禁止 `exec`、读临时文件、`git show` / `subprocess` 拼代码、`importlib` 扫目录动态构造 API。曾有一版靠 `git show HEAD:...` + `exec` 拼 70 站表，换机器、清临时目录、提交后即失效，还会执行过期代码。
+3. **兼容门面必须与实现层共用同一模块对象**（`sys.modules[__name__] = common`），禁止用 `globals().update()` 造属性副本——副本会让历史 `monkeypatch.setattr(actor_sources, ...)` 静默失效；使用别名时必须在 `TYPE_CHECKING` 中 re-export，保证 mypy 的 `attr-defined` 检查不退化。
+4. **运行时注入的符号必须显式登记**：组合根 `_REGISTERED_FETCHERS` 逐项列全，共享层 `TYPE_CHECKING` 静态声明站点互调函数；禁止靠 `globals()` 扫描自动收集。
+5. **新增站点必须同步改三处**：实现文件、组合根 import/登记、测试；只加文件不登记一律视为未完成。
+
+**代码搬迁（D6–D9）**
+
+6. **搬迁必须做规范化 AST 逐符号等价核验**，差异清单逐条解释；「测试通过」不等于「逻辑没被改坏」。AST unparse 会丢行内注释、改引号风格，关键业务口径注释必须人工回填，产物必须过 `ruff format`。
+7. **禁止把函数内局部变量升格为模块属性赋值**：`_as.html = 响应` 会覆盖标准库 `html` 模块（`_strip_title` 的 `html.unescape` 炸），并发取详情页还会串页；所有中间值一律用函数内局部变量。
+8. **外部响应先验类型再用**：JSON 的 `data` / `items` / `title` 等逐层 `isinstance`，`int(total_count)` 兜 `TypeError` / `ValueError`；禁止对未知结构直接链式 `.get`。
+9. **并发与翻页必须兜底**：`gather` 一律带 `return_exceptions=True` 并逐项过滤，单条失败不得拖垮整批；翻页循环同时受 `_out_of_time()` 与页数上限约束。
+
+**测试与门禁（D10–D12）**
+
+10. **结构哨兵必须可移植且有实质断言**：基于 `__file__` 绝对路径，校验依赖方向、零自举、登记完整性、共享命名空间不被污染；禁止 `dir(mod) >= 1` 之类空断言。monkeypatch 一律打公共入口，不得依赖内部模块路径。
+11. **提交前门禁必须全绿**：`scripts/check.py`（ruff format/check、mypy、线程安全）+ 受影响测试集全通过；静态告警、mypy 错误不得留到提交；文档必须与真实架构同步，禁止「每站两个文件、互不影响」这类与分层不符的断言。
+12. **回归判定必须对照基线**：Windows 串行全量 pytest 会在约 94% 因 Qt 析构以 127 退出（`tests/conftest.py` 已记录），须改用 `-n 4` xdist 取完整结果；`test_version_check_notify.py` 3 例 worker 崩溃、`test_window_state_matrix.py` 1 例屏幕几何前提属既有环境问题，判为回归前必须隔离复现并与基线对照。
