@@ -6,6 +6,26 @@
 > 原先逐条重复的「校验：…门禁通过」已收敛到此处，条目里只保留新增用例名、用例数、例外与实测结论。
 > 三份文档分工：本文件只记「做了什么」，`docs/Development.md` 记原因与过程，`docs/MEMORY.md` 记长期规则。
 
+## 2026-11-23
+
+### 「检查缺失番号 / 查询演员番号」取号全面性修复：不再静默少号（用户指定「修复所有问题」）
+
+针对两个工具全链路审查发现的「获取番号数量变少」漏洞，逐项修复：
+
+- **#14 探测路由不再整类丢失**：AIO 三站探测（AVMOO/AVSOX/AVHeat）失败或未收录某类型时，原实现里该类型的固定链整组被跳过（AVMOO 被墙 → 有码番号全漏）。改为标注/默认类型**无条件**并入路由（并集、标注在前），探测到的额外类型照旧按命中路由；`docs` 语义「三站全无番号才走默认流程」同步改写。
+- **#15 JavDB 全取同名演员主页**：`_javdb_app_actor_path` 只取第一个匹配演员页，同名演员/一人多主页（艺名/旧名各一页）漏整页。新增 `_javdb_app_actor_paths` / `_javdb_actor_paths` 返回全部匹配路径，`_javdb_actor_hits` 逐页翻页汇总（`_accumulate_hits` 同键补元数据）；App API 命中时仍不发多余网页搜索。JavDB 网页/JSON/FC2/动漫四个通道经 `_javdb_actor_hits` 自动接入。
+- **#16 AIO 全取匹配 starId**：`_aio_locate_star_id` 只看前 8 条搜索详情、只取一个 starId。新增 `_aio_locate_star_ids` 查完全部搜索结果收齐所有匹配 starId，`_aio_numbers` 逐个 starId 翻页汇总；旧函数保留为兼容包装。
+- **#17 翻页上限提升 + 达上限出声**：AIO 30→200 页、FC2CMADB 30→100、FC2 30→100、MissAV 60→200、ThePornDB 10→50、JavFree 10→100、IQQTV 30→100、AVEntertainments 20→100、XCity 20→100；到顶统一打 `⚠️ 已达 N 页翻页上限`（新增 `_log_page_cap`），多产演员不再被静默掐断。
+- **#18 LibreDMM 不再「匹配不上就取第一个」**：模糊搜索兜底返回 `items[0]` / 第一个 anchor 会取错人、把无关演员番号混进表；改为匹配不上返回 None（宁缺勿错，链内其它站兜底）。
+- **#19 末页「不满额」启发式移除**：JavBus `len(boxes)<30`、LibreDMM HTML `len(movies)<60`、IQQTV `len(links)<48` 在站点改版/半页限流时会把中间页误判成末页提前断页。JavBus/LibreDMM 只认「下一页」链接，IQQTV 改看新番号是否还在增加；`_MAX_PAGES` 与时间预算兜底。
+- **#20 本地番号缓存加文件指纹**：`number_list.json` 按路径缓存番号，原地重刮后番号变了缓存不失效，比对用旧号误判。条目升级为 `[番号, 字幕, mtime, size]`：文件未变（大小一致、mtime 差 <2s）信任缓存，旧格式条目一律重读并一次性升级（日志提示），`local_keys` 快照解包同步适配。
+- **#21 「读本地番号」扫描目录定规（用户 2026-11-23 定稿）**：各工具扫**自己那套输入框**——「查询演员番号」扫本组「番号导出目录」（local_libraries），「检查缺失番号」扫「本地资源目录」（local_library 配置）；导出位置同源（查询演员番号的表落番号导出目录、缺失表落本地资源目录）。扫描目录为空时日志明确提示跳过，不再刷「共找到0个番号」。
+- **#22 导出按演员分文件 + 文件名取名定规（用户 2026-11-23 定稿，取代 2026-11-21 合并单表）**：两个工具都**逐演员导出**——输入 N 个演员导出 N 个 xlsx，每个文件只含该演员的番号，一个文件只对应一个演员的完整名字。勾「获取演员名」时文件名取名（二次定规）：**用户输入名与 JavDB 任一名字忽略简繁体/异体字差异后相同 → 用用户输入名**（即使名单里还有其它中文名）；否则按 JavDB 名单原序（当前用名在前、艺名/曾用名在后）依次取**全中文 → 中文日语混合 → 纯日语 → 英文 → 其他语言**的第一个名字；JavDB 取不到时用用户输入名。选出的名字原样使用、不截断不改写（落盘时仅 Windows 非法文件名字符按文件系统要求替换）。未勾「获取演员名」时文件名就是用户输入名。「只获取单演员」的演员表核对改用本演员自己的名字名单（查询名 + 本演员 JavDB 全名），比跨演员合并名单更准。
+- **#23 未勾站点提示加强**：「查询演员番号」未勾站点走的是不带类型探测的有码固定链，日志明确提示横跨类型时应勾选站点或改用「检查缺失番号-自动判断」。
+- **杂项**：`_run_source` 首次超时日志由「已跳过」改为「重试一次」（attempt 2 本就会重试）；删除死变量 `_ACTORS_TRUNCATED_AT`。
+- **健壮性加固（复查轮）**：`_javdb_actor_paths` 无 actor-box 卡片时的通用回退改为**按链接文本匹配查询名**（全取模式下防止把页面上的无关演员页一起翻、混进别人的番号；一个都对不上时退回第一个，保留旧宽松兜底）；`_scan_local_numbers` 对畸形缓存条目加 `isinstance(list/tuple)` 防护、缓存番号允许空串（用 None 区分「无可用条目」与「番号为空」）、勾「读本地番号」但本地资源库为空时明确提示而不是刷「共找到0个番号」；`_aio_locate_star_ids` 对搜索响应 `data` 字段加 `isinstance(list)` 与条目 `dict` 防护；本地扫描/缓存相关类型注解同步新格式（mypy 干净）。测试桩同步：`tests/test_read_local_numbers.py` 与 `tests/test_format_number_option.py` 的 `_stub_impl` 增加 `library_dir`（锁定 #21 扫描目录口径）并补 `_report_actor_result` 桩。
+- **校验**：`tests/test_auto_type_probe.py` 新增 `test_probe_missed_default_type_still_routed`、`test_each_actor_exports_its_own_file`、`test_export_filename_prefers_chinese_name`、`test_preferred_export_name_unit`；`tests/test_actor_numbers_regression.py` 新增 `test_javdb_actor_hits_covers_all_matching_actor_pages`（定位桩改用复数版 `_javdb_app_actor_paths`）；`tests/test_format_number_option.py` 新增缓存指纹 3 个用例（旧格式重读升级、新鲜条目信任、文件变化重读）；`tests/test_read_local_numbers.py` / `tests/test_format_number_option.py` 的扫描目录断言按 #21 定稿改写（查询演员番号扫番号导出目录）。
+
 ## 2026-11-22
 
 ### 五个选项的开关边界收口：站点入口不得预先剥壳、按名字逐个取号、合并键不许漂移（用户指定）
