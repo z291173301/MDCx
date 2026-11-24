@@ -322,6 +322,7 @@ Qt 生命周期 · 崩溃与内存 · UI 排错 · 并发与网络库 · 站点�
 3. **兼容门面必须与实现层共用同一模块对象**（`sys.modules[__name__] = common`），禁止用 `globals().update()` 造属性副本——副本会让历史 `monkeypatch.setattr(actor_sources, ...)` 静默失效；使用别名时必须在 `TYPE_CHECKING` 中 re-export，保证 mypy 的 `attr-defined` 检查不退化。
 4. **运行时注入的符号必须显式登记**：组合根 `_REGISTERED_FETCHERS` 逐项列全，共享层 `TYPE_CHECKING` 静态声明站点互调函数；禁止靠 `globals()` 扫描自动收集。
 5. **新增站点必须同步改三处**：实现文件、组合根 import/登记、测试；只加文件不登记一律视为未完成。
+6. **站点层代码不得写入公共层**：`common.py` 只放真正公共的基础设施；任何属于单站的 fetcher、`*_page_meta`、站点 DOM/JSON 解析、站点专属 HTTP 头/签名等逻辑必须写在对应的 `fetch_*.py` / `crawlers/*.py` 站点模块里，common 只通过薄壳（shim）委托调用，保持历史 `actor_sources.xxx` / `monkeypatch` 语义不变。新增站点功能先落站点模块，再在 common 留一行委托，禁止把站点实现直接堆进 common。
 
 **代码搬迁（D6–D9）**
 

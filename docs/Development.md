@@ -1545,6 +1545,12 @@ extrafanart 从所有站点下载，不经过上述优先档定序/裁剪逻辑�
 - **注册表必须是静态源码**：曾有一版在导入时读临时文件里的函数名清单、再用
   `git show HEAD:...` + `exec` 拼出三张表，换机器、清理临时目录、提交后都会失效，
   还会执行过期代码。禁止任何形式的运行时自举。
+- **站点层代码不得写入公共层**：`common.py` 只放真正公共的基础设施（数据结构、
+  HTTP/限速、解析、ContextVar、执行引擎、站点编排）；任何属于单站的 fetcher、
+  `*_page_meta`、站点 DOM/JSON 解析、站点专属 HTTP 头等逻辑必须写在对应的
+  `fetch_*.py` / `crawlers/*.py` 站点模块里，common 只通过薄壳（shim）委托调用，
+  保持历史 `actor_sources.xxx` / `monkeypatch` 语义不变。新增站点功能先落站点模块，
+  再在 common 留一行委托，禁止把站点实现直接堆进 common。
 - **站点模块不得写共享命名空间属性**：拆分时把函数内局部变量 `html` 机械改成
   `_as.html`，会覆盖共享层的标准库 `html` 模块（`_strip_title` 依赖 `html.unescape`），
   并发取详情页时还会串页。HTTP 响应一律用函数内局部变量。
