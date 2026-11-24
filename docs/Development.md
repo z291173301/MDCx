@@ -279,6 +279,7 @@ pyyaml>=6.0.4
 - `actor_db` 并发信号契约：`actor_db_finished = pyqtSignal(str)` 带 task_id；所有 `_run_actor_db_*` 走 `_run_actor_db_async(btn_attr, busy_text, log_prefix, coro_factory)` 模板，防重入靠 `_actor_db_running` 集合。
 - `scripts/check_ui_layout.py` 只作手工诊断（warning 不阻断），结构约束锁在 `test_ui_structure.py`。
 - **测试文件命名禁止带日期后缀**（2026-11-18 用户定规）：测试文件一律用 `test_<功能名>.py`，禁止写成 `test_<功能名>_YYYY_MM_DD.py` 或 `test_<功能名>_YYYY_MM.py`。日期信息写进 `docs/Changelog.md` 的对应日期段，不要塞进文件名。新增测试用例优先追加到已有同主题测试文件，不另起新文件。**已有功能、逻辑、界面等已有测试覆盖的内容，一般不新增测试用例，优先直接修改原测试用例**（2026-11-24 用户定规）；语义相同或相近的用例应合并，不再使用或已失效的用例应删除。只有新增功能或新边界确实没有既有用例可承载时才新增，并优先追加到已有同主题测试文件。已有的 15 个带日期后缀的测试文件已全部重命名为无日期版本。
+- **全量用例上限 3000**（2026-11-24 用户定规）：同一行为优先合并为表驱动用例，循环内逐项断言并保留独立边界。`tests/conftest.py` 在收集完成后强制检查总数，达到 3000 直接失败，新增用例前必须先合并或删除已有冗余用例。
 
 ---
 
