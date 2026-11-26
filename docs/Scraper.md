@@ -53,7 +53,7 @@ MDCx 刮削网站类型汇总表
     Official·Nanpa         https://nanpa-japan.jp      有码片商官网。番号前缀自动锁定本站
     Official·Hajimekikaku  https://hajimekikaku.com    有码片商官网。番号前缀自动锁定本站
     Official·HHH           https://hhh-av.com          有码片商官网。番号前缀自动锁定本站
-    Official·Prestige      https://prestige-av.com     PRESTIGE 厂牌官网。MDCx 站点描述「有码+素人」
+    Official·Prestige_JSON https://prestige-av.com     PRESTIGE 搜索与商品 JSON，MDCx 站点描述「有码+素人」
     Xcity                  https://tc.xcity.jp         XCITY 日系有码综合会员站（JS 渲染，导航不可读）
 
   ── 第三方 / 聚合站 (21) ──
@@ -85,7 +85,7 @@ MDCx 刮削网站类型汇总表
 ================================================================================================================
   ── 官网 / 厂牌 / 官方接口 (5) ──
     Official·10Musume      https://10musume.com      「天然むすめ - 素人専門アダルト動画」
-    Official·1Pondo        https://1pondo.tv         一本道 D2Pass。导航含 素人 / ムラムラってくる素人 / パコパコママ
+    Official·1Pondo_JSON   https://www.1pondo.tv      一本道 D2Pass 详情/画廊 JSON，番号 050623_001
     Official·Caribbeancom  https://caribbeancom.com  「カリビアンコム」。导航 ムラムラってくる素人 / パコパコママ
     Official·HEYZO         https://heyzo.com         「HEYZO | 無修正 オールジャンル」
     Official·Pacopacomama  https://pacopacomama.com  「パコパコママ - 人妻・熟女専門アダルト動画」
@@ -175,7 +175,7 @@ MDCx 刮削网站类型汇总表
 【附注】五个独立无码官网（各有 Website 枚举、爬虫与官网地址）
 ================================================================================================================
     Official·10Musume      https://10musume.com      探测番号 10musume-072625_01
-    Official·1Pondo        https://1pondo.tv         探测番号 1pondo-072625_001
+    Official·1Pondo_JSON   https://www.1pondo.tv      探测番号 050623_001
     Official·Caribbeancom  https://caribbeancom.com  探测番号 caribbeancom-082226-001
     Official·HEYZO         https://heyzo.com         探测番号 heyzo-3935
     Official·Pacopacomama  https://pacopacomama.com  探测番号 pacopacomama-072625_100
@@ -277,11 +277,11 @@ Official·Nanpa        官网：有码             有码                       
 Official·Hajimekikaku 官网：有码      有码                        https://hajimekikaku.com        HJMO-740
 Official·HHH          官网：有码               有码                        https://hhh-av.com              HUNTA-001
 Official·10Musume 官网：无码无码                                               https://10musume.com            10musume-072625_01
-Official·1Pondo   官网：无码                  无码                             https://1pondo.tv               1pondo-072625_001
+Official·1Pondo_JSON 官网：无码               无码                             https://www.1pondo.tv        050623_001
 Official·Caribbeancom 官网：无码无码                                           https://caribbeancom.com        caribbeancom-082226-001
 Official·HEYZO    官网：无码                  无码                             https://heyzo.com               heyzo-3935
 Official·Pacopacomama 官网：无码无码                                           https://pacopacomama.com        pacopacomama-072625_100
-Official·Prestige   官网：有码             有码+素人                      https://prestige-av.com         ABW-130
+Official·Prestige_JSON 官网：有码          有码+素人                      https://www.prestige-av.com         ABF-410
 R18_JSON           有码：仅限有码              有码                             https://r18.dev                 SSNI-360
 R18.dev           有码：仅限有码              有码                             https://r18.dev                 URE-013
 TheJavDB          有码：仅限有码              有码                             https://thejavdb.net            SAVR-1211
@@ -306,8 +306,8 @@ Xcity             有码：仅限有码              有码                     
     Official·Dasdas       Official·MVG          Official·Opera        Official·Oppai
     Official·V-AV            Official·To-satsu      Official·Bibian       Official·Honnaka
     Official·Rookie       Official·Nanpa        Official·Hajimekikaku Official·HHH
-    Official·10Musume     Official·1Pondo       Official·Caribbeancom Official·HEYZO
-    Official·Pacopacomama LibreDMM              Official·MGStage      Official·Prestige
+    Official·1Pondo_JSON  Official·10Musume     Official·Caribbeancom Official·HEYZO
+    Official·Pacopacomama LibreDMM              Official·MGStage      Official·Prestige_JSON
     AVBase                JavDB                 JavBus                IQQTV
     FreeJavBT             Missav                AVSOX                 AVMOO
     FC2                   FC2CMADB
@@ -337,7 +337,7 @@ Xcity             有码：仅限有码              有码                     
     番号 FNS / FLN / JIMMY        →  Official·Faleno   （官网厂牌，2026-10-17 起独立成站，2026-11-06 改名并入 Official 聚合）
     番号 1pondo / caribbeancom / 10musume / heyzo / pacopacomama
                                     →  对应的独立无码官网爬虫
-                                       （Official·1Pondo / Caribbeancom / 10Musume / HEYZO / Pacopacomama）
+                                       （Official·1Pondo_JSON / Caribbeancom / 10Musume / HEYZO / Pacopacomama）
 
 ■ 编辑对话框 UI（软件设置 → 刮削网站 → 类型刮削网站 → 编辑网站）
     可用网站候选区  开头七个加粗标题（有码｜无码｜个摄｜欧美｜传媒｜短剧｜动漫），紧接着右边
