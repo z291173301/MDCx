@@ -568,3 +568,42 @@ browser/network_fingerprint/llm/image/signals/ui_hooks/ui_theme/cf_bypass`
   需先给这两个函数补"provider 为空"的用例再动手。
 - 本轮审计脚本放 `C:\Users\ZhouHan\AppData\Local\Temp\opencode\audit3.py`
  （工作区外），下轮复查可直接重跑。
+
+---
+
+## 七、自动 QA 与 A1–A4 解耦复查（2026-11-27）
+
+本节依据 `docs/Auto-QA-Report.md` 追加，不改写前六轮历史快照。用户明确授权“开始解耦”后实施 A1–A4；D1–D3 文档修复未授权，未动。
+
+### 7.1 四项落地
+
+| 编号 | 改动 | 结果 |
+|---|---|---|
+| A1 | `tools/actor_search/fetch_avbase_json.py` 的爬虫导入移入 `_fetch_avbase_json()` | 379 个 Python 文件 AST 复查，顶层 `tools → crawlers` 从 1 降为 0 |
+| A2 | 新增 `utils/lazy_signal.py`；演员图片、演员信息、字幕改用共享惰性代理；图片与刮削入口保留同名延迟包装器 | 三个模块恢复导入期 Qt-free；真实 signal 转发和 monkeypatch 恢复语义保留 |
+| A3 | 新增 `crawlers/aio_api_crawler.py`，收敛 AVHeat/AVMOO/AVSOX 的搜索、详情和运行流程 | 三个爬虫各 23 个方法，公开表面按 MRO 合并后与拆分前一致；净减少约 150 行 |
+| A4 | 新增 `tools/emby_actor_threads.py`，下沉可取消 QThread、孤儿集合、阻塞线程池和卸父级逻辑 | UI 7,194 → 7,114 行；五个共享运行时对象身份不变，关闭编排未搬 |
+
+### 7.2 等价性证据
+
+- 三个 AIO 爬虫：方法签名与装饰器、11 个有效类赋值、19 个 self 引用、信号表面全部一致。
+- `EmbyActorManagerDialog`：128 个方法、24 个类赋值、3 个信号、240 个 self 引用、84 个严格 self 赋值全部一致。
+- 既有模块函数签名全部不变；`cut_pic`、`fix_pic_async`、`start_new_scrape` 包装器签名与原子函数一致。
+- 32 个代表业务模块 Qt-free 探针为 31/32；唯一例外仍是第一轮已接受的 `core/scraper.py`。
+- 线程关闭、详情同步、演员停止、数据源执行器和演员上传相关聚焦回归通过。
+
+### 7.3 最终门禁与 UI 复验
+
+- 全量离线测试：**2,999 passed，115 warnings，退出码 0**。警告均为既有配置/标记/弃用提示。
+- `uv run check --skip-hook-install`：退出码 0；ruff format 860 个文件、ruff check、mypy 359 个源文件、线程安全检查全部通过。
+- 真实 Windows Qt 主窗口：20 页、1,799 个控件、926 个动作，异常 0、日志错误 0、清理后残留对话框 0。
+- 真实 Windows Qt 子窗口：14 个窗口、651 个控件、151 个动作，构造错误 0、异常 0、日志错误 0、清理后残留窗口 0。
+- 测试预算 2,999 < 3,000。本轮最初因新增参数化用例达到 3,015，已按语义合并为净增 5 项，没有删除覆盖或提高上限。
+
+### 7.4 仍然接受的边界
+
+- `core/scraper.py → tools` 的延迟导入与 `_LazyQMessageBox` 边界保持不动。
+- `emby_actor_threads.py` 依赖 QThread，但不被演员业务工具模块在导入期加载。
+- 惰性 signal 首次访问时才加载 Qt；它解决的是导入期传染，不把 Qt 业务变成纯逻辑。
+- 真实外部站点、账号、Emby/Jellyfin 与长时段媒体处理仍未验证，不能由离线门禁推断。
+- D1–D3 文档缺陷和 `emby_actor_manager_ui.py` 的后续 UI/服务拆分不在本轮授权范围。
