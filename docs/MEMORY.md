@@ -68,6 +68,7 @@ Qt 生命周期 · 崩溃与内存 · UI 排错 · 并发与网络库 · 站点�
 - GitHub：直连 TLS 被 reset、5915 代理 502，**Clash 7897 可用**（命令见上）。推送报 schannel「server closed abruptly」先查是否已推上去。
 - pytest 成功时 conftest 的 `pytest_sessionfinish` 会 `os._exit(0)` 丢弃 stdout，**判定只认退出码**，要细节加 `--junitxml`。
 - **全量 pytest 用 4 并发**（2026-11-21）：`python -m pytest tests/ --tb=short -m "not network and not integration" -n 4 --dist loadscope`；本机 `-n auto` worker 过多会 `MemoryError`、跑十分钟以上无结果，4 并发约 2.5 分钟且退出码可信。真实 Windows Qt 子进程由 `tests/_qt_windows.py` 用 `PYTEST_DEBUG_TEMPROOT` 隔离临时目录根，避免与主进程/xdist 共用 `pytest-of-<user>` 时批量删除保护把「清理失败」误判成用例失败。
+- **全量测试不要打开 Qt 窗口**（2026-11-27）：全量 pytest 保持 `QT_QPA_PLATFORM=offscreen` 或沿用测试文件自身的 offscreen 默认值，不再设置 `QT_QPA_PLATFORM=windows`；真实 Windows Qt 窗口只在定向视觉、字体或像素取证时打开，避免全量并发测试卡死。offscreen 字体不足的限制用定向 Windows 验证补足，不反过来把全量测试切到 windows。
 - 沙箱陷阱：①直接调系统 python 触发 stdout 捕获异常 → 命令内 `> file 2>&1` 落盘再读；②中文 Windows 子进程默认 GBK，控制台乱码只影响显示；③用 `-m ruff` / `-m mypy` 走当前解释器。
 - PowerShell 7.6.7 在 `C:\Program Files\PowerShell\7\pwsh.exe`（曾因 `AppCompatFlags\Layers` 的 RUNASADMIN 报 740，已清除；再报 740 先查这层，别用 `-Verb RunAs`）。5.1 的 `Set-Content -Encoding utf8NoBOM` 不可用；中文 commit message 一律写文件后 `git commit -F <file>`。仓库无 bash（`bash` 命令不存在。
 

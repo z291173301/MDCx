@@ -305,7 +305,7 @@ pyyaml>=6.0.4
 5. 同尺寸不同密度 = 字体回退 / 渲染路径差异（QPushButton 走 drawItemText + CJK 回退，density 0.409；QLabel 走 QTextDocument，density 0.364，差 12% → 同样高度但更淡）。
 6. 别把富文本当嫌疑人，除非做过 A/B。
 7. 颜色也改变视觉重量，要「一样大」时优先保证不小于（本项目最终取 16px）。
-8. 离屏验证字体必须 `QT_QPA_PLATFORM=windows`（offscreen 下 `QFontDatabase.families()` 返回 0 个字体）。
+8. 定向字体取证必须 `QT_QPA_PLATFORM=windows`（offscreen 下 `QFontDatabase.families()` 返回 0 个字体）；这只用于目标用例的可视化核对，全量测试仍保持 offscreen。
 
 ### 10.3 离屏渲染校验流程
 
@@ -341,6 +341,7 @@ pyyaml>=6.0.4
 
 ### 10.6 质量门禁
 
+- **全量测试保持离屏**（2026-11-27）：全量 pytest 使用 `QT_QPA_PLATFORM=offscreen` 或沿用测试文件自身的 offscreen 默认值，不设置 `QT_QPA_PLATFORM=windows`、不批量打开真实 Qt 窗口，避免并发测试卡死。`QT_QPA_PLATFORM=windows` 只用于定向视觉、字体和像素取证；offscreen 字体不足时单独跑目标用例补验，不把全量测试切到 windows。
 - ruff 行宽 120（isort/pyupgrade/flake8）。
 - mypy 全项目零 `disable_error_code`。`mdcx/controllers/main_window/` 下 28 个 `*Mixin` + `init.py` + `load_config.py` + `views/` + `gen/` 用 `pyproject.toml` 的 `[[tool.mypy.overrides]] module=[...] ignore_errors=true` 豁免（**不是 exclude**，mypy 对被 import 的模块不认 exclude），CI 强制执行。pyright 只在 pyproject 保留配置，不入 CI。
 - Git 钩子：仓库自带 `.githooks/`（`pre-push` 快速门禁 + `prepare-commit-msg` 自动追加 co-author 署名），一次性启用 `git config core.hooksPath .githooks`。
