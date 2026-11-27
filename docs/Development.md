@@ -183,7 +183,7 @@ MVC 分层：UI → 控制器 → 核心业务 → 爬虫框架 → 基础设施
 - httpx（默认）+ curl-cffi（指纹伪装）。
 - 指纹池默认 7 种画像轮换：Chrome 124/131/136 Win、Chrome 136 Mac、Firefox 133/135 Win、Safari 17.2 iOS；Amazon 用纯桌面 6 种池（不含 Safari iOS）；Madouqu / Madou.club / Lulubar / MissAV / JavDB 各有专属池（详见 §5.1）。
 - 限流：并发数 + 全局线程延时；Amazon 另用 `AdaptiveRequestThrottle`（429 自动降速冷却）+ 指数退避。
-- **CF Bypass** 走 `mdcx/cf_bypass/trawl_adapter.py`（TRAWL `/scrape` 或 FlareSolverr `/v1`）；JavLibrary 额外支持 Selenium+Edge（`selenium_adapter.py`）；`cf_selenium_bypass` 默认开启。内置 CF Bypass（cloakbrowser + cf_bypasser）已于 v2.0.6 移除。
+- **CF Bypass** 走 `mdcx/cf_bypass/trawl_adapter.py`（TRAWL `/scrape` 或 FlareSolverr `/v1`）。内置 CF Bypass（cloakbrowser + cf_bypasser）已于 v2.0.6 移除。
 - **代理路由**：按「走代理网站」域名，默认 38 域（amazon.co.jp、m.media-amazon.com、xcity.jp、minnano-av.com、avbase.net、javbus.com、javdb.com、javlibrary.com、r18.dev、mgstage.com、prestige-av.com、seesaawiki.jp、avsox.click、avsox.com、avmoo.shop、avmoo.com、avheat.shop、avheat.com、heyzo.com、caribbeancom.com、1pondo.tv、pacopacomama.com、10musume.com、mywife.cc、github.com、raw.githubusercontent.com、google.com、missav.ws、missav.live、aventertainments.com、javfree.me、7mmtv.sx、getchu.com、dl.getchu.com、jav321.com、hbox.jp）。
 - **TRAWL/FlareSolverr 适配层**：对外暴露 cf_bypasser 三端点 `/cookies` `/html` `/mirror`；trawl 走原生 `/scrape`（响应无 `responseHeaders`/`body`，适配层走 html 回退）；flaresolverr 走 POST `/v1`（`cmd=request.get/post`），响应头从 `solution.headers` 还原；配置 `cf_bypass_trawl_url` + `cf_bypass_trawl_backend`（默认 trawl）；`AsyncWebClient` 自动拉起 `TrawlAdapterServer`（随机端口 + uvicorn 子进程）；回环 https 经 `normalize_trawl_url` 降回 http（否则 60s 探活失败永久禁用）；`is_proxy_host` 名单写主域时同站动态镜像自动跟随走代理，直连白名单优先。
 - **动态域名**：`base/web.py::get_aio_domain(site)` 解析 `tellme.pw/{site}` 的 `__AIO_SITE_URLS__`，1 天缓存、三站互兜；`get_javlibrary_domain()` 认 zlibz.com 发布的地址图（sha256 查表）得到当前中文地址，失败回退已知镜像。
@@ -279,7 +279,7 @@ pyyaml>=6.0.4
 - `actor_db` 并发信号契约：`actor_db_finished = pyqtSignal(str)` 带 task_id；所有 `_run_actor_db_*` 走 `_run_actor_db_async(btn_attr, busy_text, log_prefix, coro_factory)` 模板，防重入靠 `_actor_db_running` 集合。
 - `scripts/check_ui_layout.py` 只作手工诊断（warning 不阻断），结构约束锁在 `test_ui_structure.py`。
 - **测试文件命名禁止带日期后缀**（2026-11-18 用户定规）：测试文件一律用 `test_<功能名>.py`，禁止写成 `test_<功能名>_YYYY_MM_DD.py` 或 `test_<功能名>_YYYY_MM.py`。日期信息写进 `docs/Changelog.md` 的对应日期段，不要塞进文件名。新增测试用例优先追加到已有同主题测试文件，不另起新文件。**已有功能、逻辑、界面等已有测试覆盖的内容，一般不新增测试用例，优先直接修改原测试用例**（2026-11-24 用户定规）；语义相同或相近的用例应合并，不再使用或已失效的用例应删除。只有新增功能或新边界确实没有既有用例可承载时才新增，并优先追加到已有同主题测试文件。已有的 15 个带日期后缀的测试文件已全部重命名为无日期版本。
-- **全量用例上限 3000**（2026-11-24 用户定规）：同一行为优先合并为表驱动用例，循环内逐项断言并保留独立边界。`tests/conftest.py` 在收集完成后强制检查总数，达到 3000 直接失败，新增用例前必须先合并或删除已有冗余用例。
+- **全量用例上限 5000**（2026-11-27 用户定规）：同一行为优先合并为表驱动用例，循环内逐项断言并保留独立边界。`tests/conftest.py` 在收集完成后强制检查总数，达到 5000 直接失败，新增用例前必须先合并或删除已有冗余用例。
 
 ---
 
@@ -888,6 +888,14 @@ miru 逐名复验使用 DMM_JSON 与 JavDB_JSON。关闭获取演员名时 702 �
 - **实现收敛**：视频自动路由规则集中维护在 `mdcx/core/auto_route.py`；`file_crawler.py` 只负责接入分类结果和执行既有官网失败回退，不再散落第二套规则。路由列表 Excel 与运行时共用官网前缀数据源。
 - **规则顺序**：保留原有不冲突规则；导出路由前缀先直路由对应官网，官网无结果再由对应有码/无码组补齐；MyWife 走 MyWife_JSON/MyWife；FC2/FC2PPV/FC2-PPV 走个摄组；纯数字番号与 Tokyo/Heyzo/1Pondo/10Muse/Paco/C0930/Carib 等无码特征走无码；字母.数字.数字走欧美；数字字母-数字走有码；其余有效番号按 AVHeat → AVMOO → AVSOX 顺序探测，分别命中欧美/有码/无码，三站均未命中再试 Madou.club → Madouqu，命中国产传媒。字母-数字等歧义番号必须先探测再决定分组。
 - **无有效番号**：日文/日文字符标题路由动漫里番组，简体/繁体中文标题路由国产短剧组；没有有效番号时不把整个标题当番号发送给探测站。所有未覆盖情况最终由有码组兜底。全部匹配不区分大小写。
+
+### 10.27 演员番号详情页直取与逐条预算（2026-11-27）
+
+- **根因不是 Airav 没有字段，而是工具没有复用详情页解析**：演员番号来源此前只取搜索卡片，演员和发行日期留给后续补齐；固定 300 秒总预算又让 1558 行只处理到前 393 行。现在 Airav 详情页一次请求同时读取 DOM 女优、`fa-clock` 发行日期和封面，JSON-LD 的 `uploadDate` 与样片 `duration` 不再冒充正片字段。
+- **预算必须随工作量线性增长**：详情页单个最多 60 秒，总上限为待处理记录数 × 60 秒；JavDB App 无结果时的网页详情兜底也取消固定 64 次上限，后续记录不会在预算内被静默跳过。来源站仍缺演员、发行日期或时长时，按最终类型把三个字段合并到一次跨站查询，每个番号独立 120 秒，不再让所有番号共享 900 秒，也不设全局总时长。两类任务均使用 16 并发，队列中的后续番号不会被前序慢请求耗尽全局预算。
+- **跨站查询不处理无关媒体**：`CrawlerInput.metadata_only` 让 DMM 封面升级直接返回原图，避免图片探测挤占 120 秒预算；DMM 升级共享 Future 在调用方取消时改为 `cancel()`，不再把 `CancelledError` 当成未读取异常。
+- **缺演员不能提前收尾**：详情页待处理队列和两个导出入口都以演员、发行日期、时长、封面四项齐全为跳过条件；跨站演员逐名走 `clean_actor_name`，「素人」和年龄/作品描述占位串返回空，继续尝试后续站点而不是假补齐。
+- **附件实测**：`藤森里穂2026-11-27 09-35-11.xlsx` 共 1558 行，详情页 16 并发约 159 秒完成、0 请求失败；补出演员 926 行、发行日期 1162 行。剩余 380 行是 Airav 页面本身没有演员字段，剩余 3 行是页面本身没有发行日期，不能用上传日期或标题猜测硬填。
 
 ---
 

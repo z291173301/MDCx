@@ -178,7 +178,6 @@ export QT_QPA_PLATFORM=xcb
 **有的网站一直失败**：可能是被墙了。试试：
 - 改用免 CF 通道（JavDB、JavDB_JSON、Missav_JSON、R18_JSON、TheJavDB_JSON、JavFree_JSON、AVBase_JSON、Hbox_JSON，默认已加入网站源）
 - 或者配置CloudFlare 绕过服务（设置 → 网络 → CloudFlare 绕过服务，填 TRAWL / FlareSolverr 地址；本地 FlareSolverr 填 `http://127.0.0.1:8191` 开头，不要写成 `https`）
-- JavLibrary 遇 Cloudflare JS challenge 时会自动 fallback 到 Selenium+Edge headless 获取页面（cf_selenium_bypass，默认开启，需要 Windows 10/11 + Edge 浏览器，无 Edge 环境优雅降级，连续失败 3 次进入 5 分钟冷却）
 
 **刮出来的标题是日文/英文**：设置 → 翻译，开启翻译并选 Google 或 Bing。
 
